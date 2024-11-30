@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Project;
+use App\Models\Supplier;
 use Illuminate\Http\Request;
 
-class ProjectController extends Controller
+class SupplierController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -20,7 +20,7 @@ class ProjectController extends Controller
      */
     public function create()
     {
-        dd("create");
+        //
     }
 
     /**
@@ -28,24 +28,13 @@ class ProjectController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'name' => 'required',
-            "tendering" => 'required',
-        ]);
-
-        Project::create([
-            "name" => $validated["name"],
-            "user_id" => auth()->user()->id,
-            "tendering_stage" => $validated["tendering"],
-        ]);
-
-        return back();
+        //
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(Project $project)
+    public function show(Supplier $supplier)
     {
         //
     }
@@ -53,7 +42,7 @@ class ProjectController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Project $project)
+    public function edit(Supplier $supplier)
     {
         //
     }
@@ -61,7 +50,7 @@ class ProjectController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Project $project)
+    public function update(Request $request, Supplier $supplier)
     {
         //
     }
@@ -69,10 +58,8 @@ class ProjectController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Project $project)
+    public function destroy(Supplier $supplier)
     {
-        $project->delete();
-
-        return back();
+        //
     }
 }

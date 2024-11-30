@@ -1,13 +1,32 @@
 <script setup>
-import { ref } from 'vue';
-import ApplicationLogo from '@/Components/ApplicationLogo.vue';
-import Dropdown from '@/Components/Dropdown.vue';
-import DropdownLink from '@/Components/DropdownLink.vue';
-import NavLink from '@/Components/NavLink.vue';
-import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
-import { Link } from '@inertiajs/vue3';
+    //General Imports
+    import { ref } from 'vue';
+    import {Link, usePage} from '@inertiajs/vue3';
 
-const showingNavigationDropdown = ref(false);
+    //Component Imports
+    import ApplicationLogo from '@/Components/ApplicationLogo.vue';
+    import Dropdown from '@/Components/Dropdown.vue';
+    import DropdownLink from '@/Components/DropdownLink.vue';
+    import NavLink from '@/Components/NavLink.vue';
+    import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
+
+    //Props
+    // const props = defineProps({
+    //     xxx: Object,
+    // });
+
+    //Form
+    //...
+
+    //Shared data
+    let isAdmin = usePage().props.auth.isAdmin;
+
+    //Variables
+    const showingNavigationDropdown = ref(false);
+
+    //Methods
+    //...
+
 </script>
 
 <template>
@@ -37,7 +56,14 @@ const showingNavigationDropdown = ref(false);
                                     :href="route('dashboard')"
                                     :active="route().current('dashboard')"
                                 >
-                                    Dashboard
+                                    Projects
+                                </NavLink>
+                                <NavLink
+                                    v-if="isAdmin"
+                                    :href="route('admin.dashboard')"
+                                    :active="route().current('admin.dashboard')"
+                                >
+                                    Admin
                                 </NavLink>
                             </div>
                         </div>

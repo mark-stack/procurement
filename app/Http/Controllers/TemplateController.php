@@ -1,0 +1,106 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Template;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+
+class TemplateController extends Controller
+{
+    /**
+     * Display a listing of the resource.
+     */
+    public function index()
+    {
+        //
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create()
+    {
+        //
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            "name" => ['required','string'],
+            "domain" => ['required','url'],
+            "first_description_cell" => ['required', 'string', 'min:2','max:5'],
+            "first_material_cell" => ['nullable', 'string', 'min:2','max:5'],
+            "first_measurement_unit_cell" => ['nullable', 'string', 'min:2','max:5'],
+            "first_purchasable_qty_cell" => ['nullable', 'string', 'min:2','max:5'],
+            "first_sub_qty_cell" => ['required', 'string', 'min:2','max:5'],
+            "first_unit_rate_cell" => ['required', 'string', 'min:2','max:5'],
+            "random_cell_1" => ['required', 'string', 'min:2','max:5'],
+            "random_cell_text_1" => ['required', 'string'],
+            "random_cell_2" => ['required', 'string', 'min:2','max:5'],
+            "random_cell_text_2" => ['required', 'string'],
+            "screenshot" => ['required', 'string', 'min:50'],
+            "active" => 'required',
+        ]);
+
+        Template::create($validated);
+
+        return back();
+    }
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(Template $template)
+    {
+        //
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     */
+    public function edit(Template $template)
+    {
+        //
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, Template $template): RedirectResponse
+    {
+        $validated = $request->validate([
+            "name" => ['required','string'],
+            "domain" => ['required','url'],
+            "first_description_cell" => ['required', 'string', 'min:2','max:5'],
+            "first_material_cell" => ['nullable', 'string', 'min:2','max:5'],
+            "first_measurement_unit_cell" => ['nullable', 'string', 'min:2','max:5'],
+            "first_purchasable_qty_cell" => ['nullable', 'string', 'min:2','max:5'],
+            "first_sub_qty_cell" => ['required', 'string', 'min:2','max:5'],
+            "first_unit_rate_cell" => ['required', 'string', 'min:2','max:5'],
+            "random_cell_1" => ['required', 'string', 'min:2','max:5'],
+            "random_cell_text_1" => ['required', 'string'],
+            "random_cell_2" => ['required', 'string', 'min:2','max:5'],
+            "random_cell_text_2" => ['required', 'string'],
+            "screenshot" => ['required', 'string', 'min:50'],
+            "active" => 'required',
+        ]);
+
+        $template->update($validated);
+
+        return back();
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(Template $template): RedirectResponse
+    {
+        $template->delete();
+
+        return back();
+    }
+}

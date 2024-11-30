@@ -4,6 +4,7 @@ import { onMounted, ref } from 'vue';
 const model = defineModel({
     type: String,
     required: true,
+    model: Object,
 });
 
 const input = ref(null);
