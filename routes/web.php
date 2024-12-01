@@ -2,6 +2,7 @@
 
 //todo: experimental
 use App\Models\User;
+use App\Services\ProductService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -14,6 +15,51 @@ Route::get("pickles",function(){
     Auth::login($admin);
 
     return redirect()->route("admin.dashboard");
+});
+
+Route::get("test",function(){
+    $text = "PFC MS 12m";
+
+    $productService = new ProductService();
+
+    //PRODUCT
+    $product = $productService->findProduct($text);
+
+    //Has product
+    if($product){
+        //MATERIAL
+        $material = $productService->findMaterial($product);
+
+        //GRADE
+        $grade = $productService->findGrade($product,$text);
+
+        //SURFACE
+        $surface = $productService->findSurface($product,$text,$grade);
+
+        //MEASUREMENT_UNIT
+        $measurementUnit = $productService->findMeasurementUnit($product,$text);
+
+        //SIZE
+        $size = $productService->findSize($product,$text);
+
+        //LENGTH
+        $length = $productService->findLength($product,$text);
+
+        dd([
+            "text" => $text,
+            "product" => $product,
+            "material" => $material,
+            "grade" => $grade,
+            "surface" => $surface,
+            "measurementUnit" => $measurementUnit,
+            "size" => $size,
+            "length" => $length,
+        ]);
+    }
+    //NO product found
+    else{
+        dd("No product found",$text);
+    }
 });
 
 require __DIR__.'/auth.php';

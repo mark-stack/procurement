@@ -198,7 +198,6 @@ class DatabaseSeeder extends Seeder
                 "description" => "PFC",
                 "measurement_unit" => MeasurementUnitEnums::METERS,
                 "material" => "Mild Steel",
-                //"purchasable_qty" => 9,
                 "positive_keywords" => [
                     "pfc",
                     "parallel flange channel",
@@ -214,7 +213,6 @@ class DatabaseSeeder extends Seeder
                 "description" => $product["description"],
                 "measurement_unit" => $product["measurement_unit"],
                 "material" => $project["material"],
-                //"purchasable_qty" => $product["purchasable_qty"],
             ]);
 
             //Positive keywords
@@ -245,7 +243,7 @@ class DatabaseSeeder extends Seeder
             "first_description_cell" => "b28",
             "first_material_cell" => "",
             "first_measurement_unit_cell" => "",
-            "first_purchasable_qty_cell" => "d28",
+            "first_length_required_cell" => "d28",
             "first_sub_qty_cell" => "e28",
             "first_unit_rate_cell" => "f28",
             "random_cell_1" => "i24",

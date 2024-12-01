@@ -26,9 +26,6 @@ class ProductFactory extends Factory
             "description" => fake()->jobTitle(),
             "measurement_unit" => $randomUnitType,
             "material" => "Mild Steel",
-//            "purchasable_qty" => $randomUnitType === "single"
-//                ? 1
-//                : fake()->numberBetween(1,100),
         ];
     }
 }

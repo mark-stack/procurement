@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string("first_description_cell");
             $table->string("first_material_cell")->nullable();
             $table->string("first_measurement_unit_cell")->nullable();
-            $table->string("first_purchasable_qty_cell")->nullable();
+            $table->string("first_length_required_cell")->nullable();
             $table->string("first_sub_qty_cell");
             $table->string("first_unit_rate_cell");
             $table->string("random_cell_1");

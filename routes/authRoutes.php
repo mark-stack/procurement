@@ -3,8 +3,11 @@
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\RawMaterialQuoteController;
+use App\Models\RawMaterialQuote;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use Illuminate\Http\Request;
 
 Route::middleware(['auth'])->group(function () {
     //Projects
@@ -20,6 +23,20 @@ Route::middleware(['auth'])->group(function () {
     //GET	/photos/{photo}/edit	edit	photos.edit
     //PUT/PATCH	/photos/{photo}	update	photos.update
     //DELETE	/photos/{photo}	destroy	photos.destroy
+
+
+    //Raw Material Quotes
+    Route::post("raw-material-quote-bulk-destroy",function(Request $request){
+        $ids = $request->selectedRawMaterialQuoteIds;
+        RawMaterialQuote::query()
+            ->whereIn("id",$ids)
+            ->delete();
+
+        return back();
+    })->name("raw.material.quote.bulk.destroy");
+    Route::controller(RawMaterialQuoteController::class)->group(function () {
+        Route::delete('/raw-material-quote/{rawMaterialQuote}', 'destroy')->name("raw.material.quote.destroy"); //DELETE /photos/{photo}	destroy	photos.destroy
+    });
 
     //Dashboard
     Route::get('/dashboard', function () {

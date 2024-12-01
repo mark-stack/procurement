@@ -18,7 +18,7 @@ return new class extends Migration
             $table->text("description");
             $table->text("material")->nullable();
             $table->string("measurement_unit");
-            $table->string("purchasable_qty");
+            $table->string("length_required");
             $table->string("sub_qty");
             $table->string("unit_rate");
             $table->foreignId('project_id')->constrained();

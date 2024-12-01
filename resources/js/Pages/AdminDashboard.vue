@@ -20,7 +20,7 @@
         first_description_cell: null,
         first_material_cell: null,
         first_measurement_unit_cell: null,
-        first_purchasable_qty_cell: null,
+        first_length_required_cell: null,
         first_sub_qty_cell: null,
         first_unit_rate_cell: null,
         random_cell_1: null,
@@ -37,7 +37,7 @@
         first_description_cell: null,
         first_material_cell: null,
         first_measurement_unit_cell: null,
-        first_purchasable_qty_cell: null,
+        first_length_required_cell: null,
         first_sub_qty_cell: null,
         first_unit_rate_cell: null,
         random_cell: null,
@@ -112,7 +112,7 @@
         formTemplateCreate.first_description_cell = template.first_description_cell;
         formTemplateCreate.first_material_cell = template.first_material_cell;
         formTemplateCreate.first_measurement_unit_cell = template.first_measurement_unit_cell;
-        formTemplateCreate.first_purchasable_qty_cell = template.first_purchasable_qty_cell;
+        formTemplateCreate.first_length_required_cell = template.first_length_required_cell;
         formTemplateCreate.first_sub_qty_cell = template.first_sub_qty_cell;
         formTemplateCreate.first_unit_rate_cell = template.first_unit_rate_cell;
         formTemplateCreate.random_cell_1 = template.random_cell_1;
@@ -225,17 +225,17 @@
                                             <InputError :message="formTemplateCreate.errors.first_measurement_unit_cell"/>
                                         </div>
 
-                                        <!-- first_purchasable_qty_cell -->
+                                        <!-- first_length_required_cell -->
                                         <div>
-                                            <InputLabel value="First purchasable qty cell*"/>
+                                            <InputLabel value="First length required cell*"/>
                                             <input
-                                                v-model="formTemplateCreate.first_purchasable_qty_cell"
+                                                v-model="formTemplateCreate.first_length_required_cell"
                                                 class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                                 type="text"
                                                 placeholder="e.g B9"
                                                 max="5"
                                             />
-                                            <InputError :message="formTemplateCreate.errors.first_purchasable_qty_cell"/>
+                                            <InputError :message="formTemplateCreate.errors.first_length_required_cell"/>
                                         </div>
 
                                         <!-- first_sub_qty_cell -->

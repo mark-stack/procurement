@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\RawMaterialQuote;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class RawMaterialQuoteController extends Controller
@@ -58,8 +59,10 @@ class RawMaterialQuoteController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(RawMaterialQuote $rawMaterialQuote)
+    public function destroy(RawMaterialQuote $rawMaterialQuote): RedirectResponse
     {
-        //
+        $rawMaterialQuote->delete();
+
+        return back();
     }
 }

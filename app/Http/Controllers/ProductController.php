@@ -6,21 +6,31 @@ use App\Models\Product;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
 use App\Services\ProductService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class ProductController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index(Project $project)
+    public function index(Project $project): Response
     {
         Gate::authorize('owned', $project);
 
-        //$projectProducts = $project->products;
-        $materialListRows = $project->rawMaterialQuotes;
+        $productService = new ProductService();
+
+        $materialListRows = [];
+        foreach($project->rawMaterialQuotes as $row){
+            //Check if pre-nested
+            $row->checkIfPreNested = $productService->isPurchasableSize($row);
+
+            //Array
+            $materialListRows[] = $row;
+        }
 
         return Inertia::render('ProductIndex', [
             "project" => $project,
@@ -40,7 +50,7 @@ class ProductController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request, Project $project)
+    public function store(Request $request, Project $project): RedirectResponse
     {
         $request->validate([
             'csv' => 'required|mimes:csv,txt|max:2048', // Validate the file

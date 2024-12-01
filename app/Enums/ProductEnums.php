@@ -1,0 +1,27 @@
+<?php
+
+namespace App\Enums;
+
+enum ProductEnums: string
+{
+    case BOLT = "BOLT";
+    case UB = "UB";
+    case UC = "UC";
+    case PFC = "PFC";
+    case PLATE = "Plate";
+    case LVL = "LVL";
+
+
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::BOLT => "BOLT",
+            self::UB => "UB",
+            self::UC => "UC",
+            self::PFC => "PFC",
+            self::PLATE => "Plate",
+            self::LVL => "LVL",
+        };
+    }
+}
