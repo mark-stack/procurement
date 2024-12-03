@@ -15,12 +15,19 @@ return new class extends Migration
             $table->id();
             $table->timestamps();
 
-            $table->text("description");            //e.g 200PFC
-            $table->text("material")->nullable();   //e.g Mild Steel
-            $table->string("measurement_unit");     //e.g meters
+            $table->text("description");            //200PFC
+            $table->text("product");                //PFC
+            $table->text("material");               //STEEL
+            $table->text("grade");                  //GR250
+            $table->text("surface");                //NONE
+            $table->string("measurement_unit");     //METERS
+            $table->text("size");                   //200
+            $table->text("length");                 //9
+            $table->text("width");                  //1
+            $table->text("kg_per_m");               //17.5
+            $table->text("baseline_unit_rate");     //$13.54
             $table->string('domain')->nullable();
-
-            //$table->float("purchasable_qty"); //todo separate this
+            $table->boolean("deprecated")->default(false);
         });
     }
 

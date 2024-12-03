@@ -93,7 +93,7 @@ class User extends Authenticatable
 
     public function customProducts(): Collection
     {
-        $domain = (new ProductService())->getDomainFromEmail($this->email);
+        $domain = $this->getDomainFromEmail();
         return Product::query()
             ->where("domain",$domain)
             ->get();
@@ -103,5 +103,15 @@ class User extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->email === env('ADMIN_EMAIL');
+    }
+
+    //Strings
+    public function getDomainFromEmail(): ?string
+    {
+        $pattern = '/@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,6})/';
+        if (preg_match($pattern, $this->email, $matches)) {
+            return $matches[1]; // Domain is captured in the first group
+        }
+        return null; // Return null if no domain found
     }
 }

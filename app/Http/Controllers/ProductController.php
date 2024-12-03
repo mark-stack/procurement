@@ -23,10 +23,14 @@ class ProductController extends Controller
 
         $productService = new ProductService();
 
+        //Add products
+        $project->products = $project->products;
+
         $materialListRows = [];
         foreach($project->rawMaterialQuotes as $row){
             //Check if pre-nested
             $row->checkIfPreNested = $productService->isPurchasableSize($row);
+            $row->priceBookProduct = $row->product;
 
             //Array
             $materialListRows[] = $row;
@@ -78,22 +82,32 @@ class ProductController extends Controller
         unlink(storage_path("app/private/{$path}"));
 
         //Only 1 template found (ideal scenario)
+        $return = back();
         $onlyOneResult = count($templatesDetected) === 1;
         if($onlyOneResult){
-            $cleanCsvData = $productService->cleanCsvData($data,$templatesDetected[0]);
-            $cleanMaterialList = $productService->saveRawMaterialQuoteData($cleanCsvData,$project);
-            $dataWithProducts = $productService->findProductsFromCleanData($cleanMaterialList);
+            //Clean the data (but no default assumptions yet)
+            $cleanCsvData = $productService->cleanCsvData($data,$templatesDetected[0],$project);
+
+            //Sense checks
+            $productService->senseChecks(); //tdo complete
+
+            //Find price book products
+            $dataWithProducts = $productService->findProductsFromCleanData($cleanCsvData,$project->user);
+
+            //Save user material list
+            $cleanMaterialList = $productService->saveRawMaterialQuoteData($dataWithProducts,$project);
+
+            //Save matches price book products
             $productService->saveConfirmedProducts($dataWithProducts,$project);
+
+            //Create new user-custom products
             $productService->createUserCustomProducts($dataWithProducts,$project);
-            $getUnconfirmedRows = $productService->getUnconfirmedRows($dataWithProducts);
-            //dd("getUnconfirmedRows",$getUnconfirmedRows);
         }
         else{
-            //todo
-            //dd("not just one. Bad.",$templatesDetected);
+            $return = back()->with("warning","The file didn't auto-detect properly. Did the template change? Please email the file to mark.laravel.coder@gmail to have it re-calibrated");
         }
 
-        return back();
+        return $return;
     }
 
     /**

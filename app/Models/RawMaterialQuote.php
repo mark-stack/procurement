@@ -16,4 +16,9 @@ class RawMaterialQuote extends Model
     {
         return $this->belongsTo(Project::class);
     }
+
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class);
+    }
 }

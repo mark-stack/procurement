@@ -16,12 +16,16 @@ return new class extends Migration
             $table->timestamps();
             $table->integer("csv_index");
             $table->text("description");
+            $table->text("product_category")->nullable();
             $table->text("material")->nullable();
             $table->string("measurement_unit");
             $table->string("length_required");
+            $table->string("width_required");
             $table->string("sub_qty");
             $table->string("unit_rate");
             $table->foreignId('project_id')->constrained();
+            $table->foreignId('product_id')->nullable()->constrained();
+            $table->text("count_unconfirmed_possibilities")->nullable();
         });
     }
 

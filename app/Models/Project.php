@@ -43,6 +43,11 @@ class Project extends Model
         return $this->hasMany(Order::class);
     }
 
+    public function products(): BelongsToMany
+    {
+        return $this->belongsToMany(Product::class);
+    }
+
     public function rawMaterialQuotes(): HasMany
     {
         return $this->hasMany(RawMaterialQuote::class);

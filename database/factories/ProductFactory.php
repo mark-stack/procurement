@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\MaterialEnums;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -16,16 +17,25 @@ class ProductFactory extends Factory
      */
     public function definition(): array
     {
-        $unitTypes = [
-            "m","m2","single"
+        $units = [
+            MaterialEnums::STEEL->value,
+            MaterialEnums::TIMBER->value,
         ];
 
-        $randomUnitType = fake()->randomElement($unitTypes);
+        $randomUnits = fake()->randomElement($units);
 
         return [
             "description" => fake()->jobTitle(),
-            "measurement_unit" => $randomUnitType,
-            "material" => "Mild Steel",
+            "product" => fake()->text(10),
+            "material" => fake()->text(10),
+            "grade" => fake()->text(10),
+            "surface" => fake()->text(10),
+            "measurement_unit" => $randomUnits,
+            "size" => fake()->text(10),
+            "length" => fake()->text(10),
+            "width" => fake()->text(10),
+            "kg_per_m" => "17.5",
+            "baseline_unit_rate" => "$13.54",
         ];
     }
 }

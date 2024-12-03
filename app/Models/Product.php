@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
+use Illuminate\Database\Eloquent\Builder;
 
 class Product extends Model
 {
@@ -41,6 +42,34 @@ class Product extends Model
     public function keywords(): HasMany
     {
         return $this->hasMany(Keyword::class);
+    }
+
+    public function rawMaterialQuotes(): HasMany
+    {
+        return $this->hasMany(RawMaterialQuote::class);
+    }
+
+    //Local scopes
+    public function scopePlatformCreated(Builder $query): void
+    {
+        $query->whereNull('domain');
+    }
+    public function scopeActive(Builder $query): void
+    {
+        $query->where('deprecated',false);
+    }
+    public function scopeAvailableFor(Builder $query,User $user): void
+    {
+        /**
+         * 1) Not deprecated
+         * 2) Not someone else's (yours or platform's)
+         */
+        $yourDomain = $user->getDomainFromEmail();
+        $query->where('deprecated',false)
+              ->where(function($q) use($yourDomain){
+                $q->where('domain',null)
+                  ->orWhere('domain',$yourDomain);
+              });
     }
 
     //Collections
