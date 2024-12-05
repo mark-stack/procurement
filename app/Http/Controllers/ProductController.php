@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ProductEnums;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
@@ -27,19 +28,98 @@ class ProductController extends Controller
         $project->products = $project->products;
 
         $materialListRows = [];
+        $checkIfNested = [];
+        $productCategories = [];
+        $generalProductMatches = [];
+        $allMillProducts = ProductEnums::millProducts();
+        $hasMillProducts = [];
+        $customItems = [];
         foreach($project->rawMaterialQuotes as $row){
-            //Check if pre-nested
-            $row->checkIfPreNested = $productService->isPurchasableSize($row);
-            $row->priceBookProduct = $row->product;
+            /**
+             * Nesting check
+             */
+//            $isPurchasableSize = $productService->isPurchasableSize($row);
+//            $row->checkIfPreNested = $isPurchasableSize;
+//            if($isPurchasableSize){
+//                $checkIfNested[] = $isPurchasableSize;
+//            }
 
-            //Array
+            /**
+             * Options
+             */
+            $decodedOptions = unserialize($row->general_product_matches);
+            if(count($decodedOptions) > 1){
+                $generalProductMatches[] = [
+                    "selected" => null,
+                    "data" => $row,
+                    "options" => $decodedOptions,
+                ];
+            }
+            if(count($decodedOptions) === 0){
+                $customItems[] = [
+                    "selected" => null,
+                    "data" => $row,
+                ];
+            }
+
+            /**
+             * Price book products
+             */
+            $productCategories[] = $row["product_category"];
+            $row["product"] = null;
+            if(count($decodedOptions) === 1){
+                $row["product"] = $decodedOptions[0];
+            }
+
+            /**
+             * Mill products
+             */
+            foreach($allMillProducts as $mp){
+                if(strtoupper($row->product_category) == strtoupper($mp->value)){
+                    $hasMillProducts = true;
+                }
+            }
+
+            //Append Array
             $materialListRows[] = $row;
+        }
+        $productCategories = array_filter(array_unique($productCategories));
+
+
+        /**
+         * Sense checking
+         */
+        $senseChecks = null;
+        if(count($materialListRows) > 0){
+            //No bolts
+            $senseChecks["has_bolts"] = false;
+            if(in_array(ProductEnums::BOLT->value,$productCategories)){
+                $senseChecks["has_bolts"] = true;
+            }
+
+            //Bolt quantity is low
+            $senseChecks["bolt_qty"] = 1000; //todo
+            //todo complete
+
+            //Items might be pre-nested
+            $senseChecks["pre_nested_check"] = false;
+            if(count($checkIfNested) > 0){
+                $senseChecks["pre_nested_check"] = true;
+            }
+
+            //Mill certs
+            $senseChecks["mill_certs"] = false;
+            if($hasMillProducts){
+                $senseChecks["mill_certs"] = true;
+            }
         }
 
         return Inertia::render('ProductIndex', [
             "project" => $project,
-            //"projectProducts" => $projectProducts,
             "materialListRows" => $materialListRows,
+            "senseChecks" => $senseChecks,
+            "generalProductMatches" => $generalProductMatches,
+            "customItems" => $customItems,
         ]);
     }
 
@@ -98,7 +178,7 @@ class ProductController extends Controller
             $cleanMaterialList = $productService->saveRawMaterialQuoteData($dataWithProducts,$project);
 
             //Save matches price book products
-            $productService->saveConfirmedProducts($dataWithProducts,$project);
+            //todo: this can't happen until materials are nested
 
             //Create new user-custom products
             $productService->createUserCustomProducts($dataWithProducts,$project);

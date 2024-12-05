@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
@@ -17,7 +16,8 @@ class Product extends Model
 
     protected $guarded = [];
 
-    /**Relationships
+    /**
+     * Relationships
      */
     public function suppliers(): BelongsToMany
     {
@@ -34,19 +34,9 @@ class Product extends Model
         return $this->belongsToMany(Order::class);
     }
 
-    public function projects(): BelongsToMany
-    {
-        return $this->belongsToMany(Project::class);
-    }
-
     public function keywords(): HasMany
     {
         return $this->hasMany(Keyword::class);
-    }
-
-    public function rawMaterialQuotes(): HasMany
-    {
-        return $this->hasMany(RawMaterialQuote::class);
     }
 
     //Local scopes
@@ -73,6 +63,17 @@ class Product extends Model
     }
 
     //Collections
+    public function pieces(): Collection
+    {
+        return Piece::query()
+            ->where("product",$this->product)
+            ->where("material",$this->material)
+            ->where("grade",$this->grade)
+            ->where("surface",$this->surface)
+            ->where("measurement_unit",$this->measurement_unit)
+            ->where("size",$this->size)
+            ->get();
+    }
     public function usersOrderedThisProduct(): Collection
     {
         $usersOrderedThisProduct = [];

@@ -23,14 +23,6 @@ class Project extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function productsWishList(): BelongsToMany
-    {
-        /**
-         * NOT necessarily quoted or ordered yet
-         */
-        return $this->belongsToMany(Product::class);
-    }
-
     //Optional
     public function quotes(): HasMany
     {
@@ -43,9 +35,9 @@ class Project extends Model
         return $this->hasMany(Order::class);
     }
 
-    public function products(): BelongsToMany
+    public function peices(): BelongsToMany
     {
-        return $this->belongsToMany(Product::class);
+        return $this->belongsToMany(Piece::class);
     }
 
     public function rawMaterialQuotes(): HasMany
@@ -76,14 +68,5 @@ class Project extends Model
         }
 
         return collect($products);
-    }
-
-    public function materialList(): Collection
-    {
-        /**
-         * List of products associated with project, but NOT necessarily quoted or ordered yet
-         */
-
-        return $this->productsWishList()->get();
     }
 }

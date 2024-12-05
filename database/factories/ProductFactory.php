@@ -2,7 +2,7 @@
 
 namespace Database\Factories;
 
-use App\Enums\MaterialEnums;
+use App\Enums\MeasurementUnitEnums;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -17,25 +17,20 @@ class ProductFactory extends Factory
      */
     public function definition(): array
     {
-        $units = [
-            MaterialEnums::STEEL->value,
-            MaterialEnums::TIMBER->value,
-        ];
-
-        $randomUnits = fake()->randomElement($units);
-
         return [
+            "spreadsheet_id" => fake()->uuid(),
             "description" => fake()->jobTitle(),
             "product" => fake()->text(10),
             "material" => fake()->text(10),
             "grade" => fake()->text(10),
             "surface" => fake()->text(10),
-            "measurement_unit" => $randomUnits,
+            "measurement_unit" => MeasurementUnitEnums::METERS,
             "size" => fake()->text(10),
             "length" => fake()->text(10),
             "width" => fake()->text(10),
             "kg_per_m" => "17.5",
             "baseline_unit_rate" => "$13.54",
+            "domain" => null, //platform created
         ];
     }
 }

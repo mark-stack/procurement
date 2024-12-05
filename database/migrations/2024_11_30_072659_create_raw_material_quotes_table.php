@@ -24,8 +24,7 @@ return new class extends Migration
             $table->string("sub_qty");
             $table->string("unit_rate");
             $table->foreignId('project_id')->constrained();
-            $table->foreignId('product_id')->nullable()->constrained();
-            $table->text("count_unconfirmed_possibilities")->nullable();
+            $table->text("general_product_matches")->nullable();
         });
     }
 

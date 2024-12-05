@@ -14,19 +14,19 @@ return new class extends Migration
         Schema::create('products', function (Blueprint $table) {
             $table->id();
             $table->timestamps();
-
-            $table->text("description");            //200PFC
-            $table->text("product");                //PFC
-            $table->text("material");               //STEEL
-            $table->text("grade");                  //GR250
-            $table->text("surface");                //NONE
-            $table->string("measurement_unit");     //METERS
-            $table->text("size");                   //200
-            $table->text("length");                 //9
-            $table->text("width");                  //1
-            $table->text("kg_per_m");               //17.5
-            $table->text("baseline_unit_rate");     //$13.54
-            $table->string('domain')->nullable();
+            $table->text("spreadsheet_id")->nullable();     //200PFCSTEELGRADE250NONE2009
+            $table->text("description");                    //200PFC
+            $table->text("product");                        //PFC
+            $table->text("material");                       //STEEL
+            $table->text("grade");                          //GR250
+            $table->text("surface");                        //NONE
+            $table->string("measurement_unit");             //METERS
+            $table->text("size");                           //200
+            $table->text("length")->nullable();             //9
+            $table->text("width")->nullable();              //1
+            $table->text("kg_per_m")->nullable();           //17.5
+            $table->text("baseline_unit_rate")->nullable(); //$13.54
+            $table->string('domain')->nullable();           //qsw.com.au
             $table->boolean("deprecated")->default(false);
         });
     }

@@ -11,6 +11,9 @@
     const props = defineProps({
         project: Object,
         materialListRows: Object,
+        senseChecks: Object,
+        generalProductMatches: Object,
+        customItems: Object,
     });
 
     //Form
@@ -20,6 +23,15 @@
     const formBulkActions = useForm({
         selectedRawMaterialQuoteIds: [], //initialMapBulkActions(),
     });
+    const formPreChecklist = useForm({
+        one: false,
+        two: false,
+        three: false,
+        no_bolts: false,
+        bolt_qty: false,
+        pre_nested_check: false,
+    });
+    const formClarifications = useForm(props.generalProductMatches);
 
     //Variables
     const isDragging = ref(false);
@@ -132,17 +144,19 @@
     onMounted(() => {
         const dropzone = document.getElementById('dropzone');
 
-        // Drag and drop events
-        dropzone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropzone.style.borderColor = '#00f';
-            // dropzone.textContent = 'Drop it here!';
-        });
+        if(dropzone){
+            // Drag and drop events
+            dropzone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropzone.style.borderColor = '#00f';
+                // dropzone.textContent = 'Drop it here!';
+            });
 
-        dropzone.addEventListener('dragleave', () => {
-            dropzone.style.borderColor = '#ccc';
-            // dropzone.textContent = 'Drag and drop your CSV file here';
-        });
+            dropzone.addEventListener('dragleave', () => {
+                dropzone.style.borderColor = '#ccc';
+                // dropzone.textContent = 'Drag and drop your CSV file here';
+            });
+        }
     });
 
     function getUnitDisplay(row,slash){
@@ -185,19 +199,83 @@
         });
     }
 
+    function submitClarifications(){
+        let url = route("raw.material.quote.clarifications");
+        formClarifications.post(url, {
+            preserveScroll: true,
+            onSuccess: () => {
+                console.log('success');
+            },
+            onError: errors => {
+                console.log('errors',errors);
+            },
+        });
+    }
+
     function displayProductMatches(row){
         let display = "user-custom";
 
         //Has one product match
         if(row['product']){
-            display = row['product'].description;
-        }
-        //Has multiple possibilities
-        else if(row.count_unconfirmed_possibilities > 0){
-            display = row.count_unconfirmed_possibilities + " options";
+            let product = row['product'];
+            display = formatProduct(product.product,product.size,product.grade, product.surface,product.length);
         }
 
         return display;
+    }
+
+    function formatProduct(product,size,grade,surface,length){
+        //Size
+        let actualSize = size;
+        if(product === "PLATE"){
+            actualSize = size+"PL";
+        }
+        if(product === "BOLT"){
+            if(length){
+                actualSize = "M"+size+"x"+length;
+            }
+            else{
+                actualSize = "M"+size;
+            }
+        }
+        if(size.includes("X")){
+            actualSize = size.toLowerCase();
+        }
+
+        //Product
+        let actualProduct = product;
+        if(product === "PLATE"){
+            actualProduct = "";
+        }
+        if(product === "BOLT"){
+            actualProduct = "";
+        }
+        if(product === "LVL"){
+            actualProduct = " "+product;
+        }
+
+        //Grade
+        let actualGrade = grade;
+        if(grade === "GR_4_6"){
+            actualGrade = "GR4.6"
+        }
+        if(grade === "GR_8_8"){
+            actualGrade = "GR8.8"
+        }
+
+        //Surface
+        let actualSurface = ' '+surface;
+        if(surface === "NONE"){
+            actualSurface = "";
+        }
+        if(surface === "GALVANISED"){
+            actualSurface = " GALV";
+        }
+        if(surface === "TREATED_H2"){
+            actualSurface = " H2";
+        }
+
+        return  actualSize + actualProduct + " " + actualGrade + actualSurface;
     }
 </script>
 
@@ -206,38 +284,250 @@
 
     <AuthenticatedLayout>
         <div class="py-5">
-            <div class="mx-auto max-w-5xl">
-                <div class="overflow-hidden shadow-sm sm:rounded-lg">
-                    <div>
-                        <div
-                            id="dropzone"
-                            @click="triggerFileInput"
-                            @dragover.prevent="handleDragOver"
-                            @dragleave="handleDragLeave"
-                            @drop.prevent="handleDrop"
-                            class="bg-white"
-                            :style="isDragging ? 'border-color: #00f;color: #00f;' : 'color: #aaa;'"
-                        >
-                            <div class="w-full mx-auto text-center">
-                                {{isDragging ? 'Drop it here!' : 'Click to Upload, or Drag & Drop your BOM in CSV format here'}}
+            <template v-if="!senseChecks">
+                <!-- clarifications (might re-upload) -->
+                <section class="container max-w-5xl mx-auto">
+                    <h2 class="font-bold text-lg">Pre-upload checklist:</h2>
+                    <div class="flex">
+                        <input
+                            v-model="formPreChecklist.one"
+                            type="checkbox"
+                            class="mt-1 mr-2"
+                            id="one"
+                        />
+                        <label for="one">Are materials un-nested? <small>(the software performs cross-project nesting for material efficiency)</small></label>
+                    </div>
+                    <div class="flex">
+                        <input
+                            v-model="formPreChecklist.two"
+                            type="checkbox"
+                            class="mt-1 mr-2"
+                            id="two"
+                        />
+                        <label for="two">Are consumables allowed for?</label>
+                    </div>
+                    <div class="flex">
+                        <input
+                            v-model="formPreChecklist.three"
+                            type="checkbox"
+                            class="mt-1 mr-2"
+                            id="three"
+                        />
+                        <label for="three">Are deliveries allowed for?</label>
+                    </div>
+                </section>
+
+                <div v-show="formPreChecklist.one && formPreChecklist.two && formPreChecklist.three" class="mx-auto max-w-5xl mt-2">
+                    <div class="overflow-hidden shadow-sm sm:rounded-lg">
+                        <div>
+                            <div
+                                id="dropzone"
+                                @click="triggerFileInput"
+                                @dragover.prevent="handleDragOver"
+                                @dragleave="handleDragLeave"
+                                @drop.prevent="handleDrop"
+                                class="bg-white"
+                                :style="isDragging ? 'border-color: #00f;color: #00f;' : 'color: #aaa;'"
+                            >
+                                <div class="w-full mx-auto text-center">
+                                    {{isDragging ? 'Drop it here!' : 'Material list in CSV format: Click to upload, or drag & drop here'}}
+                                </div>
+                            </div>
+                            <input
+                                id="dropzone-file"
+                                type="file"
+                                ref="fileInput"
+                                accept=".csv"
+                                @input="formStore.csv = $event.target.files[0]; handleFileSelect()"
+                                hidden
+                            />
+                            <div v-if="uploading">Uploading...</div>
+                        </div>
+
+                    </div>
+                    <div v-if="warning" class="text-center text-orange-500 mt-2">
+                        {{warning}}
+                    </div>
+                </div>
+            </template>
+
+            <!-- clarifications (might re-upload) -->
+            <section v-if="senseChecks" class="container max-w-5xl mx-auto mt-5">
+                <h2 class="font-bold text-lg">Sense checks</h2>
+
+                <!-- No bolts -->
+                <div v-if="!senseChecks.has_bolts" class="mt-2">
+                    <input
+                        v-model="formPreChecklist.no_bolts"
+                        type="checkbox"
+                        class="mr-2"
+                        id="no_bolts"
+                    />
+                    <label for="no_bolts">No bolts found. This is correct?</label>
+                </div>
+
+                <!-- Nuts & washers allowed for?-->
+                <div v-if="senseChecks.has_bolts" class="mt-2">
+                    <input
+                        v-model="formPreChecklist.has_bolts"
+                        type="checkbox"
+                        class="mr-2"
+                        id="has_bolts"
+                    />
+                    <label for="has_bolts">Do the bolts included have cost allowance for nuts and washers?</label>
+                </div>
+
+                <!-- Bolt quantity -->
+                <div v-if="senseChecks.bolt_qty < 100" class="mt-2">
+                    <input
+                        v-model="formPreChecklist.bolt_qty"
+                        type="checkbox"
+                        class="mr-2"
+                        id="bolt_qty"
+                    />
+                    <label for="bolt_qty">There's only {{senseChecks.bolt_qty}} bolts? This is correct?</label>
+                </div>
+
+                <!-- Mill certs -->
+                <div v-if="senseChecks.mill_certs < 100" class="mt-2">
+                    <input
+                        v-model="formPreChecklist.mill_certs"
+                        type="checkbox"
+                        class="mr-2"
+                        id="mill_certs"
+                    />
+                    <label for="mill_certs">Are Mill certificates required?</label>
+                </div>
+
+                <!-- todo: you normally purchase X with Y-->
+
+                <!-- pre-nesting clarification -->
+                <div v-if="senseChecks.pre_nested_check" class="mt-2">
+                    <input
+                        v-model="formPreChecklist.pre_nested_check"
+                        type="checkbox"
+                        class="mr-2"
+                        id="pre_nested_check"
+                    />
+                    <label for="pre_nested_check">Pre-nesting clarification: There's some materials with exact stock sizes. Are these pre-nested, or just coincidence?</label>
+                </div>
+
+                <!-- todo: tonnage checks -->
+
+                <!-- todo: minimum grade check-->
+
+            </section>
+
+            <!-- Clarifications (preparing for RFQ) -->
+            <section v-if="generalProductMatches.length > 0" class="container max-w-5xl mx-auto mt-5">
+                <h2 class="font-bold text-lg">Exact product clarifications</h2>
+                <form @submit.prevent="submitClarifications()">
+                    <div v-for="(item,index) in generalProductMatches" class="mt-5">
+                        <p class="italic font-bold">"{{item.data.description}}"</p>
+                        <div class="grid grid-cols-4">
+                            <div v-for="(option,option_index) in item.options">
+                                <label>
+                                    <input
+                                        v-model="formClarifications[index]['selected']"
+                                        type="radio"
+                                        :name="index"
+                                        :value="option_index"
+                                        required
+                                    >
+                                    {{ formatProduct(option.product,option.size,option.grade,option.surface,option.length)}}
+                                </label>
                             </div>
                         </div>
-                        <input
-                            id="dropzone-file"
-                            type="file"
-                            ref="fileInput"
-                            accept=".csv"
-                            @input="formStore.csv = $event.target.files[0]; handleFileSelect()"
-                            hidden
-                        />
-                        <div v-if="uploading">Uploading...</div>
                     </div>
 
-                </div>
-                <div v-if="warning" class="text-center text-orange-500 mt-2">
-                    {{warning}}
-                </div>
-            </div>
+                    <button type="submit" class="bg-green-500 rounded px-2 py-1">
+                        Save all
+                    </button>
+                </form>
+            </section>
+
+            <!-- User custom products -->
+            <section v-if="customItems.length > 0" class="container max-w-5xl mx-auto mt-5">
+                <h2 class="font-bold text-lg">Custom products (not in price book)</h2>
+                <p class="mb-3 text-gray-600">
+                    This action is just required once. It will be added to the price book for you and other members in your company.
+                </p>
+                <p v-for="(item,index) in customItems" class="mt-3">
+                    <h3 class="font-bold italic">"{{item.data.description}}"</h3>
+                    <div class="grid grid-cols-12 gap-x-2">
+                        <!-- PRODUCT -->
+                        <div class="col-span-2">
+                            <label class="block text-gray-500 text-sm">Product Category</label>
+                            <select class="w-full rounded">
+                                <option value="" name="">PFC</option>
+                                <option value="" name="">UB</option>
+                                <option value="other" name="">Other</option>
+                            </select>
+<!--                            <input-->
+<!--                                type="text"-->
+<!--                                placeholder="PRODUCT"-->
+<!--                                class="w-full rounded"-->
+<!--                            />-->
+                        </div>
+                        <!-- MATERIAL -->
+                        <div class="col-span-2">
+                            <label class="block text-gray-500 text-sm">Material</label>
+                            <select class="w-full rounded">
+                                <option value="" name="">STEEL</option>
+                                <option value="" name="">TIMBER</option>
+                                <option value="other" name="">Other</option>
+                            </select>
+<!--                            <input type="text" placeholder="MATERIAL"/>-->
+                        </div>
+                        <!-- GRADE-->
+                        <div class="col-span-2">
+                            <label class="block text-gray-500 text-sm">Grade</label>
+                            <select class="w-full rounded">
+                                <option value="" name="">None</option>
+                                <option value="" name="">250 MPa</option>
+                                <option value="" name="">300 MPa</option>
+                                <option value="" name="">350 MPa</option>
+                                <option value="" name="">GR 4.6</option>
+                                <option value="" name="">GR 8.8</option>
+                                <option value="other" name="">Other</option>
+                            </select>
+<!--                            <input type="text" placeholder="GRADE"/>-->
+                        </div>
+                        <!-- SIZE-->
+                        <div class="col-span-2">
+                            <label class="block text-gray-500 text-sm">Size (number)</label>
+                            <input
+                                type="number"
+                                placeholder="SIZE"
+                                class="w-full rounded"
+                            />
+                        </div>
+                        <!-- LENGTH-->
+                        <div class="col-span-2">
+                            <label class="block text-gray-500 text-sm">Quantify</label>
+                            <select class="w-full rounded">
+                                <option value="" name="">None (singular)</option>
+                                <option value="" name="">Meters</option>
+                                <option value="" name="">Millimeters</option>
+                                <option value="other" name="">Other</option>
+                            </select>
+<!--                            <input type="text" placeholder="LENGTH"/>-->
+                        </div>
+
+                        <!-- SUPPLIER-->
+                        <div class="col-span-2">
+                            <label class="block text-gray-500 text-sm">Suppliers</label>
+                            <select class="w-full rounded">
+                                <option value="" name="">XYZ Company</option>
+                                <option value="" name="">ABC Company</option>
+                                <option value="" name="">Not sure yet</option>
+                                <option value="other" name="">Other</option>
+                            </select>
+                            <!--                            <input type="text" placeholder="LENGTH"/>-->
+                        </div>
+                    </div>
+                </p>
+            </section>
 
             <!-- table -->
             <section class="container max-w-5xl mx-auto mt-2">
@@ -305,18 +595,6 @@
                                                 <div class="flex items-center gap-x-3">
                                                     <span>Price Book</span>
                                                 </div>
-                                            </th>
-
-                                            <th scope="col" class="sticky top-0 py-3.5 px-4 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                                                <div class="flex items-center gap-x-3">
-                                                    <span>Check nested</span>
-                                                </div>
-                                            </th>
-
-                                            <th scope="col" class="sticky top-0 px-12 py-3.5 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                                                <button class="flex items-center gap-x-2">
-                                                    <span>Confirmed</span>
-                                                </button>
                                             </th>
 
                                             <th scope="col" class="sticky top-0 relative py-3.5 px-4">
@@ -424,38 +702,7 @@
                                                     </div>
                                                 </div>
                                             </td>
-                                            <!-- checkIfPreNested -->
-                                            <td class="px-4 py-4 text-sm font-medium text-gray-700 whitespace-nowrap">
-                                                <div class="inline-flex items-center gap-x-3">
-                                                    <div class="flex items-center gap-x-2">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="m0 0h512v512h-512z"/><path d="m39.557 19 283.883 254h149.003l-283.883-254h-149.002zm-14.557 11.13v25.847l286 255.893v-25.846zm64 107.263v34.584l286 255.893v-84.843l-64-13.002zm-11.445 48.497-42.9 10.723 287.79 257.498 42.9-10.723-287.789-257.498zm-52.555 26.24v23.847l286 255.893v-23.847zm304 78.87v21.973l64 16v126.054l-64 16v21.973h158v-21.973l-64-16v-126.054l64-16v-21.973zm112 135.865v14.108l21.88 5.47z" fill="#fff"/></svg>
-                                                        <div>
-                                                            <h2 class="font-medium text-gray-800 dark:text-white ">
-                                                                {{ row.checkIfPreNested ? 'Yes' : '' }}
-                                                            </h2>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <!-- actions -->
-                                            <td class="px-12 py-4 text-sm font-medium text-gray-700 whitespace-nowrap">
-                                                <div
-                                                    :class="row.active ? 'bg-emerald-100/60' : 'bg-yellow-100/60'"
-                                                    class="inline-flex items-center px-3 py-1 rounded-full gap-x-2 dark:bg-gray-800"
-                                                >
-                                                        <span
-                                                            :class="row.active ? 'bg-emerald-500' : 'bg-yellow-500'"
-                                                            class="h-1.5 w-1.5 rounded-full"
-                                                        ></span>
 
-                                                    <h2
-                                                        :class="row.active ? 'text-emerald-500' : 'text-yellow-500'"
-                                                        class="text-sm font-normal "
-                                                    >
-                                                        {{row.active ? 'Yes' : 'No'}}
-                                                    </h2>
-                                                </div>
-                                            </td>
                                             <td class="px-4 py-4 text-sm whitespace-nowrap">
                                                 <div class="flex items-center gap-x-6">
                                                     <p

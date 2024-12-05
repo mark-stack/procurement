@@ -20,7 +20,7 @@ Route::get("pickles",function(){
 
 //todo temporary
 Route::get("test",function(){
-    $description = "20mm plate GR250";
+    $description = "20PL 350 MPA";
 
     $productService = new ProductService();
 
@@ -30,47 +30,58 @@ Route::get("test",function(){
     //Has product
     if($product){
         //MATERIAL
-        $material = $productService->findMaterial($product);
+        $materialEnum = $productService->findMaterial($product);
 
         //GRADE
-        $grades = $productService->findGrades($product,$description);
+        $gradesEnums = $productService->findGrades($product,$description);
 
         //SURFACE
-        $surface = $productService->findSurface($product,$description,$grades);
+        $surfaceEnum = $productService->findSurface($product,$description,$gradesEnums);
 
         //MEASUREMENT_UNIT
-        $measurementUnit = $productService->findMeasurementUnit($product);
+        $measurementUnitEnum = $productService->findMeasurementUnit($product);
 
         //SIZE
-        $size = $productService->findSize($product,$description);
+        $sizeInt = $productService->findSize($product,$description);
 
         //LENGTH
-        $length = $productService->findLength($product,$description);
+        $lengthInt = $productService->findLength($product,$description);
 
         //Price book search
         $user = auth()->user();
-        $priceBookProducts = $productService->findByAttributes(
+        $generalProductMatches = $productService->findGeneralProductMatches(
             $user,
             $product["productEnum"],
-            $material,
-            $grades,
-            $surface,
-            $measurementUnit,
-            $size,
-            $length
+            $materialEnum,
+            $gradesEnums,
+            $surfaceEnum,
+            $measurementUnitEnum,
+            $sizeInt,
+            $lengthInt,
         );
+
+//        $priceBookProducts = $productService->findByAttributes(
+//            $user,
+//            $product["productEnum"],
+//            $material,
+//            $grades,
+//            $surface,
+//            $measurementUnit,
+//            $size,
+//            $length
+//        );
 
 
         dd([
             "description" => $description,
             "product" => $product,
-            "material" => $material,
-            "grades" => $grades,
-            "surface" => $surface,
-            "measurementUnit" => $measurementUnit,
-            "size" => $size,
-            "length" => $length,
-            "priceBookProducts" => $priceBookProducts,
+            "material" => $materialEnum,
+            "grades" => $gradesEnums,
+            "surface" => $surfaceEnum,
+            "measurementUnit" => $measurementUnitEnum,
+            "size" => $sizeInt,
+            "length" => $lengthInt,
+            "generalProductMatches" => $generalProductMatches,
         ]);
     }
     //NO product found

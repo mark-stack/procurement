@@ -32,17 +32,18 @@ Route::prefix("admin")->name("admin.")->middleware([AdminMiddleware::class])->gr
             while (($row = fgetcsv($handle, 1000, ',')) !== false) {
                 if($row[0] !== ""){
                     $data[] = [
-                        "description" => $row[0],
-                        "product" => $row[1],
-                        "material" => $row[2],
-                        "grade" => $row[3],
-                        "surface" => $row[4],
-                        "measurement_unit" => $row[5],
-                        "size" => $row[6],
-                        "length" => $row[7],
-                        "width" => $row[8],
-                        "kg_per_m" => $row[9],
-                        "baseline_unit_rate" => $row[10],
+                        "spreadsheet_id" => $row[0],
+                        "description" => $row[1],
+                        "product" => $row[2],
+                        "material" => $row[3],
+                        "grade" => $row[4],
+                        "surface" => $row[5],
+                        "measurement_unit" => $row[6],
+                        "size" => $row[7],
+                        "length" => $row[8],
+                        "width" => $row[9],
+                        "kg_per_m" => $row[10],
+                        "baseline_unit_rate" => $row[11],
                     ];
                 }
             }
@@ -54,60 +55,66 @@ Route::prefix("admin")->name("admin.")->middleware([AdminMiddleware::class])->gr
         $dataCollection = collect($data);
 
         /**
-         * Create, Deprecate, Delete
-         *   - Create: if doesn't exists
-         *   - Deprecate: if has been used
-         *   - Delete: if not used anywhere
+         * Update, Create, Deprecate
+         *   1) Update: if exists
+         *   2) Create: if doesn't exists
+         *   3) Deprecate: not present in master sheet anymore
          */
-        //Deprecate & delete
         $allCurrentMasterProductRecords = Product::query()
             ->platformCreated()
-            ->active()
             ->get();
 
-        $allCurrentMasterProductRecordsIds = $allCurrentMasterProductRecords->pluck("description");
+        $allCurrentMasterProductRecordSpreadsheetIds = $allCurrentMasterProductRecords->pluck("spreadsheet_id");
 
         foreach($allCurrentMasterProductRecords as $productObject){
-            $productData = $dataCollection->where("description",$productObject->description);
+            $spreadsheetRowData = $dataCollection->where("spreadsheet_id",$productObject->spreadsheet_id)->first();
 
-            //Is still in the spreadsheet (unchanged)
-            if($productData){
-                //No action required.
+            /**
+             * 1) Update: if exists
+             */
+            if($spreadsheetRowData){
+                $productObject->update([
+                    "description" => $spreadsheetRowData["description"],
+                    "product" => $spreadsheetRowData["product"],
+                    "material" => $spreadsheetRowData["material"],
+                    "grade" => $spreadsheetRowData["grade"],
+                    "surface" => $spreadsheetRowData["surface"],
+                    "measurement_unit" => $spreadsheetRowData["measurement_unit"],
+                    "size" => $spreadsheetRowData["size"],
+                    "length" => $spreadsheetRowData["length"],
+                    "width" => $spreadsheetRowData["width"],
+                    "kg_per_m" => $spreadsheetRowData["kg_per_m"],
+                    "baseline_unit_rate" => $spreadsheetRowData["baseline_unit_rate"],
+                ]);
             }
-            //Is NOT in the spreadsheet (has been deleted)
+            /**
+             * 3) Deprecate: not present in master sheet anymore
+             */
             else{
-                //Has been used
-                $projectsWithThisProduct = $productObject->projects()->count() > 0;
-                if($projectsWithThisProduct){
-                    //Deprecate
-                    $productObject->deprecated = true;
-                    $productObject->save();
-                }
-                //Has NOT been used
-                else{
-                    //Delete
-                    $productObject->delete();
-                }
+                $productObject->deprecated = true;
+                $productObject->save();
             }
         }
 
-        //Create
-        $productsNotYetCreated = $dataCollection
-            ->whereNotIn("description",$allCurrentMasterProductRecordsIds);
+        /**
+         * 2) Create: if doesn't exists
+         */
+        $productsNotYetCreated = $dataCollection->whereNotIn("spreadsheet_id",$allCurrentMasterProductRecordSpreadsheetIds);
 
-        foreach($productsNotYetCreated as $productData){
+        foreach($productsNotYetCreated as $spreadsheetRowData){
             Product::create([
-                "description" => $productData["description"],
-                "product" => $productData["product"],
-                "material" => $productData["material"],
-                "grade" => $productData["grade"],
-                "surface" => $productData["surface"],
-                "measurement_unit" => $productData["measurement_unit"],
-                "size" => $productData["size"],
-                "length" => $productData["length"],
-                "width" => $productData["width"],
-                "kg_per_m" => $productData["kg_per_m"],
-                "baseline_unit_rate" => $productData["baseline_unit_rate"],
+                "spreadsheet_id" => $spreadsheetRowData["spreadsheet_id"],
+                "description" => $spreadsheetRowData["description"],
+                "product" => $spreadsheetRowData["product"],
+                "material" => $spreadsheetRowData["material"],
+                "grade" => $spreadsheetRowData["grade"],
+                "surface" => $spreadsheetRowData["surface"],
+                "measurement_unit" => $spreadsheetRowData["measurement_unit"],
+                "size" => $spreadsheetRowData["size"],
+                "length" => $spreadsheetRowData["length"],
+                "width" => $spreadsheetRowData["width"],
+                "kg_per_m" => $spreadsheetRowData["kg_per_m"],
+                "baseline_unit_rate" => $spreadsheetRowData["baseline_unit_rate"],
                 'domain' => null,
                 "deprecated" => false,
             ]);

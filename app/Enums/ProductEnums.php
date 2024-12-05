@@ -8,8 +8,9 @@ enum ProductEnums: string
     case UB = "UB";
     case UC = "UC";
     case PFC = "PFC";
-    case PLATE = "Plate";
+    case PLATE = "PLATE";
     case LVL = "LVL";
+    case SHS = "SHS";
 
 
 
@@ -22,6 +23,31 @@ enum ProductEnums: string
             self::PFC => "PFC",
             self::PLATE => "Plate",
             self::LVL => "LVL",
+            self::SHS => "SHS",
         };
+    }
+
+    public static function millProducts(): array
+    {
+        return [
+            self::UB,
+            self::UC,
+            self::PFC,
+            self::PLATE,
+            self::SHS,
+            //todo...more
+            //RHS
+            //CHS
+            //UBS
+            //UCS
+            //HSS
+            //EA
+            //UA
+            //RSJ
+            //FLAT_BAR
+            //ROUND_BAR
+            //SQUARE_BAR
+            //I_BEAM
+        ];
     }
 }

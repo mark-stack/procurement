@@ -46,6 +46,83 @@ class ProductService
         return $templatesDetected;
     }
 
+    public function findGeneralProductMatches(
+        $user,
+        $productEnum,
+        $materialEnum,
+        $gradesEnums,
+        $surfaceEnum,
+        $measurementUnitEnum,
+        $sizeInt,
+        $lengthInt,
+    ): Collection
+    {
+        /**
+         * Compare the limited attributes provided (grade, size, etc) against the master price book.
+         *
+         * NOTE: for METERAGE items, disregard length. For SINGLE items, length is "size". e.g a M16x50 bolt
+         * So find the general "150PFC STEEL GR300" disregarding 9m,12m,etc.
+         */
+        $return = collect([]); //default
+
+        //"Product" is mandatory
+        if($productEnum) {
+            if($lengthInt && $measurementUnitEnum->value === "SINGLE"){
+                $query = Product::select('product', 'material', 'grade', 'surface', 'measurement_unit', 'size','length')
+                    ->distinct()
+                    ->availableFor($user)
+                    ->where("product", $productEnum->value);
+            }
+            else{
+                $query = Product::select('product', 'material', 'grade', 'surface', 'measurement_unit', 'size')
+                    ->distinct()
+                    ->availableFor($user)
+                    ->where("product", $productEnum->value);
+            }
+
+            //Material
+            if (!is_null($materialEnum)) {
+                $query->where("material", $materialEnum->value);
+            }
+
+            //Grade
+            if (!is_null($gradesEnums)) {
+                $gradesArrayValues = [];
+                foreach($gradesEnums as $grade){
+                    $gradesArrayValues[] = $grade->value;
+                }
+                $query->whereIn("grade",$gradesArrayValues);
+            }
+
+            //Surface
+            if (!is_null($surfaceEnum)) {
+                $query->where("surface", $surfaceEnum->value);
+            }
+
+            //Measurement Unit
+            if (!is_null($measurementUnitEnum)) {
+                $query->where("measurement_unit", $measurementUnitEnum->value);
+            }
+
+            //Size
+            if (!is_null($sizeInt)) {
+                $query->where("size", $sizeInt);
+            }
+
+            //Length
+            if($lengthInt && $measurementUnitEnum->value === "SINGLE"){
+                $query->where("length", $lengthInt);
+            }
+
+            return $query->get();
+        }
+
+        return $return;
+    }
+
+    /**
+     * @deprecated
+     */
     public function findByAttributes($user, $product, $material, $grades, $surface, $measurementUnit, $size, $length): Collection
     {
         //"product" is mandatory
@@ -87,6 +164,100 @@ class ProductService
         else{
             return collect([]);
         }
+    }
+
+    /**
+     * @deprecated
+     */
+    public function attributeGaps($productEnum, $material, $grades, $surface, $measurementUnit, $size): array
+    {
+        /**
+         * Based on limited information available, what are the possibilities (length disregarded)
+         * e.g "M16 SS316" might have "M16 SS316 GR4.6","M16 SS316 GR8.8".
+         */
+
+        $gaps = [];
+        if($productEnum === null) {
+            $gaps["PRODUCT"] = []; //This option won't happen, because not product means creating a custom product instead
+        }
+        if($material === null) {
+            $materialOptions = [];
+            if($productEnum){
+                $materialOptions = Product::query()
+                    ->where("product",$productEnum->value)
+                    ->pluck("material")
+                    ->toArray();
+            }
+
+            $gaps["MATERIAL"] = array_unique($materialOptions);
+        }
+        if($grades === null || count($grades) > 1) {
+            if($grades === null){
+                $gradeOptions = [];
+                if($productEnum){
+                    $gradeOptions = Product::query()
+                        ->where("product",$productEnum->value)
+                        ->pluck("grade")
+                        ->toArray();
+                }
+
+                $gaps["GRADE"] = array_unique($gradeOptions);
+            }
+            elseif(count($grades) > 1){
+                $allGradeOptions = Product::query()
+                    ->where("product",$productEnum->value)
+                    ->pluck("grade")
+                    ->toArray();
+
+                $gradeOptions = [];
+                foreach($grades as $grade){
+                    if(in_array($grade->value,$allGradeOptions )){
+                        $gradeOptions[] = $grade->value;
+                    }
+                }
+                $gaps["GRADE"] = $gradeOptions;
+            }
+        }
+        if($surface === null) {
+            $surfaceOptions = [];
+            if($productEnum){
+                $surfaceOptions = Product::query()
+                    ->where("product",$productEnum->value)
+                    ->pluck("surface")
+                    ->toArray();
+            }
+
+            $gaps["SURFACE"] = array_unique($surfaceOptions);
+        }
+        if($measurementUnit === null) {
+            $measurementUnitOptions = [];
+            if($productEnum){
+                $measurementUnitOptions = Product::query()
+                    ->where("product",$productEnum->value)
+                    ->pluck("measurement_unit")
+                    ->toArray();
+            }
+
+            $gaps["MEASUREMENT_UNIT"] = array_unique($measurementUnitOptions);
+        }
+        if($size === null) {
+            $sizeOptions = [];
+            if($productEnum){
+                $sizeOptions = Product::query()
+                    ->where("product",$productEnum->value)
+                    ->pluck("size")
+                    ->toArray();
+            }
+
+            $gaps["SIZE"] = array_unique($sizeOptions);
+        }
+
+        /**
+         * Generate options based on the other available attributes.
+         * e.g if an M12 bolt only comes in GR4.6, don't display GR8.8 as an option.
+         */
+
+        return $gaps;
     }
 
     public function checkSingleTemplate(array $data, object $template): bool
@@ -641,9 +812,7 @@ class ProductService
             $productsInRow = $this->findProductsInRow($cleanCsvRow,$user);
 
             $append = $cleanCsvRow;
-            $append["product_confirmed"] = $productsInRow["product_confirmed"];
-            $append["products_unconfirmed"] = $productsInRow["products_unconfirmed"];
-            $append["product_custom_for_user"] = $productsInRow["product_custom_for_user"];
+            $append["generalProductMatches"] = $productsInRow["generalProductMatches"];
             $result[] = $append;
         }
 
@@ -667,22 +836,11 @@ class ProductService
                 "sub_qty" => $cleanRow["sub_qty"],
                 "unit_rate" => $cleanRow["unit_rate"],
                 'project_id' => $project->id,
-                "product_id" => $cleanRow["product_confirmed"] ? $cleanRow["product_confirmed"]->id : null,
-                "count_unconfirmed_possibilities" => count($this->getUnconfirmedRows($cleanRow)),
+                "general_product_matches" => serialize($cleanRow["generalProductMatches"]),
             ]);
         }
 
         return $materialList;
-    }
-
-    public function saveConfirmedProducts(array $dataWithProducts, object $project): void
-    {
-        foreach($dataWithProducts as $row){
-            $productConfirmed = $row["product_confirmed"];
-            if($productConfirmed !== null){
-                $project->products()->attach($productConfirmed->id, ["quantity" => $row["sub_qty"]]);
-            }
-        }
     }
 
     public function createUserCustomProducts(array $dataWithProducts, object $project): void
@@ -691,53 +849,61 @@ class ProductService
         $domain = $user->getDomainFromEmail();
 
         foreach($dataWithProducts as $row){
-            $userProductData = $row["product_custom_for_user"];
-            if($userProductData !== null){
-
-//                $userProductData
-//                "index" => 27
-//                "description" => "Steel Beams (I-Beams)"
-//                "material" => null
-//                "length_required" => 12.0
-//                "sub_qty" => 2.0
-//                "unit_rate" => 50.0
-
-                Product::create([
-                    "description" => $userProductData["description"],
-                    "product" => ProductEnums::PFC, //todo: let the user customise
-                    "material" => $userProductData["material"] ?? MaterialEnums::STEEL->value, //todo: let the user customise
-                    "grade" => GradeEnums::NONE->value, //todo: let the user customise
-                    "surface" => SurfaceEnums::NONE->value, //todo: let the user customise
-                    "measurement_unit" => MeasurementUnitEnums::SINGLE->value, //todo: let the user customise
-                    "size" => 1, //todo: let the user customise
-                    "length" => $userProductData["length_required"], //todo: let the user customise
-                    "width" => $userProductData["width_required"], //todo: let the user customise
-                    "kg_per_m" => 1, //todo: let the user customise
-                    "baseline_unit_rate" => 1, //todo: let the user customise
-                    'domain' => $domain,
-                ]);
-            }
+//            $userProductData = $row["product_custom_for_user"];
+//            if($userProductData !== null){
+//
+////                $userProductData
+////                "index" => 27
+////                "description" => "Steel Beams (I-Beams)"
+////                "material" => null
+////                "length_required" => 12.0
+////                "sub_qty" => 2.0
+////                "unit_rate" => 50.0
+//
+//                Product::create([
+//                    "description" => $userProductData["description"],
+//                    "product" => ProductEnums::PFC, //todo: let the user customise
+//                    "material" => $userProductData["material"] ?? MaterialEnums::STEEL->value, //todo: let the user customise
+//                    "grade" => GradeEnums::NONE->value, //todo: let the user customise
+//                    "surface" => SurfaceEnums::NONE->value, //todo: let the user customise
+//                    "measurement_unit" => MeasurementUnitEnums::SINGLE->value, //todo: let the user customise
+//                    "size" => 1, //todo: let the user customise
+//                    "length" => $userProductData["length_required"], //todo: let the user customise
+//                    "width" => $userProductData["width_required"], //todo: let the user customise
+//                    "kg_per_m" => 1, //todo: let the user customise
+//                    "baseline_unit_rate" => 1, //todo: let the user customise
+//                    'domain' => $domain,
+//                ]);
+//            }
         }
     }
 
-    public function getUnconfirmedRows(array $cleanRow): array
-    {
-        $getUnconfirmedRows = [];
+//    public function getGeneralProductMatches(array $cleanRow): array
+//    {
+//        $getGeneralProductMatches = [];
+//        if(count($cleanRow["products_unconfirmed"]) > 0){
+//            $getGeneralProductMatches = $cleanRow["products_unconfirmed"]["generalProductMatches"];
+//        }
+//
+//        return $getGeneralProductMatches;
+//    }
 
-
-        if(!isset($cleanRow["products_unconfirmed"])){
-            dd("cleanRow",$cleanRow);
-        }
-
-
-        if(count($cleanRow["products_unconfirmed"]) > 0){
-            foreach($cleanRow["products_unconfirmed"] as $product){
-                $getUnconfirmedRows[] = $product;
-            }
-        }
-
-        return $getUnconfirmedRows;
-    }
+//    public function getProductPossibilities(array $cleanRow): array
+//    {
+//        /**
+//         * Possibilities that are non-length attributed
+//         */
+//        $getProductPossibilities = [];
+//
+//        if(count($cleanRow["products_unconfirmed"]) > 0){
+//            foreach($cleanRow["products_unconfirmed"] as $product){
+//                dd($product,$cleanRow["products_unconfirmed"]);
+//                //$getProductPossibilities[] = $product->id;
+//            }
+//        }
+//
+//        return $getProductPossibilities;
+//    }
 
     public function findProductsInRow(array $cleanCsvRow, User $user): array
     {
@@ -754,83 +920,51 @@ class ProductService
         $productCategory = $this->findProduct($cleanCsvRow["description"]);
 
         //Has product
-        $priceBookProducts = [];
+        $generalProductMatches = collect([]);
+        $materialEnum = null;
+        $gradesEnums = null;
+        $surfaceEnum = null;
+        $measurementUnitEnum = null;
+        $sizeInt = null;
+        $lengthInt = null;
+
         if($productCategory){
             //MATERIAL
-            $material = $this->findMaterial($productCategory);
+            $materialEnum = $this->findMaterial($productCategory);
 
             //GRADE
-            $grades = $this->findGrades($productCategory,$cleanCsvRow["description"]);
+            $gradesEnums = $this->findGrades($productCategory,$cleanCsvRow["description"]);
 
             //SURFACE
-            $surface = $this->findSurface($productCategory,$cleanCsvRow["description"],$grades); //todo: description or cell?
+            $surfaceEnum = $this->findSurface($productCategory,$cleanCsvRow["description"],$gradesEnums); //todo this might be a column
 
             //MEASUREMENT_UNIT
-            $measurementUnit = $this->findMeasurementUnit($productCategory); //todo: description or cell?
+            $measurementUnitEnum = $this->findMeasurementUnit($productCategory);
 
             //SIZE
-            $size = $this->findSize($productCategory,$cleanCsvRow["description"]); //todo: description or cell?
+            $sizeInt = $this->findSize($productCategory,$cleanCsvRow["description"]);
 
             //LENGTH
-            $length = $this->findLength($productCategory,$cleanCsvRow["description"]); //todo: description or cell?
+            $lengthInt = $this->findLength($productCategory,$cleanCsvRow["description"]);
 
-//            dd([
-//                $cleanCsvRow["description"],
-//                $productCategory,
-//                $material,
-//                $grade,
-//                $surface,
-//                $measurementUnit,
-//                $size,
-//                $length,
-//            ]);
-
-            //Price book search
-            $priceBookProducts = $this->findByAttributes(
+            /**
+             * Price book search
+             */
+            $generalProductMatches = $this->findGeneralProductMatches(
                 $user,
                 $productCategory["productEnum"],
-                $material,
-                $grades,
-                $surface,
-                $measurementUnit,
-                $size,
-                $length,
+                $materialEnum,
+                $gradesEnums,
+                $surfaceEnum,
+                $measurementUnitEnum,
+                $sizeInt,
+                $lengthInt,
             );
-
-
-//            dd([
-//                "description" => $cleanCsvRow["description"],
-//                "productCategory" => $productCategory,
-//                "material" => $material,
-//                "grade" => $grade,
-//                "surface" => $surface,
-//                "measurementUnit" => $measurementUnit,
-//                "size" => $size,
-//                "length" => $length,
-//                "priceBookProduct" => $priceBookProduct,
-//            ]);
-        }
-
-        $productConfirmed = null;
-        $productsUnconfirmed = [];
-        $productCustomForUser = null;
-        if(count($priceBookProducts) === 0){
-            $productCustomForUser = $cleanCsvRow;
-        }
-        elseif(count($priceBookProducts) === 1){ //1 result = confirmed
-            $productConfirmed = $priceBookProducts[0];
-        }
-        elseif(count($priceBookProducts) > 1){ //1+ results = unconfirmed
-            $productsUnconfirmed[] = $priceBookProducts;
-        }
-        else{
-            $productCustomForUser = $cleanCsvRow;
         }
 
         return [
-            "product_confirmed" => $productConfirmed,
-            "products_unconfirmed" => $productsUnconfirmed,
-            "product_custom_for_user" => $productCustomForUser,
+            "cleanCsvRow" => $cleanCsvRow,
+            "generalProductMatches" => $generalProductMatches->toArray(),
         ];
     }
 
@@ -871,8 +1005,12 @@ class ProductService
                     "steel+\s+channel",
                 ],
                 "sizeRegex" => [
-                    "(\d+)+PFC",       //200PFC
-                    "(\d+)+\s+PFC",    //200 PFC
+                    "(\d+)+PFC",          //200PFC
+                    "(\d+)+\s+PFC",       //200 PFC
+                    "(\d+)+mm+\s+PFC",    //200mm PFC
+                    "(\d+)+\s+mm+\s+PFC", //200 mm PFC
+                    "(\d+)+\s+mm+\s+Parallel Flange Channel",    //200 mm Parallel Flange Channel
+                    "(\d+)+mm+\s+Parallel+\s+Flange+\s+Channel", //200 mm Parallel Flange Channel
                 ],
                 "lengthRegex" => [
                     "\b(\d+(\.\d+)?)\s?(m|meter|meters|mm|millimeters)\b", //meterage //todo: only METERS?
@@ -880,8 +1018,8 @@ class ProductService
                 "widthRegex" => null,
                 "measurementUnit" => MeasurementUnitEnums::METERS,
                 "defaultMaterial" => MaterialEnums::STEEL,
-                "defaultGrade" => GradeEnums::GR300,
-                "defaultSurface" => SurfaceEnums::NONE,
+//                "defaultGrade" => GradeEnums::GR300,
+//                "defaultSurface" => SurfaceEnums::NONE,
             ],
             //UB
             [
@@ -902,8 +1040,8 @@ class ProductService
                 "widthRegex" => null,
                 "measurementUnit" => MeasurementUnitEnums::METERS,
                 "defaultMaterial" => MaterialEnums::STEEL,
-                "defaultGrade" => GradeEnums::GR300,
-                "defaultSurface" => SurfaceEnums::NONE,
+//                "defaultGrade" => GradeEnums::GR300,
+//                "defaultSurface" => SurfaceEnums::NONE,
             ],
             //UC
             [
@@ -924,18 +1062,21 @@ class ProductService
                 "widthRegex" => null,
                 "measurementUnit" => MeasurementUnitEnums::METERS,
                 "defaultMaterial" => MaterialEnums::STEEL,
-                "defaultGrade" => GradeEnums::GR300,
-                "defaultSurface" => SurfaceEnums::NONE,
+//                "defaultGrade" => GradeEnums::GR300,
+//                "defaultSurface" => SurfaceEnums::NONE,
             ],
             //Steel plate
             [
                 "productEnum" => ProductEnums::PLATE,
                 "productRegex" => [
                     "Plate",                //plate
+                    "Plates",               //plates
                     "(\d+)+PL",             //20PL
                     "(\d+)+\s+PL",          //20 PL
                     "(\d+)+mm+\s+PL",       //20mm PL
                     "(\d+)+mm+\s+plate",    //20mm plate
+                    "Steel+\s+Plate",       //Steel plate
+                    "Steel+\s+Plates",      //steel plates
                 ],
                 "sizeRegex" => [
                     "\b(0|[1-9][0-9]?|1[0-4][0-9]|150) ?PL", //16PL or 16 PL
@@ -949,8 +1090,8 @@ class ProductService
                 ],
                 "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
                 "defaultMaterial" => MaterialEnums::STEEL,
-                "defaultGrade" => GradeEnums::GR250,
-                "defaultSurface" => SurfaceEnums::NONE,
+//                "defaultGrade" => GradeEnums::GR250,
+//                "defaultSurface" => SurfaceEnums::NONE,
             ],
             //Bolts
             [
@@ -969,8 +1110,8 @@ class ProductService
                 "widthRegex" => null,
                 "measurementUnit" => MeasurementUnitEnums::SINGLE,
                 "defaultMaterial" => MaterialEnums::STEEL,
-                "defaultGrade" => GradeEnums::GR_4_6,
-                "defaultSurface" => SurfaceEnums::GALVANISED,
+//                "defaultGrade" => GradeEnums::GR_4_6,
+//                "defaultSurface" => SurfaceEnums::GALVANISED,
             ],
             //LVL
             [
@@ -988,8 +1129,8 @@ class ProductService
                 "widthRegex" => null,
                 "measurementUnit" => MeasurementUnitEnums::METERS,
                 "defaultMaterial" => MaterialEnums::TIMBER,
-                "defaultGrade" => GradeEnums::NONE,
-                "defaultSurface" => SurfaceEnums::TREATED_H2,
+//                "defaultGrade" => GradeEnums::NONE,
+//                "defaultSurface" => SurfaceEnums::TREATED_H2,
             ],
             //todo more
         ];
@@ -1005,12 +1146,12 @@ class ProductService
 
         return $resultProduct;
     }
-    public function findMaterial($product): ?MaterialEnums
+    public function findMaterial($product): MaterialEnums
     {
         return $product["defaultMaterial"];
     }
 
-    public function findGrades($product,$text): array
+    public function findGrades($product,$text): null|array
     {
         $gradeResults = null;
 
@@ -1100,11 +1241,11 @@ class ProductService
         /**
          * Default grade
          */
-        if(!$gradeResults){
-            $gradeResults = [
-                $product["defaultGrade"]
-            ];
-        }
+//        if(!$gradeResults){
+//            $gradeResults = [
+//                $product["defaultGrade"]
+//            ];
+//        }
 
         return $gradeResults;
     }
@@ -1164,23 +1305,26 @@ class ProductService
         /**
          * Default surface
          */
-        if(!$surfaceResult){
-            $isException = false;
-
-            //SS316 bolts
-            if($product["productEnum"] === ProductEnums::BOLT && in_array(GradeEnums::SS316,$foundGrades)){
-                $isException = true;
-            }
-
-            //SS304 bolts
-            if($product["productEnum"] === ProductEnums::BOLT && in_array(GradeEnums::SS304,$foundGrades)){
-                $isException = true;
-            }
-
-            if(!$isException){
-                $surfaceResult = $product["defaultSurface"];
-            }
-        }
+//        if(!$surfaceResult){
+//            $isException = false;
+//            $foundGrades = $foundGrades === null
+//                ? []
+//                : $foundGrades;
+//
+//            //SS316 bolts
+//            if($product["productEnum"] === ProductEnums::BOLT && in_array(GradeEnums::SS316,$foundGrades)){
+//                $isException = true;
+//            }
+//
+//            //SS304 bolts
+//            if($product["productEnum"] === ProductEnums::BOLT && in_array(GradeEnums::SS304,$foundGrades)){
+//                $isException = true;
+//            }
+//
+//            if(!$isException){
+//                $surfaceResult = $product["defaultSurface"];
+//            }
+//        }
 
         return $surfaceResult;
     }

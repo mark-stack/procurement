@@ -188,51 +188,7 @@ class DatabaseSeeder extends Seeder
         /**
          Material List
         */
-        $materialList = $project->materialList(); //todo: method is incomplete
-
-        /**
-         * Seed products
-         */
-//        $products = [
-//            [
-//                "description" => "PFC",
-//                "measurement_unit" => MeasurementUnitEnums::METERS,
-//                "material" => "Mild Steel",
-//                "positive_keywords" => [
-//                    "pfc",
-//                    "parallel flange channel",
-//                    "parallel flanged channel",
-//                ],
-//                "negative_keywords" => [
-//
-//                ],
-//            ],
-//        ];
-//        foreach($products as $product){
-//            $productObject = Product::create([
-//                "description" => $product["description"],
-//                "measurement_unit" => $product["measurement_unit"],
-//                "material" => $project["material"],
-//            ]);
-//
-//            //Positive keywords
-//            foreach($product["positive_keywords"] as $keyword){
-//                Keyword::create([
-//                    "keyword" => $keyword,
-//                    "type" => "positive",
-//                    'product_id' => $productObject->id,
-//                ]);
-//            }
-//
-//            //Negative keywords
-//            foreach($product["negative_keywords"] as $keyword){
-//                Keyword::create([
-//                    "keyword" => $keyword,
-//                    "type" => "negative",
-//                    'product_id' => $productObject->id,
-//                ]);
-//            }
-//        }
+        $materialList = $project->pieces;
 
         /**
          * Import template
