@@ -1,29 +1,31 @@
 <script setup>
-import { Head, Link } from '@inertiajs/vue3';
+    //General Imports
+    import {Head, Link, usePage} from '@inertiajs/vue3';
 
-defineProps({
-    canLogin: {
-        type: Boolean,
-    },
-    canRegister: {
-        type: Boolean,
-    },
-    laravelVersion: {
-        type: String,
-        required: true,
-    },
-    phpVersion: {
-        type: String,
-        required: true,
-    },
-});
+    //Component Imports
+    //...
 
-function handleImageError() {
-    document.getElementById('screenshot-container')?.classList.add('!hidden');
-    document.getElementById('docs-card')?.classList.add('!row-span-1');
-    document.getElementById('docs-card-content')?.classList.add('!flex-row');
-    document.getElementById('background')?.classList.add('!hidden');
-}
+    //Props
+    const props = defineProps({
+        //xxx: Object,
+    });
+
+    //Form
+    //...
+
+    //Shared data
+    const user = usePage().props.auth.user;
+    console.log("user",user);
+
+    //Variables
+    const months = 3;
+    const years = 3;
+
+    //Shared Methods
+    //...
+
+    //Methods
+    //...
 </script>
 
 <template>
@@ -47,16 +49,36 @@ function handleImageError() {
                     <span class="ml-2 text-xl font-bold tracking-wide text-gray-100 uppercase">Company</span>
                 </a>
                 <ul class="flex items-center hidden ml-auto space-x-8 lg:flex">
-                    <li><a href="/" aria-label="Sign in" title="Sign in" class="font-medium tracking-wide text-gray-100 transition-colors duration-200 hover:text-teal-accent-400">Sign in</a></li>
                     <li>
-                        <a
-                            href="/"
+                        <Link
+                            v-if="user"
+                            :href="route('dashboard')"
+                            aria-label="Dashboard"
+                            title="Dashboard"
+                            class="font-medium tracking-wide text-gray-100 transition-colors duration-200 hover:text-teal-accent-400"
+                        >
+                            Dashboard
+                        </Link>
+                        <Link
+                            v-else
+                            :href="route('login')"
+                            aria-label="Sign in"
+                            title="Sign in"
+                            class="font-medium tracking-wide text-gray-100 transition-colors duration-200 hover:text-teal-accent-400"
+                        >
+                            Sign in
+                        </Link>
+                    </li>
+                    <li>
+                        <Link
+                            v-if="!user"
+                            :href="route('register')"
                             class="inline-flex items-center justify-center h-12 px-6 font-medium tracking-wide text-white transition duration-200 rounded shadow-md bg-deep-purple-accent-400 hover:bg-deep-purple-accent-700 focus:shadow-outline focus:outline-none"
                             aria-label="Sign up"
                             title="Sign up"
                         >
                             Sign up
-                        </a>
+                        </Link>
                     </li>
                 </ul>
                 <!-- Mobile menu -->
@@ -131,22 +153,22 @@ function handleImageError() {
                         </p>
                     </div>
                     <h2 class="max-w-lg mb-6 font-sans text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl sm:leading-none">
-                        Saving
-                        <span class="inline-block text-deep-purple-accent-400"> $100K</span>
-                        on construction procurement isn't hard.
+                        Prevent
+                        <span class="inline-block text-orange-900">$100K of <u>waste</u></span>
+                        in construction procurement.
                     </h2>
                     <p class="text-base text-gray-700 md:text-lg">
                         <b>Centralised procurement is the key to:</b>
                         <br>
-                        - <span class="font-semibold text-deep-purple-accent-400">Far less waste</span> from cross-project nesting.
+                        - <span class="font-semibold text-deep-purple-accent-400">Far less waste</span> via cross-project nesting.
                         <br>
-                        - <span class="font-semibold text-deep-purple-accent-400">More bulk discounts</span> from cross-project batched orders.
+                        - <span class="font-semibold text-deep-purple-accent-400">More bulk discounts</span> via cross-project batched orders.
                         <br>
                         - <span class="font-semibold text-deep-purple-accent-400">More supplier discounts</span> aligned to your material lists.
                         <br>
-                        - <span class="font-semibold text-deep-purple-accent-400">Less delivery fees</span> from cross-project batched orders.
+                        - <span class="font-semibold text-deep-purple-accent-400">Less delivery fees</span> via cross-project batched orders.
                         <br>
-                        - <span class="font-semibold text-deep-purple-accent-400">Less over-ordering</span> from tracked surplus stock.
+                        - <span class="font-semibold text-deep-purple-accent-400">Less over-ordering</span> via tracked surplus stock.
                     </p>
                 </div>
                 <div class="flex flex-col items-center md:flex-row">
@@ -154,15 +176,8 @@ function handleImageError() {
                         href="/"
                         class="inline-flex items-center justify-center w-full h-12 px-6 mb-3 font-medium tracking-wide text-white transition duration-200 rounded shadow-md md:w-auto md:mr-4 md:mb-0 bg-deep-purple-accent-400 hover:bg-deep-purple-accent-700 focus:shadow-outline focus:outline-none"
                     >
-                        <span class="mr-3">3 Months FREE</span>
-                        <svg width="24" height="24" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="w-4">
-                            <polyline fill="none" stroke="currentColor" stroke-miterlimit="10" points="4,4 22,4 19,14 4,14 "></polyline>
-                            <circle cx="4" cy="22" r="2" stroke-linejoin="miter" stroke-linecap="square" stroke="none" fill="currentColor"></circle>
-                            <circle cx="20" cy="22" r="2" stroke-linejoin="miter" stroke-linecap="square" stroke="none" fill="currentColor"></circle>
-                            <polyline fill="none" stroke="currentColor" stroke-miterlimit="10" points="1,1 4,4 4,14 2,18 23,18 "></polyline>
-                        </svg>
+                        <span class="mr-3">{{months}} Months FREE TRIAL</span>
                     </a>
-                    <a href="/" aria-label="" class="inline-flex items-center font-semibold text-gray-800 transition-colors duration-200 hover:text-deep-purple-accent-700">Get 15% discount</a>
                 </div>
             </div>
             <div class="lg:w-1/2 pt-10">
@@ -195,7 +210,7 @@ function handleImageError() {
         <div class="grid max-w-md gap-8 row-gap-10 sm:mx-auto lg:max-w-full lg:grid-cols-3">
             <div class="flex flex-col sm:flex-row">
                 <div>
-                    <h6 class="mb-2 font-bold leading-5 text-2xl">Less waste</h6>
+                    <h6 class="mb-2 font-bold leading-5 text-2xl">Reduce waste</h6>
                     <ul class="mb-4 -ml-1 space-y-2 mt-4">
                         <li class="flex items-start">
                             <p class="mr-1">
@@ -234,7 +249,7 @@ function handleImageError() {
             </div>
             <div class="flex flex-col sm:flex-row">
                 <div>
-                    <h6 class="mb-2 font-bold leading-5 text-2xl">Better prices</h6>
+                    <h6 class="mb-2 font-bold leading-5 text-2xl">Reduce prices</h6>
                     <ul class="mb-4 -ml-1 space-y-2 mt-4">
                         <li class="flex items-start">
                             <p class="mr-1">
@@ -289,7 +304,7 @@ function handleImageError() {
             </div>
             <div class="flex flex-col sm:flex-row">
                 <div>
-                    <h6 class="mb-2 font-bold leading-5 text-2xl">Less delivery fees</h6>
+                    <h6 class="mb-2 font-bold leading-5 text-2xl">Reduce deliveries</h6>
                     <ul class="mb-4 -ml-1 space-y-2 mt-4">
                         <li class="flex items-start">
                             <p class="mr-1">
@@ -395,6 +410,135 @@ function handleImageError() {
                     Cross-project batched ordering. Multiple Purchase order numbers handled. Reminders.
                 </p>
                 <a href="/" aria-label="" class="inline-flex items-center font-semibold transition-colors duration-200 text-deep-purple-accent-400 hover:text-deep-purple-800">Learn more</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">
+        <div class="max-w-xl mb-10 md:mx-auto sm:text-center lg:max-w-2xl md:mb-12">
+            <h2 class="max-w-lg mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">
+                Pricing
+            </h2>
+            <p class="text-base text-gray-700 md:text-lg">
+                Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque rem aperiam, eaque ipsa quae.
+            </p>
+        </div>
+        <div class="grid max-w-md gap-10 row-gap-5 sm:row-gap-10 lg:max-w-screen-md lg:grid-cols-2 sm:mx-auto">
+            <div class="flex flex-col justify-between p-5 bg-white border rounded shadow-sm">
+                <div class="mb-6">
+                    <div class="flex items-center justify-between pb-6 mb-6 border-b">
+                        <div>
+                            <p class="text-sm font-bold tracking-wider uppercase">
+                                {{months}} Months Trial
+                            </p>
+                            <p class="text-5xl font-extrabold">Free</p>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="mb-2 font-bold tracking-wide">Features</p>
+                        <ul class="space-y-2">
+                            <li class="flex items-center">
+                                <div class="mr-2">
+                                    <svg class="w-4 h-4 text-deep-purple-accent-400" viewBox="0 0 24 24" stroke-linecap="round" stroke-width="2">
+                                        <polyline fill="none" stroke="currentColor" points="6,12 10,16 18,8"></polyline>
+                                        <circle cx="12" cy="12" fill="none" r="11" stroke="currentColor"></circle>
+                                    </svg>
+                                </div>
+                                <p class="font-medium text-gray-800">{{months}} Months Trial</p>
+                            </li>
+                            <li class="flex items-center">
+                                <div class="mr-2">
+                                    <svg class="w-4 h-4 text-deep-purple-accent-400" viewBox="0 0 24 24" stroke-linecap="round" stroke-width="2">
+                                        <polyline fill="none" stroke="currentColor" points="6,12 10,16 18,8"></polyline>
+                                        <circle cx="12" cy="12" fill="none" r="11" stroke="currentColor"></circle>
+                                    </svg>
+                                </div>
+                                <p class="font-medium text-gray-800">Unlimited staff quote templates</p>
+                            </li>
+                            <li class="flex items-center">
+                                <div class="mr-2">
+                                    <svg class="w-4 h-4 text-deep-purple-accent-400" viewBox="0 0 24 24" stroke-linecap="round" stroke-width="2">
+                                        <polyline fill="none" stroke="currentColor" points="6,12 10,16 18,8"></polyline>
+                                        <circle cx="12" cy="12" fill="none" r="11" stroke="currentColor"></circle>
+                                    </svg>
+                                </div>
+                                <p class="font-medium text-gray-800">Unlimited projects</p>
+                            </li>
+                            <li class="flex items-center">
+                                <div class="mr-2">
+                                    <svg class="w-4 h-4 text-deep-purple-accent-400" viewBox="0 0 24 24" stroke-linecap="round" stroke-width="2">
+                                        <polyline fill="none" stroke="currentColor" points="6,12 10,16 18,8"></polyline>
+                                        <circle cx="12" cy="12" fill="none" r="11" stroke="currentColor"></circle>
+                                    </svg>
+                                </div>
+                                <p class="font-medium text-gray-800">Unlimited support</p>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div>
+                    <a href="/" class="inline-flex items-center justify-center w-full h-12 px-6 mb-4 font-medium tracking-wide text-white transition duration-200 bg-gray-800 rounded shadow-md hover:bg-gray-900 focus:shadow-outline focus:outline-none">
+                        Start for free
+                    </a>
+                    <p class="text-sm text-gray-600">
+                        Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium
+                    </p>
+                </div>
+            </div>
+            <div class="flex flex-col justify-between p-5 bg-white border rounded shadow-sm">
+                <div class="mb-6">
+                    <div class="flex items-center justify-between pb-6 mb-6 border-b">
+                        <div>
+                            <p class="text-sm font-bold tracking-wider uppercase">
+                                {{years}} years unlimited usage
+                            </p>
+                            <p class="text-5xl font-extrabold">A$10,000</p>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="mb-2 font-bold tracking-wide">Features</p>
+                        <ul class="space-y-2">
+                            <li class="flex items-center">
+                                <div class="mr-2">
+                                    <svg class="w-4 h-4 text-deep-purple-accent-400" viewBox="0 0 24 24" stroke-linecap="round" stroke-width="2">
+                                        <polyline fill="none" stroke="currentColor" points="6,12 10,16 18,8"></polyline>
+                                        <circle cx="12" cy="12" fill="none" r="11" stroke="currentColor"></circle>
+                                    </svg>
+                                </div>
+                                <p class="font-medium text-gray-800">Unlimited staff quote templates</p>
+                            </li>
+                            <li class="flex items-center">
+                                <div class="mr-2">
+                                    <svg class="w-4 h-4 text-deep-purple-accent-400" viewBox="0 0 24 24" stroke-linecap="round" stroke-width="2">
+                                        <polyline fill="none" stroke="currentColor" points="6,12 10,16 18,8"></polyline>
+                                        <circle cx="12" cy="12" fill="none" r="11" stroke="currentColor"></circle>
+                                    </svg>
+                                </div>
+                                <p class="font-medium text-gray-800">Unlimited projects</p>
+                            </li>
+                            <li class="flex items-center">
+                                <div class="mr-2">
+                                    <svg class="w-4 h-4 text-deep-purple-accent-400" viewBox="0 0 24 24" stroke-linecap="round" stroke-width="2">
+                                        <polyline fill="none" stroke="currentColor" points="6,12 10,16 18,8"></polyline>
+                                        <circle cx="12" cy="12" fill="none" r="11" stroke="currentColor"></circle>
+                                    </svg>
+                                </div>
+                                <p class="font-medium text-gray-800">Unlimited support</p>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div>
+                    <a
+                        href="/"
+                        class="inline-flex items-center justify-center w-full h-12 px-6 mb-4 font-medium tracking-wide text-white transition duration-200 rounded shadow-md bg-deep-purple-accent-400 hover:bg-deep-purple-accent-700 focus:shadow-outline focus:outline-none"
+                    >
+                        Get started
+                    </a>
+                    <p class="text-sm text-gray-600">
+                        Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium
+                    </p>
+                </div>
             </div>
         </div>
     </div>

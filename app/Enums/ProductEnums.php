@@ -13,7 +13,6 @@ enum ProductEnums: string
     case SHS = "SHS";
 
 
-
     public function label(): string
     {
         return match ($this) {

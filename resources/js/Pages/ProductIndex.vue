@@ -6,6 +6,7 @@
 
     //Component Imports
     import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
+    import SelectOrType from "@/Components/SelectOrType.vue";
 
     //Props
     const props = defineProps({
@@ -14,6 +15,7 @@
         senseChecks: Object,
         generalProductMatches: Object,
         customItems: Object,
+        customOptions: Object,
     });
 
     //Form
@@ -32,6 +34,7 @@
         pre_nested_check: false,
     });
     const formClarifications = useForm(props.generalProductMatches);
+    const formCustomisations = useForm(props.customItems);
 
     //Variables
     const isDragging = ref(false);
@@ -212,6 +215,19 @@
         });
     }
 
+    function submitCustomisations(){
+        let url = route("raw.material.quote.customisations");
+        formCustomisations.post(url, {
+            preserveScroll: true,
+            onSuccess: () => {
+                console.log('success');
+            },
+            onError: errors => {
+                console.log('errors',errors);
+            },
+        });
+    }
+
     function displayProductMatches(row){
         let display = "user-custom";
 
@@ -276,6 +292,19 @@
         }
 
         return  actualSize + actualProduct + " " + actualGrade + actualSurface;
+    }
+
+    function getsubOption(index){
+        let subOption = "all";
+
+        if(formCustomisations[index]['material'] === 'STEEL'){
+            subOption = "STEEL";
+        }
+        if(formCustomisations[index]['timber'] === 'TIMBER'){
+            subOption = "TIMBER";
+        }
+
+        return subOption;
     }
 </script>
 
@@ -448,85 +477,95 @@
 
             <!-- User custom products -->
             <section v-if="customItems.length > 0" class="container max-w-5xl mx-auto mt-5">
-                <h2 class="font-bold text-lg">Custom products (not in price book)</h2>
+                <h2 class="font-bold text-lg">Custom products (add to price book)</h2>
                 <p class="mb-3 text-gray-600">
                     This action is just required once. It will be added to the price book for you and other members in your company.
                 </p>
-                <p v-for="(item,index) in customItems" class="mt-3">
-                    <h3 class="font-bold italic">"{{item.data.description}}"</h3>
-                    <div class="grid grid-cols-12 gap-x-2">
-                        <!-- PRODUCT -->
-                        <div class="col-span-2">
-                            <label class="block text-gray-500 text-sm">Product Category</label>
-                            <select class="w-full rounded">
-                                <option value="" name="">PFC</option>
-                                <option value="" name="">UB</option>
-                                <option value="other" name="">Other</option>
-                            </select>
-<!--                            <input-->
-<!--                                type="text"-->
-<!--                                placeholder="PRODUCT"-->
-<!--                                class="w-full rounded"-->
-<!--                            />-->
-                        </div>
-                        <!-- MATERIAL -->
-                        <div class="col-span-2">
-                            <label class="block text-gray-500 text-sm">Material</label>
-                            <select class="w-full rounded">
-                                <option value="" name="">STEEL</option>
-                                <option value="" name="">TIMBER</option>
-                                <option value="other" name="">Other</option>
-                            </select>
-<!--                            <input type="text" placeholder="MATERIAL"/>-->
-                        </div>
-                        <!-- GRADE-->
-                        <div class="col-span-2">
-                            <label class="block text-gray-500 text-sm">Grade</label>
-                            <select class="w-full rounded">
-                                <option value="" name="">None</option>
-                                <option value="" name="">250 MPa</option>
-                                <option value="" name="">300 MPa</option>
-                                <option value="" name="">350 MPa</option>
-                                <option value="" name="">GR 4.6</option>
-                                <option value="" name="">GR 8.8</option>
-                                <option value="other" name="">Other</option>
-                            </select>
-<!--                            <input type="text" placeholder="GRADE"/>-->
-                        </div>
-                        <!-- SIZE-->
-                        <div class="col-span-2">
-                            <label class="block text-gray-500 text-sm">Size (number)</label>
-                            <input
-                                type="number"
-                                placeholder="SIZE"
-                                class="w-full rounded"
-                            />
-                        </div>
-                        <!-- LENGTH-->
-                        <div class="col-span-2">
-                            <label class="block text-gray-500 text-sm">Quantify</label>
-                            <select class="w-full rounded">
-                                <option value="" name="">None (singular)</option>
-                                <option value="" name="">Meters</option>
-                                <option value="" name="">Millimeters</option>
-                                <option value="other" name="">Other</option>
-                            </select>
-<!--                            <input type="text" placeholder="LENGTH"/>-->
-                        </div>
+                <form @submit.prevent="submitCustomisations()">
+                    <p v-for="(item,index) in customItems" class="mt-3">
+                        <h3 class=""><span class="font-bold italic">"{{item.data.description}}"</span> (spreadsheet row [123])</h3>
+                        <div class="grid grid-cols-12 gap-x-2">
+                            <!-- PRODUCT -->
+                            <div class="col-span-2">
+                                <SelectOrType
+                                    label="Product Category"
+                                    reference="product"
+                                    :index="index"
+                                    :form="formCustomisations[index]"
+                                    :customOptions="customOptions['products'][formCustomisations[index]['subOption']['product']]"
+                                />
+                            </div>
 
-                        <!-- SUPPLIER-->
-                        <div class="col-span-2">
-                            <label class="block text-gray-500 text-sm">Suppliers</label>
-                            <select class="w-full rounded">
-                                <option value="" name="">XYZ Company</option>
-                                <option value="" name="">ABC Company</option>
-                                <option value="" name="">Not sure yet</option>
-                                <option value="other" name="">Other</option>
-                            </select>
-                            <!--                            <input type="text" placeholder="LENGTH"/>-->
+                            <!-- MATERIAL -->
+                            <div class="col-span-2">
+                                <SelectOrType
+                                    label="Material"
+                                    reference="material"
+                                    :index="index"
+                                    :form="formCustomisations[index]"
+                                    :customOptions="customOptions['materials'][formCustomisations[index]['subOption']['material']]"
+                                />
+                            </div>
+                            <!-- GRADE-->
+                            <div class="col-span-2">
+                                <SelectOrType
+                                    label="Grade"
+                                    reference="grade"
+                                    :index="index"
+                                    :form="formCustomisations[index]"
+                                    :customOptions="customOptions['grades'][formCustomisations[index]['subOption']['grade']]"
+                                />
+                            </div>
+                            <!-- SIZE-->
+                            <div class="col-span-2">
+                                <label class="block text-gray-500 text-sm">Size (number)</label>
+                                <input
+                                    v-model="formCustomisations[index]['selected']['size']"
+                                    type="number"
+                                    placeholder="SIZE"
+                                    class="w-full rounded"
+                                />
+                            </div>
+                            <!-- LENGTH-->
+                            <div class="col-span-2">
+                                <label class="block text-gray-500 text-sm">Quantify</label>
+                                <select
+                                    class="w-full rounded"
+                                    v-model="formCustomisations[index]['selected']['quantify']"
+                                >
+                                    <option :value="null" disabled>Select</option>
+                                    <option
+                                        v-for="option in customOptions['measurement_unit']['all']"
+                                        :value="option"
+                                    >
+                                        {{option === "SINGLE" ? 'SINGLE ITEM' : option}}
+                                    </option>
+                                </select>
+                            </div>
+
+                            <!-- SUPPLIER-->
+                            <div class="col-span-2">
+                                <SelectOrType
+                                    label="Suppliers"
+                                    reference="suppliers"
+                                    :index="index"
+                                    :form="formCustomisations[index]"
+                                    :customOptions="customOptions['suppliers'][formCustomisations[index]['subOption']['suppliers']]"
+                                />
+<!--                                <label class="block text-gray-500 text-sm">Suppliers</label>-->
+<!--                                <select class="w-full rounded">-->
+<!--                                    <option value="" name="">XYZ Company</option>-->
+<!--                                    <option value="" name="">ABC Company</option>-->
+<!--                                    <option value="" name="">Not sure yet</option>-->
+<!--                                    <option value="Other" name="">Other</option>-->
+<!--                                </select>-->
+                            </div>
                         </div>
-                    </div>
-                </p>
+                    </p>
+                    <button type="submit" class="bg-green-500 rounded px-2 py-1">
+                        Save all
+                    </button>
+                </form>
             </section>
 
             <!-- table -->

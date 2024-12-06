@@ -76,6 +76,41 @@ Route::middleware(['auth'])->group(function () {
         return back();
     })->name("raw.material.quote.clarifications");
 
+    Route::post("raw-material-quote-customisations",function(Request $request){
+        $validationErrors = [];
+        foreach($request->all() as $index => $row){
+            $product = $row["selected"]["product"];
+            $material = $row["selected"]["material"];
+            $grade = $row["selected"]["grade"];
+            $hasAllFields = $product && $material && $grade;
+            if(!$hasAllFields){
+                if(!$product){
+                    $validationErrors[$index][] = "product";
+                }
+                if(!$material){
+                    $validationErrors[$index][] = "material";
+                }
+                if(!$grade){
+                    $validationErrors[$index][] = "grade";
+                }
+            }
+        }
+
+        if(count($validationErrors) > 0){
+            //todo throw error with array for the view to find errors
+            dd($validationErrors);
+        }
+        else{
+            $user = auth()->user();
+            $productService = new ProductService();
+            dd($request->all());
+
+            foreach($request->all() as $item){
+                dd($item);
+            }
+        }
+    })->name("raw.material.quote.customisations");
+
     Route::controller(RawMaterialQuoteController::class)->group(function () {
         Route::delete('/raw-material-quote/{rawMaterialQuote}', 'destroy')->name("raw.material.quote.destroy"); //DELETE /photos/{photo}	destroy	photos.destroy
     });

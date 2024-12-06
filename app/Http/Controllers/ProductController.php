@@ -2,7 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\GradeEnums;
+use App\Enums\MaterialEnums;
+use App\Enums\MeasurementUnitEnums;
 use App\Enums\ProductEnums;
+use App\Enums\SurfaceEnums;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
@@ -57,8 +61,29 @@ class ProductController extends Controller
             }
             if(count($decodedOptions) === 0){
                 $customItems[] = [
-                    "selected" => null,
+                    "selected" => [
+                        "product" => null,
+                        "material" => null,
+                        "grade" => null,
+                        //"surface" => null,
+                        "quantify" => null,
+                        "suppliers" => [],
+                    ],
+                    "selected_other" => [
+                        "product" => null,
+                        "material" => null,
+                        "grade" => null,
+                        "surface" => null,
+                        "quantify" => null,
+                        "suppliers" => [],
+                    ],
                     "data" => $row,
+                    "subOption" => [
+                        "product" => "all",
+                        "material" => "all",
+                        "grade" => "all",
+                        "suppliers" => "all",
+                    ],
                 ];
             }
 
@@ -114,12 +139,75 @@ class ProductController extends Controller
             }
         }
 
+        /**
+         * Custom options
+         */
+        $productOptions = [];
+        foreach(ProductEnums::cases() as $productEnum){
+            $productOptions[] = $productEnum->value;
+        }
+        $materialOptions = [];
+        foreach(MaterialEnums::cases() as $materialEnum){
+            $materialOptions[] = $materialEnum->value;
+        }
+        $allGradeOptions = [];
+        foreach(GradeEnums::cases() as $gradeEnum){
+            $allGradeOptions[] = $gradeEnum->value;
+        }
+        $steelGradeOptions = [];
+        foreach(GradeEnums::steelGrades() as $gradeEnum){
+            $steelGradeOptions[] = $gradeEnum->value;
+        }
+        $allGradeOptions = [];
+        foreach(GradeEnums::cases() as $gradeEnum){
+            $allGradeOptions[] = $gradeEnum->value;
+        }
+        $timberGradeOptions = [];
+        foreach(GradeEnums::timberGrades() as $gradeEnum){
+            $timberGradeOptions[] = $gradeEnum->value;
+        }
+        $plasticGradeOptions = [];
+        foreach(GradeEnums::plasticGrades() as $gradeEnum){
+            $plasticGradeOptions[] = $gradeEnum->value;
+        }
+//        $surfaceOptions = [];
+//        foreach(SurfaceEnums::cases() as $surfaceEnum){
+//            $surfaceOptions[] = $surfaceEnum->value;
+//        }
+        $measurementOptions = [];
+        foreach(MeasurementUnitEnums::cases() as $measurementEnum){
+            $measurementOptions[] = $measurementEnum->value;
+        }
+        $customOptions = [
+            "products" => [
+                "all" => $productOptions
+            ],
+            "materials" => [
+                "all" => $materialOptions
+            ],
+            "grades" => [
+                "all" => $allGradeOptions,
+                "STEEL" => $steelGradeOptions,
+                "TIMBER" => $timberGradeOptions,
+                "PLASTIC" => $plasticGradeOptions,
+            ],
+            //"surfaces" => $surfaceOptions,
+            "measurement_unit" => [
+                "all" => $measurementOptions
+            ],
+            "suppliers" => [
+                //todo placeholder
+                "all" => ["ABC Company","XYZ Company"]
+            ],
+        ];
+
         return Inertia::render('ProductIndex', [
             "project" => $project,
             "materialListRows" => $materialListRows,
             "senseChecks" => $senseChecks,
             "generalProductMatches" => $generalProductMatches,
             "customItems" => $customItems,
+            "customOptions" => $customOptions,
         ]);
     }
 
