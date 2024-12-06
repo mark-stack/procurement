@@ -51,7 +51,7 @@ Route::get("test",function(){
         $user = auth()->user();
         $generalProductMatches = $productService->findGeneralProductMatches(
             $user,
-            $product["productEnum"],
+            $product["productEnum"]->value,
             $materialEnum,
             $gradesEnums,
             $surfaceEnum,

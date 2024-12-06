@@ -65,7 +65,7 @@ class ProductController extends Controller
                         "product" => null,
                         "material" => null,
                         "grade" => null,
-                        //"surface" => null,
+                        "size" => null,
                         "quantify" => null,
                         "suppliers" => [],
                     ],

@@ -294,18 +294,18 @@
         return  actualSize + actualProduct + " " + actualGrade + actualSurface;
     }
 
-    function getsubOption(index){
-        let subOption = "all";
-
-        if(formCustomisations[index]['material'] === 'STEEL'){
-            subOption = "STEEL";
-        }
-        if(formCustomisations[index]['timber'] === 'TIMBER'){
-            subOption = "TIMBER";
-        }
-
-        return subOption;
-    }
+    // function getsubOption(index){
+    //     let subOption = "all";
+    //
+    //     if(formCustomisations[index]['material'] === 'STEEL'){
+    //         subOption = "STEEL";
+    //     }
+    //     if(formCustomisations[index]['timber'] === 'TIMBER'){
+    //         subOption = "TIMBER";
+    //     }
+    //
+    //     return subOption;
+    // }
 </script>
 
 <template>
@@ -493,6 +493,7 @@
                                     :index="index"
                                     :form="formCustomisations[index]"
                                     :customOptions="customOptions['products'][formCustomisations[index]['subOption']['product']]"
+                                    :errors="formCustomisations.errors"
                                 />
                             </div>
 
@@ -504,6 +505,7 @@
                                     :index="index"
                                     :form="formCustomisations[index]"
                                     :customOptions="customOptions['materials'][formCustomisations[index]['subOption']['material']]"
+                                    :errors="formCustomisations.errors"
                                 />
                             </div>
                             <!-- GRADE-->
@@ -514,6 +516,7 @@
                                     :index="index"
                                     :form="formCustomisations[index]"
                                     :customOptions="customOptions['grades'][formCustomisations[index]['subOption']['grade']]"
+                                    :errors="formCustomisations.errors"
                                 />
                             </div>
                             <!-- SIZE-->
@@ -524,6 +527,7 @@
                                     type="number"
                                     placeholder="SIZE"
                                     class="w-full rounded"
+                                    :class="formCustomisations.errors[index+'-size'] ? 'border-2 border-red-500' : ''"
                                 />
                             </div>
                             <!-- LENGTH-->
@@ -532,6 +536,7 @@
                                 <select
                                     class="w-full rounded"
                                     v-model="formCustomisations[index]['selected']['quantify']"
+                                    :class="formCustomisations.errors[index+'-quantify'] ? 'border-2 border-red-500' : ''"
                                 >
                                     <option :value="null" disabled>Select</option>
                                     <option
@@ -551,6 +556,7 @@
                                     :index="index"
                                     :form="formCustomisations[index]"
                                     :customOptions="customOptions['suppliers'][formCustomisations[index]['subOption']['suppliers']]"
+                                    :errors="formCustomisations.errors"
                                 />
 <!--                                <label class="block text-gray-500 text-sm">Suppliers</label>-->
 <!--                                <select class="w-full rounded">-->

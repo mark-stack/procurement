@@ -12,6 +12,7 @@
         index: Number,
         form: Object,
         customOptions: Object,
+        errors: Object,
     });
 
     //Form
@@ -68,8 +69,8 @@
         v-if="form['selected'][reference] !== 'Other'"
         v-model="form['selected'][reference]"
         class="w-full rounded"
+        :class="errors[props.index+'-'+props.reference] ? 'border-2 border-red-500' : ''"
         @change="changeActions()"
-        required
     >
         <option :value="null" disabled>Select</option>
         <option
@@ -91,6 +92,7 @@
             type="text"
             placeholder="Other"
             class="w-full rounded"
+            :class="errors[props.index+'-'+props.reference] ? 'border-2 border-red-500' : ''"
         />
 
         <!-- "X" button -->

@@ -48,7 +48,7 @@ class ProductService
 
     public function findGeneralProductMatches(
         $user,
-        $productEnum,
+        $productString,
         $materialEnum,
         $gradesEnums,
         $surfaceEnum,
@@ -66,18 +66,18 @@ class ProductService
         $return = collect([]); //default
 
         //"Product" is mandatory
-        if($productEnum) {
+        if($productString) {
             if($lengthInt && $measurementUnitEnum->value === "SINGLE"){
                 $query = Product::select('product', 'material', 'grade', 'surface', 'measurement_unit', 'size','length')
                     ->distinct()
                     ->availableFor($user)
-                    ->where("product", $productEnum->value);
+                    ->where("product", $productString);
             }
             else{
                 $query = Product::select('product', 'material', 'grade', 'surface', 'measurement_unit', 'size')
                     ->distinct()
                     ->availableFor($user)
-                    ->where("product", $productEnum->value);
+                    ->where("product", $productString);
             }
 
             //Material
@@ -952,7 +952,7 @@ class ProductService
              */
             $generalProductMatches = $this->findGeneralProductMatches(
                 $user,
-                $productCategory["productEnum"],
+                $productCategory["productEnum"]->value,
                 $materialEnum,
                 $gradesEnums,
                 $surfaceEnum,
