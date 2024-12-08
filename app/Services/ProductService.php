@@ -7,6 +7,7 @@ use App\Enums\MeasurementUnitEnums;
 use App\Enums\GradeEnums;
 use App\Enums\ProductEnums;
 use App\Enums\SurfaceEnums;
+use App\Models\Piece;
 use App\Models\Product;
 use App\Models\RawMaterialQuote;
 use App\Models\Template;
@@ -825,6 +826,9 @@ class ProductService
         foreach($dataWithProducts as $cleanRow){
             $productCategory = $this->findProduct($cleanRow["description"]);
 
+            /**
+             * Create 'RawMaterialQuote' item
+             */
             $materialList[] = RawMaterialQuote::create([
                 "csv_index" => $cleanRow["index"],
                 "description" => $cleanRow["description"],
@@ -838,6 +842,25 @@ class ProductService
                 'project_id' => $project->id,
                 "general_product_matches" => serialize($cleanRow["generalProductMatches"]),
             ]);
+
+            /**
+             * Create 'Pieces'
+             */
+            if(count($cleanRow["generalProductMatches"]) === 1){
+                $item = $cleanRow["generalProductMatches"][0];
+
+                $piece = Piece::create([
+                    'project_id' => $project->id,
+                    "product" => $item["product"],
+                    "material" => $item["material"],
+                    "grade" => $item["grade"],
+                    "surface" => $item["surface"],
+                    "measurement_unit" => $item["measurement_unit"],
+                    "size" => $item["size"],
+                    "actual_length" => $cleanRow["length_required"],
+                    "actual_width" => $cleanRow["width_required"],
+                ]);
+            }
         }
 
         return $materialList;
@@ -848,8 +871,8 @@ class ProductService
         $user = $project->user;
         $domain = $user->getDomainFromEmail();
 
-        foreach($dataWithProducts as $row){
-//            $userProductData = $row["product_custom_for_user"];
+//        foreach($dataWithProducts as $row){
+//            $userProductData = $row["product_custom_for_user"];//todo
 //            if($userProductData !== null){
 //
 ////                $userProductData
@@ -875,7 +898,7 @@ class ProductService
 //                    'domain' => $domain,
 //                ]);
 //            }
-        }
+//        }
     }
 
 //    public function getGeneralProductMatches(array $cleanRow): array

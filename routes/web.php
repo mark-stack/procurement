@@ -3,6 +3,7 @@
 //todo: experimental
 use App\Models\Product;
 use App\Models\User;
+use App\Services\NestingService;
 use App\Services\ProductService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -18,6 +19,16 @@ Route::get("pickles",function(){
     return redirect()->route("admin.dashboard");
 });
 
+//todo temporary
+Route::get("stock-cutting",function(){
+    // Example Usage:
+    $cutLengths = [1000,3000,4000,1000,5000,11000,4000,2000,2500,5000,13000];
+    $stockLengths = [9000,12000];
+
+    $result = (new NestingService())->binPacking($cutLengths, $stockLengths);
+
+    dd($result);
+});
 //todo temporary
 Route::get("test",function(){
     $description = "20PL 350 MPA";

@@ -1,6 +1,6 @@
 <script setup>
     //General Imports
-    import {Head, Link, usePage} from '@inertiajs/vue3';
+    import {Head, Link, useForm, usePage} from '@inertiajs/vue3';
 
     //Component Imports
     //...
@@ -11,7 +11,11 @@
     });
 
     //Form
-    //...
+    const formCalculator = useForm({
+        spend:2,
+        waste:3,
+        discounts:3,
+    });
 
     //Shared data
     const user = usePage().props.auth.user;
@@ -25,7 +29,46 @@
     //...
 
     //Methods
-    //...
+    function calculate(){
+        let spend = formCalculator.spend * 1000000;
+        let wasteFraction = (100 - formCalculator.waste)/100; //e.g 3% = 0.97
+        let discountFraction = (100 - formCalculator.discounts)/100; //e.g 3% = 0.97
+        let result = years * (spend - (spend * wasteFraction * discountFraction));
+
+        return result;
+    }
+
+    function beforeFees(){
+        let sum = calculate();
+        let display = "";
+
+        //Thousands
+        if(sum < 1000000){
+            display = (sum/1000).toFixed(0) + "K";
+        }
+        //Millions
+        else{
+            display = (sum/1000000).toFixed(1) + "M";
+        }
+
+        return display;
+    }
+
+    function afterFees(){
+        let sum = calculate() - 10000;
+        let display = "";
+
+        //Thousands
+        if(sum < 1000000){
+            display = (sum/1000).toFixed(0) + "K";
+        }
+        //Millions
+        else{
+            display = (sum/1000000).toFixed(1) + "M";
+        }
+
+        return display;
+    }
 </script>
 
 <template>
@@ -154,7 +197,7 @@
                     </div>
                     <h2 class="max-w-lg mb-6 font-sans text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl sm:leading-none">
                         Prevent
-                        <span class="inline-block text-orange-900">$100K of <u>waste</u></span>
+                        <span class="inline-block text-orange-900">${{afterFees()}} of <u>waste</u></span>
                         in construction procurement.
                     </h2>
                     <p class="text-base text-gray-700 md:text-lg">
@@ -182,20 +225,87 @@
             </div>
             <div class="lg:w-1/2 pt-10">
                 <div class="relative">
+
                     <img
-                        class="object-cover w-full h-56 rounded shadow-lg sm:h-96"
-                        src="https://images.pexels.com/photos/927022/pexels-photo-927022.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=3&amp;h=750&amp;w=1260"
-                        alt=""
-                    />
-                    <a href="/" aria-label="Play Video" class="absolute inset-0 flex items-center justify-center w-full h-full transition-colors duration-300 bg-gray-900 bg-opacity-50 group hover:bg-opacity-25">
-                        <div class="flex items-center justify-center w-16 h-16 transition duration-300 transform bg-gray-100 rounded-full shadow-2xl group-hover:scale-110">
-                            <svg class="w-10 text-gray-900" fill="currentColor" viewBox="0 0 24 24">
-                                <path
-                                    d="M16.53,11.152l-8-5C8.221,5.958,7.833,5.949,7.515,6.125C7.197,6.302,7,6.636,7,7v10 c0,0.364,0.197,0.698,0.515,0.875C7.667,17.958,7.833,18,8,18c0.184,0,0.368-0.051,0.53-0.152l8-5C16.822,12.665,17,12.345,17,12 S16.822,11.335,16.53,11.152z"
-                                ></path>
-                            </svg>
+                        src="https://framerusercontent.com/images/7c1DajeRRBT7lYlrLnWW397U.png"
+                        style="width:120px"
+                        class="mx-auto"
+                    >
+                    <!-- Pricing slider -->
+                    <div>
+                        <!-- Material spend ($m) -->
+                        <div class="flex flex-col items-center p-4">
+                            <!-- Slider -->
+                            <input
+                                v-model="formCalculator.spend"
+                                type="range"
+                                min="1"
+                                max="8"
+                                step="0.5"
+                                class="w-full max-w-sm appearance-none bg-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+
+                            <!-- Value Display -->
+                            <div class="mt-2 text-gray-800 font-semibold">
+                                Material Spend: ${{formCalculator.spend}}m/year
+                            </div>
                         </div>
-                    </a>
+
+                        <!-- waste reduction -->
+                        <div class="flex flex-col items-center p-4">
+                            <!-- Slider -->
+                            <input
+                                v-model="formCalculator.waste"
+                                type="range"
+                                min="1"
+                                max="6"
+                                step="1"
+                                class="w-full max-w-sm appearance-none bg-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+
+                            <!-- Value Display -->
+                            <div class="mt-2 text-gray-800 font-semibold">
+                                Waste reduction: {{formCalculator.waste}}%
+                            </div>
+                        </div>
+
+                        <!-- discounts -->
+                        <div class="flex flex-col items-center p-4">
+                            <!-- Slider -->
+                            <input
+                                v-model="formCalculator.discounts"
+                                type="range"
+                                min="1"
+                                max="4"
+                                step="1"
+                                class="w-full max-w-sm appearance-none bg-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+
+                            <!-- Value Display -->
+                            <div class="mt-2 text-gray-800 font-semibold">
+                                Discounts: {{formCalculator.discounts}}%
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-center p-4 ">
+                            <span class="block"><b>${{ beforeFees() }}</b> - <b>$10K</b> for {{years}} year software term</span>
+                            <span class="block mt-3 text-4xl text-deep-purple-accent-400">Save <b>${{ afterFees() }}</b> over {{years}} years</span>
+                        </div>
+                    </div>
+
+<!--                    <img-->
+<!--                        class="object-cover w-full h-56 rounded shadow-lg sm:h-96"-->
+<!--                        src="https://images.pexels.com/photos/927022/pexels-photo-927022.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=3&amp;h=750&amp;w=1260"-->
+<!--                        alt=""-->
+<!--                    />-->
+<!--                    <a href="/" aria-label="Play Video" class="absolute inset-0 flex items-center justify-center w-full h-full transition-colors duration-300 bg-gray-900 bg-opacity-50 group hover:bg-opacity-25">-->
+<!--                        <div class="flex items-center justify-center w-16 h-16 transition duration-300 transform bg-gray-100 rounded-full shadow-2xl group-hover:scale-110">-->
+<!--                            <svg class="w-10 text-gray-900" fill="currentColor" viewBox="0 0 24 24">-->
+<!--                                <path-->
+<!--                                    d="M16.53,11.152l-8-5C8.221,5.958,7.833,5.949,7.515,6.125C7.197,6.302,7,6.636,7,7v10 c0,0.364,0.197,0.698,0.515,0.875C7.667,17.958,7.833,18,8,18c0.184,0,0.368-0.051,0.53-0.152l8-5C16.822,12.665,17,12.345,17,12 S16.822,11.335,16.53,11.152z"-->
+<!--                                ></path>-->
+<!--                            </svg>-->
+<!--                        </div>-->
+<!--                    </a>-->
                 </div>
             </div>
         </div>
@@ -352,15 +462,89 @@
         </div>
     </div>
 
+    <div class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">
+        <div class="max-w-5xl mb-10 md:mx-auto sm:text-center md:mb-12">
+            <h2 class="max-w-5xl mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">
+                See the difference even 3% can make
+            </h2>
+        </div>
+
+        <div>
+            <div>
+                <!-- Pricing slider -->
+                <div>
+                    <!-- Material spend ($m) -->
+                    <div class="flex flex-col items-center p-4">
+                        <!-- Slider -->
+                        <input
+                            v-model="formCalculator.spend"
+                            type="range"
+                            min="1"
+                            max="8"
+                            step="0.5"
+                            class="w-full max-w-sm appearance-none bg-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+
+                        <!-- Value Display -->
+                        <div class="mt-2 text-gray-800 font-semibold">
+                            Material Spend: ${{formCalculator.spend}}m
+                        </div>
+                    </div>
+
+                    <!-- waste reduction -->
+                    <div class="flex flex-col items-center p-4">
+                        <!-- Slider -->
+                        <input
+                            v-model="formCalculator.waste"
+                            type="range"
+                            min="1"
+                            max="6"
+                            step="1"
+                            class="w-full max-w-sm appearance-none bg-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+
+                        <!-- Value Display -->
+                        <div class="mt-2 text-gray-800 font-semibold">
+                            Waste reduction: {{formCalculator.waste}}%
+                        </div>
+                    </div>
+
+                    <!-- discounts -->
+                    <div class="flex flex-col items-center p-4">
+                        <!-- Slider -->
+                        <input
+                            v-model="formCalculator.discounts"
+                            type="range"
+                            min="1"
+                            max="4"
+                            step="1"
+                            class="w-full max-w-sm appearance-none bg-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+
+                        <!-- Value Display -->
+                        <div class="mt-2 text-gray-800 font-semibold">
+                            Discounts: {{formCalculator.discounts}}%
+                        </div>
+                    </div>
+                    <div class="flex flex-col items-center p-4 ">
+                        <span class="block"><b>${{ beforeFees() }}</b> - <b>$10K</b> for {{years}} year software term</span>
+                        <span class="block mt-3 text-4xl text-deep-purple-accent-400">Save <b>${{ afterFees() }}</b> over {{years}} years</span>
+                    </div>
+                </div>
+
+
+
+
+
+            </div>
+        </div>
+    </div>
 
     <div class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">
-        <div class="max-w-xl mb-10 md:mx-auto sm:text-center lg:max-w-2xl md:mb-12">
-            <h2 class="max-w-lg mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">
-                How does a software do this?
+        <div class="max-w-5xl mb-10 md:mx-auto sm:text-center md:mb-12">
+            <h2 class="max-w-5xl mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">
+                How does an online software achieve this?
             </h2>
-            <p class="text-base text-gray-700 md:text-lg">
-                Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque rem aperiam, eaque ipsa quae.
-            </p>
         </div>
         <div class="grid gap-8 row-gap-0 lg:grid-cols-3">
             <div class="relative text-center">
@@ -369,11 +553,43 @@
                         <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
                     </svg>
                 </div>
-                <h6 class="mb-2 text-2xl font-extrabold">Step 1</h6>
-                <p class="max-w-md mb-3 text-sm text-gray-900 sm:mx-auto">
-                    Import materials from your current quote template. Excel, Googlesheets, anything that can export CSV. Every estimator usually has their own template - no problem!
-                </p>
-                <a href="/" aria-label="" class="inline-flex items-center font-semibold transition-colors duration-200 text-deep-purple-accent-400 hover:text-deep-purple-800">Learn more</a>
+                <h6 class="mb-2 text-2xl font-extrabold">
+                    1) Import Material List
+                </h6>
+                <ul class="mb-4 -ml-1 space-y-2 mt-4 text-left">
+                    <li class="flex items-start">
+                        <p class="mr-1">
+                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">
+                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
+                            </svg>
+                        </p>
+                        Import materials from any quote template
+                    </li>
+                    <li class="flex items-start">
+                        <p class="mr-1">
+                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">
+                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
+                            </svg>
+                        </p>
+                        Compares against a database of 10,000+ items
+                    </li>
+                    <li class="flex items-start">
+                        <p class="mr-1">
+                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">
+                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
+                            </svg>
+                        </p>
+                        Custom items easily added (once and done)
+                    </li>
+                    <li class="flex items-start">
+                        <p class="mr-1">
+                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">
+                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
+                            </svg>
+                        </p>
+                        Automatic sense check based on 20 criteria
+                    </li>
+                </ul>
                 <div class="top-0 right-0 flex items-center justify-center h-24 lg:-mr-8 lg:absolute">
                     <svg class="w-8 text-gray-700 transform rotate-90 lg:rotate-0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
                         <line fill="none" stroke-miterlimit="10" x1="2" y1="12" x2="22" y2="12"></line>
@@ -387,11 +603,35 @@
                         <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
                     </svg>
                 </div>
-                <h6 class="mb-2 text-2xl font-extrabold">Step 2</h6>
-                <p class="max-w-md mb-3 text-sm text-gray-900 sm:mx-auto">
-                    Cross-project nesting and RFQ management. Reminders.
-                </p>
-                <a href="/" aria-label="" class="inline-flex items-center font-semibold transition-colors duration-200 text-deep-purple-accent-400 hover:text-deep-purple-800">Learn more</a>
+                <h6 class="mb-2 text-2xl font-extrabold">
+                    2) Automatic Nesting
+                </h6>
+                <ul class="mb-4 -ml-1 space-y-2 mt-4 text-left">
+                    <li class="flex items-start">
+                        <p class="mr-1">
+                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">
+                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
+                            </svg>
+                        </p>
+                        Cross-project nesting for less waste and higher likelihood of bulk discounts
+                    </li>
+                    <li class="flex items-start">
+                        <p class="mr-1">
+                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">
+                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
+                            </svg>
+                        </p>
+                        Auto group materials together based on your suppliers for easier RFQ preparation.
+                    </li>
+                    <li class="flex items-start">
+                        <p class="mr-1">
+                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">
+                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
+                            </svg>
+                        </p>
+                        Reminders for managing RFQs based on project deadlines
+                    </li>
+                </ul>
                 <div class="top-0 right-0 flex items-center justify-center h-24 lg:-mr-8 lg:absolute">
                     <svg class="w-8 text-gray-700 transform rotate-90 lg:rotate-0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
                         <line fill="none" stroke-miterlimit="10" x1="2" y1="12" x2="22" y2="12"></line>
@@ -405,11 +645,43 @@
                         <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
                     </svg>
                 </div>
-                <h6 class="mb-2 text-2xl font-extrabold">Step 3</h6>
-                <p class="max-w-md mb-3 text-sm text-gray-900 sm:mx-auto">
-                    Cross-project batched ordering. Multiple Purchase order numbers handled. Reminders.
-                </p>
-                <a href="/" aria-label="" class="inline-flex items-center font-semibold transition-colors duration-200 text-deep-purple-accent-400 hover:text-deep-purple-800">Learn more</a>
+                <h6 class="mb-2 text-2xl font-extrabold">
+                    3) Automatic Order batching
+                </h6>
+                <ul class="mb-4 -ml-1 space-y-2 mt-4 text-left">
+                    <li class="flex items-start">
+                        <p class="mr-1">
+                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">
+                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
+                            </svg>
+                        </p>
+                        Cross-project batched ordering
+                    </li>
+                    <li class="flex items-start">
+                        <p class="mr-1">
+                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">
+                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
+                            </svg>
+                        </p>
+                        Supplier discounts based on exact product matches
+                    </li>
+                    <li class="flex items-start">
+                        <p class="mr-1">
+                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">
+                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
+                            </svg>
+                        </p>
+                        Multiple Purchase order numbers handled
+                    </li>
+                    <li class="flex items-start">
+                        <p class="mr-1">
+                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">
+                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
+                            </svg>
+                        </p>
+                        Reminders for managing orders based on project deadlines. No expensive expedited orders because something was forgotten.
+                    </li>
+                </ul>
             </div>
         </div>
     </div>
@@ -419,9 +691,6 @@
             <h2 class="max-w-lg mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">
                 Pricing
             </h2>
-            <p class="text-base text-gray-700 md:text-lg">
-                Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque rem aperiam, eaque ipsa quae.
-            </p>
         </div>
         <div class="grid max-w-md gap-10 row-gap-5 sm:row-gap-10 lg:max-w-screen-md lg:grid-cols-2 sm:mx-auto">
             <div class="flex flex-col justify-between p-5 bg-white border rounded shadow-sm">
@@ -480,9 +749,6 @@
                     <a href="/" class="inline-flex items-center justify-center w-full h-12 px-6 mb-4 font-medium tracking-wide text-white transition duration-200 bg-gray-800 rounded shadow-md hover:bg-gray-900 focus:shadow-outline focus:outline-none">
                         Start for free
                     </a>
-                    <p class="text-sm text-gray-600">
-                        Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium
-                    </p>
                 </div>
             </div>
             <div class="flex flex-col justify-between p-5 bg-white border rounded shadow-sm">
@@ -535,9 +801,6 @@
                     >
                         Get started
                     </a>
-                    <p class="text-sm text-gray-600">
-                        Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium
-                    </p>
                 </div>
             </div>
         </div>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\GradeEnums;
 use App\Enums\MaterialEnums;
 use App\Enums\MeasurementUnitEnums;
+use App\Enums\NestingEnums;
 use App\Enums\ProductEnums;
 use App\Enums\SurfaceEnums;
 use App\Models\Product;
@@ -26,11 +27,6 @@ class ProductController extends Controller
     {
         Gate::authorize('owned', $project);
 
-        $productService = new ProductService();
-
-        //Add products
-        $project->products = $project->products;
-
         $materialListRows = [];
         $checkIfNested = [];
         $productCategories = [];
@@ -51,40 +47,61 @@ class ProductController extends Controller
             /**
              * Options
              */
-            $decodedOptions = unserialize($row->general_product_matches);
-            if(count($decodedOptions) > 1){
-                $generalProductMatches[] = [
-                    "selected" => null,
-                    "data" => $row,
-                    "options" => $decodedOptions,
-                ];
+            //Is custom user product?
+            $userCustomOptions = Product::query()
+                ->availableFor($project->user)
+                ->where("description",$row->description)
+                ->get()
+                ->toArray();
+            $decodedOptions = $userCustomOptions;
+            if(count($userCustomOptions) > 0){
+                if(count($decodedOptions) > 1){
+                    $generalProductMatches[] = [
+                        "selected" => null,
+                        "data" => $row,
+                        "options" => $decodedOptions,
+                    ];
+                }
             }
-            if(count($decodedOptions) === 0){
-                $customItems[] = [
-                    "selected" => [
-                        "product" => null,
-                        "material" => null,
-                        "grade" => null,
-                        "size" => null,
-                        "quantify" => null,
-                        "suppliers" => [],
-                    ],
-                    "selected_other" => [
-                        "product" => null,
-                        "material" => null,
-                        "grade" => null,
-                        "surface" => null,
-                        "quantify" => null,
-                        "suppliers" => [],
-                    ],
-                    "data" => $row,
-                    "subOption" => [
-                        "product" => "all",
-                        "material" => "all",
-                        "grade" => "all",
-                        "suppliers" => "all",
-                    ],
-                ];
+
+            //Is price book product?
+            else{
+                $decodedOptions = unserialize($row->general_product_matches);
+                if(count($decodedOptions) > 1){
+                    $generalProductMatches[] = [
+                        "selected" => null,
+                        "data" => $row,
+                        "options" => $decodedOptions,
+                    ];
+                }
+                if(count($decodedOptions) === 0){
+                    $customItems[] = [
+                        "selected" => [
+                            "product" => null,
+                            "material" => null,
+                            "grade" => null,
+                            "size" => null,
+                            "quantify" => null,
+                            "nesting_type" => null,
+                            "suppliers" => [],
+                        ],
+                        "selected_other" => [
+                            "product" => null,
+                            "material" => null,
+                            "grade" => null,
+                            "surface" => null,
+                            "quantify" => null,
+                            "suppliers" => [],
+                        ],
+                        "data" => $row,
+                        "subOption" => [
+                            "product" => "all",
+                            "material" => "all",
+                            "grade" => "all",
+                            "suppliers" => "all",
+                        ],
+                    ];
+                }
             }
 
             /**
@@ -178,6 +195,10 @@ class ProductController extends Controller
         foreach(MeasurementUnitEnums::cases() as $measurementEnum){
             $measurementOptions[] = $measurementEnum->value;
         }
+        $nestingOptions = [];
+        foreach(NestingEnums::cases() as $nestingEnum){
+            $nestingOptions[] = $nestingEnum->value;
+        }
         $customOptions = [
             "products" => [
                 "all" => $productOptions
@@ -194,6 +215,9 @@ class ProductController extends Controller
             //"surfaces" => $surfaceOptions,
             "measurement_unit" => [
                 "all" => $measurementOptions
+            ],
+            "nesting_type" => [
+                "all" => $nestingOptions,
             ],
             "suppliers" => [
                 //todo placeholder
@@ -264,9 +288,6 @@ class ProductController extends Controller
 
             //Save user material list
             $cleanMaterialList = $productService->saveRawMaterialQuoteData($dataWithProducts,$project);
-
-            //Save matches price book products
-            //todo: this can't happen until materials are nested
 
             //Create new user-custom products
             $productService->createUserCustomProducts($dataWithProducts,$project);

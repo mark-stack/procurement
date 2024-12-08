@@ -35,9 +35,9 @@ class Project extends Model
         return $this->hasMany(Order::class);
     }
 
-    public function peices(): BelongsToMany
+    public function pieces(): HasMany
     {
-        return $this->belongsToMany(Piece::class);
+        return $this->hasMany(Piece::class);
     }
 
     public function rawMaterialQuotes(): HasMany

@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Enums\MeasurementUnitEnums;
+use App\Enums\NestingEnums;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -25,6 +26,7 @@ class ProductFactory extends Factory
             "grade" => fake()->text(10),
             "surface" => fake()->text(10),
             "measurement_unit" => MeasurementUnitEnums::METERS,
+            "nesting_type" => NestingEnums::LINEAR,
             "size" => fake()->text(10),
             "length" => fake()->text(10),
             "width" => fake()->text(10),

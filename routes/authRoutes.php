@@ -9,8 +9,11 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\RawMaterialQuoteController;
+use App\Models\Piece;
 use App\Models\Product;
+use App\Models\Project;
 use App\Models\RawMaterialQuote;
+use App\Services\NestingService;
 use App\Services\ProductService;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Validator;
@@ -218,6 +221,25 @@ Route::middleware(['auth'])->group(function () {
                     "deprecated" => false,
                 ]);
 
+                /**
+                 * Create 'Pieces'
+                 */
+                $project = Project::findOrFail($item["data"]["project_id"]);
+                $piece = Piece::create([
+                    'project_id' => $project->id,
+                    "product" => $product->product,
+                    "material" => $product->material,
+                    "grade" => $product->grade,
+                    "surface" => $product->surface,
+                    "measurement_unit" =>$product->measurement_unit,
+                    "size" => $product->size,
+                    "actual_length" => $product->length,
+                    "actual_width" => $product->width,
+                ]);
+
+                /**
+                 * General product matches
+                 */
                 $generalProductMatches = Product::select('product', 'material', 'grade', 'surface', 'measurement_unit', 'size')
                         ->distinct()
                         ->availableFor($user)
@@ -228,8 +250,13 @@ Route::middleware(['auth'])->group(function () {
                         ->where("measurement_unit", $quantify)
                         ->where("size",$size)
                         ->get();
+                $rawMaterialQuote = RawMaterialQuote::find($item["data"]["id"]);
 
-                $rawMaterialQuote = RawMaterialQuote::findOrFail($item["data"]["id"]);
+                //todo test
+                if(!$rawMaterialQuote){
+                    dd("failed to find RawMaterialQuote",$item);
+                }
+
                 $rawMaterialQuote->general_product_matches = serialize($generalProductMatches->toArray());
                 $rawMaterialQuote->save();
             }
@@ -237,6 +264,16 @@ Route::middleware(['auth'])->group(function () {
             return back();
         }
     })->name("raw.material.quote.customisations");
+
+    Route::get("quotes",function(){
+        $pieces = Piece::all();
+
+        $piecesNested = (new NestingService())->nested($pieces);
+
+        return Inertia::render('QuoteIndex',[
+            "pieces" => $piecesNested,
+        ]);
+    })->name("quotes");
 
     Route::controller(RawMaterialQuoteController::class)->group(function () {
         Route::delete('/raw-material-quote/{rawMaterialQuote}', 'destroy')->name("raw.material.quote.destroy"); //DELETE /photos/{photo}	destroy	photos.destroy
@@ -249,7 +286,7 @@ Route::middleware(['auth'])->group(function () {
         return Inertia::render('Dashboard',[
             "projects" => $user->projects,
         ]);
-    })->middleware(['auth', 'verified'])->name('dashboard');
+    })->middleware(['verified'])->name('dashboard');
 
     //Profile
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

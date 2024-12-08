@@ -59,6 +59,12 @@
                                     Projects
                                 </NavLink>
                                 <NavLink
+                                    :href="route('quotes')"
+                                    :active="route().current('quotes')"
+                                >
+                                    Quotes
+                                </NavLink>
+                                <NavLink
                                     v-if="isAdmin"
                                     :href="route('admin.dashboard')"
                                     :active="route().current('admin.dashboard')"

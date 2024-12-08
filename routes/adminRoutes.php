@@ -39,11 +39,12 @@ Route::prefix("admin")->name("admin.")->middleware([AdminMiddleware::class])->gr
                         "grade" => $row[4],
                         "surface" => $row[5],
                         "measurement_unit" => $row[6],
-                        "size" => $row[7],
-                        "length" => $row[8],
-                        "width" => $row[9],
-                        "kg_per_m" => $row[10],
-                        "baseline_unit_rate" => $row[11],
+                        "nesting_type" => $row[7],
+                        "size" => $row[8],
+                        "length" => $row[9],
+                        "width" => $row[10],
+                        "kg_per_m" => $row[11],
+                        "baseline_unit_rate" => $row[12],
                     ];
                 }
             }
@@ -80,6 +81,7 @@ Route::prefix("admin")->name("admin.")->middleware([AdminMiddleware::class])->gr
                     "grade" => $spreadsheetRowData["grade"],
                     "surface" => $spreadsheetRowData["surface"],
                     "measurement_unit" => $spreadsheetRowData["measurement_unit"],
+                    "nesting_type" => $spreadsheetRowData["nesting_type"],
                     "size" => $spreadsheetRowData["size"],
                     "length" => $spreadsheetRowData["length"],
                     "width" => $spreadsheetRowData["width"],
@@ -110,6 +112,7 @@ Route::prefix("admin")->name("admin.")->middleware([AdminMiddleware::class])->gr
                 "grade" => $spreadsheetRowData["grade"],
                 "surface" => $spreadsheetRowData["surface"],
                 "measurement_unit" => $spreadsheetRowData["measurement_unit"],
+                "nesting_type" => $spreadsheetRowData["nesting_type"],
                 "size" => $spreadsheetRowData["size"],
                 "length" => $spreadsheetRowData["length"],
                 "width" => $spreadsheetRowData["width"],
