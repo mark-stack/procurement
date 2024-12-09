@@ -215,12 +215,12 @@
                     </p>
                 </div>
                 <div class="flex flex-col items-center md:flex-row">
-                    <a
-                        href="/"
+                    <Link
+                        :href="route('login')"
                         class="inline-flex items-center justify-center w-full h-12 px-6 mb-3 font-medium tracking-wide text-white transition duration-200 rounded shadow-md md:w-auto md:mr-4 md:mb-0 bg-deep-purple-accent-400 hover:bg-deep-purple-accent-700 focus:shadow-outline focus:outline-none"
                     >
                         <span class="mr-3">{{months}} Months FREE TRIAL</span>
-                    </a>
+                    </Link>
                 </div>
             </div>
             <div class="lg:w-1/2 pt-10">

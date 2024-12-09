@@ -2,12 +2,11 @@
     //General Imports
     import {useForm, usePage} from "@inertiajs/vue3";
     import {computed, onMounted, ref} from "vue";
-
+    import shared from '@/Shared/shared';
 
     //Component Imports
     import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
-    import SelectOrType from "@/Components/SelectOrType.vue";
-    import shared from '@/Shared/shared';
+    import CustomProductForm from "@/Components/CustomProductForm.vue";
 
     //Props
     const props = defineProps({
@@ -16,7 +15,9 @@
         senseChecks: Object,
         generalProductMatches: Object,
         customItems: Object,
-        customOptions: Object,
+        allMeasurements: Object,
+        formDependentData: Object,
+        allGrades: Object,
     });
 
     //Form
@@ -326,81 +327,6 @@
     function showTable(){
         return !hasClarifications() && !hasUserCustomProducts() && props.materialListRows.length > 0;
     }
-
-    function showQuantify(index){
-        //NEST_SINGLE_NMQ/NEST_SINGLE_PACK/NEST_METERAGE/NEST_AREA
-        let nesting_type = formCustomisations[index]['selected']['nesting_type'];
-
-        //Dimensional
-        if(nesting_type === "NEST_METERAGE" || nesting_type === "NEST_AREA"){
-            return true;
-        }
-        else{
-            return false;
-        }
-    }
-
-    function showPurchasables(index){
-        /**
-            For LENGTH and QTY types
-         */
-        //NEST_SINGLE_NMQ/NEST_SINGLE_PACK/NEST_METERAGE/NEST_AREA
-        let nesting_type = formCustomisations[index]['selected']['nesting_type'];
-
-        if(nesting_type === "NEST_METERAGE" || nesting_type === "NEST_SINGLE_PACK"){
-            return true;
-        }
-        else{
-            return false;
-        }
-    }
-
-    function showPurchasablesArea(index){
-        /**
-         For AREA type
-         */
-        //NEST_SINGLE_NMQ/NEST_SINGLE_PACK/NEST_METERAGE/NEST_AREA
-        let nesting_type = formCustomisations[index]['selected']['nesting_type'];
-
-        if(nesting_type === "NEST_AREA"){
-            return true;
-        }
-        else{
-            return false;
-        }
-    }
-
-    function purchasablesLabel(index){
-        //NEST_SINGLE_NMQ/NEST_SINGLE_PACK/NEST_METERAGE/NEST_AREA
-        let nesting_type = formCustomisations[index]['selected']['nesting_type'];
-
-        let label = "Purchasable size/quantities (at least 1)";
-
-        if(nesting_type === "NEST_SINGLE_PACK"){
-            label = "Purchasable pack quantities (at least 1)";
-        }
-        if(nesting_type === "NEST_METERAGE"){
-            label = "Purchasable lengths (at least 1)";
-        }
-
-        return label;
-    }
-
-    function purchasablesPlaceholder(index){
-        //NEST_SINGLE_NMQ/NEST_SINGLE_PACK/NEST_METERAGE/NEST_AREA
-        let nesting_type = formCustomisations[index]['selected']['nesting_type'];
-
-        let placeholder = "Size";
-
-        if(nesting_type === "NEST_SINGLE_PACK"){
-            placeholder = "Qty";
-        }
-        if(nesting_type === "NEST_METERAGE"){
-            placeholder = "Meters";
-        }
-
-        return placeholder;
-    }
 </script>
 
 <template>
@@ -583,268 +509,127 @@
                 <form @submit.prevent="submitCustomisations()">
 
                     <div class="grid grid-cols-3 gap-6">
-                        <div v-for="(item,index) in customItems" class="mt-3 ">
-                            <h3 class="">
-                                <span class="font-bold italic">"{{item.data.description}}"</span>
-                            </h3>
-                            (spreadsheet row [123])
-                            <!-- PRODUCT -->
-                            <SelectOrType
-                                label="Product Category"
-                                reference="product"
-                                :index="index"
-                                :form="formCustomisations[index]"
-                                :customOptions="customOptions['products'][formCustomisations[index]['subOption']['product']]"
-                                :errors="formCustomisations.errors"
-                            />
-                            <!-- MATERIAL -->
-                            <SelectOrType
-                                label="Material"
-                                reference="material"
-                                :index="index"
-                                :form="formCustomisations[index]"
-                                :customOptions="customOptions['materials'][formCustomisations[index]['subOption']['material']]"
-                                :errors="formCustomisations.errors"
-                            />
-                            <div class="grid grid-cols-2 gap-x-2">
-                                <!-- GRADE-->
-                                <SelectOrType
-                                    label="Grade"
-                                    reference="grade"
-                                    :index="index"
-                                    :form="formCustomisations[index]"
-                                    :customOptions="customOptions['grades'][formCustomisations[index]['subOption']['grade']]"
-                                    :errors="formCustomisations.errors"
-                                />
-                                <!-- SIZE-->
-                                <div>
-                                    <label class="block text-gray-500 text-sm">Size (number)</label>
-                                    <input
-                                        v-model="formCustomisations[index]['selected']['size']"
-                                        type="number"
-                                        placeholder="SIZE"
-                                        class="w-full rounded"
-                                        :class="formCustomisations.errors[index+'-size'] ? 'border-2 border-red-500' : ''"
-                                    />
-                                </div>
-                            </div>
-                            <!-- NESTING -->
-                            <div >
-                                <label class="block text-gray-500 text-sm">Nesting</label>
-                                <select
-                                    class="w-full rounded"
-                                    v-model="formCustomisations[index]['selected']['nesting_type']"
-                                    :class="formCustomisations.errors[index+'-nesting_type'] ? 'border-2 border-red-500' : ''"
-                                >
-                                    <option :value="null" disabled>Select</option>
-                                    <option value="NEST_SINGLE_NMQ">Single Units - No minimum quantity</option>
-                                    <option value="NEST_SINGLE_PACK">Single Units - Packs/boxes (e.g 50 pack)</option>
-                                    <option value="NEST_METERAGE">Meterage - Stock lengths (e.g 6 meters)</option>
-                                    <option value="NEST_AREA">Area - Stock sizes (e.g 1000 x 4000)</option>
-                                </select>
-                            </div>
-                            <!-- Measurement Units -->
-                            <div v-show="showQuantify(index)">
-                                <label class="block text-gray-500 text-sm">Measurement Units</label>
-                                <select
-                                    class="w-full rounded"
-                                    v-model="formCustomisations[index]['selected']['quantify']"
-                                    :class="formCustomisations.errors[index+'-quantify'] ? 'border-2 border-red-500' : ''"
-                                >
-                                    <option :value="null" disabled>Select</option>
-                                    <template v-for="option in customOptions['measurement_unit']['all']">
-                                        <option
-                                            v-if="option !== 'SINGLE'"
-                                            :value="option"
-                                        >
-                                            {{option}}
-                                        </option>
-                                    </template>
-                                </select>
-                            </div>
-                            <!-- Purchasable (length & size) -->
-                            <div v-show="showPurchasables(index)">
-                                <label class="block text-gray-500 text-sm">{{purchasablesLabel(index)}}</label>
-                                <div class="grid grid-cols-3 gap-2">
-                                    <input
-                                        v-model="formCustomisations[index]['selected']['size']"
-                                        type="number"
-                                        :placeholder="purchasablesPlaceholder(index)"
-                                        class="w-full rounded"
-                                        :class="formCustomisations.errors[index+'-size'] ? 'border-2 border-red-500' : ''"
-                                    />
-                                    <input
-                                        v-model="formCustomisations[index]['selected']['size']"
-                                        type="number"
-                                        :placeholder="purchasablesPlaceholder(index)"
-                                        class="w-full rounded"
-                                        :class="formCustomisations.errors[index+'-size'] ? 'border-2 border-red-500' : ''"
-                                    />
-                                    <input
-                                        v-model="formCustomisations[index]['selected']['size']"
-                                        type="number"
-                                        :placeholder="purchasablesPlaceholder(index)"
-                                        class="w-full rounded"
-                                        :class="formCustomisations.errors[index+'-size'] ? 'border-2 border-red-500' : ''"
-                                    />
-                                </div>
-                            </div>
-                            <!-- Purchasable (area) -->
-                            <div v-show="showPurchasablesArea(index)">
-                                <label class="block text-gray-500 text-sm">Purchasable Area sizes (at least 1)</label>
-                                <div class="grid grid-cols-1 gap-2">
-                                    <div class="grid grid-cols-2 gap-2">
-                                        <div class="flex">
-                                            <input
-                                                v-model="formCustomisations[index]['selected']['size']"
-                                                type="number"
-                                                placeholder="Length"
-                                                class="w-full rounded"
-                                                :class="formCustomisations.errors[index+'-size'] ? 'border-2 border-red-500' : ''"
-                                            />
-                                            <span class="mt-2 ml-2">X</span>
-                                        </div>
-                                        <input
-                                            v-model="formCustomisations[index]['selected']['size']"
-                                            type="number"
-                                            placeholder="Width"
-                                            class="w-full rounded"
-                                            :class="formCustomisations.errors[index+'-size'] ? 'border-2 border-red-500' : ''"
-                                        />
-                                    </div>
-                                    <div class="grid grid-cols-2 gap-2">
-                                        <div class="flex">
-                                            <input
-                                                v-model="formCustomisations[index]['selected']['size']"
-                                                type="number"
-                                                placeholder="Length"
-                                                class="w-full rounded"
-                                                :class="formCustomisations.errors[index+'-size'] ? 'border-2 border-red-500' : ''"
-                                            />
-                                            <span class="mt-2 ml-2">X</span>
-                                        </div>
-                                        <input
-                                            v-model="formCustomisations[index]['selected']['size']"
-                                            type="number"
-                                            placeholder="Width"
-                                            class="w-full rounded"
-                                            :class="formCustomisations.errors[index+'-size'] ? 'border-2 border-red-500' : ''"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <CustomProductForm
+                            v-for="(item,index) in customItems"
+                            class="mt-3"
+                            :item="item"
+                            :index="index"
+                            :form="formCustomisations"
+                            :allMeasurements="allMeasurements"
+                            :formDependentData="formDependentData"
+                            :allGrades="allGrades"
+                        />
                     </div>
 
 
 
-                    <p v-for="(item,index) in customItems" class="mt-3">
-                        <h3 class=""><span class="font-bold italic">"{{item.data.description}}"</span> (spreadsheet row [123])</h3>
-                        <div class="grid grid-cols-12 gap-x-2">
-                            <!-- PRODUCT -->
-                            <div class="col-span-2">
-                                <SelectOrType
-                                    label="Product Category"
-                                    reference="product"
-                                    :index="index"
-                                    :form="formCustomisations[index]"
-                                    :customOptions="customOptions['products'][formCustomisations[index]['subOption']['product']]"
-                                    :errors="formCustomisations.errors"
-                                />
-                            </div>
+<!--                    <p v-for="(item,index) in customItems" class="mt-3">-->
+<!--                        <h3 class=""><span class="font-bold italic">"{{item.data.description}}"</span> (spreadsheet row [123])</h3>-->
+<!--                        <div class="grid grid-cols-12 gap-x-2">-->
+<!--                            &lt;!&ndash; PRODUCT &ndash;&gt;-->
+<!--                            <div class="col-span-2">-->
+<!--                                <SelectOrType-->
+<!--                                    label="Product Category"-->
+<!--                                    reference="product"-->
+<!--                                    :index="index"-->
+<!--                                    :form="formCustomisations[index]"-->
+<!--                                    :customOptions="customOptions['products'][formCustomisations[index]['subOption']['product']]"-->
+<!--                                    :errors="formCustomisations.errors"-->
+<!--                                />-->
+<!--                            </div>-->
 
-                            <!-- MATERIAL -->
-                            <div class="col-span-2">
-                                <SelectOrType
-                                    label="Material"
-                                    reference="material"
-                                    :index="index"
-                                    :form="formCustomisations[index]"
-                                    :customOptions="customOptions['materials'][formCustomisations[index]['subOption']['material']]"
-                                    :errors="formCustomisations.errors"
-                                />
-                            </div>
-                            <!-- GRADE-->
-                            <div class="col-span-2">
-                                <SelectOrType
-                                    label="Grade"
-                                    reference="grade"
-                                    :index="index"
-                                    :form="formCustomisations[index]"
-                                    :customOptions="customOptions['grades'][formCustomisations[index]['subOption']['grade']]"
-                                    :errors="formCustomisations.errors"
-                                />
-                            </div>
-                            <!-- SIZE-->
-                            <div class="col-span-2">
-                                <label class="block text-gray-500 text-sm">Size (number)</label>
-                                <input
-                                    v-model="formCustomisations[index]['selected']['size']"
-                                    type="number"
-                                    placeholder="SIZE"
-                                    class="w-full rounded"
-                                    :class="formCustomisations.errors[index+'-size'] ? 'border-2 border-red-500' : ''"
-                                />
-                            </div>
-                            <!-- QUANTIFY -->
-                            <div class="col-span-2">
-                                <label class="block text-gray-500 text-sm">Quantify</label>
-                                <select
-                                    class="w-full rounded"
-                                    v-model="formCustomisations[index]['selected']['quantify']"
-                                    :class="formCustomisations.errors[index+'-quantify'] ? 'border-2 border-red-500' : ''"
-                                >
-                                    <option :value="null" disabled>Select</option>
-                                    <template v-for="option in customOptions['measurement_unit']['all']">
-                                        <option
-                                            :value="option"
-                                        >
-                                            {{option}}
-                                        </option>
-                                    </template>
-                                </select>
-                            </div>
-                            <!-- NESTING -->
-                            <div class="col-span-2">
-                                <label class="block text-gray-500 text-sm">Nesting</label>
-                                <select
-                                    class="w-full rounded"
-                                    v-model="formCustomisations[index]['selected']['nesting_type']"
-                                    :class="formCustomisations.errors[index+'-nesting_type'] ? 'border-2 border-red-500' : ''"
-                                >
-                                    <option :value="null" disabled>Select</option>
-<!--                                    <option-->
-<!--                                        v-for="option in customOptions['nesting_type']['all']"-->
-<!--                                        :value="option"-->
-<!--                                    >-->
-<!--                                        {{ option }}-->
-<!--                                    </option>-->
-                                    <option value="xxx">Single Units - No minimum quantity</option>
-                                    <option value="xxx">Single Units - Packs/boxes (e.g 50 pack)</option>
-                                    <option value="xxx">Meterage - Stock lengths (e.g 6 meters)</option>
-                                    <option value="xxx">Area - Stock sizes (e.g 1000 x 4000)</option>
-                                </select>
-                            </div>
-                            <!-- SUPPLIER-->
-                            <div class="col-span-2">
-                                <SelectOrType
-                                    label="Suppliers"
-                                    reference="suppliers"
-                                    :index="index"
-                                    :form="formCustomisations[index]"
-                                    :customOptions="customOptions['suppliers'][formCustomisations[index]['subOption']['suppliers']]"
-                                    :errors="formCustomisations.errors"
-                                />
-<!--                                <label class="block text-gray-500 text-sm">Suppliers</label>-->
-<!--                                <select class="w-full rounded">-->
-<!--                                    <option value="" name="">XYZ Company</option>-->
-<!--                                    <option value="" name="">ABC Company</option>-->
-<!--                                    <option value="" name="">Not sure yet</option>-->
-<!--                                    <option value="Other" name="">Other</option>-->
+<!--                            &lt;!&ndash; MATERIAL &ndash;&gt;-->
+<!--                            <div class="col-span-2">-->
+<!--                                <SelectOrType-->
+<!--                                    label="Material"-->
+<!--                                    reference="material"-->
+<!--                                    :index="index"-->
+<!--                                    :form="formCustomisations[index]"-->
+<!--                                    :customOptions="customOptions['materials'][formCustomisations[index]['subOption']['material']]"-->
+<!--                                    :errors="formCustomisations.errors"-->
+<!--                                />-->
+<!--                            </div>-->
+<!--                            &lt;!&ndash; GRADE&ndash;&gt;-->
+<!--                            <div class="col-span-2">-->
+<!--                                <SelectOrType-->
+<!--                                    label="Grade"-->
+<!--                                    reference="grade"-->
+<!--                                    :index="index"-->
+<!--                                    :form="formCustomisations[index]"-->
+<!--                                    :customOptions="customOptions['grades'][formCustomisations[index]['subOption']['grade']]"-->
+<!--                                    :errors="formCustomisations.errors"-->
+<!--                                />-->
+<!--                            </div>-->
+<!--                            &lt;!&ndash; SIZE&ndash;&gt;-->
+<!--                            <div class="col-span-2">-->
+<!--                                <label class="block text-gray-500 text-sm">Size (number)</label>-->
+<!--                                <input-->
+<!--                                    v-model="formCustomisations[index]['selected']['size']"-->
+<!--                                    type="number"-->
+<!--                                    placeholder="SIZE"-->
+<!--                                    class="w-full rounded"-->
+<!--                                    :class="formCustomisations.errors[index+'-size'] ? 'border-2 border-red-500' : ''"-->
+<!--                                />-->
+<!--                            </div>-->
+<!--                            &lt;!&ndash; QUANTIFY &ndash;&gt;-->
+<!--                            <div class="col-span-2">-->
+<!--                                <label class="block text-gray-500 text-sm">Quantify</label>-->
+<!--                                <select-->
+<!--                                    class="w-full rounded"-->
+<!--                                    v-model="formCustomisations[index]['selected']['quantify']"-->
+<!--                                    :class="formCustomisations.errors[index+'-quantify'] ? 'border-2 border-red-500' : ''"-->
+<!--                                >-->
+<!--                                    <option :value="null" disabled>Select</option>-->
+<!--                                    <template v-for="option in customOptions['measurement_unit']['all']">-->
+<!--                                        <option-->
+<!--                                            :value="option"-->
+<!--                                        >-->
+<!--                                            {{option}}-->
+<!--                                        </option>-->
+<!--                                    </template>-->
 <!--                                </select>-->
-                            </div>
-                        </div>
-                    </p>
+<!--                            </div>-->
+<!--                            &lt;!&ndash; NESTING &ndash;&gt;-->
+<!--                            <div class="col-span-2">-->
+<!--                                <label class="block text-gray-500 text-sm">Nesting</label>-->
+<!--                                <select-->
+<!--                                    class="w-full rounded"-->
+<!--                                    v-model="formCustomisations[index]['selected']['nesting_type']"-->
+<!--                                    :class="formCustomisations.errors[index+'-nesting_type'] ? 'border-2 border-red-500' : ''"-->
+<!--                                >-->
+<!--                                    <option :value="null" disabled>Select</option>-->
+<!--&lt;!&ndash;                                    <option&ndash;&gt;-->
+<!--&lt;!&ndash;                                        v-for="option in customOptions['nesting_type']['all']"&ndash;&gt;-->
+<!--&lt;!&ndash;                                        :value="option"&ndash;&gt;-->
+<!--&lt;!&ndash;                                    >&ndash;&gt;-->
+<!--&lt;!&ndash;                                        {{ option }}&ndash;&gt;-->
+<!--&lt;!&ndash;                                    </option>&ndash;&gt;-->
+<!--                                    <option value="xxx">Single Units - No minimum quantity</option>-->
+<!--                                    <option value="xxx">Single Units - Packs/boxes (e.g 50 pack)</option>-->
+<!--                                    <option value="xxx">Meterage - Stock lengths (e.g 6 meters)</option>-->
+<!--                                    <option value="xxx">Area - Stock sizes (e.g 1000 x 4000)</option>-->
+<!--                                </select>-->
+<!--                            </div>-->
+<!--                            &lt;!&ndash; SUPPLIER&ndash;&gt;-->
+<!--                            <div class="col-span-2">-->
+<!--                                <SelectOrType-->
+<!--                                    label="Suppliers"-->
+<!--                                    reference="suppliers"-->
+<!--                                    :index="index"-->
+<!--                                    :form="formCustomisations[index]"-->
+<!--                                    :customOptions="customOptions['suppliers'][formCustomisations[index]['subOption']['suppliers']]"-->
+<!--                                    :errors="formCustomisations.errors"-->
+<!--                                />-->
+<!--&lt;!&ndash;                                <label class="block text-gray-500 text-sm">Suppliers</label>&ndash;&gt;-->
+<!--&lt;!&ndash;                                <select class="w-full rounded">&ndash;&gt;-->
+<!--&lt;!&ndash;                                    <option value="" name="">XYZ Company</option>&ndash;&gt;-->
+<!--&lt;!&ndash;                                    <option value="" name="">ABC Company</option>&ndash;&gt;-->
+<!--&lt;!&ndash;                                    <option value="" name="">Not sure yet</option>&ndash;&gt;-->
+<!--&lt;!&ndash;                                    <option value="Other" name="">Other</option>&ndash;&gt;-->
+<!--&lt;!&ndash;                                </select>&ndash;&gt;-->
+<!--                            </div>-->
+<!--                        </div>-->
+<!--                    </p>-->
                     <button
                         type="submit"
                         class="bg-green-500 rounded px-2 py-1"

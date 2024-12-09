@@ -68,7 +68,7 @@ class ProductService
 
         //"Product" is mandatory
         if($productString) {
-            if($lengthInt && $measurementUnitEnum->value === "SINGLE"){
+            if($lengthInt && $measurementUnitEnum && $measurementUnitEnum->value === "SINGLE"){
                 $query = Product::select('product', 'material', 'grade', 'surface', 'measurement_unit', 'size','length')
                     ->distinct()
                     ->availableFor($user)
@@ -111,7 +111,7 @@ class ProductService
             }
 
             //Length
-            if($lengthInt && $measurementUnitEnum->value === "SINGLE"){
+            if($lengthInt && $measurementUnitEnum && $measurementUnitEnum->value === "SINGLE"){
                 $query->where("length", $lengthInt);
             }
 

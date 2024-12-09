@@ -69,10 +69,11 @@ Route::middleware(['auth'])->group(function () {
                 MaterialEnums::from($selectedProduct["material"]),
                 [GradeEnums::from($selectedProduct["grade"])],
                 SurfaceEnums::from($selectedProduct["surface"]),
-                MeasurementUnitEnums::from($selectedProduct["measurement_unit"]),
+                isset($selectedProduct["measurement_unit"]) ? MeasurementUnitEnums::from($selectedProduct["measurement_unit"]) : null,
                 $selectedProduct["size"],
                 $selectedProduct["length"] ?? null,
             );
+
             if($generalProductMatches->count() === 1){
                 $rawMaterialQuote->general_product_matches = serialize($generalProductMatches);
                 $rawMaterialQuote->save();
@@ -90,7 +91,14 @@ Route::middleware(['auth'])->group(function () {
             $material = $row["selected"]["material"];
             $grade = $row["selected"]["grade"];
             $size = $row["selected"]["size"];
-            $quantify = $row["selected"]["quantify"];
+            $measurementUnit = $row["selected"]["quantify"];
+            $nestingType = $row["selected"]["nesting_type"];
+            $purchasable_length_1 = $row["selected"]["purchasable_length_1"];
+            $purchasable_length_2 = $row["selected"]["purchasable_length_2"];
+            $purchasable_length_3 = $row["selected"]["purchasable_length_3"];
+            $purchasable_width_1 = $row["selected"]["purchasable_width_1"];
+            $purchasable_width_2 = $row["selected"]["purchasable_width_2"];
+            $purchasable_width_3 = $row["selected"]["purchasable_width_3"];
 
             //product
             if($product){
@@ -134,10 +142,92 @@ Route::middleware(['auth'])->group(function () {
                 $validator->errors()->add($index."-size", 'size');
             }
 
-            //Quantify
-            if(!$quantify){
+            //Nesting & measurement units
+            if($nestingType){
+                /**
+                 * Quantify (measurement units)
+                 */
+                /*
+                 * NEST_SINGLE_NMQ (no minimum volume)
+                 *  - Measurement units required: FALSE
+                 *  - Size required: FALSE
+                 *  - purchasable_length_1: FALSE
+                 *  - purchasable_width_1: FALSE
+                 */
+                if($nestingType === "NEST_SINGLE_NMQ"){
+                    //No actions
+                }
+                /*
+                 * NEST_SINGLE_PACK
+                 * - Measurement units required: FALSE
+                 * - Size required: TRUE
+                 * - purchasable_length_1: TRUE
+                 * - purchasable_width_1: FALSE
+                 */
+                if($nestingType === "NEST_SINGLE_PACK"){
+                    //Size required: TRUE
+                    if(!$size){
+                        $validationErrors++;
+                        $validator->errors()->add($index."-size", 'size');
+                    }
+                    //purchasable_length_1: TRUE
+                    if(!$purchasable_length_1){
+                        $validationErrors++;
+                        $validator->errors()->add($index."-purchasable_length_1", 'purchasable_length_1');
+                    }
+                }
+                /*
+                 * NEST_METERAGE
+                 * - Measurement units required: TRUE
+                 * - Size required: TRUE
+                 * - purchasable_length_1: TRUE
+                 * - purchasable_width_1: FALSE
+                 */
+                if($nestingType === "NEST_METERAGE"){
+                    //Measurement units required: TRUE
+                    if(!$measurementUnit){
+                        $validationErrors++;
+                        $validator->errors()->add($index."-quantify", 'quantify');
+                    }
+                    //Size required: TRUE
+                    if(!$size){
+                        $validationErrors++;
+                        $validator->errors()->add($index."-size", 'size');
+                    }
+                    //purchasable_length_1: TRUE
+                    if(!$purchasable_length_1){
+                        $validationErrors++;
+                        $validator->errors()->add($index."-purchasable_length_1", 'purchasable_length_1');
+                    }
+                }
+                /*
+                 * NEST_AREA
+                 * - Measurement units required: TRUE
+                 * - Size required: FALSE
+                 * - purchasable_length_1: TRUE
+                 * - purchasable_width_1: TRUE
+                 */
+                if($nestingType === "NEST_AREA"){
+                    //Measurement units required: TRUE
+                    if(!$measurementUnit){
+                        $validationErrors++;
+                        $validator->errors()->add($index."-quantify", 'quantify');
+                    }
+                    //purchasable_length_1: TRUE
+                    if(!$purchasable_length_1){
+                        $validationErrors++;
+                        $validator->errors()->add($index."-purchasable_length_1", 'purchasable_length_1');
+                    }
+                    //purchasable_width_1: TRUE
+                    if(!$purchasable_width_1){
+                        $validationErrors++;
+                        $validator->errors()->add($index."-purchasable_width_1", 'purchasable_width_1');
+                    }
+                }
+            }
+            else{
                 $validationErrors++;
-                $validator->errors()->add($index."-quantify", 'quantify');
+                $validator->errors()->add($index."-nesting_type", 'nesting_type');
             }
         }
 
@@ -201,41 +291,71 @@ Route::middleware(['auth'])->group(function () {
                     ? $item["selected_other"]["grade"]
                     : $item["selected"]["grade"];
                 $size = $item["selected"]["size"];
-                $quantify = $item["selected"]["quantify"];
+                $measurementUnit = $item["selected"]["quantify"];
+                $nestingType = $item["selected"]["nesting_type"];
+                $purchasable_length_1 = $item["selected"]["purchasable_length_1"];
+                $purchasable_length_2 = $item["selected"]["purchasable_length_2"];
+                $purchasable_length_3 = $item["selected"]["purchasable_length_3"];
+                $purchasable_width_1 = $item["selected"]["purchasable_width_1"];
+                $purchasable_width_2 = $item["selected"]["purchasable_width_2"];
+                $purchasable_width_3 = $item["selected"]["purchasable_width_3"];
 
-                //Create item
-                $product = Product::create([
-                    "spreadsheet_id" => null,
-                    "description" => $item["data"]["description"],
-                    "product" => $product,
-                    "material" => $material,
-                    "grade" => $grade,
-                    "surface" => SurfaceEnums::NONE->value,
-                    "measurement_unit" => $quantify,
-                    "size" => $size,
-                    "length" => 1, //todo actual?
-                    "width" => 1,
-                    "kg_per_m" => 0,
-                    "baseline_unit_rate" => 0, //todo get quoted price
-                    'domain' => $user->getDomainFromEmail(),
-                    "deprecated" => false,
-                ]);
+                $productVariations = [
+                    [
+                        "purchasable_length" => $purchasable_length_1,
+                        "purchasable_width" => $purchasable_width_1,
+                    ],
+                ];
+                if($purchasable_length_2 && $purchasable_width_2){
+                    $productVariations[] = [
+                        "purchasable_length" => $purchasable_length_2,
+                        "purchasable_width" => $purchasable_width_2,
+                    ];
+                }
+                if($purchasable_length_3 && $purchasable_width_3){
+                    $productVariations[] = [
+                        "purchasable_length" => $purchasable_length_3,
+                        "purchasable_width" => $purchasable_width_3,
+                    ];
+                }
 
-                /**
-                 * Create 'Pieces'
-                 */
-                $project = Project::findOrFail($item["data"]["project_id"]);
-                $piece = Piece::create([
-                    'project_id' => $project->id,
-                    "product" => $product->product,
-                    "material" => $product->material,
-                    "grade" => $product->grade,
-                    "surface" => $product->surface,
-                    "measurement_unit" =>$product->measurement_unit,
-                    "size" => $product->size,
-                    "actual_length" => $product->length,
-                    "actual_width" => $product->width,
-                ]);
+                foreach($productVariations as $productVariation){
+                    //Create item
+                    $productObject = Product::create([
+                        "spreadsheet_id" => null,
+                        "description" => $item["data"]["description"],
+                        "product" => $product,
+                        "material" => $material,
+                        "grade" => $grade,
+                        "surface" => SurfaceEnums::NONE->value,
+                        "measurement_unit" => $measurementUnit,
+                        "nesting_type" => $nestingType,
+                        "size" => $size,
+                        "length" => $productVariation["purchasable_length"] ?? null,
+                        "width" => $productVariation["purchasable_width"] ?? null,
+                        "kg_per_m" => 0,
+                        "baseline_unit_rate" => 0, //todo get quoted price
+                        'domain' => $user->getDomainFromEmail(),
+                        "deprecated" => false,
+                    ]);
+
+                    /**
+                     * Create 'Pieces'
+                     */
+                    $project = Project::findOrFail($item["data"]["project_id"]);
+                    $piece = Piece::create([
+                        'project_id' => $project->id,
+                        "product" => $productObject->product,
+                        "material" => $productObject->material,
+                        "grade" => $productObject->grade,
+                        "surface" => $productObject->surface,
+                        "measurement_unit" => $productObject->measurement_unit,
+                        "nesting_type" => $productObject->nesting_type,
+                        "size" => $productObject->size,
+                        "actual_length" => $productObject->length,
+                        "actual_width" => $productObject->width,
+                    ]);
+                }
 
                 /**
                  * General product matches
@@ -247,16 +367,10 @@ Route::middleware(['auth'])->group(function () {
                         ->where("material", $material)
                         ->where("grade", $grade)
                         ->where("surface", SurfaceEnums::NONE->value)
-                        ->where("measurement_unit", $quantify)
+                        ->where("measurement_unit", $measurementUnit)
                         ->where("size",$size)
                         ->get();
                 $rawMaterialQuote = RawMaterialQuote::find($item["data"]["id"]);
-
-                //todo test
-                if(!$rawMaterialQuote){
-                    dd("failed to find RawMaterialQuote",$item);
-                }
-
                 $rawMaterialQuote->general_product_matches = serialize($generalProductMatches->toArray());
                 $rawMaterialQuote->save();
             }

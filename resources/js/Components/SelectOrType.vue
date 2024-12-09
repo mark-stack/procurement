@@ -11,7 +11,7 @@
         reference: String,
         index: Number,
         form: Object,
-        customOptions: Object,
+        options: Object,
         errors: Object,
     });
 
@@ -75,7 +75,7 @@
         >
             <option :value="null" disabled>Select</option>
             <option
-                v-for="option in customOptions"
+                v-for="option in options"
                 :value="option"
             >
                 {{displayFormat(option)}}

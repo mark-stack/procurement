@@ -17,14 +17,15 @@ return new class extends Migration
 
             $table->foreignId('project_id')->constrained();
 
-            $table->text("product");                //PFC
-            $table->text("material");               //STEEL
-            $table->text("grade");                  //GR250
-            $table->text("surface");                //NONE
-            $table->string("measurement_unit");     //METERS
-            $table->text("size");                   //200
-            $table->text("actual_length");          //9
-            $table->text("actual_width");           //1
+            $table->text("product");                        //PFC
+            $table->text("material");                       //STEEL
+            $table->text("grade");                          //GR250
+            $table->text("surface");                        //NONE
+            $table->string("measurement_unit")->nullable(); //METERS
+            $table->string("nesting_type")->nullable();     //NEST_METERAGE
+            $table->text("size");                           //200
+            $table->text("actual_length");                  //9
+            $table->text("actual_width")->nullable();       //1
         });
     }
 

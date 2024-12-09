@@ -1,0 +1,498 @@
+<script setup>
+    //General Imports
+    //...
+
+    //Component Imports
+    import SelectOrType from "@/Components/SelectOrType.vue";
+    import {ref} from "vue";
+
+    //Props
+    const props = defineProps({
+        item: Object,
+        index: Number,
+        form: Object,
+        allMeasurements: Object,
+        formDependentData: Object,
+        allGrades: Object,
+    });
+
+    //Form
+    //...
+
+    //Shared data
+    //...
+
+    //Variables
+    //...
+
+    //Shared Methods
+    //...
+
+    //Methods
+    function getProductOptions(){
+        return Object.keys(props.formDependentData);
+    }
+
+    function getMaterialOptions(index){
+        let productSelection = props.form[index]['selected']['product'];
+        let indexOfProductSelection = Object.keys(props.formDependentData).indexOf(productSelection);
+        let materialsObject = Object.values(props.formDependentData)[indexOfProductSelection];
+
+        return Object.keys(materialsObject);
+    }
+
+    function getGradeOptions(index){
+        let productSelection = props.form[index]['selected']['product'];
+        let materialSelection = props.form[index]['selected']['material'];
+        if(materialSelection === "Other"){
+            return props.allGrades; //todo
+        }
+        else{
+            let indexOfProductSelection = Object.keys(props.formDependentData).indexOf(productSelection);
+            let gradesObject = Object.values(props.formDependentData)[indexOfProductSelection][materialSelection];
+
+            return Object.keys(gradesObject);
+        }
+    }
+
+    function getNestingOptions(index){
+        let singleNmq = "Single Units - No minimum quantity";
+        let singlePack = "Single Units - Packs/boxes (e.g 50 pack)";
+        let meterage = "Meterage - Stock lengths (e.g 6 meters)";
+        let area = "Area - Stock sizes (e.g 1000 x 4000)";
+
+        let nestingOptions = {
+            NEST_SINGLE_NMQ:singleNmq,
+            NEST_SINGLE_PACK:singlePack,
+            NEST_METERAGE:meterage,
+            NEST_AREA:area,
+        };
+
+        let currentProductSelection = props.form[index]['selected']['product'];
+
+        //Other
+        if(currentProductSelection === "Other"){
+            nestingOptions = {
+                NEST_SINGLE_NMQ:singleNmq,
+                NEST_SINGLE_PACK:singlePack,
+                NEST_METERAGE:meterage,
+                NEST_AREA:area,
+            }
+        }
+
+        //Bolt
+        if(currentProductSelection === "BOLT"){
+            nestingOptions = {
+                NEST_SINGLE_PACK:singlePack,
+            }
+        }
+
+        //Plate
+        if(currentProductSelection === "PLATE"){
+            nestingOptions = {
+                NEST_AREA:area,
+            }
+        }
+
+        //PFC
+        if(currentProductSelection === "PFC"){
+            nestingOptions = {
+                NEST_METERAGE:meterage,
+            }
+        }
+
+        //SHS
+        if(currentProductSelection === "SHS"){
+            nestingOptions = {
+                NEST_METERAGE:meterage,
+            }
+        }
+
+        //RHS
+        if(currentProductSelection === "RHS"){
+            nestingOptions = {
+                NEST_METERAGE:meterage,
+            }
+        }
+
+        //todo more
+
+        return nestingOptions;
+    }
+
+    function showMaterials(index){
+        let anyProductIsSelected = props.form[index]['selected']['product'];
+
+        return anyProductIsSelected;
+    }
+
+    function showGrade(index){
+        let anyMaterialIsSelected = props.form[index]['selected']['material'];
+
+        return anyMaterialIsSelected;
+    }
+
+    function showQuantify(index){
+        //NEST_SINGLE_NMQ/NEST_SINGLE_PACK/NEST_METERAGE/NEST_AREA
+        let nesting_type = props.form[index]['selected']['nesting_type'];
+
+        //Dimensional
+        if(nesting_type === "NEST_METERAGE" || nesting_type === "NEST_AREA"){
+            return true;
+        }
+        else{
+            return false;
+        }
+    }
+
+    function showNesting(index){
+        /**
+            Any grade selected
+         */
+        let anyGradeIsSelected = props.form[index]['selected']['grade'];
+
+        return anyGradeIsSelected;
+    }
+
+    function showPurchasables(index){
+        /**
+         For LENGTH and QTY types
+         */
+        //NEST_SINGLE_NMQ/NEST_SINGLE_PACK/NEST_METERAGE/NEST_AREA
+        let nesting_type = props.form[index]['selected']['nesting_type'];
+
+        if(nesting_type === "NEST_METERAGE" || nesting_type === "NEST_SINGLE_PACK"){
+            return true;
+        }
+        else{
+            return false;
+        }
+    }
+
+    function showPurchasablesArea(index){
+        /**
+         For AREA type
+         */
+            //NEST_SINGLE_NMQ/NEST_SINGLE_PACK/NEST_METERAGE/NEST_AREA
+        let nesting_type = props.form[index]['selected']['nesting_type'];
+
+        if(nesting_type === "NEST_AREA"){
+            return true;
+        }
+        else{
+            return false;
+        }
+    }
+
+    function purchasablesLabel(index){
+        //NEST_SINGLE_NMQ/NEST_SINGLE_PACK/NEST_METERAGE/NEST_AREA
+        let nesting_type = props.form[index]['selected']['nesting_type'];
+
+        let label = "Purchasable size/quantities (at least 1)";
+
+        if(nesting_type === "NEST_SINGLE_PACK"){
+            label = "Purchasable pack quantities (at least 1)";
+        }
+        if(nesting_type === "NEST_METERAGE"){
+            label = "Purchasable lengths (at least 1)";
+        }
+
+        return label;
+    }
+
+    function purchasablesPlaceholder(index){
+        //NEST_SINGLE_NMQ/NEST_SINGLE_PACK/NEST_METERAGE/NEST_AREA
+        let nesting_type = props.form[index]['selected']['nesting_type'];
+
+        let placeholder = "Size";
+
+        if(nesting_type === "NEST_SINGLE_PACK"){
+            placeholder = "Qty";
+        }
+        if(nesting_type === "NEST_METERAGE"){
+            placeholder = "length";
+        }
+
+        return placeholder;
+    }
+
+    function getSizeLabel(index){
+        let display = "Size (number)";
+        let currentProductSelection = props.form[index]['selected']['product'];
+
+        //Bolt
+        if(currentProductSelection === "BOLT"){
+            display = "Size (mm) e.g 16mm";
+        }
+
+        //Plate
+        if(currentProductSelection === "PLATE"){
+            display = "Thickness (mm)";
+        }
+
+        //PFC
+        if(currentProductSelection === "PFC"){
+            display = "Height (mm)";
+        }
+
+        //SHS
+        if(currentProductSelection === "SHS"){
+            display = "Height (mm)";
+        }
+
+        //RHS
+        if(currentProductSelection === "RHS"){
+            display = "Height (mm)";
+        }
+
+        return display;
+    }
+
+    function onChangeActions(field,index){
+        /**
+          Reset dependent fields below this
+         */
+        if(field === 'product'){
+            //Clear
+            props.form[index]['selected']['material'] = null;
+            props.form[index]['selected']['grade'] = null;
+            props.form[index]['selected']['nesting_type'] = null;
+
+            //Set material
+            let currentProductSelection = props.form[index]['selected']['product'];
+            if(currentProductSelection === "LVL"){
+                props.form[index]['selected']['material'] = "TIMBER";
+            }
+        }
+        if(field === 'material'){
+            //Clear
+            props.form[index]['selected']['grade'] = null;
+            props.form[index]['selected']['nesting_type'] = null;
+        }
+        if(field === 'grade'){
+            //Clear
+            props.form[index]['selected']['nesting_type'] = null;
+
+            //Set nesting type (NEST_SINGLE_NMQ/NEST_SINGLE_PACK/NEST_METERAGE/NEST_AREA)
+            //BOLT/UB/UC/PFC/PLATE/LVL/SHS
+            let currentProductSelection = props.form[index]['selected']['product'];
+
+            if(currentProductSelection === "BOLT"){
+                props.form[index]['selected']['nesting_type'] = "NEST_SINGLE_PACK";
+            }
+
+            if(currentProductSelection === "UB"){
+                props.form[index]['selected']['nesting_type'] = "NEST_METERAGE";
+            }
+
+            if(currentProductSelection === "UC"){
+                props.form[index]['selected']['nesting_type'] = "NEST_METERAGE";
+            }
+
+            if(currentProductSelection === "PFC"){
+                props.form[index]['selected']['nesting_type'] = "NEST_METERAGE";
+            }
+
+            if(currentProductSelection === "PLATE"){
+                props.form[index]['selected']['nesting_type'] = "NEST_AREA";
+            }
+
+            if(currentProductSelection === "LVL"){
+                props.form[index]['selected']['nesting_type'] = "NEST_METERAGE";
+            }
+
+            if(currentProductSelection === "SHS"){
+                props.form[index]['selected']['nesting_type'] = "NEST_METERAGE";
+            }
+
+            //todo more
+        }
+    }
+</script>
+
+<template>
+    <div>
+        <h3 class="">
+            <span class="font-bold italic">"{{item.data.description}}"</span>
+        </h3>
+        (spreadsheet row [123])
+        <!-- PRODUCT -->
+        <SelectOrType
+            label="Product Category"
+            reference="product"
+            :index="index"
+            :form="form[index]"
+            :options="getProductOptions()"
+            :errors="form.errors"
+            @change="onChangeActions('product',index)"
+        />
+        <!-- MATERIAL (customOptions['materials'][form[index]['subOption']['material']])-->
+        <SelectOrType
+            v-if="showMaterials(index)"
+            label="Material"
+            reference="material"
+            :index="index"
+            :form="form[index]"
+            :options="getMaterialOptions(index)"
+            :errors="form.errors"
+            @change="onChangeActions('material',index)"
+        />
+        <div
+            v-if="showGrade(index)"
+            class="grid grid-cols-2 gap-x-2"
+        >
+            <!-- GRADE (customOptions['grades'][form[index]['subOption']['grade']])-->
+            <SelectOrType
+                label="Grade"
+                reference="grade"
+                :index="index"
+                :form="form[index]"
+                :options="getGradeOptions(index)"
+                :errors="form.errors"
+                @change="onChangeActions('grade',index)"
+            />
+            <!-- SIZE-->
+            <div>
+                <label class="block text-gray-500 text-sm">{{ getSizeLabel(index) }}</label>
+                <input
+                    v-model="form[index]['selected']['size']"
+                    type="number"
+                    placeholder=""
+                    class="w-full rounded"
+                    :class="form.errors[index+'-size'] ? 'border-2 border-red-500' : ''"
+                />
+            </div>
+        </div>
+        <!-- NESTING -->
+        <div v-if="showNesting(index)">
+            <label class="block text-gray-500 text-sm">Nesting</label>
+            <select
+                class="w-full rounded"
+                v-model="form[index]['selected']['nesting_type']"
+                :class="form.errors[index+'-nesting_type'] ? 'border-2 border-red-500' : ''"
+            >
+                <option
+                    v-if="Object.values(getNestingOptions(index)).length > 1"
+                    :value="null"
+                    disabled
+                >
+                    Select
+                </option>
+                <option
+                    v-for="(description,reference) in getNestingOptions(index)"
+                    :value="reference"
+                >
+                    {{description}}
+                </option>
+            </select>
+        </div>
+        <!-- Measurement Units -->
+        <div v-show="showQuantify(index)">
+            <label class="block text-gray-500 text-sm">Measurement Units</label>
+            <select
+                class="w-full rounded"
+                v-model="form[index]['selected']['quantify']"
+                :class="form.errors[index+'-quantify'] ? 'border-2 border-red-500' : ''"
+            >
+                <option :value="null" disabled>Select</option>
+                <template v-for="option in allMeasurements">
+                    <option
+                        :value="option"
+                    >
+                        {{option}}
+                    </option>
+                </template>
+            </select>
+        </div>
+        <!-- Purchasable (length & size) -->
+        <div v-show="showPurchasables(index)">
+            <label class="block text-gray-500 text-sm">{{purchasablesLabel(index)}}</label>
+            <div class="grid grid-cols-3 gap-2">
+                <input
+                    v-model="form[index]['selected']['purchasable_length_1']"
+                    type="number"
+                    :placeholder="purchasablesPlaceholder(index)"
+                    class="w-full rounded"
+                    :class="form.errors[index+'-purchasable_length_1'] ? 'border-2 border-red-500' : ''"
+                />
+                <input
+                    v-model="form[index]['selected']['purchasable_length_2']"
+                    type="number"
+                    :placeholder="purchasablesPlaceholder(index)"
+                    class="w-full rounded"
+                    :class="form.errors[index+'-purchasable_length_2'] ? 'border-2 border-red-500' : ''"
+                />
+                <input
+                    v-model="form[index]['selected']['purchasable_length_3']"
+                    type="number"
+                    :placeholder="purchasablesPlaceholder(index)"
+                    class="w-full rounded"
+                    :class="form.errors[index+'-purchasable_length_3'] ? 'border-2 border-red-500' : ''"
+                />
+            </div>
+        </div>
+        <!-- Purchasable (area) -->
+        <div v-show="showPurchasablesArea(index)">
+            <label class="block text-gray-500 text-sm">Purchasable Area sizes (at least 1)</label>
+            <div class="grid grid-cols-1 gap-2">
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="flex">
+                        <input
+                            v-model="form[index]['selected']['purchasable_length_1']"
+                            type="number"
+                            placeholder="Length"
+                            class="w-full rounded"
+                            :class="form.errors[index+'-purchasable_length_1'] ? 'border-2 border-red-500' : ''"
+                        />
+                        <span class="mt-2 ml-2">X</span>
+                    </div>
+                    <input
+                        v-model="form[index]['selected']['purchasable_width_1']"
+                        type="number"
+                        placeholder="Width"
+                        class="w-full rounded"
+                        :class="form.errors[index+'-purchasable_width_1'] ? 'border-2 border-red-500' : ''"
+                    />
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="flex">
+                        <input
+                            v-model="form[index]['selected']['purchasable_length_2']"
+                            type="number"
+                            placeholder="Length"
+                            class="w-full rounded"
+                            :class="form.errors[index+'-purchasable_length_2'] ? 'border-2 border-red-500' : ''"
+                        />
+                        <span class="mt-2 ml-2">X</span>
+                    </div>
+                    <input
+                        v-model="form[index]['selected']['purchasable_width_2']"
+                        type="number"
+                        placeholder="Width"
+                        class="w-full rounded"
+                        :class="form.errors[index+'-purchasable_width_2'] ? 'border-2 border-red-500' : ''"
+                    />
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="flex">
+                        <input
+                            v-model="form[index]['selected']['purchasable_length_3']"
+                            type="number"
+                            placeholder="Length"
+                            class="w-full rounded"
+                            :class="form.errors[index+'-purchasable_length_3'] ? 'border-2 border-red-500' : ''"
+                        />
+                        <span class="mt-2 ml-2">X</span>
+                    </div>
+                    <input
+                        v-model="form[index]['selected']['purchasable_width_3']"
+                        type="number"
+                        placeholder="Width"
+                        class="w-full rounded"
+                        :class="form.errors[index+'-purchasable_width_3'] ? 'border-2 border-red-500' : ''"
+                    />
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
