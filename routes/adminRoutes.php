@@ -30,7 +30,18 @@ Route::prefix("admin")->name("admin.")->middleware([AdminMiddleware::class])->gr
         $data = [];
         if (($handle = fopen(storage_path("app/private/{$filePath}"), 'r')) !== false) {
             while (($row = fgetcsv($handle, 1000, ',')) !== false) {
+
+                //Skip blank rows
                 if($row[0] !== ""){
+
+                    $nestingAlgo = $row[7];
+                    if($nestingAlgo === "LINEAR"){
+                        $nestingAlgo = "METERAGE";
+                    }
+                    if($nestingAlgo === "PACK"){
+                        $nestingAlgo = "BUNDLE";
+                    }
+
                     $data[] = [
                         "spreadsheet_id" => $row[0],
                         "description" => $row[1],
@@ -39,18 +50,20 @@ Route::prefix("admin")->name("admin.")->middleware([AdminMiddleware::class])->gr
                         "grade" => $row[4],
                         "surface" => $row[5],
                         "measurement_unit" => $row[6],
-                        "nesting_type" => $row[7],
-                        "size" => $row[8],
-                        "length" => $row[9],
-                        "width" => $row[10],
-                        "kg_per_m" => $row[11],
-                        "baseline_unit_rate" => $row[12],
+                        "nesting_algo" => $nestingAlgo,
+                        "certificates" => $row[8],
+                        "size" => $row[9],
+                        "length" => $row[10],
+                        "width" => $row[11],
+                        "kg_per_m" => $row[12],
+                        "baseline_unit_rate" => $row[13],
                     ];
                 }
             }
             fclose($handle);
         }
 
+        //Remove heading row
         unset($data[0]);
 
         $dataCollection = collect($data);
@@ -81,7 +94,8 @@ Route::prefix("admin")->name("admin.")->middleware([AdminMiddleware::class])->gr
                     "grade" => $spreadsheetRowData["grade"],
                     "surface" => $spreadsheetRowData["surface"],
                     "measurement_unit" => $spreadsheetRowData["measurement_unit"],
-                    "nesting_type" => $spreadsheetRowData["nesting_type"],
+                    "nesting_algo" => $spreadsheetRowData["nesting_algo"],
+                    "certificates" => $spreadsheetRowData["certificates"],
                     "size" => $spreadsheetRowData["size"],
                     "length" => $spreadsheetRowData["length"],
                     "width" => $spreadsheetRowData["width"],
@@ -112,7 +126,8 @@ Route::prefix("admin")->name("admin.")->middleware([AdminMiddleware::class])->gr
                 "grade" => $spreadsheetRowData["grade"],
                 "surface" => $spreadsheetRowData["surface"],
                 "measurement_unit" => $spreadsheetRowData["measurement_unit"],
-                "nesting_type" => $spreadsheetRowData["nesting_type"],
+                "nesting_algo" => $spreadsheetRowData["nesting_algo"],
+                "certificates" => $spreadsheetRowData["certificates"],
                 "size" => $spreadsheetRowData["size"],
                 "length" => $spreadsheetRowData["length"],
                 "width" => $spreadsheetRowData["width"],

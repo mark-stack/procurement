@@ -11,6 +11,7 @@ use App\Enums\SurfaceEnums;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
+use App\Services\NestingService;
 use App\Services\ProductService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,13 +28,18 @@ class ProductController extends Controller
     {
         Gate::authorize('owned', $project);
 
+        $nestingService = new NestingService();
+
         $materialListRows = [];
         $checkIfNested = [];
         $productCategories = [];
         $generalProductMatches = [];
-        $allMillProducts = ProductEnums::millProducts();
-        $hasMillProducts = [];
+        $allCertificateProductLabels = $nestingService->getCertificateProductLabels();
+        $hasCertificateProducts = []; //todo: get from master_materials
         $customItems = [];
+
+
+
         foreach($project->rawMaterialQuotes as $row){
             /**
              * Nesting check
@@ -84,7 +90,7 @@ class ProductController extends Controller
                             "grade" => null,
                             "size" => null,
                             "quantify" => null,
-                            "nesting_type" => null,
+                            "nesting_algo" => null,
                             "purchasable_length_1" => null,
                             "purchasable_length_2" => null,
                             "purchasable_length_3" => null,
@@ -122,11 +128,11 @@ class ProductController extends Controller
             }
 
             /**
-             * Mill products
+             * Mill products //todo: get from master_materials
              */
-            foreach($allMillProducts as $mp){
+            foreach($allCertificateProductLabels as $mp){
                 if(strtoupper($row->product_category) == strtoupper($mp->value)){
-                    $hasMillProducts = true;
+                    $hasCertificateProducts = true;
                 }
             }
 
@@ -157,209 +163,19 @@ class ProductController extends Controller
                 $senseChecks["pre_nested_check"] = true;
             }
 
-            //Mill certs
-            $senseChecks["mill_certs"] = false;
-            if($hasMillProducts){
-                $senseChecks["mill_certs"] = true;
+            //material Certificates //todo: get from master_materials
+            $senseChecks["certificates"] = false;
+            if($hasCertificateProducts){
+                $senseChecks["certificates"] = true;
             }
         }
 
         /**
          * Custom options
          */
-//        $productOptions = [];
-//        foreach(ProductEnums::cases() as $productEnum){
-//            $productOptions[] = $productEnum->value;
-//        }
-//        $materialOptions = [];
-//        foreach(MaterialEnums::cases() as $materialEnum){
-//            $materialOptions[] = $materialEnum->value;
-//        }
-//        $allGradeOptions = [];
-//        foreach(GradeEnums::cases() as $gradeEnum){
-//            $allGradeOptions[] = $gradeEnum->value;
-//        }
-//        $steelGradeOptions = [];
-//        foreach(GradeEnums::steelGrades() as $gradeEnum){
-//            $steelGradeOptions[] = $gradeEnum->value;
-//        }
-//        $allGradeOptions = [];
-//        foreach(GradeEnums::cases() as $gradeEnum){
-//            $allGradeOptions[] = $gradeEnum->value;
-//        }
-//        $timberGradeOptions = [];
-//        foreach(GradeEnums::timberGrades() as $gradeEnum){
-//            $timberGradeOptions[] = $gradeEnum->value;
-//        }
-//        $plasticGradeOptions = [];
-//        foreach(GradeEnums::plasticGrades() as $gradeEnum){
-//            $plasticGradeOptions[] = $gradeEnum->value;
-//        }
-////        $surfaceOptions = [];
-////        foreach(SurfaceEnums::cases() as $surfaceEnum){
-////            $surfaceOptions[] = $surfaceEnum->value;
-////        }
-//        $measurementOptions = [];
-//        foreach(MeasurementUnitEnums::cases() as $measurementEnum){
-//            $measurementOptions[] = $measurementEnum->value;
-//        }
-//        $nestingOptions = [];
-//        foreach(NestingEnums::cases() as $nestingEnum){
-//            $nestingOptions[] = $nestingEnum->value;
-//        }
-
-        //Products
-        //BOLT/UB/UC/PFC/PLATE/LVL/SHS
-        $bolt = ProductEnums::BOLT->value;
-        $ub = ProductEnums::UB->value;
-        $uc = ProductEnums::UC->value;
-        $pfc = ProductEnums::PFC->value;
-        $plate = ProductEnums::PLATE->value;
-        $lvl = ProductEnums::LVL->value;
-        $shs = ProductEnums::SHS->value;
-        //todo more
-
-        //Materials (STEEL/ALLOY/TIMBER/ALUMINIUM/PLASTIC/MIXED)
-        $steel = MaterialEnums::STEEL->value;
-        $alloy = MaterialEnums::ALLOY->value;
-        $timber = MaterialEnums::TIMBER->value;
-        $aluminium = MaterialEnums::ALUMINIUM->value;
-        $plastic = MaterialEnums::PLASTIC->value;
-        $mixed = MaterialEnums::MIXED->value;
-        //todo more
-
-        //Grades
-        $allGrades = [
-            "GR 4.6" => GradeEnums::GR_4_6->value,
-            "GR 8.8" => GradeEnums::GR_8_8->value,
-            "GR 250" => GradeEnums::GR250->value,
-            "GR 300" => GradeEnums::GR300->value,
-            "GR 350" => GradeEnums::GR350->value,
-            "SS304" => GradeEnums::SS304->value,
-            "SS316" => GradeEnums::SS316->value,
-            "Hardox" => GradeEnums::HARDOX->value,
-            "E13" => GradeEnums::E13->value,
-            "HDPE" => GradeEnums::HDPE->value,
-            //todo more
-        ];
-
-        $allMeasurements = [
-            MeasurementUnitEnums::METERS->value,
-            MeasurementUnitEnums::MILLIMETERS->value,
-            MeasurementUnitEnums::FEET->value,
-            MeasurementUnitEnums::INCHES->value,
-        ];
-
-        //Nesting
-        $linear = NestingEnums::LINEAR->value;
-        $area = NestingEnums::AREA->value;
-        $pack = NestingEnums::PACK->value;
-
-        $formDependentData = [
-            //categories (BOLT/UB/UC/PFC/PLATE/LVL/SHS)
-            "Other" => [
-                //materials
-                $steel => [
-                    $allGrades["GR 4.6"] => null, //null = all nesting types
-                    $allGrades["GR 8.8"] => null,
-                    $allGrades["GR 250"] => null,
-                    $allGrades["GR 300"] => null,
-                    $allGrades["GR 350"] => null,
-                    $allGrades["SS304"] => null,
-                    $allGrades["SS316"] => null,
-                    $allGrades["Hardox"] => null,
-                    //todo more
-                ],
-                $alloy => [
-                    //todo more
-                ],
-                $timber => [
-                    $allGrades["E13"],
-                    //todo more
-                ],
-                $aluminium => [
-
-                ],
-                $plastic => [
-                    $allGrades["HDPE"] => null,
-                ],
-                $mixed => [
-
-                ],
-                //todo more
-            ],
-            $bolt => [
-                //materials
-                $steel => [
-                    //grades
-                    $allGrades["GR 4.6"] => $pack,
-                    $allGrades["GR 8.8"] => $pack,
-                ],
-                $aluminium => [
-                    //grades
-                ],
-                //todo more
-            ],
-            $ub => [
-                //materials
-                $steel => [
-                    //grades
-                    $allGrades["GR 300"] => $linear,
-                ],
-                //todo more
-            ],
-            $uc => [
-                //materials
-                $steel => [
-                    //grades
-                    $allGrades["GR 300"] => $linear,
-                ],
-                //todo more
-            ],
-            $pfc => [
-                //materials
-                $steel => [
-                    //grades
-                    $allGrades["GR 300"] => $linear,
-                    $allGrades["SS304"] => $linear,
-                    $allGrades["SS316"] => $linear,
-                ],
-                $aluminium => [
-                    //grades
-                ],
-                //todo more
-            ],
-            $plate => [
-                //materials
-                $steel => [
-                    //grades
-                    $allGrades["GR 250"] => $area,
-                    $allGrades["GR 350"] => $area,
-                    $allGrades["SS304"] => $area,
-                    $allGrades["SS316"] => $area,
-                ],
-                //todo more
-            ],
-            $lvl => [
-                //materials
-                $timber => [
-                    //grades
-                    $allGrades["E13"] => $linear,
-                ],
-            ],
-            $shs => [
-                //materials
-                $steel => [
-                    //grades
-                    $allGrades["GR 300"] => $linear, //todo check is GR300
-                ],
-                $aluminium => [
-                    //grades
-                ],
-                //todo more
-            ],
-            //todo more
-        ];
+        $allGrades = $nestingService->allGradeLabels();
+        $allMeasurements = $nestingService->allMeasurementUnitLabels();
+        $formDependentData = $nestingService->buildDependencyArray();
 
         return Inertia::render('ProductIndex', [
             "project" => $project,

@@ -2,6 +2,9 @@
 
 namespace App\Enums;
 
+/**
+ * @deprecated
+ */
 enum ProductEnums: string
 {
     case BOLT = "BOLT";
@@ -24,29 +27,5 @@ enum ProductEnums: string
             self::LVL => "LVL",
             self::SHS => "SHS",
         };
-    }
-
-    public static function millProducts(): array
-    {
-        return [
-            self::UB,
-            self::UC,
-            self::PFC,
-            self::PLATE,
-            self::SHS,
-            //todo...more
-            //RHS
-            //CHS
-            //UBS
-            //UCS
-            //HSS
-            //EA
-            //UA
-            //RSJ
-            //FLAT_BAR
-            //ROUND_BAR
-            //SQUARE_BAR
-            //I_BEAM
-        ];
     }
 }

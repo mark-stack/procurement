@@ -3,6 +3,7 @@
 use App\Enums\GradeEnums;
 use App\Enums\MaterialEnums;
 use App\Enums\MeasurementUnitEnums;
+use App\Enums\NestingEnums;
 use App\Enums\ProductEnums;
 use App\Enums\SurfaceEnums;
 use App\Http\Controllers\ProductController;
@@ -13,6 +14,7 @@ use App\Models\Piece;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
+use App\Models\User;
 use App\Services\NestingService;
 use App\Services\ProductService;
 use Illuminate\Support\Facades\Route;
@@ -92,7 +94,7 @@ Route::middleware(['auth'])->group(function () {
             $grade = $row["selected"]["grade"];
             $size = $row["selected"]["size"];
             $measurementUnit = $row["selected"]["quantify"];
-            $nestingType = $row["selected"]["nesting_type"];
+            $nestingType = $row["selected"]["nesting_algo"];
             $purchasable_length_1 = $row["selected"]["purchasable_length_1"];
             $purchasable_length_2 = $row["selected"]["purchasable_length_2"];
             $purchasable_length_3 = $row["selected"]["purchasable_length_3"];
@@ -148,23 +150,23 @@ Route::middleware(['auth'])->group(function () {
                  * Quantify (measurement units)
                  */
                 /*
-                 * NEST_SINGLE_NMQ (no minimum volume)
+                 * NONE (no minimum volume)
                  *  - Measurement units required: FALSE
                  *  - Size required: FALSE
                  *  - purchasable_length_1: FALSE
                  *  - purchasable_width_1: FALSE
                  */
-                if($nestingType === "NEST_SINGLE_NMQ"){
+                if($nestingType === "NONE"){
                     //No actions
                 }
                 /*
-                 * NEST_SINGLE_PACK
+                 * BUNDLE
                  * - Measurement units required: FALSE
                  * - Size required: TRUE
                  * - purchasable_length_1: TRUE
                  * - purchasable_width_1: FALSE
                  */
-                if($nestingType === "NEST_SINGLE_PACK"){
+                if($nestingType === "BUNDLE"){
                     //Size required: TRUE
                     if(!$size){
                         $validationErrors++;
@@ -177,13 +179,13 @@ Route::middleware(['auth'])->group(function () {
                     }
                 }
                 /*
-                 * NEST_METERAGE
+                 * METERAGE
                  * - Measurement units required: TRUE
                  * - Size required: TRUE
                  * - purchasable_length_1: TRUE
                  * - purchasable_width_1: FALSE
                  */
-                if($nestingType === "NEST_METERAGE"){
+                if($nestingType === "METERAGE"){
                     //Measurement units required: TRUE
                     if(!$measurementUnit){
                         $validationErrors++;
@@ -201,13 +203,13 @@ Route::middleware(['auth'])->group(function () {
                     }
                 }
                 /*
-                 * NEST_AREA
+                 * AREA
                  * - Measurement units required: TRUE
                  * - Size required: FALSE
                  * - purchasable_length_1: TRUE
                  * - purchasable_width_1: TRUE
                  */
-                if($nestingType === "NEST_AREA"){
+                if($nestingType === "AREA"){
                     //Measurement units required: TRUE
                     if(!$measurementUnit){
                         $validationErrors++;
@@ -227,7 +229,7 @@ Route::middleware(['auth'])->group(function () {
             }
             else{
                 $validationErrors++;
-                $validator->errors()->add($index."-nesting_type", 'nesting_type');
+                $validator->errors()->add($index."-nesting_algo", 'nesting_algo');
             }
         }
 
@@ -292,7 +294,7 @@ Route::middleware(['auth'])->group(function () {
                     : $item["selected"]["grade"];
                 $size = $item["selected"]["size"];
                 $measurementUnit = $item["selected"]["quantify"];
-                $nestingType = $item["selected"]["nesting_type"];
+                $nestingAlgo = $item["selected"]["nesting_algo"];
                 $purchasable_length_1 = $item["selected"]["purchasable_length_1"];
                 $purchasable_length_2 = $item["selected"]["purchasable_length_2"];
                 $purchasable_length_3 = $item["selected"]["purchasable_length_3"];
@@ -320,6 +322,14 @@ Route::middleware(['auth'])->group(function () {
                 }
 
                 foreach($productVariations as $productVariation){
+                    /**
+                     * "Length" means purchasable qty.
+                     * For meterage this means length like meters. e.g 9 meters
+                     * For area this means length
+                     * For bundles this means pack qty
+                     */
+                    $length = $productVariation["purchasable_length"] ?? null;
+
                     //Create item
                     $productObject = Product::create([
                         "spreadsheet_id" => null,
@@ -329,9 +339,9 @@ Route::middleware(['auth'])->group(function () {
                         "grade" => $grade,
                         "surface" => SurfaceEnums::NONE->value,
                         "measurement_unit" => $measurementUnit,
-                        "nesting_type" => $nestingType,
+                        "nesting_algo" => $nestingAlgo,
                         "size" => $size,
-                        "length" => $productVariation["purchasable_length"] ?? null,
+                        "length" => $length,
                         "width" => $productVariation["purchasable_width"] ?? null,
                         "kg_per_m" => 0,
                         "baseline_unit_rate" => 0, //todo get quoted price
@@ -350,10 +360,11 @@ Route::middleware(['auth'])->group(function () {
                         "grade" => $productObject->grade,
                         "surface" => $productObject->surface,
                         "measurement_unit" => $productObject->measurement_unit,
-                        "nesting_type" => $productObject->nesting_type,
+                        "nesting_algo" => $productObject->nesting_algo,
                         "size" => $productObject->size,
-                        "actual_length" => $productObject->length,
-                        "actual_width" => $productObject->width,
+                        "actual_length" => $item["data"]["length_required"],
+                        "actual_width" => $item["data"]["width_required"],
+                        "actual_qty" => $item["data"]["sub_qty"]
                     ]);
                 }
 
@@ -380,9 +391,29 @@ Route::middleware(['auth'])->group(function () {
     })->name("raw.material.quote.customisations");
 
     Route::get("quotes",function(){
-        $pieces = Piece::all();
+        $user = auth()->user();
 
-        $piecesNested = (new NestingService())->nested($pieces);
+        $allStaffIds = $user->allStaff()->pluck("id")->toArray();
+
+        //todo: timeline and status criteria needed
+        $projectsForQuotingIds = Project::query()
+            ->whereIn("user_id",$allStaffIds)
+            ->get()
+            ->pluck("id")
+            ->toArray();
+
+        $pieces = Piece::query()
+            ->whereIn("project_id",$projectsForQuotingIds)
+            ->get();
+
+        $nestingService = new NestingService();
+
+        $piecesClassifiedByNestingAlgorithm = $nestingService->piecesClassifiedByNestingAlgorithm($pieces);
+
+        $piecesNested = [];
+        foreach($piecesClassifiedByNestingAlgorithm as $nestingAlgoLabel => $pieces){
+            $piecesNested[] = $nestingService->nesting($nestingAlgoLabel,$pieces);
+        }
 
         return Inertia::render('QuoteIndex',[
             "pieces" => $piecesNested,

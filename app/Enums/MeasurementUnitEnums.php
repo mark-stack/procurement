@@ -2,6 +2,9 @@
 
 namespace App\Enums;
 
+/**
+ * @deprecated
+ */
 enum MeasurementUnitEnums: string
 {
     case SINGLE = "SINGLE";

@@ -2,18 +2,21 @@
 
 namespace App\Enums;
 
+/**
+ * @deprecated
+ */
 enum NestingEnums: string
 {
-    case LINEAR = 'LINEAR';
+    case METERAGE = 'METERAGE';
     case AREA = "AREA";
-    case PACK = "PACK";
+    case BUNDLE = "BUNDLE";
 
     public function label(): string
     {
         return match ($this) {
-            self::LINEAR => "LINEAR",
+            self::METERAGE => "METERAGE",
             self::AREA => 'AREA',
-            self::PACK => "PACK",
+            self::BUNDLE => "BUNDLE",
         };
     }
 }

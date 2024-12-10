@@ -69,6 +69,20 @@ class User extends Authenticatable
     }
 
     //Collections
+    public function allStaff(): Collection
+    {
+        $allStaff = [];
+        $myDomain = $this->getDomainFromEmail();
+
+        foreach(User::all() as $user){
+            if($user->getDomainFromEmail() === $myDomain){
+                $allStaff[] = $user;
+            }
+        }
+
+        return collect($allStaff);
+    }
+
     public function productsOrdered(): Collection
     {
         $products = [];

@@ -1,7 +1,9 @@
 <?php
 
 namespace App\Enums;
-
+/**
+ * @deprecated
+ */
 enum GradeEnums: string
 {
     //STEEL
@@ -47,34 +49,5 @@ enum GradeEnums: string
 
             //todo more. timber etc
         };
-    }
-
-    public static function timberGrades(): array
-    {
-        return [
-            self::E13,
-        ];
-    }
-
-    public static function steelGrades(): array
-    {
-        return [
-            self::GR250,
-            self::GR300,
-            self::GR350,
-            self::SS304,
-            self::SS316,
-            self::GR_4_6,
-            self::GR_8_8,
-            self::HARDOX,
-        ];
-    }
-
-    public static function plasticGrades(): array
-    {
-        return [
-            self::HDPE,
-            //todo more
-        ];
     }
 }

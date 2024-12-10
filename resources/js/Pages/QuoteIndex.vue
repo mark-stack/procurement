@@ -5,6 +5,8 @@
     import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
     import shared from "@/Shared/shared.js";
     import VisualNestingWithText from "@/Components/VisualNestingWithText.vue";
+    import DisplayPiecesList from "@/Components/DisplayPiecesList.vue";
+    import ListPurchasables from "@/Components/ListPurchasables.vue";
 
     //Props
     const props = defineProps({
@@ -18,20 +20,7 @@
     //Shared data
 
     //Methods
-    function displayQty(piece){
-        let display = "";
 
-        //Single (15 off M16 bolt)
-        if(piece.measurement_unit === "SINGLE"){
-            display = piece.length + " off";
-        }
-        //Meterage (4 off 12m PFC)
-        else{
-            display = "1 off " + piece.length + " " + piece.measurement_unit;
-        }
-
-        return display;
-    }
 </script>
 
 <template>
@@ -42,53 +31,76 @@
 
             <!-- Pieces -->
             <section class="container max-w-5xl mx-auto mt-5">
-                <h2 class="font-bold text-lg">Quotes</h2>
-                <div class="grid grid-cols-1 gap-y-2 mb-3 text-gray-600">
-                    <div v-for="piece in pieces" class="grid grid-cols-5">
-                        <!-- Spec -->
-                        <div>
-                            <h2 class="font-bold">Material</h2>
-                            {{shared.formatProduct(piece.product,piece.size,piece.grade, piece.surface,piece.length)}}
-                            <p class="text-xs">
-                                Product: {{piece.product}}
-                                <br>Material: {{piece.material}}
-                                <br>Grade: {{piece.grade}}
-                                <br>Surface: {{piece.surface}}
-                                <br>Unit: {{piece.measurement_unit}}
-                                <br>Size: {{piece.size}}
-                            </p>
-                        </div>
-                        <!-- Pieces -->
-                        <div>
-                            <h2 class="font-bold">Pieces</h2>
-                            <p v-for="p in piece.lengthsUnits">
-                                {{displayQty(p)}}
-                            </p>
-                        </div>
-                        <!-- Purchasable -->
-                        <div>
-                            <h2 class="font-bold">Purchasable</h2>
-                            {{piece.purchasable}}
-                        </div>
-                        <!-- Nesting -->
-                        <div>
-                            <h2 class="font-bold">Nested Result</h2>
-                            <p v-for="bar in piece.nested.usedStockBars" class="mt-3">
-                                <VisualNestingWithText
-                                    :stockLength="bar['stock length']"
-                                    :pieces="bar.pieces"
-                                    :measurementUnit="piece.measurement_unit"
-                                    :waste="bar['waste']"
-                                />
-                                <span v-if="piece.nested.unfitCuts.length > 0" class="text-red-500 font-bold">Unused: {{piece.nested.unfitCuts}}</span>
-                            </p>
-                        </div>
-                        <!-- suppliers -->
-                        <div>
-                            <h2 class="font-bold">Suppliers</h2>
-                            suppliers...
-                        </div>
-                    </div>
+                <h2 class="font-bold text-lg">Materials</h2>
+                <p>
+                    Eligible Projects: [aaa,bbb,ccc]
+                </p>
+                <div class="grid grid-cols-1 gap-y-5 mb-3 text-gray-600 mt-3">
+                    <template v-for="nestingGroup in pieces">
+                        <template v-for="item in nestingGroup">
+                            <div class="grid grid-cols-4 border-2 border-gray-300 rounded-xl p-5 gap-3">
+                                <!-- Spec -->
+                                <div>
+                                    <h2 class="font-bold">Material Spec</h2>
+                                    {{shared.formatProduct(item.product,item.size,item.grade, item.surface,item.length)}}
+                                    <p class="text-xs">
+                                        <span class="block">Product: {{item.product}}</span>
+                                        <span class="block">Material: {{item.material}}</span>
+                                        <span class="block">Grade: {{item.grade}}</span>
+                                        <span class="block">Surface: {{item.surface}}</span>
+                                        <span class="block" v-if="item.measurement_unit">Unit: {{item.measurement_unit}}</span>
+                                        <span class="block">Size: {{item.size}}</span>
+                                    </p>
+                                </div>
+                                <!-- Pieces -->
+                                <div>
+                                    <h2 class="font-bold">Pieces</h2>
+                                    <DisplayPiecesList
+                                        :nestingAlgo="item.algo"
+                                        :measurementUnit="item.measurement_unit"
+                                        :pieces="item.pieces"
+                                    />
+                                </div>
+                                <!-- Purchasable -->
+                                <div>
+                                    <h2 class="font-bold">Purchasable</h2>
+                                    <ListPurchasables
+                                        :nestingAlgo="item.algo"
+                                        :measurementUnit="item.measurement_unit"
+                                        :list="item.purchasable"
+                                    />
+                                </div>
+                                <!-- suppliers -->
+                                <div>
+                                    <h2 class="font-bold">Suppliers</h2>
+                                    suppliers...
+                                </div>
+                                <!-- Nesting -->
+                                <div class="col-span-4">
+                                    <h2 class="font-bold">{{item.algo}} Nesting</h2>
+                                    <!-- Nesting algorithm: meterage -->
+                                    <div v-if="item.algo === 'METERAGE'">
+
+                                        <p v-for="bar in item.nested.usedStockBars" class="mt-3">
+                                            <VisualNestingWithText
+                                                :stockLength="bar.result['stock length']"
+                                                :pieces="bar.result.pieces"
+                                                :measurementUnit="item.measurement_unit"
+                                                :waste="bar.result.waste"
+                                                :qty="bar.count"
+                                            />
+                                        </p>
+                                        <p
+                                            v-if="item.nested.unfitCuts.length > 0"
+                                            class="text-red-500 font-bold"
+                                        >
+                                            Unused: <span v-for="unfit in item.nested.unfitCuts">{{unfit.length}} (p{{unfit.project}}), </span>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </template>
                 </div>
             </section>
         </div>

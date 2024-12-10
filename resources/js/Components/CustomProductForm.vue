@@ -44,28 +44,30 @@
     function getGradeOptions(index){
         let productSelection = props.form[index]['selected']['product'];
         let materialSelection = props.form[index]['selected']['material'];
-        if(materialSelection === "Other"){
-            return props.allGrades; //todo
-        }
-        else{
+        //if(materialSelection === "Other"){
+        //    return props.allGrades; //todo
+        //}
+        //else{
             let indexOfProductSelection = Object.keys(props.formDependentData).indexOf(productSelection);
             let gradesObject = Object.values(props.formDependentData)[indexOfProductSelection][materialSelection];
-
+            console.log("gradesObject",gradesObject);
             return Object.keys(gradesObject);
-        }
+        //}
+
+
     }
 
     function getNestingOptions(index){
-        let singleNmq = "Single Units - No minimum quantity";
-        let singlePack = "Single Units - Packs/boxes (e.g 50 pack)";
+        let none = "Single Units - No minimum quantity";
+        let bundle = "Single Units - Packs/boxes (e.g 50 pack)";
         let meterage = "Meterage - Stock lengths (e.g 6 meters)";
         let area = "Area - Stock sizes (e.g 1000 x 4000)";
 
         let nestingOptions = {
-            NEST_SINGLE_NMQ:singleNmq,
-            NEST_SINGLE_PACK:singlePack,
-            NEST_METERAGE:meterage,
-            NEST_AREA:area,
+            NONE:none,
+            BUNDLE:bundle,
+            METERAGE:meterage,
+            AREA:area,
         };
 
         let currentProductSelection = props.form[index]['selected']['product'];
@@ -73,45 +75,45 @@
         //Other
         if(currentProductSelection === "Other"){
             nestingOptions = {
-                NEST_SINGLE_NMQ:singleNmq,
-                NEST_SINGLE_PACK:singlePack,
-                NEST_METERAGE:meterage,
-                NEST_AREA:area,
+                NONE:none,
+                BUNDLE:bundle,
+                METERAGE:meterage,
+                AREA:area,
             }
         }
 
         //Bolt
         if(currentProductSelection === "BOLT"){
             nestingOptions = {
-                NEST_SINGLE_PACK:singlePack,
+                BUNDLE:bundle,
             }
         }
 
         //Plate
         if(currentProductSelection === "PLATE"){
             nestingOptions = {
-                NEST_AREA:area,
+                AREA:area,
             }
         }
 
         //PFC
         if(currentProductSelection === "PFC"){
             nestingOptions = {
-                NEST_METERAGE:meterage,
+                METERAGE:meterage,
             }
         }
 
         //SHS
         if(currentProductSelection === "SHS"){
             nestingOptions = {
-                NEST_METERAGE:meterage,
+                METERAGE:meterage,
             }
         }
 
         //RHS
         if(currentProductSelection === "RHS"){
             nestingOptions = {
-                NEST_METERAGE:meterage,
+                METERAGE:meterage,
             }
         }
 
@@ -133,11 +135,11 @@
     }
 
     function showQuantify(index){
-        //NEST_SINGLE_NMQ/NEST_SINGLE_PACK/NEST_METERAGE/NEST_AREA
-        let nesting_type = props.form[index]['selected']['nesting_type'];
+        //NONE/BUNDLE/METERAGE/AREA
+        let nesting_algo = props.form[index]['selected']['nesting_algo'];
 
         //Dimensional
-        if(nesting_type === "NEST_METERAGE" || nesting_type === "NEST_AREA"){
+        if(nesting_algo === "METERAGE" || nesting_algo === "AREA"){
             return true;
         }
         else{
@@ -158,10 +160,10 @@
         /**
          For LENGTH and QTY types
          */
-        //NEST_SINGLE_NMQ/NEST_SINGLE_PACK/NEST_METERAGE/NEST_AREA
-        let nesting_type = props.form[index]['selected']['nesting_type'];
+        //NONE/BUNDLE/METERAGE/AREA
+        let nesting_algo = props.form[index]['selected']['nesting_algo'];
 
-        if(nesting_type === "NEST_METERAGE" || nesting_type === "NEST_SINGLE_PACK"){
+        if(nesting_algo === "METERAGE" || nesting_algo === "BUNDLE"){
             return true;
         }
         else{
@@ -173,10 +175,10 @@
         /**
          For AREA type
          */
-            //NEST_SINGLE_NMQ/NEST_SINGLE_PACK/NEST_METERAGE/NEST_AREA
-        let nesting_type = props.form[index]['selected']['nesting_type'];
+        //NONE/BUNDLE/METERAGE/AREA
+        let nesting_algo = props.form[index]['selected']['nesting_algo'];
 
-        if(nesting_type === "NEST_AREA"){
+        if(nesting_algo === "AREA"){
             return true;
         }
         else{
@@ -185,15 +187,15 @@
     }
 
     function purchasablesLabel(index){
-        //NEST_SINGLE_NMQ/NEST_SINGLE_PACK/NEST_METERAGE/NEST_AREA
-        let nesting_type = props.form[index]['selected']['nesting_type'];
+        //NONE/BUNDLE/METERAGE/AREA
+        let nesting_algo = props.form[index]['selected']['nesting_algo'];
 
         let label = "Purchasable size/quantities (at least 1)";
 
-        if(nesting_type === "NEST_SINGLE_PACK"){
+        if(nesting_algo === "BUNDLE"){
             label = "Purchasable pack quantities (at least 1)";
         }
-        if(nesting_type === "NEST_METERAGE"){
+        if(nesting_algo === "METERAGE"){
             label = "Purchasable lengths (at least 1)";
         }
 
@@ -201,15 +203,15 @@
     }
 
     function purchasablesPlaceholder(index){
-        //NEST_SINGLE_NMQ/NEST_SINGLE_PACK/NEST_METERAGE/NEST_AREA
-        let nesting_type = props.form[index]['selected']['nesting_type'];
+        //NONE/BUNDLE/METERAGE/AREA
+        let nesting_algo = props.form[index]['selected']['nesting_algo'];
 
         let placeholder = "Size";
 
-        if(nesting_type === "NEST_SINGLE_PACK"){
+        if(nesting_algo === "BUNDLE"){
             placeholder = "Qty";
         }
-        if(nesting_type === "NEST_METERAGE"){
+        if(nesting_algo === "METERAGE"){
             placeholder = "length";
         }
 
@@ -256,7 +258,7 @@
             //Clear
             props.form[index]['selected']['material'] = null;
             props.form[index]['selected']['grade'] = null;
-            props.form[index]['selected']['nesting_type'] = null;
+            props.form[index]['selected']['nesting_algo'] = null;
 
             //Set material
             let currentProductSelection = props.form[index]['selected']['product'];
@@ -267,42 +269,42 @@
         if(field === 'material'){
             //Clear
             props.form[index]['selected']['grade'] = null;
-            props.form[index]['selected']['nesting_type'] = null;
+            props.form[index]['selected']['nesting_algo'] = null;
         }
         if(field === 'grade'){
             //Clear
-            props.form[index]['selected']['nesting_type'] = null;
+            props.form[index]['selected']['nesting_algo'] = null;
 
-            //Set nesting type (NEST_SINGLE_NMQ/NEST_SINGLE_PACK/NEST_METERAGE/NEST_AREA)
+            //Set nesting type (NONE/BUNDLE/METERAGE/AREA)
             //BOLT/UB/UC/PFC/PLATE/LVL/SHS
             let currentProductSelection = props.form[index]['selected']['product'];
 
             if(currentProductSelection === "BOLT"){
-                props.form[index]['selected']['nesting_type'] = "NEST_SINGLE_PACK";
+                props.form[index]['selected']['nesting_algo'] = "BUNDLE";
             }
 
             if(currentProductSelection === "UB"){
-                props.form[index]['selected']['nesting_type'] = "NEST_METERAGE";
+                props.form[index]['selected']['nesting_algo'] = "METERAGE";
             }
 
             if(currentProductSelection === "UC"){
-                props.form[index]['selected']['nesting_type'] = "NEST_METERAGE";
+                props.form[index]['selected']['nesting_algo'] = "METERAGE";
             }
 
             if(currentProductSelection === "PFC"){
-                props.form[index]['selected']['nesting_type'] = "NEST_METERAGE";
+                props.form[index]['selected']['nesting_algo'] = "METERAGE";
             }
 
             if(currentProductSelection === "PLATE"){
-                props.form[index]['selected']['nesting_type'] = "NEST_AREA";
+                props.form[index]['selected']['nesting_algo'] = "AREA";
             }
 
             if(currentProductSelection === "LVL"){
-                props.form[index]['selected']['nesting_type'] = "NEST_METERAGE";
+                props.form[index]['selected']['nesting_algo'] = "METERAGE";
             }
 
             if(currentProductSelection === "SHS"){
-                props.form[index]['selected']['nesting_type'] = "NEST_METERAGE";
+                props.form[index]['selected']['nesting_algo'] = "METERAGE";
             }
 
             //todo more
@@ -315,7 +317,7 @@
         <h3 class="">
             <span class="font-bold italic">"{{item.data.description}}"</span>
         </h3>
-        (spreadsheet row [123])
+        Spreadsheet row #{{item.data.csv_index + 1}}
         <!-- PRODUCT -->
         <SelectOrType
             label="Product Category"
@@ -368,8 +370,8 @@
             <label class="block text-gray-500 text-sm">Nesting</label>
             <select
                 class="w-full rounded"
-                v-model="form[index]['selected']['nesting_type']"
-                :class="form.errors[index+'-nesting_type'] ? 'border-2 border-red-500' : ''"
+                v-model="form[index]['selected']['nesting_algo']"
+                :class="form.errors[index+'-nesting_algo'] ? 'border-2 border-red-500' : ''"
             >
                 <option
                     v-if="Object.values(getNestingOptions(index)).length > 1"
@@ -411,6 +413,7 @@
                 <input
                     v-model="form[index]['selected']['purchasable_length_1']"
                     type="number"
+                    step="0.1"
                     :placeholder="purchasablesPlaceholder(index)"
                     class="w-full rounded"
                     :class="form.errors[index+'-purchasable_length_1'] ? 'border-2 border-red-500' : ''"
@@ -418,6 +421,7 @@
                 <input
                     v-model="form[index]['selected']['purchasable_length_2']"
                     type="number"
+                    step="0.1"
                     :placeholder="purchasablesPlaceholder(index)"
                     class="w-full rounded"
                     :class="form.errors[index+'-purchasable_length_2'] ? 'border-2 border-red-500' : ''"
@@ -425,6 +429,7 @@
                 <input
                     v-model="form[index]['selected']['purchasable_length_3']"
                     type="number"
+                    step="0.1"
                     :placeholder="purchasablesPlaceholder(index)"
                     class="w-full rounded"
                     :class="form.errors[index+'-purchasable_length_3'] ? 'border-2 border-red-500' : ''"

@@ -28,167 +28,167 @@ class DatabaseSeeder extends Seeder
             'email' => env("ADMIN_EMAIL"),
         ]);
 
-        /**
-         * User
-         */
-        $user = User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
-
-        /**
-         * Project
-         */
-        $project = Project::factory()->forUser($user->id)->create();
-
-        /**
-         * Suppliers
-         */
-        $suppliers = Supplier::factory(10)->create();
-
-        /**
-         * Products
-         */
-        $products = Product::factory(10)->create();
-
-        //Add Products to Suppliers
-        foreach ($products as $product) {
-            $product->suppliers()->attach(
-                $suppliers->random(rand(1, 3))->pluck('id')->toArray() // Randomly associate 1-3 suppliers
-            );
-        }
-
-        /**
-         * Quotes
-         */
-        foreach($suppliers as $supplier){
-            /**
-             * Quotes associated with a project (optional)
-             */
-            $quote = Quote::factory()
-                ->forUser($user->id)
-                ->forSupplier($supplier->id)
-                ->forProject($project->id)
-                ->create();
-
-            //Add product rows to quote
-            $quote->products()->attach(
-                $supplier->products()->get()->pluck('id')->toArray(),
-                ['quantity' => fake()->numberBetween(1,100)]
-            );
-
-            /**
-             * Quotes NOT associated with a project
-             */
-            $quote = Quote::factory()
-                ->forUser($user->id)
-                ->forSupplier($supplier->id)
-                ->create();
-
-            //Add product rows to quote
-            $quote->products()->attach(
-                $supplier->products()->get()->pluck('id')->toArray(),
-                ['quantity' => fake()->numberBetween(1,100)]
-            );
-        }
-
-        /**
-         * Orders
-         */
-        $supplier = Supplier::first();
-        foreach(Project::all() as $project){
-            //Associated with project (optional) & quote (optional)
-            foreach($project->quotes as $quote){
-                $order = Order::factory()
-                    ->forUser($user->id)
-                    ->forProject($project->id)
-                    ->forQuote($quote->id)
-                    ->forSupplier($supplier->id)
-                    ->create();
-
-                //Add product rows to order
-                $order->products()->attach(
-                    $supplier->products()->get()->pluck('id')->toArray(),
-                    ['quantity' => fake()->numberBetween(1,100)]
-                );
-            }
-        }
-
-        //NOT associated with project
-        $order = Order::factory()
-            ->forUser($user->id)
-            ->forSupplier($supplier->id)
-            ->create();
-
-        //Add product rows to order
-        $order->products()->attach(
-            $supplier->products()->get()->pluck('id')->toArray(),
-            ['quantity' => fake()->numberBetween(1,100)]
-        );
-
-        /**
-         * Test relationships
-         */
-        //User
-        $userProjects = $user->projects;
-        $userQuotes = $user->quotes;
-        $userOrders = $user->orders;
-        $userProductsOrdered = $user->productsOrdered();
-        $userSuppliersOrderedFrom = $user->suppliersOrderedFrom();
-
-        //Quote
-        $quote = Quote::first();
-        $quoteUser = $quote->user;
-        $quoteSupplier = $quote->supplier;
-        $quoteProducts = $quote->products;
-        $quoteProject = $quote->project; //optional
-        $quoteOrders = $quote->orders; //optional
-
-        //Product
-        $product = Product::first();
-        $productSuppliers = $product->suppliers;
-        $productQuotes = $product->quotes;
-        $usersOrderedThisProduct = $product->usersOrderedThisProduct();
-        $projectsOrderedThisProduct = $product->projectsOrderedThisProduct();
-        $productOrders = $product->orders;
-
-        //Order
-        $order = Order::first();
-        $orderUser = $order->user;
-        $orderProject = $order->project; //optional
-        $orderQuote = $order->quote; //optional
-        $orderProducts = $order->products;
-        $orderSupplier = $order->supplier;
-
-        //Project
-        $project = Project::first();
-        $projectUser = $project->user;
-        $projectQuotes = $project->quotes;
-        $projectSuppliers = $project->suppliers();
-        $projectOrders = $project->orders;
-        $projectOrderedProducts = $project->orderedProducts();
-
-        //Supplier
-        $supplier = Supplier::first();
-        $supplierProducts = $supplier->products;
-        $supplierQuotes = $supplier->quotes;
-        $supplierOrders = $supplier->orders;
-        $projectsUsingThisSupplier = $supplier->projectsUsingThisSupplier();
-        $usersWhoOrderedFromThisSupplier = $supplier->usersWhoOrderedFromThisSupplier();
-
-        //Stock
-        //$stockProduct
-        //$userThatOrderedThisStock
-        //$projectThisStockWasOrderedFor
-        //$projectsUsingThisStock
-        //$supplierOfThisStock
-        //$quoteForThisStock
-        //$orderForThisStock
-
-        /**
-         Material List
-        */
-        $materialList = $project->pieces;
+//        /**
+//         * User
+//         */
+//        $user = User::factory()->create([
+//            'name' => 'Test User',
+//            'email' => 'test@example.com',
+//        ]);
+//
+//        /**
+//         * Project
+//         */
+//        $project = Project::factory()->forUser($user->id)->create();
+//
+//        /**
+//         * Suppliers
+//         */
+//        $suppliers = Supplier::factory(10)->create();
+//
+//        /**
+//         * Products
+//         */
+//        $products = Product::factory(10)->create();
+//
+//        //Add Products to Suppliers
+//        foreach ($products as $product) {
+//            $product->suppliers()->attach(
+//                $suppliers->random(rand(1, 3))->pluck('id')->toArray() // Randomly associate 1-3 suppliers
+//            );
+//        }
+//
+//        /**
+//         * Quotes
+//         */
+//        foreach($suppliers as $supplier){
+//            /**
+//             * Quotes associated with a project (optional)
+//             */
+//            $quote = Quote::factory()
+//                ->forUser($user->id)
+//                ->forSupplier($supplier->id)
+//                ->forProject($project->id)
+//                ->create();
+//
+//            //Add product rows to quote
+//            $quote->products()->attach(
+//                $supplier->products()->get()->pluck('id')->toArray(),
+//                ['quantity' => fake()->numberBetween(1,100)]
+//            );
+//
+//            /**
+//             * Quotes NOT associated with a project
+//             */
+//            $quote = Quote::factory()
+//                ->forUser($user->id)
+//                ->forSupplier($supplier->id)
+//                ->create();
+//
+//            //Add product rows to quote
+//            $quote->products()->attach(
+//                $supplier->products()->get()->pluck('id')->toArray(),
+//                ['quantity' => fake()->numberBetween(1,100)]
+//            );
+//        }
+//
+//        /**
+//         * Orders
+//         */
+//        $supplier = Supplier::first();
+//        foreach(Project::all() as $project){
+//            //Associated with project (optional) & quote (optional)
+//            foreach($project->quotes as $quote){
+//                $order = Order::factory()
+//                    ->forUser($user->id)
+//                    ->forProject($project->id)
+//                    ->forQuote($quote->id)
+//                    ->forSupplier($supplier->id)
+//                    ->create();
+//
+//                //Add product rows to order
+//                $order->products()->attach(
+//                    $supplier->products()->get()->pluck('id')->toArray(),
+//                    ['quantity' => fake()->numberBetween(1,100)]
+//                );
+//            }
+//        }
+//
+//        //NOT associated with project
+//        $order = Order::factory()
+//            ->forUser($user->id)
+//            ->forSupplier($supplier->id)
+//            ->create();
+//
+//        //Add product rows to order
+//        $order->products()->attach(
+//            $supplier->products()->get()->pluck('id')->toArray(),
+//            ['quantity' => fake()->numberBetween(1,100)]
+//        );
+//
+//        /**
+//         * Test relationships
+//         */
+//        //User
+//        $userProjects = $user->projects;
+//        $userQuotes = $user->quotes;
+//        $userOrders = $user->orders;
+//        $userProductsOrdered = $user->productsOrdered();
+//        $userSuppliersOrderedFrom = $user->suppliersOrderedFrom();
+//
+//        //Quote
+//        $quote = Quote::first();
+//        $quoteUser = $quote->user;
+//        $quoteSupplier = $quote->supplier;
+//        $quoteProducts = $quote->products;
+//        $quoteProject = $quote->project; //optional
+//        $quoteOrders = $quote->orders; //optional
+//
+//        //Product
+//        $product = Product::first();
+//        $productSuppliers = $product->suppliers;
+//        $productQuotes = $product->quotes;
+//        $usersOrderedThisProduct = $product->usersOrderedThisProduct();
+//        $projectsOrderedThisProduct = $product->projectsOrderedThisProduct();
+//        $productOrders = $product->orders;
+//
+//        //Order
+//        $order = Order::first();
+//        $orderUser = $order->user;
+//        $orderProject = $order->project; //optional
+//        $orderQuote = $order->quote; //optional
+//        $orderProducts = $order->products;
+//        $orderSupplier = $order->supplier;
+//
+//        //Project
+//        $project = Project::first();
+//        $projectUser = $project->user;
+//        $projectQuotes = $project->quotes;
+//        $projectSuppliers = $project->suppliers();
+//        $projectOrders = $project->orders;
+//        $projectOrderedProducts = $project->orderedProducts();
+//
+//        //Supplier
+//        $supplier = Supplier::first();
+//        $supplierProducts = $supplier->products;
+//        $supplierQuotes = $supplier->quotes;
+//        $supplierOrders = $supplier->orders;
+//        $projectsUsingThisSupplier = $supplier->projectsUsingThisSupplier();
+//        $usersWhoOrderedFromThisSupplier = $supplier->usersWhoOrderedFromThisSupplier();
+//
+//        //Stock
+//        //$stockProduct
+//        //$userThatOrderedThisStock
+//        //$projectThisStockWasOrderedFor
+//        //$projectsUsingThisStock
+//        //$supplierOfThisStock
+//        //$quoteForThisStock
+//        //$orderForThisStock
+//
+//        /**
+//         Material List
+//        */
+//        $materialList = $project->pieces;
 
         /**
          * Import template

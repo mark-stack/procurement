@@ -21,7 +21,8 @@ return new class extends Migration
             $table->text("grade");                          //GR250
             $table->text("surface");                        //NONE
             $table->string("measurement_unit")->nullable(); //METERS
-            $table->string("nesting_type");                 //NEST_METERAGE
+            $table->string("nesting_algo");                 //METERAGE
+            $table->string("certificates")->nullable();     //TRUE
             $table->text("size");                           //200
             $table->text("length")->nullable();             //9
             $table->text("width")->nullable();              //1

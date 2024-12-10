@@ -22,10 +22,11 @@ return new class extends Migration
             $table->text("grade");                          //GR250
             $table->text("surface");                        //NONE
             $table->string("measurement_unit")->nullable(); //METERS
-            $table->string("nesting_type")->nullable();     //NEST_METERAGE
-            $table->text("size");                           //200
-            $table->text("actual_length");                  //9
-            $table->text("actual_width")->nullable();       //1
+            $table->string("nesting_algo")->nullable();     //METERAGE
+            $table->string("size");                         //200
+            $table->string("actual_length");                //9
+            $table->string("actual_width")->nullable();     //1
+            $table->string("actual_qty")->nullable();       //1
         });
     }
 

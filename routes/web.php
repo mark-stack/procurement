@@ -25,7 +25,7 @@ Route::get("stock-cutting",function(){
     $cutLengths = [1000,3000,4000,1000,5000,11000,4000,2000,2500,5000,13000];
     $stockLengths = [9000,12000];
 
-    $result = (new NestingService())->binPacking($cutLengths, $stockLengths);
+    $result = (new NestingService())->meterageAlgorithm($cutLengths, $stockLengths);
 
     dd($result);
 });

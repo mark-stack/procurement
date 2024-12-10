@@ -17,7 +17,7 @@ class Piece extends Model
     }
 
     //Collections
-    public function products(): Collection
+    public function product(): ?Product
     {
         return Product::query()
             ->where("product",$this->product)
@@ -26,6 +26,6 @@ class Piece extends Model
             ->where("surface",$this->surface)
             ->where("measurement_unit",$this->measurement_unit)
             ->where("size",$this->size)
-            ->get();
+            ->first();
     }
 }

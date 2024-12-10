@@ -26,7 +26,7 @@ class ProductFactory extends Factory
             "grade" => fake()->text(10),
             "surface" => fake()->text(10),
             "measurement_unit" => MeasurementUnitEnums::METERS->value,
-            "nesting_type" => NestingEnums::LINEAR->value,
+            "nesting_algo" => NestingEnums::METERAGE->value,
             "size" => fake()->text(10),
             "length" => fake()->text(10),
             "width" => fake()->text(10),

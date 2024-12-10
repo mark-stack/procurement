@@ -2,6 +2,9 @@
 
 namespace App\Enums;
 
+/**
+ * @deprecated
+ */
 enum SurfaceEnums: string
 {
     case NONE = 'NONE';

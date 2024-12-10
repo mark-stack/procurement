@@ -856,9 +856,11 @@ class ProductService
                     "grade" => $item["grade"],
                     "surface" => $item["surface"],
                     "measurement_unit" => $item["measurement_unit"],
+                    "nesting_algo" => (new NestingService())->getNestingLabelsFromProduct($item["product"])[0],
                     "size" => $item["size"],
-                    "actual_length" => $cleanRow["length_required"],
+                    "actual_length" => $cleanRow["length_required"], //For singular items like bolts, this is "QTY" that's divisible.
                     "actual_width" => $cleanRow["width_required"],
+                    "actual_qty" => $cleanRow["sub_qty"],
                 ]);
             }
         }
@@ -1016,6 +1018,7 @@ class ProductService
 //        "I-Beam","I-Beams",
 //        "Steel Joist","Steel Joists",
 //        "Steel Tube","Steel Tubes",
+        //todo more
 
 
             //PFC
@@ -1041,8 +1044,6 @@ class ProductService
                 "widthRegex" => null,
                 "measurementUnit" => MeasurementUnitEnums::METERS,
                 "defaultMaterial" => MaterialEnums::STEEL,
-//                "defaultGrade" => GradeEnums::GR300,
-//                "defaultSurface" => SurfaceEnums::NONE,
             ],
             //UB
             [
@@ -1063,8 +1064,6 @@ class ProductService
                 "widthRegex" => null,
                 "measurementUnit" => MeasurementUnitEnums::METERS,
                 "defaultMaterial" => MaterialEnums::STEEL,
-//                "defaultGrade" => GradeEnums::GR300,
-//                "defaultSurface" => SurfaceEnums::NONE,
             ],
             //UC
             [
@@ -1085,8 +1084,6 @@ class ProductService
                 "widthRegex" => null,
                 "measurementUnit" => MeasurementUnitEnums::METERS,
                 "defaultMaterial" => MaterialEnums::STEEL,
-//                "defaultGrade" => GradeEnums::GR300,
-//                "defaultSurface" => SurfaceEnums::NONE,
             ],
             //Steel plate
             [
@@ -1113,8 +1110,6 @@ class ProductService
                 ],
                 "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
                 "defaultMaterial" => MaterialEnums::STEEL,
-//                "defaultGrade" => GradeEnums::GR250,
-//                "defaultSurface" => SurfaceEnums::NONE,
             ],
             //Bolts
             [
@@ -1133,8 +1128,6 @@ class ProductService
                 "widthRegex" => null,
                 "measurementUnit" => MeasurementUnitEnums::SINGLE,
                 "defaultMaterial" => MaterialEnums::STEEL,
-//                "defaultGrade" => GradeEnums::GR_4_6,
-//                "defaultSurface" => SurfaceEnums::GALVANISED,
             ],
             //LVL
             [
@@ -1152,8 +1145,6 @@ class ProductService
                 "widthRegex" => null,
                 "measurementUnit" => MeasurementUnitEnums::METERS,
                 "defaultMaterial" => MaterialEnums::TIMBER,
-//                "defaultGrade" => GradeEnums::NONE,
-//                "defaultSurface" => SurfaceEnums::TREATED_H2,
             ],
             //todo more
         ];
