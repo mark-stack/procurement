@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
@@ -19,6 +20,11 @@ class Product extends Model
     /**
      * Relationships
      */
+    public function business(): BelongsTo
+    {
+        return $this->belongsTo(Business::class);
+    }
+
     public function suppliers(): BelongsToMany
     {
         return $this->belongsToMany(Supplier::class);
@@ -42,7 +48,7 @@ class Product extends Model
     //Local scopes
     public function scopePlatformCreated(Builder $query): void
     {
-        $query->whereNull('domain');
+        $query->whereNull('business_id');
     }
     public function scopeActive(Builder $query): void
     {
@@ -54,12 +60,12 @@ class Product extends Model
          * 1) Not deprecated
          * 2) Not someone else's (yours or platform's)
          */
-        $yourDomain = $user->getDomainFromEmail();
+        $business = $user->business;
         $query->where('deprecated',false)
-              ->where(function($q) use($yourDomain){
-                $q->where('domain',null)
-                  ->orWhere('domain',$yourDomain);
-              });
+            ->where(function($q) use($business){
+                $q->where('business_id',null)
+                  ->orWhere('business_id',$business->id);
+            });
     }
 
     //Collections

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Business;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
@@ -36,14 +37,30 @@ class RegisteredUserController extends Controller
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
+        //Create user
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
         ]);
 
-        event(new Registered($user));
+        //Find or Create business
+        $domain = $user->getDomainFromEmail();
+        $business = Business::query()->firstOrCreate(
+            [
+                "domain" => $domain,
+            ],
+            [
+                "name" => $domain,
+            ],
+        );
 
+        //Assign business to user
+        $user->business_id = $business->id;
+        $user->save();
+
+        //Login
+        event(new Registered($user));
         Auth::login($user);
 
         return redirect(route('dashboard', absolute: false));

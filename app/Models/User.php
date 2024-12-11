@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Services\ProductService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -68,19 +69,15 @@ class User extends Authenticatable
         return $this->hasMany(Order::class);
     }
 
+    public function business(): BelongsTo
+    {
+        return $this->belongsTo(Business::class);
+    }
+
     //Collections
     public function allStaff(): Collection
     {
-        $allStaff = [];
-        $myDomain = $this->getDomainFromEmail();
-
-        foreach(User::all() as $user){
-            if($user->getDomainFromEmail() === $myDomain){
-                $allStaff[] = $user;
-            }
-        }
-
-        return collect($allStaff);
+        return $this->business->users;
     }
 
     public function productsOrdered(): Collection
@@ -103,14 +100,6 @@ class User extends Authenticatable
         }
 
         return collect($suppliers);
-    }
-
-    public function customProducts(): Collection
-    {
-        $domain = $this->getDomainFromEmail();
-        return Product::query()
-            ->where("domain",$domain)
-            ->get();
     }
 
     //Boolean

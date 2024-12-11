@@ -20,7 +20,6 @@ Route::prefix("admin")->name("admin.")->middleware([AdminMiddleware::class])->gr
 
     //Update master materials spreadsheet
     Route::get("update-master-materials-spreadsheet",function(){
-
         $filePath = 'master_materials.csv';
         if (!Storage::exists($filePath)) {
             return "materials.csv not found! Check 'app/private'";
@@ -133,7 +132,7 @@ Route::prefix("admin")->name("admin.")->middleware([AdminMiddleware::class])->gr
                 "width" => $spreadsheetRowData["width"],
                 "kg_per_m" => $spreadsheetRowData["kg_per_m"],
                 "baseline_unit_rate" => $spreadsheetRowData["baseline_unit_rate"],
-                'domain' => null,
+                'business_id' => null,
                 "deprecated" => false,
             ]);
         }

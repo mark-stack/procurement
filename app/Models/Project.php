@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -68,5 +69,15 @@ class Project extends Model
         }
 
         return collect($products);
+    }
+
+    //Local scopes
+    public function scopeActive(Builder $query): void
+    {
+        $query->where('archive',false);
+    }
+    public function scopeAwarded(Builder $query): void
+    {
+        $query->where('tendering_stage',false);
     }
 }

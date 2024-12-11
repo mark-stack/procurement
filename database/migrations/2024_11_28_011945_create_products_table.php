@@ -28,7 +28,7 @@ return new class extends Migration
             $table->text("width")->nullable();              //1
             $table->text("kg_per_m")->nullable();           //17.5
             $table->text("baseline_unit_rate")->nullable(); //$13.54
-            $table->string('domain')->nullable();           //qsw.com.au
+            $table->foreignId('business_id')->nullable()->constrained(); //QSW (null means platform created)
             $table->boolean("deprecated")->default(false);
         });
     }

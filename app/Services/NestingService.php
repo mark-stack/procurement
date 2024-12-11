@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\NestingEnums;
+use App\Enums\ProductEnums;
 use App\Models\Piece;
 use App\Models\Product;
 use Illuminate\Support\Collection;
@@ -232,6 +233,59 @@ class NestingService
         return $pieces->groupBy("nesting_algo");
     }
 
+    public function batchGroups(array $piecesNested): array
+    {
+        $batches = [
+            "Metal Merchant" => [
+                ProductEnums::UB->value,
+                ProductEnums::UC->value,
+                ProductEnums::SHS->value,
+                ProductEnums::PFC->value,
+                ProductEnums::PLATE->value,
+            ],
+            "Timber Merchant" => [
+                ProductEnums::LVL->value,
+            ],
+            "Fasteners" => [
+                ProductEnums::BOLT->value,
+            ],
+        ];
+
+        $resultAssigned = [];
+        $resultUnassigned = [];
+        foreach($piecesNested as $algoGroup){
+            foreach($algoGroup as $piece){
+                //Check if product is in batch group
+                $product = $piece["product"];
+                $productIsAssignedToBatch = false;
+                foreach($batches as $batchLabel => $products){
+                    if(in_array($product,$products)){
+                        $resultAssigned[$batchLabel][] = $piece;
+                        $productIsAssignedToBatch = true;
+                    }
+                }
+
+                //if not assigned
+                if(!$productIsAssignedToBatch){
+                    $resultUnassigned[] = $piece;
+                }
+            }
+        }
+
+        /**
+         * Place in order of size
+         */
+        $orderedResultAssigned = [];
+        foreach($resultAssigned as $index => $pieces){
+            $orderedResultAssigned[$index] = array_values(collect($pieces)->sortBy("size")->toArray());
+        }
+
+        return [
+            "assigned" => $orderedResultAssigned,
+            "unassigned" => $resultUnassigned,
+        ];
+    }
+
     public function nesting(string $nestingAlgoLabel, Collection $allPieces): Collection
     {
         $result = [];
@@ -248,7 +302,8 @@ class NestingService
                 ->where('grade',$materialSpec->grade)
                 ->where('surface',$materialSpec->surface)
                 ->where('measurement_unit',$materialSpec->measurement_unit)
-                ->where('size',$materialSpec->size);
+                ->where('size',$materialSpec->size)
+                ->sortBy("size");
 
             $appended = $materialSpec;
             $appended->algo = $nestingAlgoLabel;
@@ -269,7 +324,6 @@ class NestingService
                             "project" => $piece->project()->first()->id,
                             "length" => $piece->actual_length,
                         ];
-                        //$cutLengths[] = $piece->actual_length;
                     }
                 }
 
@@ -277,7 +331,7 @@ class NestingService
 
                 $appended->pieces = $piecesArray;
                 $appended->purchasable = $purchasableLengths;
-                $appended->nested = $this->meterageAlgorithm2($cutLengths,$purchasableLengths);
+                $appended->nested = $this->meterageAlgorithm($cutLengths,$purchasableLengths);
             }
             //AREA
             if($nestingAlgoLabel === NestingEnums::AREA->value){
@@ -293,8 +347,8 @@ class NestingService
             //BUNDLE
             if($nestingAlgoLabel === NestingEnums::BUNDLE->value){
                 $piecesArray = [];
-                $purchasablePackBundleQuantities = $this->getPurchasable($materialSpec);
-
+                $boxSizes = $this->getPurchasable($materialSpec);
+                $totalQty = 0;
                 foreach($pieces as $piece){
                     $piecesArray[] = [
                         "project" => $piece->project()->first(),
@@ -302,14 +356,12 @@ class NestingService
                         "measurement_unit" => $piece->measurement_unit,
                         "quantity" => $piece->actual_qty,
                     ];
-                    for ($i = 0; $i < (int) $piece->actual_qty; $i++) {
-                        $cutLengths[] = $piece->actual_length;
-                    }
+                    $totalQty = $totalQty + $piece->actual_qty;
                 }
 
                 $appended->pieces = $piecesArray;
-                $appended->purchasable = $purchasablePackBundleQuantities;
-                $appended->nested = []; //todo
+                $appended->purchasable = $boxSizes;
+                $appended->nested = $this->bundleAlgorithm($totalQty,$boxSizes);
             }
 
             $result[] = $appended;
@@ -331,7 +383,7 @@ class NestingService
             ->toArray();
     }
 
-    function meterageAlgorithm2(array $cutLengths, array $stockLengths): array
+    function meterageAlgorithm(array $cutLengths, array $stockLengths): array
     {
         // Sort cut lengths in descending order (FFD heuristic)
         //rsort($cutLengths);
@@ -367,16 +419,10 @@ class NestingService
                     if ($stockLength >= $cut["length"]) {
                         $cutLength = (int) $cut["length"];
 
-                        $x = [$cutLength,$cut["project"]];
-
                         $usedStockBars[] = [
                             'stock length' => $stockLength,
                             'waste' => $stockLength - $cutLength,
                             'pieces' => [array($cutLength,$cut["project"])],
-//                            [
-//                                "project" => $cut["project"],
-//                                "length" => $cutLength,
-//                            ],
                         ];
                         $newStockPlaced = true;
                         break;
@@ -396,78 +442,148 @@ class NestingService
         /**
          * Consolidate sued stock bars that are the same (same length and cuts array)
          */
-        //dd($usedStockBars);
+        $orderList = $this->orderList($usedStockBars);
         $usedStockBars = $this->consolidateStockNestingResults($usedStockBars);
 
         return [
             'usedStockBars' => $usedStockBars,
             'unfitCuts' => $unfitCuts,
+            "orderList" => $orderList,
         ];
     }
 
-    function meterageAlgorithm(array $cutLengths, array $stockLengths): array
+    public function bundleAlgorithm(int $totalQty, array $boxSizes): array
     {
-        // Sort cut lengths in descending order (FFD heuristic)
-        rsort($cutLengths);
+        $originalQty = $totalQty;
 
-        // Initialize an array to represent the used stock bars
-        $usedStockBars = [];
-        $unfitCuts = []; // Cuts that cannot be placed in any stock bar
+        // Sort the box sizes in descending order
+        rsort($boxSizes);
 
-        // Process each cut length
-        foreach ($cutLengths as $cut) {
-            $placed = false;
+        $boxCounts = []; // To store the number of each box size used
+        foreach ($boxSizes as $boxSize) {
+            // Calculate how many of this box size we need
+            $boxCounts[$boxSize] = intdiv($totalQty, $boxSize);
+            // Reduce the total number of bolts left
+            $totalQty %= $boxSize;
+        }
 
-            // Try to place the cut into an existing stock bar
-            foreach ($usedStockBars as &$stock) {
-                if ($stock['waste'] >= $cut) {
-                    $stock['pieces'][] = $cut;
-                    $stock['waste'] -= $cut;
-                    $placed = true;
-                    break;
-                }
-            }
-
-            // If the cut doesn't fit into any existing stock bar, use a new one
-            if (!$placed) {
-                $newStockPlaced = false;
-                foreach ($stockLengths as $stockLength) {
-                    if ($stockLength >= $cut) {
-                        $usedStockBars[] = [
-                            'stock length' => $stockLength,
-                            'waste' => $stockLength - $cut,
-                            'pieces' => [$cut],
-                        ];
-                        $newStockPlaced = true;
-                        break;
-                    }
-                }
-
-                // If no new stock bar can accommodate the cut, add it to unfit cuts
-                if (!$newStockPlaced) {
-                    $unfitCuts[] = $cut;
-                }
-            }
+        // If there are leftover bolts, we need one extra smallest box
+        if ($totalQty > 0) {
+            $boxCounts[$boxSizes[count($boxSizes) - 1]] += 1;
         }
 
         /**
-         * Consolidate sued stock bars that are the same (same length and cuts array)
+         * totals
          */
-        $usedStockBars = $this->consolidateStockNestingResults($usedStockBars);
+        $totalBought = 0;
+        foreach ($boxCounts as $key => $value) {
+            $totalBought += $key * $value;
+        }
 
         return [
-            'usedStockBars' => $usedStockBars,
-            'unfitCuts' => $unfitCuts,
+            "totalBought" => $totalBought,
+            "efficiency" => ($originalQty/$totalBought*100),
+            "boxes" => $boxCounts,
         ];
     }
 
+//    function meterageAlgorithm(array $cutLengths, array $stockLengths): array
+//    {
+//        // Sort cut lengths in descending order (FFD heuristic)
+//        rsort($cutLengths);
+//
+//        // Initialize an array to represent the used stock bars
+//        $usedStockBars = [];
+//        $unfitCuts = []; // Cuts that cannot be placed in any stock bar
+//
+//        // Process each cut length
+//        foreach ($cutLengths as $cut) {
+//            $placed = false;
+//
+//            // Try to place the cut into an existing stock bar
+//            foreach ($usedStockBars as &$stock) {
+//                if ($stock['waste'] >= $cut) {
+//                    $stock['pieces'][] = $cut;
+//                    $stock['waste'] -= $cut;
+//                    $placed = true;
+//                    break;
+//                }
+//            }
+//
+//            // If the cut doesn't fit into any existing stock bar, use a new one
+//            if (!$placed) {
+//                $newStockPlaced = false;
+//                foreach ($stockLengths as $stockLength) {
+//                    if ($stockLength >= $cut) {
+//                        $usedStockBars[] = [
+//                            'stock length' => $stockLength,
+//                            'waste' => $stockLength - $cut,
+//                            'pieces' => [$cut],
+//                        ];
+//                        $newStockPlaced = true;
+//                        break;
+//                    }
+//                }
+//
+//                // If no new stock bar can accommodate the cut, add it to unfit cuts
+//                if (!$newStockPlaced) {
+//                    $unfitCuts[] = $cut;
+//                }
+//            }
+//        }
+//
+//        /**
+//         * Consolidate sued stock bars that are the same (same length and cuts array)
+//         */
+//        $usedStockBars = $this->consolidateStockNestingResults($usedStockBars);
+//
+//        return [
+//            'usedStockBars' => $usedStockBars,
+//            'unfitCuts' => $unfitCuts,
+//        ];
+//    }
+
     public function consolidateStockNestingResults(array $usedStockBars): array
     {
-        //"stock length"
-        //"pieces"
-
+        /**
+         * This list is unique stock length cuts.
+         * If 2 items area identical except the project refs are different, they'll be treated as different.
+         */
         // Step 1: Serialize each array
         $serialized = array_map('serialize', $usedStockBars);
+
+        // Step 2: Count occurrences
+        $counted = array_count_values($serialized);
+
+        // Step 3: Unserialize keys to get original arrays
+        $result = [];
+        foreach ($counted as $key => $count) {
+            $result[] = [
+                "count" => $count,
+                "result" => unserialize($key),
+            ];
+        }
+
+        return $result;
+    }
+
+    public function orderList(array $usedStockBars): array
+    {
+        /**
+         * This list is unique stock length.
+         * If 2 items area identical except the project refs are different, they'll be treated as the same.
+         */
+        //Remove the project ID so they consolidate disregarding project refs
+        $newResult = [];
+        foreach($usedStockBars as $bar){
+            unset($bar["waste"]);
+            unset($bar["pieces"][0][1]);
+            $newResult[] = $bar["stock length"];
+        }
+
+        //dd($newResult);
+        // Step 1: Serialize each array
+        $serialized = array_map('serialize', $newResult);
 
         // Step 2: Count occurrences
         $counted = array_count_values($serialized);

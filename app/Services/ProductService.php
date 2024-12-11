@@ -871,6 +871,7 @@ class ProductService
     public function createUserCustomProducts(array $dataWithProducts, object $project): void
     {
         $user = $project->user;
+        $business = $user->business;
         $domain = $user->getDomainFromEmail();
 
 //        foreach($dataWithProducts as $row){

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Bus;
 
 class Supplier extends Model
 {
@@ -19,6 +20,11 @@ class Supplier extends Model
     public function products(): BelongsToMany
     {
         return $this->belongsToMany(Product::class);
+    }
+
+    public function businesses(): BelongsToMany
+    {
+        return $this->belongsToMany(Business::class);
     }
 
     public function quotes(): HasMany

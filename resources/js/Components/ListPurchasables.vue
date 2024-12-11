@@ -6,8 +6,6 @@
     //...
 
     //Props
-    import {P} from "../../../public/build/assets/PrimaryButton-QS1pPiB2.js";
-
     const props = defineProps({
         nestingAlgo: String,
         measurementUnit: String,

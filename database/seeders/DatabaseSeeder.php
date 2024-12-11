@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\MeasurementUnitEnums;
+use App\Models\Business;
 use App\Models\Keyword;
 use App\Models\Order;
 use App\Models\Product;
@@ -23,10 +24,16 @@ class DatabaseSeeder extends Seeder
         /**
          * Admin
          */
-        User::factory()->create([
+        $adminUser = User::factory()->create([
             'name' => 'Mark',
             'email' => env("ADMIN_EMAIL"),
         ]);
+        $adminBusiness = Business::create([
+            "name" => null,
+            "domain" => $adminUser->getDomainFromEmail(),
+        ]);
+        $adminUser->business_id = $adminBusiness->id;
+        $adminUser->save();
 
 //        /**
 //         * User

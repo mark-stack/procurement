@@ -55,8 +55,8 @@ class ProductController extends Controller
              * Options
              */
             //Is custom user product?
-            $userCustomOptions = Product::query()
-                ->where('domain',$project->user->getDomainFromEmail())
+            $business = $project->user->business;
+            $userCustomOptions = $business->products()
                 ->where("description",$row->description)
                 ->get()
                 ->toArray();

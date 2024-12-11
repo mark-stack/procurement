@@ -14,6 +14,7 @@ use App\Models\Piece;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
+use App\Models\Supplier;
 use App\Models\User;
 use App\Services\NestingService;
 use App\Services\ProductService;
@@ -390,15 +391,41 @@ Route::middleware(['auth'])->group(function () {
         }
     })->name("raw.material.quote.customisations");
 
+    Route::get("pricebook",function(){
+        $products = Product::query()
+            ->availableFor(auth()->user())
+            ->get();
+
+        return Inertia::render('PriceBook',[
+            "products" => $products,
+        ]);
+    })->name("pricebook");
+
+    Route::get("suppliers",function(){
+        $suppliers = Supplier::query()
+            ->yourSuppliers(auth()->user())
+            ->get();
+
+        return Inertia::render('SupplierIndex',[
+            "suppliers" => $suppliers,
+        ]);
+    })->name("suppliers");
+
     Route::get("quotes",function(){
         $user = auth()->user();
-
-        $allStaffIds = $user->allStaff()->pluck("id")->toArray();
+        $business = $user->business;
+        $allStaffIds = $business->users()->pluck("id")->toArray();
 
         //todo: timeline and status criteria needed
-        $projectsForQuotingIds = Project::query()
+        $projectsForQuoting = Project::query()
+            ->active()
+            ->awarded()
             ->whereIn("user_id",$allStaffIds)
-            ->get()
+            ->with("user")
+            ->has("pieces")
+            ->get();
+
+        $projectsForQuotingIds = $projectsForQuoting
             ->pluck("id")
             ->toArray();
 
@@ -415,8 +442,15 @@ Route::middleware(['auth'])->group(function () {
             $piecesNested[] = $nestingService->nesting($nestingAlgoLabel,$pieces);
         }
 
+        /**
+         * Batch groups
+         */
+        $batchGroups = $nestingService->batchGroups($piecesNested);
+
         return Inertia::render('QuoteIndex',[
             "pieces" => $piecesNested,
+            "projectsForQuoting" => $projectsForQuoting,
+            "batchGroups" => $batchGroups,
         ]);
     })->name("quotes");
 
@@ -427,9 +461,13 @@ Route::middleware(['auth'])->group(function () {
     //Dashboard
     Route::get('/dashboard', function () {
         $user = auth()->user();
+        $projects = $user->projects()
+            ->active()
+            ->latest()
+            ->get();
 
         return Inertia::render('Dashboard',[
-            "projects" => $user->projects,
+            "projects" => $projects,
         ]);
     })->middleware(['verified'])->name('dashboard');
 

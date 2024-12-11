@@ -59,6 +59,12 @@
                                     Projects
                                 </NavLink>
                                 <NavLink
+                                    :href="route('pricebook')"
+                                    :active="route().current('pricebook')"
+                                >
+                                    Pricebook
+                                </NavLink>
+                                <NavLink
                                     :href="route('quotes')"
                                     :active="route().current('quotes')"
                                 >
