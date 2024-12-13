@@ -19,7 +19,9 @@
     //...
 
     //Shared data
-    let isAdmin = usePage().props.auth.isAdmin;
+    const business = usePage().props.auth.business;
+    const isAdmin = usePage().props.auth.isAdmin;
+    const onboarded = usePage().props.auth.onboarded;
 
     //Variables
     const showingNavigationDropdown = ref(false);
@@ -53,29 +55,46 @@
                                 class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex"
                             >
                                 <NavLink
+                                    v-if="!onboarded"
+                                    :href="route('onboarding')"
+                                    :active="route().current('onboarding')"
+                                >
+                                    Onboarding
+                                </NavLink>
+                                <NavLink
+                                    v-if="onboarded"
                                     :href="route('dashboard')"
                                     :active="route().current('dashboard')"
                                 >
                                     Projects
                                 </NavLink>
                                 <NavLink
+                                    v-if="onboarded"
                                     :href="route('pricebook')"
                                     :active="route().current('pricebook')"
                                 >
                                     Pricebook
                                 </NavLink>
                                 <NavLink
-                                    :href="route('quotes')"
-                                    :active="route().current('quotes')"
+                                    v-if="onboarded"
+                                    :href="route('quotes.index')"
+                                    :active="route().current('quotes.index')"
                                 >
                                     Quotes
                                 </NavLink>
                                 <NavLink
-                                    v-if="isAdmin"
-                                    :href="route('admin.dashboard')"
-                                    :active="route().current('admin.dashboard')"
+                                    v-if="onboarded"
+                                    :href="route('suppliers.index',business.id)"
+                                    :active="route().current('suppliers.index',business.id)"
                                 >
-                                    Admin
+                                    Suppliers
+                                </NavLink>
+                                <NavLink
+                                    v-if="isAdmin"
+                                    :href="route('admin.users.index')"
+                                    :active="route().current('admin.users.index')"
+                                >
+                                   Users (Admin)
                                 </NavLink>
                             </div>
                         </div>

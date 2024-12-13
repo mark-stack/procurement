@@ -5,11 +5,13 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Models\User;
+use App\Notifications\NewUserEmail;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\Rules;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -58,6 +60,12 @@ class RegisteredUserController extends Controller
         //Assign business to user
         $user->business_id = $business->id;
         $user->save();
+
+        //Admin notify
+        $adminUser = User::query()->where("email",env("ADMIN_EMAIL"))->first();
+        if($adminUser){
+            Notification::send($adminUser, new NewUserEmail($user));
+        }
 
         //Login
         event(new Registered($user));

@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->timestamps();
             $table->string("name");
-            $table->string("domain");
+            $table->foreignId('business_id')->constrained();
             $table->string("first_description_cell");
             $table->string("first_material_cell")->nullable();
             $table->string("first_length_required_cell")->nullable();

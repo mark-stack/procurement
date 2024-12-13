@@ -31,6 +31,7 @@ class DatabaseSeeder extends Seeder
         $adminBusiness = Business::create([
             "name" => null,
             "domain" => $adminUser->getDomainFromEmail(),
+            "admin_setup_complete" => true,
         ]);
         $adminUser->business_id = $adminBusiness->id;
         $adminUser->save();
@@ -202,7 +203,7 @@ class DatabaseSeeder extends Seeder
          */
         Template::create([
             "name" => "Monthly budget",
-            "domain" => "https://www.wimafoj.us",
+            "business_id" => $adminBusiness->id,
             "first_description_cell" => "b28",
             "first_material_cell" => "",
             "first_length_required_cell" => "d28",

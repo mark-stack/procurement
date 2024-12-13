@@ -61,4 +61,23 @@ class Supplier extends Model
 
         return collect($usersWhoOrderFromThisSupplier);
     }
+
+    //Boolean
+    public function isUsed(): bool
+    {
+        /**
+         * 1) Attached to non-admin business
+         * 2) Attached to quotes
+         */
+
+        // 1) Attached to non-admin business
+        $cond1 = $this->businesses()
+            ->whereRelation("users","email","!=",env("ADMIN_BUSINESS"))
+            ->count() > 0;
+
+        // 2) Attached to quotes
+        $cond2 = $this->quotes()->count() > 0;
+
+        return $cond1 && $cond2;
+    }
 }

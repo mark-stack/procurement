@@ -1,6 +1,7 @@
 <script setup>
     //General Imports
     import {Head, Link, useForm, usePage} from '@inertiajs/vue3';
+    import SavingsCalculator from "@/Components/SavingsCalculator.vue";
 
     //Component Imports
     //...
@@ -12,9 +13,9 @@
 
     //Form
     const formCalculator = useForm({
-        spend:2,
-        waste:3,
-        discounts:3,
+        spend:2.5,
+        waste:4,
+        discounts:0,
     });
 
     //Shared data
@@ -22,8 +23,9 @@
     console.log("user",user);
 
     //Variables
-    const months = 3;
+    const months = 4;
     const years = 3;
+    const price = 15000;
 
     //Shared Methods
     //...
@@ -78,9 +80,7 @@
         <div class="px-4 py-5 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8">
             <div class="relative flex grid items-center grid-cols-2 lg:grid-cols-3">
                 <ul class="flex items-center hidden space-x-8 lg:flex">
-                    <li><a href="/" aria-label="Our product" title="Our product" class="font-medium tracking-wide text-gray-100 transition-colors duration-200 hover:text-teal-accent-400">Product</a></li>
-                    <li><a href="/" aria-label="Our product" title="Our product" class="font-medium tracking-wide text-gray-100 transition-colors duration-200 hover:text-teal-accent-400">Features</a></li>
-                    <li><a href="/" aria-label="Product pricing" title="Product pricing" class="font-medium tracking-wide text-gray-100 transition-colors duration-200 hover:text-teal-accent-400">Pricing</a></li>
+                    <li><a href="/#pricing" aria-label="Product pricing" title="Product pricing" class="font-medium tracking-wide text-gray-100 transition-colors duration-200 hover:text-teal-accent-400">Pricing</a></li>
                 </ul>
                 <a href="/" aria-label="Company" title="Company" class="inline-flex items-center lg:mx-auto">
                     <svg class="w-8 text-teal-accent-400" viewBox="0 0 24 24" stroke-linejoin="round" stroke-width="2" stroke-linecap="round" stroke-miterlimit="10" stroke="currentColor" fill="none">
@@ -197,21 +197,23 @@
                     </div>
                     <h2 class="max-w-lg mb-6 font-sans text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl sm:leading-none">
                         Prevent
-                        <span class="inline-block text-orange-900">${{afterFees()}} of <u>waste</u></span>
+                        <span class="inline-block text-orange-900">${{beforeFees()}} of <u>waste</u></span>
                         in construction procurement.
                     </h2>
                     <p class="text-base text-gray-700 md:text-lg">
                         <b>Centralised procurement is the key to:</b>
                         <br>
                         - <span class="font-semibold text-deep-purple-accent-400">Far less waste</span> via cross-project nesting.
-                        <br>
-                        - <span class="font-semibold text-deep-purple-accent-400">More bulk discounts</span> via cross-project batched orders.
-                        <br>
-                        - <span class="font-semibold text-deep-purple-accent-400">More supplier discounts</span> aligned to your material lists.
+<!--                        <br>-->
+<!--                        - <span class="font-semibold text-deep-purple-accent-400">More bulk discounts</span> via cross-project batched orders.-->
+<!--                        <br>-->
+<!--                        - <span class="font-semibold text-deep-purple-accent-400">More supplier discounts</span> aligned to your material lists.-->
                         <br>
                         - <span class="font-semibold text-deep-purple-accent-400">Less delivery fees</span> via cross-project batched orders.
                         <br>
-                        - <span class="font-semibold text-deep-purple-accent-400">Less over-ordering</span> via tracked surplus stock.
+                        - <span class="font-semibold text-deep-purple-accent-400">Less over-ordering</span> via reusing tracked surplus stock.
+                        <br>
+                        - <span class="font-semibold text-deep-purple-accent-400">Less re-ordering</span> via automated material list checking.
                     </p>
                 </div>
                 <div class="flex flex-col items-center md:flex-row">
@@ -232,80 +234,11 @@
                         class="mx-auto"
                     >
                     <!-- Pricing slider -->
-                    <div>
-                        <!-- Material spend ($m) -->
-                        <div class="flex flex-col items-center p-4">
-                            <!-- Slider -->
-                            <input
-                                v-model="formCalculator.spend"
-                                type="range"
-                                min="1"
-                                max="8"
-                                step="0.5"
-                                class="w-full max-w-sm appearance-none bg-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-
-                            <!-- Value Display -->
-                            <div class="mt-2 text-gray-800 font-semibold">
-                                Material Spend: ${{formCalculator.spend}}m/year
-                            </div>
-                        </div>
-
-                        <!-- waste reduction -->
-                        <div class="flex flex-col items-center p-4">
-                            <!-- Slider -->
-                            <input
-                                v-model="formCalculator.waste"
-                                type="range"
-                                min="1"
-                                max="6"
-                                step="1"
-                                class="w-full max-w-sm appearance-none bg-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-
-                            <!-- Value Display -->
-                            <div class="mt-2 text-gray-800 font-semibold">
-                                Waste reduction: {{formCalculator.waste}}%
-                            </div>
-                        </div>
-
-                        <!-- discounts -->
-                        <div class="flex flex-col items-center p-4">
-                            <!-- Slider -->
-                            <input
-                                v-model="formCalculator.discounts"
-                                type="range"
-                                min="1"
-                                max="4"
-                                step="1"
-                                class="w-full max-w-sm appearance-none bg-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-
-                            <!-- Value Display -->
-                            <div class="mt-2 text-gray-800 font-semibold">
-                                Discounts: {{formCalculator.discounts}}%
-                            </div>
-                        </div>
-                        <div class="flex flex-col items-center p-4 ">
-                            <span class="block"><b>${{ beforeFees() }}</b> - <b>$10K</b> for {{years}} year software term</span>
-                            <span class="block mt-3 text-4xl text-deep-purple-accent-400">Save <b>${{ afterFees() }}</b> over {{years}} years</span>
-                        </div>
-                    </div>
-
-<!--                    <img-->
-<!--                        class="object-cover w-full h-56 rounded shadow-lg sm:h-96"-->
-<!--                        src="https://images.pexels.com/photos/927022/pexels-photo-927022.jpeg?auto=compress&amp;cs=tinysrgb&amp;dpr=3&amp;h=750&amp;w=1260"-->
-<!--                        alt=""-->
-<!--                    />-->
-<!--                    <a href="/" aria-label="Play Video" class="absolute inset-0 flex items-center justify-center w-full h-full transition-colors duration-300 bg-gray-900 bg-opacity-50 group hover:bg-opacity-25">-->
-<!--                        <div class="flex items-center justify-center w-16 h-16 transition duration-300 transform bg-gray-100 rounded-full shadow-2xl group-hover:scale-110">-->
-<!--                            <svg class="w-10 text-gray-900" fill="currentColor" viewBox="0 0 24 24">-->
-<!--                                <path-->
-<!--                                    d="M16.53,11.152l-8-5C8.221,5.958,7.833,5.949,7.515,6.125C7.197,6.302,7,6.636,7,7v10 c0,0.364,0.197,0.698,0.515,0.875C7.667,17.958,7.833,18,8,18c0.184,0,0.368-0.051,0.53-0.152l8-5C16.822,12.665,17,12.345,17,12 S16.822,11.335,16.53,11.152z"-->
-<!--                                ></path>-->
-<!--                            </svg>-->
-<!--                        </div>-->
-<!--                    </a>-->
+                    <SavingsCalculator
+                        :formCalculator="formCalculator"
+                        :years="years"
+                        :price="price"
+                    />
                 </div>
             </div>
         </div>
@@ -472,70 +405,11 @@
         <div>
             <div>
                 <!-- Pricing slider -->
-                <div>
-                    <!-- Material spend ($m) -->
-                    <div class="flex flex-col items-center p-4">
-                        <!-- Slider -->
-                        <input
-                            v-model="formCalculator.spend"
-                            type="range"
-                            min="1"
-                            max="8"
-                            step="0.5"
-                            class="w-full max-w-sm appearance-none bg-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-
-                        <!-- Value Display -->
-                        <div class="mt-2 text-gray-800 font-semibold">
-                            Material Spend: ${{formCalculator.spend}}m
-                        </div>
-                    </div>
-
-                    <!-- waste reduction -->
-                    <div class="flex flex-col items-center p-4">
-                        <!-- Slider -->
-                        <input
-                            v-model="formCalculator.waste"
-                            type="range"
-                            min="1"
-                            max="6"
-                            step="1"
-                            class="w-full max-w-sm appearance-none bg-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-
-                        <!-- Value Display -->
-                        <div class="mt-2 text-gray-800 font-semibold">
-                            Waste reduction: {{formCalculator.waste}}%
-                        </div>
-                    </div>
-
-                    <!-- discounts -->
-                    <div class="flex flex-col items-center p-4">
-                        <!-- Slider -->
-                        <input
-                            v-model="formCalculator.discounts"
-                            type="range"
-                            min="1"
-                            max="4"
-                            step="1"
-                            class="w-full max-w-sm appearance-none bg-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-
-                        <!-- Value Display -->
-                        <div class="mt-2 text-gray-800 font-semibold">
-                            Discounts: {{formCalculator.discounts}}%
-                        </div>
-                    </div>
-                    <div class="flex flex-col items-center p-4 ">
-                        <span class="block"><b>${{ beforeFees() }}</b> - <b>$10K</b> for {{years}} year software term</span>
-                        <span class="block mt-3 text-4xl text-deep-purple-accent-400">Save <b>${{ afterFees() }}</b> over {{years}} years</span>
-                    </div>
-                </div>
-
-
-
-
-
+                <SavingsCalculator
+                    :formCalculator="formCalculator"
+                    :years="years"
+                    :price="price"
+                />
             </div>
         </div>
     </div>
@@ -657,14 +531,14 @@
                         </p>
                         Cross-project batched ordering
                     </li>
-                    <li class="flex items-start">
-                        <p class="mr-1">
-                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">
-                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
-                            </svg>
-                        </p>
-                        Supplier discounts based on exact product matches
-                    </li>
+<!--                    <li class="flex items-start">-->
+<!--                        <p class="mr-1">-->
+<!--                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">-->
+<!--                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>-->
+<!--                            </svg>-->
+<!--                        </p>-->
+<!--                        Supplier discounts based on exact product matches-->
+<!--                    </li>-->
                     <li class="flex items-start">
                         <p class="mr-1">
                             <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">
@@ -688,7 +562,7 @@
 
     <div class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">
         <div class="max-w-xl mb-10 md:mx-auto sm:text-center lg:max-w-2xl md:mb-12">
-            <h2 class="max-w-lg mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">
+            <h2 id="pricing" class="max-w-lg mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">
                 Pricing
             </h2>
         </div>
@@ -746,9 +620,9 @@
                     </div>
                 </div>
                 <div>
-                    <a href="/" class="inline-flex items-center justify-center w-full h-12 px-6 mb-4 font-medium tracking-wide text-white transition duration-200 bg-gray-800 rounded shadow-md hover:bg-gray-900 focus:shadow-outline focus:outline-none">
-                        Start for free
-                    </a>
+                    <Link :href="route('register')" class="inline-flex items-center justify-center w-full h-12 px-6 mb-4 font-medium tracking-wide text-white transition duration-200 bg-gray-800 rounded shadow-md hover:bg-gray-900 focus:shadow-outline focus:outline-none">
+                        Sign up
+                    </Link>
                 </div>
             </div>
             <div class="flex flex-col justify-between p-5 bg-white border rounded shadow-sm">
@@ -756,9 +630,9 @@
                     <div class="flex items-center justify-between pb-6 mb-6 border-b">
                         <div>
                             <p class="text-sm font-bold tracking-wider uppercase">
-                                {{years}} years unlimited usage
+                                {{years}} year{{years > 1 ? 's' : ''}} unlimited usage
                             </p>
-                            <p class="text-5xl font-extrabold">A$10,000</p>
+                            <p class="text-5xl font-extrabold">A{{ price.toLocaleString('en-US') }}</p>
                         </div>
                     </div>
                     <div>
@@ -794,14 +668,14 @@
                         </ul>
                     </div>
                 </div>
-                <div>
-                    <a
-                        href="/"
-                        class="inline-flex items-center justify-center w-full h-12 px-6 mb-4 font-medium tracking-wide text-white transition duration-200 rounded shadow-md bg-deep-purple-accent-400 hover:bg-deep-purple-accent-700 focus:shadow-outline focus:outline-none"
-                    >
-                        Get started
-                    </a>
-                </div>
+<!--                <div>-->
+<!--                    <Link-->
+<!--                        :href="route('register')"-->
+<!--                        class="inline-flex items-center justify-center w-full h-12 px-6 mb-4 font-medium tracking-wide text-white transition duration-200 rounded shadow-md bg-deep-purple-accent-400 hover:bg-deep-purple-accent-700 focus:shadow-outline focus:outline-none"-->
+<!--                    >-->
+<!--                        Get started-->
+<!--                    </Link>-->
+<!--                </div>-->
             </div>
         </div>
     </div>

@@ -2,18 +2,24 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Business;
 use App\Models\Template;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class TemplateController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Business $business): Response
     {
-        //
+        return Inertia::render('AdminTemplatesIndex',[
+            "templates" => $business->templates,
+            "business" => $business,
+        ]);
     }
 
     /**
@@ -27,11 +33,10 @@ class TemplateController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request,Business $business): RedirectResponse
     {
         $validated = $request->validate([
             "name" => ['required','string'],
-            "domain" => ['required','url'],
             "first_description_cell" => ['required', 'string', 'min:2','max:5'],
             "first_material_cell" => ['nullable', 'string', 'min:2','max:5'],
             "first_length_required_cell" => ['nullable', 'string', 'min:2','max:5'],
@@ -47,7 +52,11 @@ class TemplateController extends Controller
             "active" => 'required',
         ]);
 
-        Template::create($validated);
+        $data = array_merge($validated,[
+            "business_id" => $business->id
+        ]);
+
+        Template::create($data);
 
         return back();
     }
@@ -75,7 +84,6 @@ class TemplateController extends Controller
     {
         $validated = $request->validate([
             "name" => ['required','string'],
-            "domain" => ['required','url'],
             "first_description_cell" => ['required', 'string', 'min:2','max:5'],
             "first_material_cell" => ['nullable', 'string', 'min:2','max:5'],
             "first_length_required_cell" => ['nullable', 'string', 'min:2','max:5'],

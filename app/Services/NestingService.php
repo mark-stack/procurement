@@ -235,21 +235,7 @@ class NestingService
 
     public function batchGroups(array $piecesNested): array
     {
-        $batches = [
-            "Metal Merchant" => [
-                ProductEnums::UB->value,
-                ProductEnums::UC->value,
-                ProductEnums::SHS->value,
-                ProductEnums::PFC->value,
-                ProductEnums::PLATE->value,
-            ],
-            "Timber Merchant" => [
-                ProductEnums::LVL->value,
-            ],
-            "Fasteners" => [
-                ProductEnums::BOLT->value,
-            ],
-        ];
+        $supplierGroups = config('supplier_groups');
 
         $resultAssigned = [];
         $resultUnassigned = [];
@@ -258,7 +244,7 @@ class NestingService
                 //Check if product is in batch group
                 $product = $piece["product"];
                 $productIsAssignedToBatch = false;
-                foreach($batches as $batchLabel => $products){
+                foreach($supplierGroups as $batchLabel => $products){
                     if(in_array($product,$products)){
                         $resultAssigned[$batchLabel][] = $piece;
                         $productIsAssignedToBatch = true;

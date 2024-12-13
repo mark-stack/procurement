@@ -30,9 +30,8 @@ class ProductService
             $userTemplates = Template::all();
         }
         else{
-            $domain = $projectUser->getDomainFromEmail();
             $userTemplates = Template::query()
-                ->where("domain",$domain)
+                ->where("business_id",$projectUser->business->id)
                 ->get();
         }
 

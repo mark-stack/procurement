@@ -186,6 +186,7 @@ class ProductController extends Controller
             "allMeasurements" => $allMeasurements,
             "formDependentData" => $formDependentData,
             "allGrades" => $allGrades,
+            "business" => $project->user->business,
         ]);
     }
 

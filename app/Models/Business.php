@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 
 class Business extends Model
 {
@@ -24,5 +25,10 @@ class Business extends Model
     public function suppliers(): BelongsToMany
     {
         return $this->belongsToMany(Supplier::class);
+    }
+
+    public function templates(): HasMany
+    {
+        return $this->hasMany(Template::class);
     }
 }

@@ -11,6 +11,7 @@
     //Props
     const props = defineProps({
         templates: Object,
+        business: Object,
     });
 
     //Form
@@ -68,7 +69,7 @@
         }
     }
     function submitStore(){
-        let url = route("admin.templates.store");
+        let url = route("admin.templates.store",props.business.id);
         formTemplateCreate.post(url, {
             preserveScroll: true,
             onSuccess: () => {
@@ -93,7 +94,7 @@
         });
     }
     function submitUpdate(){
-        let url = route("admin.templates.update",editId.value);
+        let url = route("admin.templates.update",[editId.value,props.business.id]);
         formTemplateCreate.put(url, {
             preserveScroll: true,
             onSuccess: () => {
@@ -110,7 +111,6 @@
         editId.value = template.id;
 
         formTemplateCreate.name = template.name;
-        formTemplateCreate.domain = template.domain;
         formTemplateCreate.first_description_cell = template.first_description_cell;
         formTemplateCreate.first_material_cell = template.first_material_cell;
         formTemplateCreate.first_length_required_cell = template.first_length_required_cell;
@@ -130,25 +130,15 @@
     <Head title="Dashboard" />
 
     <AuthenticatedLayout>
-        <template #header>
-            <h2
-                class="text-xl font-semibold leading-tight text-gray-800"
-            >
-                Templates
-            </h2>
-        </template>
-
-
         <div class="py-12">
             <div class="mx-auto max-w-3xl sm:px-6 lg:px-8">
-
                 <section
                     :class="editId ? 'bg-yellow-500' : 'bg-white'"
                     class="bg-white dark:bg-gray-900"
                 >
                     <div class="px-6 py-16 mx-auto text-center">
                         <h1 class="text-3xl font-semibold text-gray-800 dark:text-gray-100">
-                            {{editId ? 'Edit' : 'Create'}} Template
+                            {{editId ? 'Edit' : 'Create'}} Template for {{business.domain}}
                         </h1>
                         <p
                             v-if="editId"
@@ -166,7 +156,7 @@
                                 <div>
                                     <div class="grid grid-cols-3 gap-3 mt-4">
                                         <!-- name -->
-                                        <div >
+                                        <div class="col-span-2">
                                             <InputLabel value="Name*"/>
                                             <input
                                                 v-model="formTemplateCreate.name"
@@ -175,18 +165,6 @@
                                                 placeholder="Name"
                                             />
                                             <InputError :message="formTemplateCreate.errors.name"/>
-                                        </div>
-
-                                        <!-- domain -->
-                                        <div>
-                                            <InputLabel value="Domain*"/>
-                                            <input
-                                                v-model="formTemplateCreate.domain"
-                                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                                type="url"
-                                                placeholder="Domain"
-                                            />
-                                            <InputError :message="formTemplateCreate.errors.domain"/>
                                         </div>
 
                                         <!-- first_description_cell -->
@@ -409,7 +387,6 @@
                                                             <div>
                                                                 <h2 class="font-medium text-gray-800 dark:text-white ">
                                                                     {{ template.name }}
-                                                                    <br>{{ template.domain }}
                                                                 </h2>
                                                             </div>
                                                         </div>

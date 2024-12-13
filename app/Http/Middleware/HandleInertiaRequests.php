@@ -33,11 +33,14 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user(),
+                "business" => $request->user()?->business,
                 "isAdmin" => $request->user() && $request->user()->isAdmin(),
+                "onboarded" => $request->user() && $request->user()->business->admin_setup_complete,
             ],
             'flash' => [
                 'warning' => fn () => $request->session()->get('warning')
             ],
+            "adminEmail" => env("ADMIN_EMAIL"),
         ];
     }
 }

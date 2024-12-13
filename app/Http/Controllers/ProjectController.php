@@ -5,15 +5,25 @@ namespace App\Http\Controllers;
 use App\Models\Project;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class ProjectController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(): Response
     {
-        //
+        $user = auth()->user();
+        $projects = $user->projects()
+            ->active()
+            ->latest()
+            ->get();
+
+        return Inertia::render('Dashboard',[
+            "projects" => $projects,
+        ]);
     }
 
     /**

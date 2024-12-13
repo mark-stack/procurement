@@ -16,7 +16,7 @@ Route::get("pickles",function(){
 
     Auth::login($admin);
 
-    return redirect()->route("admin.dashboard");
+    return redirect()->route("admin.users.index");
 });
 
 //todo temporary

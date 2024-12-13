@@ -44,17 +44,9 @@
     function getGradeOptions(index){
         let productSelection = props.form[index]['selected']['product'];
         let materialSelection = props.form[index]['selected']['material'];
-        //if(materialSelection === "Other"){
-        //    return props.allGrades; //todo
-        //}
-        //else{
-            let indexOfProductSelection = Object.keys(props.formDependentData).indexOf(productSelection);
-            let gradesObject = Object.values(props.formDependentData)[indexOfProductSelection][materialSelection];
-            console.log("gradesObject",gradesObject);
-            return Object.keys(gradesObject);
-        //}
-
-
+        let indexOfProductSelection = Object.keys(props.formDependentData).indexOf(productSelection);
+        let gradesObject = Object.values(props.formDependentData)[indexOfProductSelection][materialSelection];
+        return Object.keys(gradesObject);
     }
 
     function getNestingOptions(index){

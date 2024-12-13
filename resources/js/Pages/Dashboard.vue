@@ -107,6 +107,7 @@
                             {{editProject ? 'Edit' : 'New'}} Project
                         </h1>
                         <p
+                            v-if="editProject"
                             @click="editProject = null"
                             class="text-blue-500 text-sm underline mt-2"
                             style="cursor: pointer;"
