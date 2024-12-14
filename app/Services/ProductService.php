@@ -7,6 +7,7 @@ use App\Enums\MeasurementUnitEnums;
 use App\Enums\GradeEnums;
 use App\Enums\ProductEnums;
 use App\Enums\SurfaceEnums;
+use App\Models\Business;
 use App\Models\Piece;
 use App\Models\Product;
 use App\Models\RawMaterialQuote;
@@ -14,6 +15,7 @@ use App\Models\Template;
 use App\Models\User;
 use Exception;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Validator;
 
 class ProductService
 {
@@ -164,6 +166,37 @@ class ProductService
         else{
             return collect([]);
         }
+    }
+
+    public function senseChecks($materialListRows,$productCategories,$hasCertificateProducts): array
+    {
+        $senseChecks = [];
+
+        if(count($materialListRows) > 0){
+            /**
+             * Has bolts?
+             */
+            $senseChecks["has_bolts"] = false;
+            if(in_array(ProductEnums::BOLT->value,$productCategories)){
+                $senseChecks["has_bolts"] = true;
+            }
+
+            /**
+             * Bolt qty: is it low?
+             */
+            $senseChecks["bolt_qty"] = 1000; //todo
+            //todo complete
+
+            /**
+             * Material Certificates //todo: get from master_materials
+             */
+            $senseChecks["certificates"] = false;
+            if($hasCertificateProducts){
+                $senseChecks["certificates"] = true;
+            }
+        }
+
+        return $senseChecks;
     }
 
     /**
@@ -394,11 +427,69 @@ class ProductService
         return $cleanData;
     }
 
-    public function senseChecks(): void
+    public function getProductMatchOptions(Business $business, object $rawMaterialQuote): ?array
     {
-//        $unitRate = $this->senseCheckUnitRate($unitRate);
-//        $lengthRequired = $this->senseCheckLengthRequired($lengthRequired,$measurementUnit);
+        /**
+         * Sort the user's material rows into groups:
+         * 1) Non-price book (will be user custom product)
+         * 2) Price book exact match
+         * 3) price book partial match (requires confirmation)
+         */
+        $result = null;
+
+        //Prerequisite variables
+        $userCustomOptions = $business->products()
+            ->where("description",$rawMaterialQuote->description)
+            ->get()
+            ->toArray();
+
+        /**
+         * 1) Non-price book (will be user custom product)
+         */
+        if(count($userCustomOptions) > 0){
+            //No action
+        }
+        //Price book candidate
+        else{
+            $decodedOptions = unserialize($rawMaterialQuote->general_product_matches);
+
+            /**
+             * 2) Price book exact match
+             */
+            if(count($decodedOptions) === 1){
+                $result = [
+                    "status" => "EXACT",
+                    "decodedOption" => $decodedOptions[0],
+                ];
+            }
+
+            /**
+             * 3) Price book partial match (requires confirmation)
+             */
+            if(count($decodedOptions) > 1){
+                $result = [
+                    "status" => "PARTIAL",
+                    "decodedOptions" => $decodedOptions,
+                ];
+            }
+            //If no results, it's user-custom
+            if(count($decodedOptions) === 0){
+                $result = [
+                    "status" => "CUSTOM",
+                    "decodedOptions" => null,
+                ];
+            }
+        }
+
+        return $result;
     }
+
+//    public function senseChecks(): void
+//    {
+//        //todo
+////        $unitRate = $this->senseCheckUnitRate($unitRate);
+////        $lengthRequired = $this->senseCheckLengthRequired($lengthRequired,$measurementUnit);
+//    }
 
     public function getLengthRequired($lengthRequiredColumnIndex,$row,$description): int
     {
@@ -492,56 +583,6 @@ class ProductService
     {
         $float = (float) $rawSubQty;
         return $float === 0 ? 1.0 : $float;
-    }
-
-    public function isPurchasableSize($row): bool
-    {
-        /**
-         * Find the purchasable qty
-         *
-        - e.g PFC - measurement_unit = "meters", and purchasable_qty = [9,12,13.5,15,18]
-        - e.g bolts - measurement_unit = "single", and purchasable_qty = [50,100]
-        - e.g flange - measurement_unit = "single", and purchasable_qty = [1]
-        - e.g 16PL x 1220mm mild steel plate - measurement_unit = "millimeters", and purchasable_qty = [2440,3000]
-         */
-
-        $result = false;
-
-        $measurementEnum = null;
-        foreach(MeasurementUnitEnums::cases() as $enum){
-            if($enum->value === $row["measurement_unit"]){
-                $measurementEnum = $enum;
-            }
-        }
-
-        $productEnum = null;
-        foreach(ProductEnums::cases() as $enum){
-            if($enum->value === $row["product_category"]){
-                $productEnum = $enum;
-            }
-        }
-
-        $priceBookProducts = $this->findByAttributes(
-            auth()->user(),
-            $productEnum,
-            $row["material"],
-            null, //$grades,
-            null, //$surface,
-            $measurementEnum,
-            null, //$size,
-            null //$length,
-        );
-
-        if($priceBookProducts->count() > 0){
-            $lengths = $priceBookProducts->pluck('length')->toArray();
-            $normalisedToMeters = $this->normaliseArrayOfLengthsToMeters($lengths,$row["measurement_unit"]);
-            $providedLengthInMeters = (float) $row["length_required"];
-            if(in_array($providedLengthInMeters,$normalisedToMeters)){
-                $result = true;
-            }
-        }
-
-        return $result;
     }
 
     public function normaliseArrayOfLengthsToMeters(array $lengths, string $measurementUnit): array
@@ -828,7 +869,7 @@ class ProductService
             /**
              * Create 'RawMaterialQuote' item
              */
-            $materialList[] = RawMaterialQuote::create([
+            $rawMaterialQuote = RawMaterialQuote::create([
                 "csv_index" => $cleanRow["index"],
                 "description" => $cleanRow["description"],
                 "product_category" => $productCategory ? $productCategory["productEnum"]->value : null,
@@ -842,6 +883,8 @@ class ProductService
                 "general_product_matches" => serialize($cleanRow["generalProductMatches"]),
             ]);
 
+            $materialList[] = $rawMaterialQuote;
+
             /**
              * Create 'Pieces'
              */
@@ -850,6 +893,7 @@ class ProductService
 
                 $piece = Piece::create([
                     'project_id' => $project->id,
+                    "raw_material_quote_id" => $rawMaterialQuote->id,
                     "product" => $item["product"],
                     "material" => $item["material"],
                     "grade" => $item["grade"],
@@ -1384,6 +1428,185 @@ class ProductService
         }
 
         return $result;
+    }
+
+    public function validationUserCustom($rows): array
+    {
+        $validator = Validator::make([], []);
+        $validationErrors = 0;
+
+        foreach($rows as $index => $row){
+            $product = $row["selected"]["product"];
+            $material = $row["selected"]["material"];
+            $grade = $row["selected"]["grade"];
+            $size = $row["selected"]["size"];
+            $measurementUnit = $row["selected"]["quantify"];
+            $nestingType = $row["selected"]["nesting_algo"];
+            $purchasable_length_1 = $row["selected"]["purchasable_length_1"];
+            $purchasable_length_2 = $row["selected"]["purchasable_length_2"];
+            $purchasable_length_3 = $row["selected"]["purchasable_length_3"];
+            $purchasable_width_1 = $row["selected"]["purchasable_width_1"];
+            $purchasable_width_2 = $row["selected"]["purchasable_width_2"];
+            $purchasable_width_3 = $row["selected"]["purchasable_width_3"];
+
+            //product
+            if($product){
+                if($product === "Other" && !$row['selected_other']['product']){
+                    $validationErrors++;
+                    $validator->errors()->add($index."-product", 'product');
+                }
+            }
+            else{
+                $validationErrors++;
+                $validator->errors()->add($index."-product", 'product');
+            }
+
+            //material
+            if($material){
+                if($material === "Other" && !$row['selected_other']['material']){
+                    $validationErrors++;
+                    $validator->errors()->add($index."-material", 'material');
+                }
+            }
+            else{
+                $validationErrors++;
+                $validator->errors()->add($index."-material", 'material');
+            }
+
+            //Grade
+            if($grade){
+                if($grade === "Other" && !$row['selected_other']['grade']){
+                    $validationErrors++;
+                    $validator->errors()->add($index."-grade", 'grade');
+                }
+            }
+            else{
+                $validationErrors++;
+                $validator->errors()->add($index."-grade", 'grade');
+            }
+
+            //Size
+            if(!$size){
+                $validationErrors++;
+                $validator->errors()->add($index."-size", 'size');
+            }
+
+            //Nesting & measurement units
+            if($nestingType){
+                /**
+                 * Quantify (measurement units)
+                 */
+                /*
+                 * NONE (no minimum volume)
+                 *  - Measurement units required: FALSE
+                 *  - Size required: FALSE
+                 *  - purchasable_length_1: FALSE
+                 *  - purchasable_width_1: FALSE
+                 */
+                if($nestingType === "NONE"){
+                    //No actions
+                }
+                /*
+                 * BUNDLE
+                 * - Measurement units required: FALSE
+                 * - Size required: TRUE
+                 * - purchasable_length_1: TRUE
+                 * - purchasable_width_1: FALSE
+                 */
+                if($nestingType === "BUNDLE"){
+                    //Size required: TRUE
+                    if(!$size){
+                        $validationErrors++;
+                        $validator->errors()->add($index."-size", 'size');
+                    }
+                    //purchasable_length_1: TRUE
+                    if(!$purchasable_length_1){
+                        $validationErrors++;
+                        $validator->errors()->add($index."-purchasable_length_1", 'purchasable_length_1');
+                    }
+                }
+                /*
+                 * METERAGE
+                 * - Measurement units required: TRUE
+                 * - Size required: TRUE
+                 * - purchasable_length_1: TRUE
+                 * - purchasable_width_1: FALSE
+                 */
+                if($nestingType === "METERAGE"){
+                    //Measurement units required: TRUE
+                    if(!$measurementUnit){
+                        $validationErrors++;
+                        $validator->errors()->add($index."-quantify", 'quantify');
+                    }
+                    //Size required: TRUE
+                    if(!$size){
+                        $validationErrors++;
+                        $validator->errors()->add($index."-size", 'size');
+                    }
+                    //purchasable_length_1: TRUE
+                    if(!$purchasable_length_1){
+                        $validationErrors++;
+                        $validator->errors()->add($index."-purchasable_length_1", 'purchasable_length_1');
+                    }
+                }
+                /*
+                 * AREA
+                 * - Measurement units required: TRUE
+                 * - Size required: FALSE
+                 * - purchasable_length_1: TRUE
+                 * - purchasable_width_1: TRUE
+                 */
+                if($nestingType === "AREA"){
+                    //Measurement units required: TRUE
+                    if(!$measurementUnit){
+                        $validationErrors++;
+                        $validator->errors()->add($index."-quantify", 'quantify');
+                    }
+                    //purchasable_length_1: TRUE
+                    if(!$purchasable_length_1){
+                        $validationErrors++;
+                        $validator->errors()->add($index."-purchasable_length_1", 'purchasable_length_1');
+                    }
+                    //purchasable_width_1: TRUE
+                    if(!$purchasable_width_1){
+                        $validationErrors++;
+                        $validator->errors()->add($index."-purchasable_width_1", 'purchasable_width_1');
+                    }
+                    //Must have L and W (purchasable_length_2 && purchasable_width_2)
+                    if($purchasable_length_2 || $purchasable_width_2){
+                        if(!$purchasable_length_2){
+                            $validationErrors++;
+                            $validator->errors()->add($index."-purchasable_length_2", 'purchasable_length_2');
+                        }
+                        if(!$purchasable_width_2){
+                            $validationErrors++;
+                            $validator->errors()->add($index."-purchasable_width_2", 'purchasable_width_2');
+                        }
+                    }
+                    //Must have L and W (purchasable_length_3 && purchasable_width_3)
+                    if($purchasable_length_3 || $purchasable_width_3){
+                        if(!$purchasable_length_3){
+                            $validationErrors++;
+                            $validator->errors()->add($index."-purchasable_length_3", 'purchasable_length_3');
+                        }
+                        if(!$purchasable_width_3){
+                            $validationErrors++;
+                            $validator->errors()->add($index."-purchasable_width_3", 'purchasable_width_3');
+                        }
+                    }
+                    //L greater than W
+                }
+            }
+            else{
+                $validationErrors++;
+                $validator->errors()->add($index."-nesting_algo", 'nesting_algo');
+            }
+        }
+
+        return [
+            "validationErrors" => $validationErrors,
+            "validator" => $validator,
+        ];
     }
 }
 

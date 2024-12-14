@@ -2,11 +2,13 @@
 
 namespace App\Services;
 
+use App\Enums\MeasurementUnitEnums;
 use App\Enums\NestingEnums;
 use App\Enums\ProductEnums;
 use App\Models\Piece;
 use App\Models\Product;
 use Illuminate\Support\Collection;
+use stdClass;
 
 class NestingService
 {
@@ -37,6 +39,85 @@ class NestingService
 
         foreach($rawItems as $rawItem){
             $result[] = $rawItem["product"];
+        }
+
+        return $result;
+    }
+
+    public function isPurchasableSize($rawMaterialQuote): bool
+    {
+        /**
+         * Find the purchasable qty
+         *
+        - e.g PFC - measurement_unit = "meters", and purchasable_qty = [9,12,13.5,15,18]
+        - e.g bolts - measurement_unit = "single", and purchasable_qty = [50,100]
+        - e.g flange - measurement_unit = "single", and purchasable_qty = [1]
+        - e.g 16PL x 1220mm mild steel plate - measurement_unit = "millimeters", and purchasable_qty = [2440,3000]
+         */
+
+        $result = false;
+
+        $measurementEnum = null;
+        foreach(MeasurementUnitEnums::cases() as $enum){
+            if($enum->value === $rawMaterialQuote["measurement_unit"]){
+                $measurementEnum = $enum;
+            }
+        }
+
+        $productEnum = null;
+        foreach(ProductEnums::cases() as $enum){
+            if($enum->value === $rawMaterialQuote["product_category"]){
+                $productEnum = $enum;
+            }
+        }
+
+        /**
+         * Material spec
+         * 'product', 'material', 'grade', 'surface', 'measurement_unit', 'size'
+         */
+        $materialSpec = new stdClass();
+        $materialSpec->product = $rawMaterialQuote->product_category;
+        $materialSpec->material = $rawMaterialQuote->material;
+        $materialSpec->grade = 999; //todo
+        $materialSpec->surface = 999; //todo
+        $materialSpec->measurement_unit = $rawMaterialQuote->measurement_unit;
+        $materialSpec->size = 999; //todo
+
+        /**
+         * Length to compare to stock sizes
+         */
+        $lengthToCompare = (float) $rawMaterialQuote->length_required;
+
+
+
+        $purchasableLengths = $this->getPurchasableLengths($materialSpec);
+        dd([
+            "rawMaterialQuote" => $rawMaterialQuote,
+            "measurementEnum" => $measurementEnum,
+            "productEnum" => $productEnum,
+            "purchasableLengths" => $purchasableLengths,
+            "lengthToCompare" => $lengthToCompare,
+        ]);
+
+
+        $priceBookProducts = $this->findByAttributes(
+            auth()->user(),
+            $productEnum,
+            $rawMaterialQuote["material"],
+            null, //$grades,
+            null, //$surface,
+            $measurementEnum,
+            null, //$size,
+            null //$length,
+        );
+
+        if($priceBookProducts->count() > 0){
+            $lengths = $priceBookProducts->pluck('length')->toArray();
+            $normalisedToMeters = $this->normaliseArrayOfLengthsToMeters($lengths,$rawMaterialQuote["measurement_unit"]);
+            $providedLengthInMeters = (float) $rawMaterialQuote["length_required"];
+            if(in_array($providedLengthInMeters,$normalisedToMeters)){
+                $result = true;
+            }
         }
 
         return $result;
@@ -192,9 +273,12 @@ class NestingService
             $gradeLabels = $this->getGradeLabelsFromMaterial(null,$materialLabel);
             foreach($gradeLabels as $gradeLabel){
                 //Nesting
-                $nestingLabels = $this->allNestingAlgorithmLabels();
-                foreach($nestingLabels as $nestingLabel){
-                    $resultArray["Other"][$materialLabel][$gradeLabel] = $nestingLabel;
+                if($gradeLabel !== ""){
+                    $nestingLabels = $this->allNestingAlgorithmLabels();
+                    foreach($nestingLabels as $nestingLabel){
+                        $resultArray["Other"][$materialLabel][$gradeLabel][] = $nestingLabel;
+                        $resultArray["Other"][$materialLabel][$gradeLabel][] = "NONE";
+                    }
                 }
             }
         }
@@ -209,9 +293,11 @@ class NestingService
                 $gradeLabels = $this->getGradeLabelsFromMaterial($productLabel,$materialLabel);
                 foreach($gradeLabels as $gradeLabel){
                     //Nesting
-                    $nestingLabels = $this->getNestingLabelsFromProduct($productLabel);
-                    foreach($nestingLabels as $nestingLabel){
-                        $resultArray[$productLabel][$materialLabel][$gradeLabel] = $nestingLabel;
+                    if($gradeLabel !== ""){
+                        $nestingLabels = $this->getNestingLabelsFromProduct($productLabel);
+                        foreach($nestingLabels as $nestingLabel){
+                            $resultArray[$productLabel][$materialLabel][$gradeLabel][] = $nestingLabel;
+                        }
                     }
                 }
             }
@@ -313,7 +399,7 @@ class NestingService
                     }
                 }
 
-                $purchasableLengths = $this->getPurchasable($materialSpec);
+                $purchasableLengths = $this->getPurchasableLengths($materialSpec);
 
                 $appended->pieces = $piecesArray;
                 $appended->purchasable = $purchasableLengths;
@@ -333,7 +419,7 @@ class NestingService
             //BUNDLE
             if($nestingAlgoLabel === NestingEnums::BUNDLE->value){
                 $piecesArray = [];
-                $boxSizes = $this->getPurchasable($materialSpec);
+                $boxSizes = $this->getPurchasableLengths($materialSpec); //todo: "lengths" is substitute for qty?
                 $totalQty = 0;
                 foreach($pieces as $piece){
                     $piecesArray[] = [
@@ -356,8 +442,14 @@ class NestingService
         return collect($result);
     }
 
-    function getPurchasable(Piece $materialSpec): array
+    function getPurchasableLengths(Object $materialSpec): array
     {
+        /**
+         * To get purchasable lengths, we need to have all parameters for certainty:
+         * 'product', 'material', 'grade', 'surface', 'measurement_unit', 'size'
+         *
+         * Otherwise, it'll give bad results like "9m" for a bolt.
+         */
         return Product::query()
             ->where("product",$materialSpec->product)
             ->where("material",$materialSpec->material)

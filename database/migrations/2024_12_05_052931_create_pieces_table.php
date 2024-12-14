@@ -16,6 +16,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreignId('project_id')->constrained();
+            $table->foreignId('raw_material_quote_id')->constrained();
 
             $table->text("product");                        //PFC
             $table->text("material");                       //STEEL

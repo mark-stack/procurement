@@ -13,8 +13,8 @@
         project: Object,
         materialListRows: Object,
         senseChecks: Object,
-        generalProductMatches: Object,
-        customItems: Object,
+        partialProductMatches: Object,
+        requiresCustom: Object,
         allMeasurements: Object,
         formDependentData: Object,
         allGrades: Object,
@@ -36,8 +36,8 @@
         bolt_qty: false,
         pre_nested_check: false,
     });
-    let formClarifications = useForm(props.generalProductMatches);
-    const formCustomisations = useForm(props.customItems);
+    let formClarifications = useForm(props.partialProductMatches);
+    let formCustomisations = useForm(props.requiresCustom);
 
     //Variables
     const isDragging = ref(false);
@@ -133,8 +133,8 @@
                 clearFileInput();
 
                 //Clarifications
-                formClarifications = useForm(props.generalProductMatches);
-                if(props.generalProductMatches.length > 0){
+                formClarifications = useForm(props.partialProductMatches);
+                if(props.partialProductMatches.length > 0){
                     showClarifications.value = true;
                 }
                 else{
@@ -226,8 +226,13 @@
             preserveScroll: true,
             onSuccess: () => {
                 console.log('success');
-
+                //Hide clarifications
                 showClarifications.value = false;
+
+                //Update custom products
+                formCustomisations = useForm(props.requiresCustom);
+
+                //Show custom products
                 showUserCustomProducts.value = true;
             },
             onError: errors => {
@@ -319,14 +324,23 @@
     // }
 
     function hasClarifications(){
-        return props.generalProductMatches.length > 0;
+        return props.partialProductMatches.length > 0;
     }
     function hasUserCustomProducts(){
-        return props.customItems.length > 0;
+        return props.requiresCustom.length > 0;
     }
 
     function showTable(){
         return !hasClarifications() && !hasUserCustomProducts() && props.materialListRows.length > 0;
+    }
+
+    function deleteAll(){
+        let message = "Are you sure you want delete all material imports for " + props.project.name;
+        const userConfirmed = confirm(message);
+        if (userConfirmed) {
+            formBulkActions.selectedRawMaterialQuoteIds = getAllMaterialQuoteIds();
+            submitBulkDelete();
+        }
     }
 </script>
 
@@ -335,7 +349,18 @@
 
     <AuthenticatedLayout>
         <div class="py-5">
-            <template v-if="!senseChecks">
+            <section class="container max-w-5xl mx-auto">
+                <button
+                    v-if="materialListRows.length > 0"
+                    class="bg-red-100 px-2 py-1 rounded mb-3"
+                    @click="deleteAll()"
+                >
+                    <b>Delete all imports</b> for {{project.name}}
+                </button>
+            </section>
+
+            <!-- Pre-upload checklist and file upload -->
+            <template v-if="senseChecks.length === 0">
                 <!-- clarifications (might re-upload) -->
                 <section class="container max-w-5xl mx-auto">
                     <h2 class="font-bold text-lg">Pre-upload checklist:</h2>
@@ -402,8 +427,8 @@
                 </div>
             </template>
 
-            <!-- clarifications (might re-upload) -->
-            <section v-if="senseChecks" class="container max-w-5xl mx-auto mt-5">
+            <!-- clarifications (user might decide to re-upload) -->
+            <section v-if="senseChecks.length > 0" class="container max-w-5xl mx-auto mt-5">
                 <h2 class="font-bold text-lg">Sense checks</h2>
 
                 <!-- No bolts -->
@@ -452,16 +477,8 @@
 
                 <!-- todo: you normally purchase X with Y-->
 
-                <!-- pre-nesting clarification -->
-                <div v-if="senseChecks.pre_nested_check" class="mt-2">
-                    <input
-                        v-model="formPreChecklist.pre_nested_check"
-                        type="checkbox"
-                        class="mr-2"
-                        id="pre_nested_check"
-                    />
-                    <label for="pre_nested_check">Pre-nesting clarification: There's some materials with exact stock sizes. Are these pre-nested, or just coincidence?</label>
-                </div>
+                <!-- todo: there's beams. Where's columns? -->
+                <!-- todo: there's columns. Where's beams? -->
 
                 <!-- todo: tonnage checks -->
 
@@ -473,7 +490,7 @@
             <section v-if="showClarifications && hasClarifications()" class="container max-w-5xl mx-auto mt-5">
                 <h2 class="font-bold text-lg">Exact product clarifications</h2>
                 <form @submit.prevent="submitClarifications()">
-                    <div v-for="(item,index) in generalProductMatches" class="mt-5">
+                    <div v-for="(item,index) in partialProductMatches" class="mt-5">
                         <p class="italic font-bold">"{{item.data.description}}"</p>
                         <div class="grid grid-cols-4">
                             <div v-for="(option,option_index) in item.options">
@@ -511,7 +528,7 @@
 
                     <div class="grid grid-cols-3 gap-6">
                         <CustomProductForm
-                            v-for="(item,index) in customItems"
+                            v-for="(item,index) in requiresCustom"
                             class="mt-3"
                             :item="item"
                             :index="index"

@@ -46,7 +46,17 @@
         let materialSelection = props.form[index]['selected']['material'];
         let indexOfProductSelection = Object.keys(props.formDependentData).indexOf(productSelection);
         let gradesObject = Object.values(props.formDependentData)[indexOfProductSelection][materialSelection];
-        return Object.keys(gradesObject);
+
+        //Has grades
+        if(gradesObject){
+            console.log(gradesObject);
+            return Object.keys(gradesObject);
+        }
+        //No grades: return all grade options
+        else{
+            console.log("all grades");
+            return [];//props.allGrades;
+        }
     }
 
     function getNestingOptions(index){
@@ -55,66 +65,56 @@
         let meterage = "Meterage - Stock lengths (e.g 6 meters)";
         let area = "Area - Stock sizes (e.g 1000 x 4000)";
 
-        let nestingOptions = {
-            NONE:none,
-            BUNDLE:bundle,
-            METERAGE:meterage,
-            AREA:area,
-        };
+        let productSelection = props.form[index]['selected']['product'];
+        let materialSelection = props.form[index]['selected']['material'];
+        let indexOfProductSelection = Object.keys(props.formDependentData).indexOf(productSelection);
+        let gradesObject = Object.values(props.formDependentData)[indexOfProductSelection][materialSelection];
+        let nestingOptionsRaw = [];
+        if(gradesObject){
+            let nestingOptions = Object.values(gradesObject);
+            nestingOptions.forEach(nestingOption => {
+                nestingOption.forEach(option => {
+                    nestingOptionsRaw.push(option);
+                });
+            });
+        }
 
-        let currentProductSelection = props.form[index]['selected']['product'];
+        let nestingOptions = {};
 
-        //Other
-        if(currentProductSelection === "Other"){
+        if(nestingOptionsRaw.length > 0){
+            nestingOptionsRaw.forEach(option => {
+                //METERAGE
+                if(option === "METERAGE"){
+                    nestingOptions["METERAGE"] = meterage;
+                }
+                //METERAGE
+                if(option === "BUNDLE"){
+                    nestingOptions["BUNDLE"] = bundle;
+                }
+                //METERAGE
+                if(option === "AREA"){
+                    nestingOptions["AREA"] = area;
+                }
+                //NONE
+                if(option === "NONE"){
+                    nestingOptions["NONE"] = none;
+                }
+            });
+        }
+        else{
             nestingOptions = {
                 NONE:none,
                 BUNDLE:bundle,
                 METERAGE:meterage,
                 AREA:area,
-            }
+            };
         }
-
-        //Bolt
-        if(currentProductSelection === "BOLT"){
-            nestingOptions = {
-                BUNDLE:bundle,
-            }
-        }
-
-        //Plate
-        if(currentProductSelection === "PLATE"){
-            nestingOptions = {
-                AREA:area,
-            }
-        }
-
-        //PFC
-        if(currentProductSelection === "PFC"){
-            nestingOptions = {
-                METERAGE:meterage,
-            }
-        }
-
-        //SHS
-        if(currentProductSelection === "SHS"){
-            nestingOptions = {
-                METERAGE:meterage,
-            }
-        }
-
-        //RHS
-        if(currentProductSelection === "RHS"){
-            nestingOptions = {
-                METERAGE:meterage,
-            }
-        }
-
-        //todo more
 
         return nestingOptions;
     }
 
     function showMaterials(index){
+        //todo: "props.form[index]" is not found after submitting clarifications
         let anyProductIsSelected = props.form[index]['selected']['product'];
 
         return anyProductIsSelected;

@@ -21,203 +21,21 @@ class RawMaterialListCustomisationsController extends Controller
      */
     public function __invoke(Request $request, Business $business): RedirectResponse
     {
-        $validator = Validator::make([], []);
-        $validationErrors = 0;
-        foreach($request->all() as $index => $row){
-            $product = $row["selected"]["product"];
-            $material = $row["selected"]["material"];
-            $grade = $row["selected"]["grade"];
-            $size = $row["selected"]["size"];
-            $measurementUnit = $row["selected"]["quantify"];
-            $nestingType = $row["selected"]["nesting_algo"];
-            $purchasable_length_1 = $row["selected"]["purchasable_length_1"];
-            $purchasable_length_2 = $row["selected"]["purchasable_length_2"];
-            $purchasable_length_3 = $row["selected"]["purchasable_length_3"];
-            $purchasable_width_1 = $row["selected"]["purchasable_width_1"];
-            $purchasable_width_2 = $row["selected"]["purchasable_width_2"];
-            $purchasable_width_3 = $row["selected"]["purchasable_width_3"];
+        /**
+         * Single purpose: save the non-price book product as user-custom product
+         */
+        $productService = new ProductService();
+        $rows = $request->all();
+        $validation = $productService->validationUserCustom($rows);
 
-            //product
-            if($product){
-                if($product === "Other" && !$row['selected_other']['product']){
-                    $validationErrors++;
-                    $validator->errors()->add($index."-product", 'product');
-                }
-            }
-            else{
-                $validationErrors++;
-                $validator->errors()->add($index."-product", 'product');
-            }
-
-            //material
-            if($material){
-                if($material === "Other" && !$row['selected_other']['material']){
-                    $validationErrors++;
-                    $validator->errors()->add($index."-material", 'material');
-                }
-            }
-            else{
-                $validationErrors++;
-                $validator->errors()->add($index."-material", 'material');
-            }
-
-            //Grade
-            if($grade){
-                if($grade === "Other" && !$row['selected_other']['grade']){
-                    $validationErrors++;
-                    $validator->errors()->add($index."-grade", 'grade');
-                }
-            }
-            else{
-                $validationErrors++;
-                $validator->errors()->add($index."-grade", 'grade');
-            }
-
-            //Size
-            if(!$size){
-                $validationErrors++;
-                $validator->errors()->add($index."-size", 'size');
-            }
-
-            //Nesting & measurement units
-            if($nestingType){
-                /**
-                 * Quantify (measurement units)
-                 */
-                /*
-                 * NONE (no minimum volume)
-                 *  - Measurement units required: FALSE
-                 *  - Size required: FALSE
-                 *  - purchasable_length_1: FALSE
-                 *  - purchasable_width_1: FALSE
-                 */
-                if($nestingType === "NONE"){
-                    //No actions
-                }
-                /*
-                 * BUNDLE
-                 * - Measurement units required: FALSE
-                 * - Size required: TRUE
-                 * - purchasable_length_1: TRUE
-                 * - purchasable_width_1: FALSE
-                 */
-                if($nestingType === "BUNDLE"){
-                    //Size required: TRUE
-                    if(!$size){
-                        $validationErrors++;
-                        $validator->errors()->add($index."-size", 'size');
-                    }
-                    //purchasable_length_1: TRUE
-                    if(!$purchasable_length_1){
-                        $validationErrors++;
-                        $validator->errors()->add($index."-purchasable_length_1", 'purchasable_length_1');
-                    }
-                }
-                /*
-                 * METERAGE
-                 * - Measurement units required: TRUE
-                 * - Size required: TRUE
-                 * - purchasable_length_1: TRUE
-                 * - purchasable_width_1: FALSE
-                 */
-                if($nestingType === "METERAGE"){
-                    //Measurement units required: TRUE
-                    if(!$measurementUnit){
-                        $validationErrors++;
-                        $validator->errors()->add($index."-quantify", 'quantify');
-                    }
-                    //Size required: TRUE
-                    if(!$size){
-                        $validationErrors++;
-                        $validator->errors()->add($index."-size", 'size');
-                    }
-                    //purchasable_length_1: TRUE
-                    if(!$purchasable_length_1){
-                        $validationErrors++;
-                        $validator->errors()->add($index."-purchasable_length_1", 'purchasable_length_1');
-                    }
-                }
-                /*
-                 * AREA
-                 * - Measurement units required: TRUE
-                 * - Size required: FALSE
-                 * - purchasable_length_1: TRUE
-                 * - purchasable_width_1: TRUE
-                 */
-                if($nestingType === "AREA"){
-                    //Measurement units required: TRUE
-                    if(!$measurementUnit){
-                        $validationErrors++;
-                        $validator->errors()->add($index."-quantify", 'quantify');
-                    }
-                    //purchasable_length_1: TRUE
-                    if(!$purchasable_length_1){
-                        $validationErrors++;
-                        $validator->errors()->add($index."-purchasable_length_1", 'purchasable_length_1');
-                    }
-                    //purchasable_width_1: TRUE
-                    if(!$purchasable_width_1){
-                        $validationErrors++;
-                        $validator->errors()->add($index."-purchasable_width_1", 'purchasable_width_1');
-                    }
-                }
-            }
-            else{
-                $validationErrors++;
-                $validator->errors()->add($index."-nesting_algo", 'nesting_algo');
-            }
-        }
-
-        //has errors
-        if($validationErrors > 0){
-            throw new ValidationException($validator);
+        //Has errors
+        if($validation['validationErrors'] > 0){
+            throw new ValidationException($validation['validator']);
         }
         else{
             $user = auth()->user();
-            $productService = new ProductService();
 
-            foreach($request->all() as $item){
-
-                //  "selected" => array:6 [▼
-                //    "product" => "LVL"
-                //    "material" => "ALLOY"
-                //    "grade" => "NONE"
-                //    "size" => 76
-                //    "quantify" => "FEET"
-                //    "suppliers" => "Other"
-                //  ]
-                //  "selected_other" => array:6 [▼
-                //    "product" => null
-                //    "material" => null
-                //    "grade" => null
-                //    "surface" => null
-                //    "quantify" => null
-                //    "suppliers" => null
-                //  ]
-                //  "data" => array:15 [▼
-                //    "id" => 487
-                //    "created_at" => "2024-12-05T20:33:30.000000Z"
-                //    "updated_at" => "2024-12-05T20:33:30.000000Z"
-                //    "csv_index" => 27
-                //    "description" => "Steel Beams (I-Beams)"
-                //    "product_category" => "UB"
-                //    "material" => null
-                //    "measurement_unit" => "METERS"
-                //    "length_required" => "12"
-                //    "width_required" => "1"
-                //    "sub_qty" => "2"
-                //    "unit_rate" => "50"
-                //    "project_id" => 2
-                //    "general_product_matches" => "a:0:{}"
-                //    "product" => null
-                //  ]
-                //  "subOption" => array:4 [▼
-                //    "product" => "all"
-                //    "material" => "all"
-                //    "grade" => "all"
-                //    "suppliers" => "all"
-                //  ]
-
+            foreach($rows as $item){
                 $product = $item["selected"]["product"] === "Other"
                     ? $item["selected_other"]["product"]
                     : $item["selected"]["product"];
@@ -266,7 +84,7 @@ class RawMaterialListCustomisationsController extends Controller
                     $length = $productVariation["purchasable_length"] ?? null;
 
                     //Create item
-                    $productObject = Product::create([
+                    Product::create([
                         "spreadsheet_id" => null,
                         "description" => $item["data"]["description"],
                         "product" => $product,
@@ -282,24 +100,6 @@ class RawMaterialListCustomisationsController extends Controller
                         "baseline_unit_rate" => 0, //todo get quoted price
                         'business_id' => $business->id,
                         "deprecated" => false,
-                    ]);
-
-                    /**
-                     * Create 'Pieces'
-                     */
-                    $project = Project::findOrFail($item["data"]["project_id"]);
-                    $piece = Piece::create([
-                        'project_id' => $project->id,
-                        "product" => $productObject->product,
-                        "material" => $productObject->material,
-                        "grade" => $productObject->grade,
-                        "surface" => $productObject->surface,
-                        "measurement_unit" => $productObject->measurement_unit,
-                        "nesting_algo" => $productObject->nesting_algo,
-                        "size" => $productObject->size,
-                        "actual_length" => $item["data"]["length_required"],
-                        "actual_width" => $item["data"]["width_required"],
-                        "actual_qty" => $item["data"]["sub_qty"]
                     ]);
                 }
 
@@ -319,6 +119,25 @@ class RawMaterialListCustomisationsController extends Controller
                 $rawMaterialQuote = RawMaterialQuote::find($item["data"]["id"]);
                 $rawMaterialQuote->general_product_matches = serialize($generalProductMatches->toArray());
                 $rawMaterialQuote->save();
+
+                /**
+                 * Create 'Pieces'
+                 */
+                $project = Project::findOrFail($item["data"]["project_id"]);
+                Piece::create([
+                    'project_id' => $project->id,
+                    "raw_material_quote_id" => $rawMaterialQuote->id,
+                    "product" => $product,
+                    "material" => $material,
+                    "grade" => $grade,
+                    "surface" => SurfaceEnums::NONE->value,
+                    "measurement_unit" => $measurementUnit,
+                    "nesting_algo" => $nestingAlgo,
+                    "size" => $size,
+                    "actual_length" => $item["data"]["length_required"],
+                    "actual_width" => $item["data"]["width_required"],
+                    "actual_qty" => $item["data"]["sub_qty"]
+                ]);
             }
 
             return back();

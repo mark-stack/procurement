@@ -19,17 +19,16 @@ class RawMaterialListClarificationsController extends Controller
      */
     public function __invoke(Request $request, Business $business): RedirectResponse
     {
+        /**
+         * Single purpose: the user confirms exact product.
+         * The user is given a bunch of partial matches to chose from to clarify.
+         * It's saved by making the "general_product_matches" field = 1x product.
+         */
         $user = auth()->user();
         $productService = new ProductService();
 
         foreach($request->all() as $item){
             $selectedProduct = $item["options"][$item["selected"]];
-//            "product" => "PFC"
-//            "material" => "STEEL"
-//            "grade" => "GR300"
-//            "surface" => "NONE"
-//            "measurement_unit" => "METERS"
-//            "size" => "100"
 
             $rawMaterialQuote = RawMaterialQuote::findOrFail($item["data"]["id"]);
 

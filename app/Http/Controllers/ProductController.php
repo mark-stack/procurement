@@ -26,64 +26,41 @@ class ProductController extends Controller
      */
     public function index(Project $project): Response
     {
+        /**
+         * Single purpose: xxx
+         */
         Gate::authorize('owned', $project);
 
+        //Services
         $nestingService = new NestingService();
+        $productService = new ProductService();
 
+        //Prerequisite variables
+        $user = $project->user;
+        $business = $user->business;
+
+        /**
+         * Sort the user's material rows into groups:
+         * 1) Non-price book (will be user custom product)
+         * 2) Price book exact match
+         * 3) price book partial match (requires confirmation)
+         */
         $materialListRows = [];
-        $checkIfNested = [];
         $productCategories = [];
-        $generalProductMatches = [];
+        $partialProductMatches = [];
         $allCertificateProductLabels = $nestingService->getCertificateProductLabels();
         $hasCertificateProducts = []; //todo: get from master_materials
-        $customItems = [];
+        $requiresCustom = [];
 
-
-
-        foreach($project->rawMaterialQuotes as $row){
-            /**
-             * Nesting check
-             * todo reinstate this
-             */
-//            $isPurchasableSize = $productService->isPurchasableSize($row);
-//            $row->checkIfPreNested = $isPurchasableSize;
-//            if($isPurchasableSize){
-//                $checkIfNested[] = $isPurchasableSize;
-//            }
-
-            /**
-             * Options
-             */
-            //Is custom user product?
-            $business = $project->user->business;
-            $userCustomOptions = $business->products()
-                ->where("description",$row->description)
-                ->get()
-                ->toArray();
-            $decodedOptions = $userCustomOptions;
-
-            if(count($userCustomOptions) > 0){
-                if(count($decodedOptions) > 1){
-                    $generalProductMatches[] = [
-                        "selected" => null,
-                        "data" => $row,
-                        "options" => $decodedOptions,
-                    ];
-                }
-            }
-
-            //Is price book product?
-            else{
-                $decodedOptions = unserialize($row->general_product_matches);
-                if(count($decodedOptions) > 1){
-                    $generalProductMatches[] = [
-                        "selected" => null,
-                        "data" => $row,
-                        "options" => $decodedOptions,
-                    ];
-                }
-                if(count($decodedOptions) === 0){
-                    $customItems[] = [
+        //Loop user's material rows
+        foreach($project->rawMaterialQuotes as $rawMaterialQuote){
+            $getProductMatchOptions = $productService->getProductMatchOptions($business,$rawMaterialQuote);
+            if($getProductMatchOptions){
+                /**
+                 * 1) Non-price book (will be user custom product)
+                 */
+                if($getProductMatchOptions["status"] === "CUSTOM"){
+                    $requiresCustom[] = [
                         "selected" => [
                             "product" => null,
                             "material" => null,
@@ -107,7 +84,7 @@ class ProductController extends Controller
                             "quantify" => null,
                             "suppliers" => [],
                         ],
-                        "data" => $row,
+                        "data" => $rawMaterialQuote,
                         "subOption" => [
                             "product" => "all",
                             "material" => "all",
@@ -116,73 +93,63 @@ class ProductController extends Controller
                         ],
                     ];
                 }
+
+                /**
+                 * 2) Price book exact match
+                 */
+                elseif($getProductMatchOptions["status"] === "EXACT"){
+                    $rawMaterialQuote["product"] = $getProductMatchOptions['decodedOption'];
+                }
+
+                /**
+                 * 3) Price book partial match (requires confirmation)
+                 */
+                elseif($getProductMatchOptions["status"] === "PARTIAL"){
+                    $partialProductMatches[] = [
+                        "selected" => null,
+                        "data" => $rawMaterialQuote,
+                        "options" => $getProductMatchOptions['decodedOptions'],
+                    ];
+                }
             }
 
             /**
-             * Price book products
+             * product categories
              */
-            $productCategories[] = $row["product_category"];
-            $row["product"] = null;
-            if(count($decodedOptions) === 1){
-                $row["product"] = $decodedOptions[0];
-            }
+            $productCategories[] = $rawMaterialQuote["product_category"];
 
             /**
              * Mill products //todo: get from master_materials
              */
             foreach($allCertificateProductLabels as $mp){
-                if(strtoupper($row->product_category) == strtoupper($mp->value)){
+                if(strtoupper($rawMaterialQuote->product_category) == strtoupper($mp->value)){
                     $hasCertificateProducts = true;
                 }
             }
 
             //Append Array
-            $materialListRows[] = $row;
+            $materialListRows[] = $rawMaterialQuote;
         }
-        $productCategories = array_filter(array_unique($productCategories));
-
 
         /**
-         * Sense checking
+         * Sense checks
          */
-        $senseChecks = null;
-        if(count($materialListRows) > 0){
-            //No bolts
-            $senseChecks["has_bolts"] = false;
-            if(in_array(ProductEnums::BOLT->value,$productCategories)){
-                $senseChecks["has_bolts"] = true;
-            }
-
-            //Bolt quantity is low
-            $senseChecks["bolt_qty"] = 1000; //todo
-            //todo complete
-
-            //Items might be pre-nested
-            $senseChecks["pre_nested_check"] = false;
-            if(count($checkIfNested) > 0){
-                $senseChecks["pre_nested_check"] = true;
-            }
-
-            //material Certificates //todo: get from master_materials
-            $senseChecks["certificates"] = false;
-            if($hasCertificateProducts){
-                $senseChecks["certificates"] = true;
-            }
-        }
+        $productCategories = array_filter(array_unique($productCategories));
+        $senseChecks = $productService->senseChecks($materialListRows,$productCategories,$hasCertificateProducts);
 
         /**
-         * Custom options
+         * Custom options (form select options)
          */
         $allGrades = $nestingService->allGradeLabels();
         $allMeasurements = $nestingService->allMeasurementUnitLabels();
         $formDependentData = $nestingService->buildDependencyArray();
-
+        //dd($formDependentData);
         return Inertia::render('ProductIndex', [
             "project" => $project,
             "materialListRows" => $materialListRows,
             "senseChecks" => $senseChecks,
-            "generalProductMatches" => $generalProductMatches,
-            "customItems" => $customItems,
+            "partialProductMatches" => $partialProductMatches,
+            "requiresCustom" => $requiresCustom,
             "allMeasurements" => $allMeasurements,
             "formDependentData" => $formDependentData,
             "allGrades" => $allGrades,
@@ -236,7 +203,7 @@ class ProductController extends Controller
             $cleanCsvData = $productService->cleanCsvData($data,$templatesDetected[0],$project);
 
             //Sense checks
-            $productService->senseChecks(); //tdo complete
+            //$productService->senseChecks(); //todo incomplete
 
             //Find price book products
             $dataWithProducts = $productService->findProductsFromCleanData($cleanCsvData,$project->user);
