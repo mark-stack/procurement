@@ -55,8 +55,9 @@ class ProductService
         $gradesEnums,
         $surfaceEnum,
         $measurementUnitEnum,
-        $sizeInt,
-        $lengthInt,
+        $nominalLengthInt,
+        $nominalWidthInt,
+        $nominalHeightInt,
     ): Collection
     {
         /**
@@ -69,18 +70,10 @@ class ProductService
 
         //"Product" is mandatory
         if($productString) {
-            if($lengthInt && $measurementUnitEnum && $measurementUnitEnum->value === "SINGLE"){
-                $query = Product::select('product', 'material', 'grade', 'surface', 'measurement_unit', 'size','length')
-                    ->distinct()
-                    ->availableFor($user)
-                    ->where("product", $productString);
-            }
-            else{
-                $query = Product::select('product', 'material', 'grade', 'surface', 'measurement_unit', 'size')
-                    ->distinct()
-                    ->availableFor($user)
-                    ->where("product", $productString);
-            }
+            $query = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', 'nominal_length','nominal_width','nominal_height')
+                ->distinct()
+                ->availableFor($user)
+                ->where("product", $productString);
 
             //Material
             if (!is_null($materialEnum)) {
@@ -103,17 +96,22 @@ class ProductService
 
             //Measurement Unit
             if (!is_null($measurementUnitEnum)) {
-                $query->where("measurement_unit", $measurementUnitEnum->value);
+                $query->where("nominal_units", $measurementUnitEnum->value);
             }
 
-            //Size
-            if (!is_null($sizeInt)) {
-                $query->where("size", $sizeInt);
+            //Nominal length
+            if (!is_null($nominalLengthInt)) {
+                $query->where("nominal_length", $nominalLengthInt);
             }
 
-            //Length
-            if($lengthInt && $measurementUnitEnum && $measurementUnitEnum->value === "SINGLE"){
-                $query->where("length", $lengthInt);
+            //Nominal width
+            if (!is_null($nominalWidthInt)) {
+                $query->where("nominal_width", $nominalWidthInt);
+            }
+
+            //Nominal height
+            if (!is_null($nominalHeightInt)) {
+                $query->where("nominal_height", $nominalHeightInt);
             }
 
             return $query->get();
@@ -150,7 +148,7 @@ class ProductService
             }
 
             if (!is_null($measurementUnit)) {
-                $query->where("measurement_unit", $measurementUnit->value);
+                $query->where("nominal_units", $measurementUnit->value);
             }
 
             if (!is_null($size)) {
@@ -267,7 +265,7 @@ class ProductService
             if($productEnum){
                 $measurementUnitOptions = Product::query()
                     ->where("product",$productEnum->value)
-                    ->pluck("measurement_unit")
+                    ->pluck("nominal_units")
                     ->toArray();
             }
 
@@ -482,6 +480,84 @@ class ProductService
         }
 
         return $result;
+    }
+
+    public function getNominalSizeData(): array
+    {
+        return [
+            "general" => [
+                "length" => true,
+                "width" => true,
+                "height" => true,
+                "length_placeholder" => "Length (mm)",
+                "width_placeholder" => "Width (mm)",
+                "height_placeholder" => "Height (mm)",
+            ],
+            "BOLT" => [
+                "length" => true,
+                "width" => true,
+                "height" => false,
+                "length_placeholder" => "Length (mm)",
+                "width_placeholder" => "Diameter (mm)",
+                "height_placeholder" => "",
+            ],
+            "UB" => [
+                "length" => false,
+                "width" => false,
+                "height" => true,
+                "length_placeholder" => "",
+                "width_placeholder" => "",
+                "height_placeholder" => "Height (nominal)",
+            ],
+            "UC" => [
+                "length" => false,
+                "width" => false,
+                "height" => true,
+                "length_placeholder" => "",
+                "width_placeholder" => "",
+                "height_placeholder" => "Height (nominal)",
+            ],
+            "PFC" => [
+                "length" => false,
+                "width" => false,
+                "height" => true,
+                "length_placeholder" => "",
+                "width_placeholder" => "",
+                "height_placeholder" => "Height (nominal)",
+            ],
+            "PLATE" => [
+                "length" => false,
+                "width" => false,
+                "height" => true,
+                "length_placeholder" => "",
+                "width_placeholder" => "",
+                "height_placeholder" => "Thickness (mm)",
+            ],
+            "LVL" => [
+                "length" => false,
+                "width" => true,
+                "height" => true,
+                "length_placeholder" => "",
+                "width_placeholder" => "Width (mm)",
+                "height_placeholder" => "Height (mm)",
+            ],
+            "SHS" => [
+                "length" => false,
+                "width" => false,
+                "height" => true,
+                "length_placeholder" => "",
+                "width_placeholder" => "",
+                "height_placeholder" => "Height/Width (mm)",
+            ],
+            "RHS" => [
+                "length" => false,
+                "width" => true,
+                "height" => true,
+                "length_placeholder" => "x",
+                "width_placeholder" => "Width (mm)",
+                "height_placeholder" => "Height (mm)",
+            ],
+        ];
     }
 
 //    public function senseChecks(): void
@@ -874,7 +950,7 @@ class ProductService
                 "description" => $cleanRow["description"],
                 "product_category" => $productCategory ? $productCategory["productEnum"]->value : null,
                 "material" => $cleanRow["material"] ?? null,
-                "measurement_unit" => $this->findMeasurementUnit($productCategory),
+                "nominal_units" => $this->findMeasurementUnit($productCategory),
                 "length_required" => $cleanRow["length_required"],
                 "width_required" => $cleanRow["width_required"],
                 "sub_qty" => $cleanRow["sub_qty"],
@@ -898,7 +974,7 @@ class ProductService
                     "material" => $item["material"],
                     "grade" => $item["grade"],
                     "surface" => $item["surface"],
-                    "measurement_unit" => $item["measurement_unit"],
+                    "nominal_units" => $item["nominal_units"],
                     "nesting_algo" => (new NestingService())->getNestingLabelsFromProduct($item["product"])[0],
                     "size" => $item["size"],
                     "actual_length" => $cleanRow["length_required"], //For singular items like bolts, this is "QTY" that's divisible.
@@ -935,7 +1011,7 @@ class ProductService
 //                    "material" => $userProductData["material"] ?? MaterialEnums::STEEL->value, //todo: let the user customise
 //                    "grade" => GradeEnums::NONE->value, //todo: let the user customise
 //                    "surface" => SurfaceEnums::NONE->value, //todo: let the user customise
-//                    "measurement_unit" => MeasurementUnitEnums::SINGLE->value, //todo: let the user customise
+//                    "nominal_units" => MeasurementUnitEnums::SINGLE->value, //todo: let the user customise
 //                    "size" => 1, //todo: let the user customise
 //                    "length" => $userProductData["length_required"], //todo: let the user customise
 //                    "width" => $userProductData["width_required"], //todo: let the user customise
@@ -980,7 +1056,7 @@ class ProductService
 //        "index" => 27
 //        "description" => "Steel Beams (I-Beams)"
 //        "material" => null
-//        "measurement_unit" => null
+//        "nominal_units" => null
 //        "length_required" => 12.0
 //        "sub_qty" => 2.0
 //        "unit_rate" => 50.0
@@ -994,12 +1070,13 @@ class ProductService
         $gradesEnums = null;
         $surfaceEnum = null;
         $measurementUnitEnum = null;
-        $sizeInt = null;
-        $lengthInt = null;
+        $nominalLengthInt = null;
+        $nominalWidthInt = null;
+        $nominalHeightInt = null;
 
         if($productCategory){
             //MATERIAL
-            $materialEnum = $this->findMaterial($productCategory);
+            $materialEnum = $this->findMaterial($productCategory,$cleanCsvRow["description"]);
 
             //GRADE
             $gradesEnums = $this->findGrades($productCategory,$cleanCsvRow["description"]);
@@ -1007,14 +1084,17 @@ class ProductService
             //SURFACE
             $surfaceEnum = $this->findSurface($productCategory,$cleanCsvRow["description"],$gradesEnums); //todo this might be a column
 
-            //MEASUREMENT_UNIT
+            //NOMINAL UNITS
             $measurementUnitEnum = $this->findMeasurementUnit($productCategory);
 
-            //SIZE
-            $sizeInt = $this->findSize($productCategory,$cleanCsvRow["description"]);
+            //NOMINAL LENGTH
+            $nominalLengthInt = $this->findNominal($productCategory,$cleanCsvRow["description"],"nominalLengthRegex");
 
-            //LENGTH
-            $lengthInt = $this->findLength($productCategory,$cleanCsvRow["description"]);
+            //NOMINAL WIDTH
+            $nominalWidthInt = $this->findNominal($productCategory,$cleanCsvRow["description"],"nominalWidthRegex");
+
+            //NOMINAL HEIGHT
+            $nominalHeightInt = $this->findNominal($productCategory,$cleanCsvRow["description"],"nominalHeightRegex");
 
             /**
              * Price book search
@@ -1026,8 +1106,9 @@ class ProductService
                 $gradesEnums,
                 $surfaceEnum,
                 $measurementUnitEnum,
-                $sizeInt,
-                $lengthInt,
+                $nominalLengthInt,
+                $nominalWidthInt,
+                $nominalHeightInt
             );
         }
 
@@ -1074,7 +1155,13 @@ class ProductService
                     "Parallel+\s+Flanged+\s+Channel",
                     "steel+\s+channel",
                 ],
-                "sizeRegex" => [
+                "nominalLengthRegex" => [
+
+                ],
+                "nominalWidthRegex" => [
+
+                ],
+                "nominalHeightRegex" => [
                     "(\d+)+PFC",          //200PFC
                     "(\d+)+\s+PFC",       //200 PFC
                     "(\d+)+mm+\s+PFC",    //200mm PFC
@@ -1082,12 +1169,8 @@ class ProductService
                     "(\d+)+\s+mm+\s+Parallel Flange Channel",    //200 mm Parallel Flange Channel
                     "(\d+)+mm+\s+Parallel+\s+Flange+\s+Channel", //200 mm Parallel Flange Channel
                 ],
-                "lengthRegex" => [
-                    "\b(\d+(\.\d+)?)\s?(m|meter|meters|mm|millimeters)\b", //meterage //todo: only METERS?
-                ],
-                "widthRegex" => null,
-                "measurementUnit" => MeasurementUnitEnums::METERS,
-                "defaultMaterial" => MaterialEnums::STEEL,
+                "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
+                "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
             ],
             //UB
             [
@@ -1098,16 +1181,18 @@ class ProductService
                     "universal+\s+beam",
                     "steel+\s+beam",
                 ],
-                "sizeRegex" => [
+                "nominalLengthRegex" => [
+
+                ],
+                "nominalWidthRegex" => [
+
+                ],
+                "nominalHeightRegex" => [
                     "(\d+)+UB",    //300UB
                     "(\d+)+\s+UB", //300 UB
                 ],
-                "lengthRegex" => [
-                    "\b(\d+(\.\d+)?)\s?(m|meter|meters|mm|millimeters)\b", //meterage //todo: only METERS?
-                ],
-                "widthRegex" => null,
-                "measurementUnit" => MeasurementUnitEnums::METERS,
-                "defaultMaterial" => MaterialEnums::STEEL,
+                "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
+                "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
             ],
             //UC
             [
@@ -1118,16 +1203,18 @@ class ProductService
                     "universal+\s+column",
                     "steel+\s+column",
                 ],
-                "sizeRegex" => [
+                "nominalLengthRegex" => [
+
+                ],
+                "nominalWidthRegex" => [
+
+                ],
+                "nominalHeightRegex" => [
                     "(\d+)+UC",    //300UC
                     "(\d+)+\s+UC", //300 UC
                 ],
-                "lengthRegex" => [
-                    "\b(\d+(\.\d+)?)\s?(m|meter|meters|mm|millimeters)\b", //meterage //todo: only METERS?
-                ],
-                "widthRegex" => null,
-                "measurementUnit" => MeasurementUnitEnums::METERS,
-                "defaultMaterial" => MaterialEnums::STEEL,
+                "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
+                "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
             ],
             //Steel plate
             [
@@ -1142,18 +1229,18 @@ class ProductService
                     "Steel+\s+Plate",       //Steel plate
                     "Steel+\s+Plates",      //steel plates
                 ],
-                "sizeRegex" => [
+                "nominalLengthRegex" => [
+
+                ],
+                "nominalWidthRegex" => [
+                    "(1200|1220|1800|2400|2440|3000|3200|1\.2|1\.8|1\.22|2\.4|2\.44|3\.0|3\.2)", //Find common plate widths in M or MM
+                ],
+                "nominalHeightRegex" => [
                     "\b(0|[1-9][0-9]?|1[0-4][0-9]|150) ?PL", //16PL or 16 PL
                     "\b(0|[1-9][0-9]?|1[0-4][0-9]|150) ?mm", //16mm or 16 mm
                 ],
-                "lengthRegex" => [
-                    //don't attempt to get length. it'll get mixed up with width
-                ],
-                "widthRegex" => [
-                    "(1200|1220|1800|2400|2440|3000|3200|1\.2|1\.8|1\.22|2\.4|2\.44|3\.0|3\.2)", //Find common plate widths in M or MM
-                ],
                 "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
-                "defaultMaterial" => MaterialEnums::STEEL,
+                "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
             ],
             //Bolts
             [
@@ -1162,16 +1249,18 @@ class ProductService
                     "M+\d",
                     "bolt",
                 ],
-                "sizeRegex" => [
-                    "M+(\d+)", //M16
-                ],
-                "lengthRegex" => [
+                "nominalLengthRegex" => [
                     "x+(\d+)",      //x100
                     "x+\s+(\d+)",   //x 100
                 ],
-                "widthRegex" => null,
-                "measurementUnit" => MeasurementUnitEnums::SINGLE,
-                "defaultMaterial" => MaterialEnums::STEEL,
+                "nominalWidthRegex" => [
+                    "M+(\d+)", //M16
+                ],
+                "nominalHeightRegex" => [
+
+                ],
+                "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
+                "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
             ],
             //LVL
             [
@@ -1179,15 +1268,18 @@ class ProductService
                 "productRegex" => [
                     "LVL",
                 ],
-                "sizeRegex" => [
-                    "(\d+)+x+(\d+)",         //100x100
-                    "(\d+)+\s+X+\s+(\d+)",   //100 x 100
+                "nominalLengthRegex" => [
+
                 ],
-                "lengthRegex" => [
-                    "\b(\d+(\.\d+)?)\s?(m|meter|meters|mm|millimeters)\b", //meterage //todo: only METERS?
+                "nominalWidthRegex" => [
+                    "x+(\d+)",      //x100
+                    "X+\s+(\d+)",   //x 100
                 ],
-                "widthRegex" => null,
-                "measurementUnit" => MeasurementUnitEnums::METERS,
+                "nominalHeightRegex" => [
+                    "(\d+)+x",      //100x
+                    "(\d+)+\s+X",   //100 x
+                ],
+                "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
                 "defaultMaterial" => MaterialEnums::TIMBER,
             ],
             //todo more
@@ -1204,9 +1296,50 @@ class ProductService
 
         return $resultProduct;
     }
-    public function findMaterial($product): MaterialEnums
+    public function findMaterial($product,$text): MaterialEnums
     {
-        return $product["defaultMaterial"];
+        $materialResult = null;
+
+        $materials = [
+            //SS304
+            [
+                "materialEnum" => MaterialEnums::SS304,
+                "regex" => [
+                    "SS304",
+                    "SS+\s+304",
+                    "304SS",
+                    "304+\s+SS",
+                ],
+            ],
+            //SS316
+            [
+                "materialEnum" => MaterialEnums::SS316,
+                "regex" => [
+                    "SS316",
+                    "SS+\s+316",
+                    "316SS",
+                    "316+\s+SS",
+                ],
+            ],
+        ];
+
+        foreach($materials as $material){
+            foreach($material["regex"] as $pattern){
+                $regex = "/".$pattern."/i";
+                if(preg_match($regex, $text)){
+                    $materialResult = $material["materialEnum"];
+                }
+            }
+        }
+
+        /**
+         * Default material
+         */
+        if(!$materialResult){
+            $materialResult = $product["defaultMaterial"];
+        }
+
+        return $materialResult;
     }
 
     public function findGrades($product,$text): null|array
@@ -1250,26 +1383,27 @@ class ProductService
                     "350+\s+MPA",
                 ],
             ],
-            //SS304
-            [
-                "gradeEnum" => GradeEnums::SS304,
-                "regex" => [
-                    "SS304",
-                    "SS+\s+304",
-                    "304SS",
-                    "304+\s+SS",
-                ],
-            ],
-            //SS316
-            [
-                "gradeEnum" => GradeEnums::SS316,
-                "regex" => [
-                    "SS316",
-                    "SS+\s+316",
-                    "316SS",
-                    "316+\s+SS",
-                ],
-            ],
+            //todo: move this to material find
+//            //SS304
+//            [
+//                "gradeEnum" => GradeEnums::SS304,
+//                "regex" => [
+//                    "SS304",
+//                    "SS+\s+304",
+//                    "304SS",
+//                    "304+\s+SS",
+//                ],
+//            ],
+//            //SS316
+//            [
+//                "gradeEnum" => GradeEnums::SS316,
+//                "regex" => [
+//                    "SS316",
+//                    "SS+\s+316",
+//                    "316SS",
+//                    "316+\s+SS",
+//                ],
+//            ],
             //GR 4.6
             [
                 "gradeEnum" => GradeEnums::GR_4_6,
@@ -1396,13 +1530,13 @@ class ProductService
 
         return $product["measurementUnit"] ?? MeasurementUnitEnums::SINGLE;
     }
-    public function findSize($product,$text): ?int
+    public function findNominal($product,$text,$regexLabel): ?int
     {
         $resultInt = null;
 
-        $sizeRegexPatterns = $product["sizeRegex"];
+        $regexPatterns = $product[$regexLabel];
 
-        foreach($sizeRegexPatterns as $pattern){
+        foreach($regexPatterns as $pattern){
             $regex = "/".$pattern."/i";
             preg_match_all($regex, $text, $matches);
             if (!empty($matches[1])) {
@@ -1414,21 +1548,6 @@ class ProductService
 
         return $resultInt;
     }
-    public function findLength($product,$text): ?int
-    {
-        $result = null;
-
-        foreach($product['lengthRegex'] as $pattern){
-            $regex = "/".$pattern."/i";
-
-            // Perform regex match
-            if (preg_match($regex, $text, $matches)) {
-                $result = $matches[1]; // Return the number part
-            }
-        }
-
-        return $result;
-    }
 
     public function validationUserCustom($rows): array
     {
@@ -1439,7 +1558,9 @@ class ProductService
             $product = $row["selected"]["product"];
             $material = $row["selected"]["material"];
             $grade = $row["selected"]["grade"];
-            $size = $row["selected"]["size"];
+            $nominalLength = $row["selected"]["nominal_length"];
+            $nominalWidth = $row["selected"]["nominal_width"];
+            $nominalHeight = $row["selected"]["nominal_height"];
             $measurementUnit = $row["selected"]["quantify"];
             $nestingType = $row["selected"]["nesting_algo"];
             $purchasable_length_1 = $row["selected"]["purchasable_length_1"];
@@ -1485,10 +1606,31 @@ class ProductService
                 $validator->errors()->add($index."-grade", 'grade');
             }
 
-            //Size
-            if(!$size){
-                $validationErrors++;
-                $validator->errors()->add($index."-size", 'size');
+            /*
+             * Size
+             */
+            if(isset($row["nominalSizeData"][$product])){
+                $shouldHaveLength = $row["nominalSizeData"][$product]["length"];
+                if($shouldHaveLength){
+                    if(!$nominalLength){
+                        $validationErrors++;
+                        $validator->errors()->add($index."-nominal_length", 'nominal_length');
+                    }
+                }
+                $shouldHaveWidth = $row["nominalSizeData"][$product]["width"];
+                if($shouldHaveWidth){
+                    if(!$nominalWidth){
+                        $validationErrors++;
+                        $validator->errors()->add($index."-nominal_width", 'nominal_width');
+                    }
+                }
+                $shouldHaveHeight = $row["nominalSizeData"][$product]["height"];
+                if($shouldHaveHeight){
+                    if(!$nominalHeight){
+                        $validationErrors++;
+                        $validator->errors()->add($index."-nominal_height", 'nominal_height');
+                    }
+                }
             }
 
             //Nesting & measurement units
@@ -1515,10 +1657,11 @@ class ProductService
                  */
                 if($nestingType === "BUNDLE"){
                     //Size required: TRUE
-                    if(!$size){
-                        $validationErrors++;
-                        $validator->errors()->add($index."-size", 'size');
-                    }
+                    //todo
+//                    if(!$size){
+//                        $validationErrors++;
+//                        $validator->errors()->add($index."-size", 'size');
+//                    }
                     //purchasable_length_1: TRUE
                     if(!$purchasable_length_1){
                         $validationErrors++;
@@ -1539,10 +1682,11 @@ class ProductService
                         $validator->errors()->add($index."-quantify", 'quantify');
                     }
                     //Size required: TRUE
-                    if(!$size){
-                        $validationErrors++;
-                        $validator->errors()->add($index."-size", 'size');
-                    }
+                    //todo
+//                    if(!$size){
+//                        $validationErrors++;
+//                        $validator->errors()->add($index."-size", 'size');
+//                    }
                     //purchasable_length_1: TRUE
                     if(!$purchasable_length_1){
                         $validationErrors++;

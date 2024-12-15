@@ -48,18 +48,13 @@ class NestingService
     {
         /**
          * Find the purchasable qty
-         *
-        - e.g PFC - measurement_unit = "meters", and purchasable_qty = [9,12,13.5,15,18]
-        - e.g bolts - measurement_unit = "single", and purchasable_qty = [50,100]
-        - e.g flange - measurement_unit = "single", and purchasable_qty = [1]
-        - e.g 16PL x 1220mm mild steel plate - measurement_unit = "millimeters", and purchasable_qty = [2440,3000]
          */
 
         $result = false;
 
         $measurementEnum = null;
         foreach(MeasurementUnitEnums::cases() as $enum){
-            if($enum->value === $rawMaterialQuote["measurement_unit"]){
+            if($enum->value === $rawMaterialQuote["nominal_units"]){
                 $measurementEnum = $enum;
             }
         }
@@ -73,14 +68,14 @@ class NestingService
 
         /**
          * Material spec
-         * 'product', 'material', 'grade', 'surface', 'measurement_unit', 'size'
+         * 'product', 'material', 'grade', 'surface', 'nominal_units', 'size'
          */
         $materialSpec = new stdClass();
         $materialSpec->product = $rawMaterialQuote->product_category;
         $materialSpec->material = $rawMaterialQuote->material;
         $materialSpec->grade = 999; //todo
         $materialSpec->surface = 999; //todo
-        $materialSpec->measurement_unit = $rawMaterialQuote->measurement_unit;
+        $materialSpec->nominal_units = $rawMaterialQuote->nominal_units;
         $materialSpec->size = 999; //todo
 
         /**
@@ -113,7 +108,7 @@ class NestingService
 
         if($priceBookProducts->count() > 0){
             $lengths = $priceBookProducts->pluck('length')->toArray();
-            $normalisedToMeters = $this->normaliseArrayOfLengthsToMeters($lengths,$rawMaterialQuote["measurement_unit"]);
+            $normalisedToMeters = $this->normaliseArrayOfLengthsToMeters($lengths,$rawMaterialQuote["nominal_units"]);
             $providedLengthInMeters = (float) $rawMaterialQuote["length_required"];
             if(in_array($providedLengthInMeters,$normalisedToMeters)){
                 $result = true;
@@ -176,13 +171,13 @@ class NestingService
     {
         $result = [];
 
-        $rawItems = Product::select("measurement_unit")
+        $rawItems = Product::select("nominal_units")
             ->distinct()
             ->get()
             ->toArray();
 
         foreach($rawItems as $rawItem){
-            $result[] = $rawItem["measurement_unit"];
+            $result[] = $rawItem["nominal_units"];
         }
 
         return $result;
@@ -362,7 +357,7 @@ class NestingService
     {
         $result = [];
 
-        $materialSpecs = Piece::select('product', 'material', 'grade', 'surface', 'measurement_unit', 'size')
+        $materialSpecs = Piece::select('product', 'material', 'grade', 'surface', 'nominal_units', 'size')
             ->whereIn("id",$allPieces->pluck("id")->toArray())
             ->distinct()
             ->get();
@@ -373,7 +368,7 @@ class NestingService
                 ->where('material',$materialSpec->material)
                 ->where('grade',$materialSpec->grade)
                 ->where('surface',$materialSpec->surface)
-                ->where('measurement_unit',$materialSpec->measurement_unit)
+                ->where('nominal_units',$materialSpec->nominal_units)
                 ->where('size',$materialSpec->size)
                 ->sortBy("size");
 
@@ -388,7 +383,7 @@ class NestingService
                     $piecesArray[] = [
                         "project" => $piece->project()->first(),
                         "length" => $piece->actual_length,
-                        "measurement_unit" => $piece->measurement_unit,
+                        "nominal_units" => $piece->nominal_units,
                         "quantity" => $piece->actual_qty,
                     ];
                     for ($i = 0; $i < (int) $piece->actual_qty; $i++) {
@@ -425,7 +420,7 @@ class NestingService
                     $piecesArray[] = [
                         "project" => $piece->project()->first(),
                         "length" => null,
-                        "measurement_unit" => $piece->measurement_unit,
+                        "nominal_units" => $piece->nominal_units,
                         "quantity" => $piece->actual_qty,
                     ];
                     $totalQty = $totalQty + $piece->actual_qty;
@@ -446,7 +441,7 @@ class NestingService
     {
         /**
          * To get purchasable lengths, we need to have all parameters for certainty:
-         * 'product', 'material', 'grade', 'surface', 'measurement_unit', 'size'
+         * 'product', 'material', 'grade', 'surface', 'nominal_units', 'size'
          *
          * Otherwise, it'll give bad results like "9m" for a bolt.
          */
@@ -455,7 +450,7 @@ class NestingService
             ->where("material",$materialSpec->material)
             ->where("grade",$materialSpec->grade)
             ->where("surface",$materialSpec->surface)
-            ->where("measurement_unit",$materialSpec->measurement_unit)
+            ->where("nominal_units",$materialSpec->nominal_units)
             ->where("size",$materialSpec->size)
             ->pluck("length")
             ->toArray();

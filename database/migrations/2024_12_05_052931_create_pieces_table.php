@@ -22,7 +22,7 @@ return new class extends Migration
             $table->text("material");                       //STEEL
             $table->text("grade");                          //GR250
             $table->text("surface");                        //NONE
-            $table->string("measurement_unit")->nullable(); //METERS
+            $table->string("nominal_units")->nullable();    //MILLIMETERS
             $table->string("nesting_algo")->nullable();     //METERAGE
             $table->string("size");                         //200
             $table->string("actual_length");                //9

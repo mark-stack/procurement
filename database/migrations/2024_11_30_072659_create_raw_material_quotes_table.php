@@ -18,7 +18,7 @@ return new class extends Migration
             $table->text("description");
             $table->text("product_category")->nullable();
             $table->text("material")->nullable();
-            $table->string("measurement_unit");
+            $table->string("nominal_units");
             $table->string("length_required");
             $table->string("width_required");
             $table->string("sub_qty");

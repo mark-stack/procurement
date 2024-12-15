@@ -31,7 +31,7 @@ Route::get("stock-cutting",function(){
 });
 //todo temporary
 Route::get("test",function(){
-    $description = "20PL 350 MPA";
+    $description = "PFC SS316";
 
     $productService = new ProductService();
 
@@ -41,7 +41,7 @@ Route::get("test",function(){
     //Has product
     if($product){
         //MATERIAL
-        $materialEnum = $productService->findMaterial($product);
+        $materialEnum = $productService->findMaterial($product,$description);
 
         //GRADE
         $gradesEnums = $productService->findGrades($product,$description);
@@ -49,14 +49,18 @@ Route::get("test",function(){
         //SURFACE
         $surfaceEnum = $productService->findSurface($product,$description,$gradesEnums);
 
-        //MEASUREMENT_UNIT
+        //NOMINAL UNITS
         $measurementUnitEnum = $productService->findMeasurementUnit($product);
 
-        //SIZE
-        $sizeInt = $productService->findSize($product,$description);
+        //NOMINAL LENGTH
+        $nominalLengthInt = $productService->findNominal($product,$description,"nominalLengthRegex");
 
-        //LENGTH
-        $lengthInt = $productService->findLength($product,$description);
+        //NOMINAL WIDTH
+        $nominalWidthInt = $productService->findNominal($product,$description,"nominalWidthRegex");
+
+        //NOMINAL HEIGHT
+        $nominalHeightInt = $productService->findNominal($product,$description,"nominalHeightRegex");
+
 
         //Price book search
         $user = auth()->user();
@@ -67,21 +71,10 @@ Route::get("test",function(){
             $gradesEnums,
             $surfaceEnum,
             $measurementUnitEnum,
-            $sizeInt,
-            $lengthInt,
+            $nominalLengthInt,
+            $nominalWidthInt,
+            $nominalHeightInt
         );
-
-//        $priceBookProducts = $productService->findByAttributes(
-//            $user,
-//            $product["productEnum"],
-//            $material,
-//            $grades,
-//            $surface,
-//            $measurementUnit,
-//            $size,
-//            $length
-//        );
-
 
         dd([
             "description" => $description,
@@ -90,8 +83,9 @@ Route::get("test",function(){
             "grades" => $gradesEnums,
             "surface" => $surfaceEnum,
             "measurementUnit" => $measurementUnitEnum,
-            "size" => $sizeInt,
-            "length" => $lengthInt,
+            "nominalLengthInt " => $nominalLengthInt,
+            "nominalWidthInt" => $nominalWidthInt,
+            "nominalHeightInt" => $nominalHeightInt,
             "generalProductMatches" => $generalProductMatches,
         ]);
     }

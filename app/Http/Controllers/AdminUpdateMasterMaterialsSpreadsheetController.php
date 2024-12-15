@@ -22,18 +22,8 @@ class AdminUpdateMasterMaterialsSpreadsheetController extends Controller
         $data = [];
         if (($handle = fopen(storage_path("app/private/{$filePath}"), 'r')) !== false) {
             while (($row = fgetcsv($handle, 1000, ',')) !== false) {
-
                 //Skip blank rows
                 if($row[0] !== ""){
-
-                    $nestingAlgo = $row[7];
-                    if($nestingAlgo === "LINEAR"){
-                        $nestingAlgo = "METERAGE";
-                    }
-                    if($nestingAlgo === "PACK"){
-                        $nestingAlgo = "BUNDLE";
-                    }
-
                     $data[] = [
                         "spreadsheet_id" => $row[0],
                         "description" => $row[1],
@@ -41,12 +31,12 @@ class AdminUpdateMasterMaterialsSpreadsheetController extends Controller
                         "material" => $row[3],
                         "grade" => $row[4],
                         "surface" => $row[5],
-                        "measurement_unit" => $row[6],
-                        "nesting_algo" => $nestingAlgo,
-                        "certificates" => $row[8],
-                        "size" => $row[9],
-                        "length" => $row[10],
-                        "width" => $row[11],
+                        "nesting_algo" => $row[6],
+                        "certificates" => $row[7],
+                        "nominal_units" => $row[8],
+                        "nominal_length" => $row[9],
+                        "nominal_width" => $row[10],
+                        "nominal_height" => $row[11],
                         "kg_per_m" => $row[12],
                         "baseline_unit_rate" => $row[13],
                     ];
@@ -85,12 +75,12 @@ class AdminUpdateMasterMaterialsSpreadsheetController extends Controller
                     "material" => $spreadsheetRowData["material"],
                     "grade" => $spreadsheetRowData["grade"],
                     "surface" => $spreadsheetRowData["surface"],
-                    "measurement_unit" => $spreadsheetRowData["measurement_unit"],
                     "nesting_algo" => $spreadsheetRowData["nesting_algo"],
                     "certificates" => $spreadsheetRowData["certificates"],
-                    "size" => $spreadsheetRowData["size"],
-                    "length" => $spreadsheetRowData["length"],
-                    "width" => $spreadsheetRowData["width"],
+                    "nominal_units" => $spreadsheetRowData["nominal_units"],
+                    "nominal_length" => $spreadsheetRowData["nominal_length"],
+                    "nominal_width" => $spreadsheetRowData["nominal_width"],
+                    "nominal_height" => $spreadsheetRowData["nominal_height"],
                     "kg_per_m" => $spreadsheetRowData["kg_per_m"],
                     "baseline_unit_rate" => $spreadsheetRowData["baseline_unit_rate"],
                 ]);
@@ -117,12 +107,12 @@ class AdminUpdateMasterMaterialsSpreadsheetController extends Controller
                 "material" => $spreadsheetRowData["material"],
                 "grade" => $spreadsheetRowData["grade"],
                 "surface" => $spreadsheetRowData["surface"],
-                "measurement_unit" => $spreadsheetRowData["measurement_unit"],
                 "nesting_algo" => $spreadsheetRowData["nesting_algo"],
                 "certificates" => $spreadsheetRowData["certificates"],
-                "size" => $spreadsheetRowData["size"],
-                "length" => $spreadsheetRowData["length"],
-                "width" => $spreadsheetRowData["width"],
+                "nominal_units" => $spreadsheetRowData["nominal_units"],
+                "nominal_length" => $spreadsheetRowData["nominal_length"],
+                "nominal_width" => $spreadsheetRowData["nominal_width"],
+                "nominal_height" => $spreadsheetRowData["nominal_height"],
                 "kg_per_m" => $spreadsheetRowData["kg_per_m"],
                 "baseline_unit_rate" => $spreadsheetRowData["baseline_unit_rate"],
                 'business_id' => null,

@@ -42,24 +42,24 @@
     }
 
     function changeActions(){
-        //Reset "other"
-        props.form['selected_other'][props.reference] = null;
-
-        //Materials: if select "STEEL"
-        if(props.form['selected'][props.reference] === "STEEL"){
-            props.form['subOption']['grade'] = "STEEL";
-        }
-        //Materials: if select "TIMBER"
-        else if(props.form['selected'][props.reference] === "TIMBER"){
-            props.form['subOption']['grade'] = "TIMBER";
-        }
-        //Materials: if select "PLASTIC"
-        else if(props.form['selected'][props.reference] === "PLASTIC"){
-            props.form['subOption']['grade'] = "PLASTIC";
-        }
-        else{
-            props.form['subOption']['grade'] = "all";
-        }
+        // //Reset "other"
+        // props.form['selected_other'][props.reference] = null;
+        //
+        // //Materials: if select "PLAIN_CARBON_STEEL"
+        // if(props.form['selected'][props.reference] === "PLAIN_CARBON_STEEL"){
+        //     props.form['subOption']['grade'] = "PLAIN_CARBON_STEEL";
+        // }
+        // //Materials: if select "TIMBER"
+        // else if(props.form['selected'][props.reference] === "TIMBER"){
+        //     props.form['subOption']['grade'] = "TIMBER";
+        // }
+        // //Materials: if select "PLASTIC"
+        // else if(props.form['selected'][props.reference] === "PLASTIC"){
+        //     props.form['subOption']['grade'] = "PLASTIC";
+        // }
+        // else{
+        //     props.form['subOption']['grade'] = "all";
+        // }
     }
 </script>
 
@@ -80,7 +80,6 @@
             >
                 {{displayFormat(option)}}
             </option>
-            <option value="Other">Other (custom)</option>
         </select>
 
         <div

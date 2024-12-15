@@ -37,10 +37,10 @@
             if(item.algo === 'METERAGE'){
                 // Build the materual list
 
-                let description = shared.formatProduct(item.product,item.size,item.grade, item.surface,item.length)
+                let description = shared.formatProduct(item.product,item.nominal_length,item.nominal_width,item.nominal_height,item.grade, item.surface)
 
                 item.nested.orderList.forEach(bar => {
-                    let text = " - " + description + ": " + bar.count + " off " + bar.result + " " + item.measurement_unit.toLowerCase();
+                    let text = " - " + description + ": " + bar.count + " off " + bar.result + " " + item.nominal_units.toLowerCase();
                     materialList += text + "\n"; // Rows
                 });
             }
@@ -136,13 +136,13 @@
                                     <!-- Spec -->
                                     <div>
                                         <h2 class="font-bold">Material Spec</h2>
-                                        {{shared.formatProduct(item.product,item.size,item.grade, item.surface,item.length)}}
+                                        {{shared.formatProduct(item.product,item.nominal_length,item.nominal_width,item.nominal_height,item.grade, item.surface)}}
                                         <p class="text-xs">
                                             <span class="block">Product: {{item.product}}</span>
                                             <span class="block">Material: {{item.material}}</span>
                                             <span class="block">Grade: {{item.grade}}</span>
                                             <span class="block">Surface: {{item.surface}}</span>
-                                            <span class="block" v-if="item.measurement_unit">Unit: {{item.measurement_unit}}</span>
+                                            <span class="block" v-if="item.nominal_units">Unit: {{item.measurement_unit}}</span>
                                             <span class="block">Size: {{item.size}}</span>
                                         </p>
                                     </div>
@@ -151,7 +151,7 @@
                                         <h2 class="font-bold">Pieces</h2>
                                         <DisplayPiecesList
                                             :nestingAlgo="item.algo"
-                                            :measurementUnit="item.measurement_unit"
+                                            :measurementUnit="item.nominal_units"
                                             :pieces="item.pieces"
                                         />
                                     </div>
@@ -160,7 +160,7 @@
                                         <h2 class="font-bold">Purchasable options</h2>
                                         <ListPurchasables
                                             :nestingAlgo="item.algo"
-                                            :measurementUnit="item.measurement_unit"
+                                            :measurementUnit="item.nominal_units"
                                             :list="item.purchasable"
                                         />
                                     </div>
@@ -171,7 +171,7 @@
                                             <VisualOrderList
                                                 :stockLength="bar.result"
                                                 :pieces="bar.result.pieces"
-                                                :measurementUnit="item.measurement_unit"
+                                                :measurementUnit="item.nominal_units"
                                                 :waste="bar.result.waste"
                                                 :qty="bar.count"
                                             />
@@ -186,7 +186,7 @@
                                                 <VisualNestingWithText
                                                     :stockLength="bar.result['stock length']"
                                                     :pieces="bar.result.pieces"
-                                                    :measurementUnit="item.measurement_unit"
+                                                    :measurementUnit="item.nominal_units"
                                                     :waste="bar.result.waste"
                                                     :qty="bar.count"
                                                 />

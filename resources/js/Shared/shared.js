@@ -1,33 +1,5 @@
 export default {
-    formatProduct(product, size, grade, surface, length) {
-        //Size
-        let actualSize = size;
-        if (product === "PLATE") {
-            actualSize = size + "PL";
-        }
-        if (product === "BOLT") {
-            if (length) {
-                actualSize = "M" + size + "x" + length;
-            } else {
-                actualSize = "M" + size;
-            }
-        }
-        if (size.includes("X")) {
-            actualSize = size.toLowerCase();
-        }
-
-        //Product
-        let actualProduct = product;
-        if (product === "PLATE") {
-            actualProduct = "";
-        }
-        if (product === "BOLT") {
-            actualProduct = "";
-        }
-        if (product === "LVL") {
-            actualProduct = " " + product;
-        }
-
+    formatProduct(product, nominal_length, nominal_width, nominal_height, grade, surface) {
         //Grade
         let actualGrade = grade;
         if (grade === "NONE") {
@@ -43,7 +15,7 @@ export default {
         //Surface
         let actualSurface = ' ' + surface;
         if (surface === "NONE") {
-            actualSurface = "";
+            actualSurface = " ";
         }
         if (surface === "GALVANISED") {
             actualSurface = " GALV";
@@ -52,6 +24,78 @@ export default {
             actualSurface = " H2";
         }
 
-        return actualSize + actualProduct + " " + actualGrade + actualSurface;
-    }
+        let result = "";
+
+        if(product === "BOLT"){
+            result = this.formatBOLT(product, nominal_length, nominal_width, nominal_height, actualGrade, actualSurface);
+        }
+        else if(product === "UB"){
+            result = this.formatUB(product, nominal_length, nominal_width, nominal_height, actualGrade, actualSurface);
+        }
+        else if(product === "UC"){
+            result = this.formatUC(product, nominal_length, nominal_width, nominal_height, actualGrade, actualSurface);
+        }
+        else if(product === "PFC"){
+            result = this.formatPFC(product, nominal_length, nominal_width, nominal_height, actualGrade, actualSurface);
+        }
+        else if(product === "PLATE"){
+            result = this.formatPLATE(product, nominal_length, nominal_width, nominal_height, actualGrade, actualSurface);
+        }
+        else if(product === "LVL"){
+            result = this.formatLVL(product, nominal_length, nominal_width, nominal_height, actualGrade, actualSurface);
+        }
+        else if(product === "SHS"){
+            result = this.formatSHS(product, nominal_length, nominal_width, nominal_height, actualGrade, actualSurface);
+        }
+        else if(product === "RHS"){
+            result = this.formatRHS(product, nominal_length, nominal_width, nominal_height, actualGrade, actualSurface);
+        }
+        else{
+            result = this.formatDefault(product, nominal_length, nominal_width, nominal_height, actualGrade, actualSurface);
+        }
+
+        return result;
+    },
+    formatDefault(product, nominal_length, nominal_width, nominal_height, actualGrade, actualSurface){
+        return "Nominal " + product + " " + actualGrade + actualSurface;
+    },
+    formatBOLT(product, nominal_length, nominal_width, nominal_height, actualGrade, actualSurface){
+        //Size
+        let actualSize = "";
+        if (nominal_length) {
+            actualSize = "M" + nominal_width + "x" + nominal_length;
+        } else {
+            actualSize = "M" + nominal_width;
+        }
+
+        return actualSize + " " + actualGrade + actualSurface;
+    },
+    formatUB(product, nominal_length, nominal_width, nominal_height, actualGrade, actualSurface){
+        let actualSize = nominal_height;
+        return actualSize + " " + actualGrade + actualSurface;
+    },
+    formatUC(product, nominal_length, nominal_width, nominal_height, actualGrade, actualSurface){
+        let actualSize = nominal_height;
+        return actualSize + " " + actualGrade + actualSurface;
+    },
+    formatPFC(product, nominal_length, nominal_width, nominal_height, actualGrade, actualSurface){
+        let actualSize = nominal_height;
+        return actualSize + product + " " + actualGrade + actualSurface;
+    },
+    formatPLATE(product, nominal_length, nominal_width, nominal_height, actualGrade, actualSurface){
+        let actualSize = nominal_height + "PL";
+        return actualSize + " " + actualGrade + actualSurface;
+    },
+    formatLVL(product, nominal_length, nominal_width, nominal_height, actualGrade, actualSurface){
+        let actualSize = nominal_height + "x" + nominal_width;
+        return actualSize + " " + actualGrade + actualSurface;
+    },
+    formatSHS(product, nominal_length, nominal_width, nominal_height, actualGrade, actualSurface){
+        let actualSize = nominal_height + "x" + nominal_width;
+        return actualSize + " " + actualGrade + actualSurface;
+    },
+    formatRHS(product, nominal_length, nominal_width, nominal_height, actualGrade, actualSurface){
+        let actualSize = nominal_height + "x" + nominal_width;
+        return actualSize + " " + actualGrade + actualSurface;
+    },
 }

@@ -65,7 +65,9 @@ class ProductController extends Controller
                             "product" => null,
                             "material" => null,
                             "grade" => null,
-                            "size" => null,
+                            "nominal_length" => null,
+                            "nominal_width" => null,
+                            "nominal_height" => null,
                             "quantify" => null,
                             "nesting_algo" => null,
                             "purchasable_length_1" => null,
@@ -85,12 +87,7 @@ class ProductController extends Controller
                             "suppliers" => [],
                         ],
                         "data" => $rawMaterialQuote,
-                        "subOption" => [
-                            "product" => "all",
-                            "material" => "all",
-                            "grade" => "all",
-                            "suppliers" => "all",
-                        ],
+                        "nominalSizeData" => $productService->getNominalSizeData(),
                     ];
                 }
 
@@ -143,7 +140,7 @@ class ProductController extends Controller
         $allGrades = $nestingService->allGradeLabels();
         $allMeasurements = $nestingService->allMeasurementUnitLabels();
         $formDependentData = $nestingService->buildDependencyArray();
-        //dd($formDependentData);
+
         return Inertia::render('ProductIndex', [
             "project" => $project,
             "materialListRows" => $materialListRows,

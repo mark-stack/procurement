@@ -91,7 +91,7 @@ class RawMaterialListCustomisationsController extends Controller
                         "material" => $material,
                         "grade" => $grade,
                         "surface" => SurfaceEnums::NONE->value,
-                        "measurement_unit" => $measurementUnit,
+                        "nominal_units" => $measurementUnit,
                         "nesting_algo" => $nestingAlgo,
                         "size" => $size,
                         "length" => $length,
@@ -106,14 +106,14 @@ class RawMaterialListCustomisationsController extends Controller
                 /**
                  * General product matches
                  */
-                $generalProductMatches = Product::select('product', 'material', 'grade', 'surface', 'measurement_unit', 'size')
+                $generalProductMatches = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', 'size')
                     ->distinct()
                     ->availableFor($user)
                     ->where("product", $product)
                     ->where("material", $material)
                     ->where("grade", $grade)
                     ->where("surface", SurfaceEnums::NONE->value)
-                    ->where("measurement_unit", $measurementUnit)
+                    ->where("nominal_units", $measurementUnit)
                     ->where("size",$size)
                     ->get();
                 $rawMaterialQuote = RawMaterialQuote::find($item["data"]["id"]);
@@ -131,7 +131,7 @@ class RawMaterialListCustomisationsController extends Controller
                     "material" => $material,
                     "grade" => $grade,
                     "surface" => SurfaceEnums::NONE->value,
-                    "measurement_unit" => $measurementUnit,
+                    "nominal_units" => $measurementUnit,
                     "nesting_algo" => $nestingAlgo,
                     "size" => $size,
                     "actual_length" => $item["data"]["length_required"],

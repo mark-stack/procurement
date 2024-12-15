@@ -18,7 +18,7 @@ return new class extends Migration
             /**
              * Product
              *  - name
-             *  - measurement_unit
+             *  - nominal_units
              *  - material
              */
             $table->foreignId('product_id')->constrained();

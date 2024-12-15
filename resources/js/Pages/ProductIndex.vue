@@ -108,7 +108,7 @@
         if(file){
             processFile(file);
         }
-    };
+    }
 
     const triggerFileInput = () => {
         fileInput.value.click();
@@ -181,15 +181,7 @@
     });
 
     function getUnitDisplay(row,slash){
-        let result = "";
-        if(row.measurement_unit === 'SINGLE'){
-            result = slash ? "/each" : "";
-        }
-        else{
-            result = slash ? "/m" : "m";
-        }
-
-        return result;
+        return slash ? "/m" : "m";
     }
 
     function cropText(text, maxLength = 25) {
@@ -260,68 +252,11 @@
         //Has one product match
         if(row['product']){
             let product = row['product'];
-            display = shared.formatProduct(product.product,product.size,product.grade, product.surface,product.length);
+            display = shared.formatProduct(product.product,product.nominal_length,product.nominal_width,product.nominal_height,product.grade, product.surface);
         }
 
         return display;
     }
-
-    // function formatProduct(product,size,grade,surface,length){
-    //     //Size
-    //     let actualSize = size;
-    //     if(product === "PLATE"){
-    //         actualSize = size+"PL";
-    //     }
-    //     if(product === "BOLT"){
-    //         if(length){
-    //             actualSize = "M"+size+"x"+length;
-    //         }
-    //         else{
-    //             actualSize = "M"+size;
-    //         }
-    //     }
-    //     if(size.includes("X")){
-    //         actualSize = size.toLowerCase();
-    //     }
-    //
-    //     //Product
-    //     let actualProduct = product;
-    //     if(product === "PLATE"){
-    //         actualProduct = "";
-    //     }
-    //     if(product === "BOLT"){
-    //         actualProduct = "";
-    //     }
-    //     if(product === "LVL"){
-    //         actualProduct = " "+product;
-    //     }
-    //
-    //     //Grade
-    //     let actualGrade = grade;
-    //     if(grade === "NONE"){
-    //         actualGrade = "";
-    //     }
-    //     if(grade === "GR_4_6"){
-    //         actualGrade = "GR4.6"
-    //     }
-    //     if(grade === "GR_8_8"){
-    //         actualGrade = "GR8.8"
-    //     }
-    //
-    //     //Surface
-    //     let actualSurface = ' '+surface;
-    //     if(surface === "NONE"){
-    //         actualSurface = "";
-    //     }
-    //     if(surface === "GALVANISED"){
-    //         actualSurface = " GALV";
-    //     }
-    //     if(surface === "TREATED_H2"){
-    //         actualSurface = " H2";
-    //     }
-    //
-    //     return  actualSize + actualProduct + " " + actualGrade + actualSurface;
-    // }
 
     function hasClarifications(){
         return props.partialProductMatches.length > 0;
@@ -339,6 +274,15 @@
         const userConfirmed = confirm(message);
         if (userConfirmed) {
             formBulkActions.selectedRawMaterialQuoteIds = getAllMaterialQuoteIds();
+            submitBulkDelete();
+        }
+    }
+
+    function deleteOne(rawMaterialQuoteId){
+        let message = "Are you sure you want delete this row item";
+        const userConfirmed = confirm(message);
+        if (userConfirmed) {
+            formBulkActions.selectedRawMaterialQuoteIds = [rawMaterialQuoteId];
             submitBulkDelete();
         }
     }
@@ -491,7 +435,7 @@
                 <h2 class="font-bold text-lg">Exact product clarifications</h2>
                 <form @submit.prevent="submitClarifications()">
                     <div v-for="(item,index) in partialProductMatches" class="mt-5">
-                        <p class="italic font-bold">"{{item.data.description}}"</p>
+                        <p class="italic font-bold">"{{item.data.description}}" <span class="text-red-500 ml-2" style="cursor: pointer;" @click="deleteOne(item.data.id)"><i class="fa-solid fa-xmark"></i></span></p>
                         <div class="grid grid-cols-4">
                             <div v-for="(option,option_index) in item.options">
                                 <label>
@@ -502,7 +446,7 @@
                                         :value="option_index"
                                         required
                                     >
-                                    {{ shared.formatProduct(option.product,option.size,option.grade,option.surface,option.length)}}
+                                    {{ shared.formatProduct(option.product,option.nominal_length,option.nominal_width,option.nominal_height,option.grade,option.surface)}}
                                 </label>
                             </div>
                         </div>
@@ -536,6 +480,7 @@
                             :allMeasurements="allMeasurements"
                             :formDependentData="formDependentData"
                             :allGrades="allGrades"
+                            @deleteOne="id => deleteOne(id)"
                         />
                     </div>
 

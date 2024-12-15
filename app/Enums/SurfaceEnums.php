@@ -11,7 +11,7 @@ enum SurfaceEnums: string
     case PAINTED = "PAINTED";
     case GALVANISED = "GALVANISED";
     case PASSIVATED = "PASSIVATED";
-    case TREATED_H2 = "TREATED H2";
+    case TREATED_H2 = "TREATED_H2";
     case TREATED = "TREATED";
 
 

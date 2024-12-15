@@ -14,6 +14,7 @@ enum ProductEnums: string
     case PLATE = "PLATE";
     case LVL = "LVL";
     case SHS = "SHS";
+    case RHS = "RHS";
 
 
     public function label(): string
@@ -26,6 +27,7 @@ enum ProductEnums: string
             self::PLATE => "Plate",
             self::LVL => "LVL",
             self::SHS => "SHS",
+            self::RHS => "RHS",
         };
     }
 }

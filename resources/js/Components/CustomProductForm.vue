@@ -4,7 +4,7 @@
 
     //Component Imports
     import SelectOrType from "@/Components/SelectOrType.vue";
-    import {ref} from "vue";
+    import Dimensions from "@/Components/Dimensions.vue";
 
     //Props
     const props = defineProps({
@@ -23,7 +23,7 @@
     //...
 
     //Variables
-    //...
+    const emit = defineEmits(['deleteOne']);
 
     //Shared Methods
     //...
@@ -49,12 +49,10 @@
 
         //Has grades
         if(gradesObject){
-            console.log(gradesObject);
             return Object.keys(gradesObject);
         }
         //No grades: return all grade options
         else{
-            console.log("all grades");
             return [];//props.allGrades;
         }
     }
@@ -210,36 +208,27 @@
         return placeholder;
     }
 
-    function getSizeLabel(index){
-        let display = "Size (number)";
-        let currentProductSelection = props.form[index]['selected']['product'];
+    function purchasableMin(index){
+        let nesting_algo = props.form[index]['selected']['nesting_algo'];
 
-        //Bolt
-        if(currentProductSelection === "BOLT"){
-            display = "Size (mm) e.g 16mm";
+        let min = "0.1";
+
+        if(nesting_algo === "BUNDLE"){
+            min = "1";
         }
 
-        //Plate
-        if(currentProductSelection === "PLATE"){
-            display = "Thickness (mm)";
+        return min;
+    }
+    function purchasableStep(index){
+        let nesting_algo = props.form[index]['selected']['nesting_algo'];
+
+        let step = "0.1";
+
+        if(nesting_algo === "BUNDLE"){
+            step = "1";
         }
 
-        //PFC
-        if(currentProductSelection === "PFC"){
-            display = "Height (mm)";
-        }
-
-        //SHS
-        if(currentProductSelection === "SHS"){
-            display = "Height (mm)";
-        }
-
-        //RHS
-        if(currentProductSelection === "RHS"){
-            display = "Height (mm)";
-        }
-
-        return display;
+        return step;
     }
 
     function onChangeActions(field,index){
@@ -306,9 +295,13 @@
 
 <template>
     <div>
-        <h3 class="">
-            <span class="font-bold italic">"{{item.data.description}}"</span>
-        </h3>
+        <div class="flex justify-between">
+            <h3 class="font-bold italic">
+                "{{item.data.description}}"
+            </h3>
+            <span class="text-red-500" @click="$emit('deleteOne',item.data.id)" style="cursor: pointer;"><i class="fa-solid fa-xmark"></i></span>
+        </div>
+
         Spreadsheet row #{{item.data.csv_index + 1}}
         <!-- PRODUCT -->
         <SelectOrType
@@ -335,7 +328,7 @@
             v-if="showGrade(index)"
             class="grid grid-cols-2 gap-x-2"
         >
-            <!-- GRADE (customOptions['grades'][form[index]['subOption']['grade']])-->
+            <!-- GRADE -->
             <SelectOrType
                 label="Grade"
                 reference="grade"
@@ -345,17 +338,11 @@
                 :errors="form.errors"
                 @change="onChangeActions('grade',index)"
             />
-            <!-- SIZE-->
-            <div>
-                <label class="block text-gray-500 text-sm">{{ getSizeLabel(index) }}</label>
-                <input
-                    v-model="form[index]['selected']['size']"
-                    type="number"
-                    placeholder=""
-                    class="w-full rounded"
-                    :class="form.errors[index+'-size'] ? 'border-2 border-red-500' : ''"
-                />
-            </div>
+            <!-- Dimensions -->
+            <Dimensions
+                :form="form"
+                :index="index"
+            />
         </div>
         <!-- NESTING -->
         <div v-if="showNesting(index)">
@@ -399,29 +386,35 @@
             </select>
         </div>
         <!-- Purchasable (length & size) -->
-        <div v-show="showPurchasables(index)">
+        <div v-if="showPurchasables(index)">
             <label class="block text-gray-500 text-sm">{{purchasablesLabel(index)}}</label>
             <div class="grid grid-cols-3 gap-2">
                 <input
                     v-model="form[index]['selected']['purchasable_length_1']"
+                    :key="index+'-purchasable_length_1'"
                     type="number"
-                    step="0.1"
+                    :min="purchasableMin(index)"
+                    :step="purchasableStep(index)"
                     :placeholder="purchasablesPlaceholder(index)"
                     class="w-full rounded"
                     :class="form.errors[index+'-purchasable_length_1'] ? 'border-2 border-red-500' : ''"
                 />
                 <input
                     v-model="form[index]['selected']['purchasable_length_2']"
+                    :key="index+'-purchasable_length_2'"
                     type="number"
-                    step="0.1"
+                    :min="purchasableMin(index)"
+                    :step="purchasableStep(index)"
                     :placeholder="purchasablesPlaceholder(index)"
                     class="w-full rounded"
                     :class="form.errors[index+'-purchasable_length_2'] ? 'border-2 border-red-500' : ''"
                 />
                 <input
                     v-model="form[index]['selected']['purchasable_length_3']"
+                    :key="index+'-purchasable_length_3'"
                     type="number"
-                    step="0.1"
+                    :min="purchasableMin(index)"
+                    :step="purchasableStep(index)"
                     :placeholder="purchasablesPlaceholder(index)"
                     class="w-full rounded"
                     :class="form.errors[index+'-purchasable_length_3'] ? 'border-2 border-red-500' : ''"
@@ -429,7 +422,7 @@
             </div>
         </div>
         <!-- Purchasable (area) -->
-        <div v-show="showPurchasablesArea(index)">
+        <div v-if="showPurchasablesArea(index)">
             <label class="block text-gray-500 text-sm">Purchasable Area sizes (at least 1)</label>
             <div class="grid grid-cols-1 gap-2">
                 <div class="grid grid-cols-2 gap-2">
