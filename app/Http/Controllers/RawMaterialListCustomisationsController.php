@@ -8,7 +8,7 @@ use App\Models\Piece;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
-use App\Services\ProductService;
+use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -24,7 +24,7 @@ class RawMaterialListCustomisationsController extends Controller
         /**
          * Single purpose: save the non-price book product as user-custom product
          */
-        $productService = new ProductService();
+        $productService = new NotificationService();
         $rows = $request->all();
         $validation = $productService->validationUserCustom($rows);
 

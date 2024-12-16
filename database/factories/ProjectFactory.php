@@ -20,7 +20,7 @@ class ProjectFactory extends Factory
         return [
             "name" => fake()->text(10)." in ".fake()->city(),
             "user_id" => User::factory(),
-            "tendering_stage" => true,
+            "awarded" => true,
         ];
     }
 

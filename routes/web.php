@@ -4,7 +4,7 @@
 use App\Models\Product;
 use App\Models\User;
 use App\Services\NestingService;
-use App\Services\ProductService;
+use App\Services\NotificationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -33,7 +33,7 @@ Route::get("stock-cutting",function(){
 Route::get("test",function(){
     $description = "PFC SS316";
 
-    $productService = new ProductService();
+    $productService = new NotificationService();
 
     //PRODUCT
     $product = $productService->findProduct($description);

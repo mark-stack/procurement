@@ -41,15 +41,23 @@ class ProjectController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required',
-            "tendering_stage" => 'required',
-            "reference" => "required",
+            'awarded' => 'required|boolean',
+            "reference" => 'required_if:awarded,true',
+            'date_materials_required' => 'required_if:awarded,true|date|after:today',
         ]);
+
+        //Clear reference and date if not awarded
+        if(!$validated["awarded"]){
+            $validated["reference"] = null;
+            $validated["date_materials_required"] = null;
+        }
 
         Project::create([
             "name" => $validated["name"],
             "user_id" => auth()->user()->id,
-            "tendering_stage" => $validated["tendering_stage"],
+            "awarded" => $validated["awarded"],
             "reference" => $validated["reference"],
+            "date_materials_required" => $validated["date_materials_required"],
         ]);
 
         return back();
@@ -78,9 +86,16 @@ class ProjectController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required',
-            "tendering_stage" => 'required',
-            "reference" => "required",
+            'awarded' => 'required|boolean',
+            "reference" => 'required_if:awarded,true',
+            'date_materials_required' => 'required_if:awarded,true|date|after:today',
         ]);
+
+        //Clear reference and date if not awarded
+        if(!$validated["awarded"]){
+            $validated["reference"] = null;
+            $validated["date_materials_required"] = null;
+        }
 
         $project->update($validated);
 

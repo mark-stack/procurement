@@ -9,6 +9,7 @@
     import DropdownLink from '@/Components/DropdownLink.vue';
     import NavLink from '@/Components/NavLink.vue';
     import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
+    import Notifications from "@/Components/Notifications.vue";
 
     //Props
     // const props = defineProps({
@@ -115,7 +116,8 @@
 
                         <div class="hidden sm:ms-6 sm:flex sm:items-center">
                             <!-- Settings Dropdown -->
-                            <div class="relative ms-3">
+                            <div class="flex relative ms-3">
+                                <Notifications/>
                                 <Dropdown align="right" width="48">
                                     <template #trigger>
                                         <span class="inline-flex rounded-md">

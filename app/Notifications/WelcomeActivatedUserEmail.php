@@ -9,7 +9,7 @@ use Illuminate\Notifications\Notification;
 use MagicLink\Actions\LoginAction;
 use MagicLink\MagicLink;
 
-class WelcomeActivatedUserEmail extends Notification
+class WelcomeActivatedUserEmail extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -27,7 +27,7 @@ class WelcomeActivatedUserEmail extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['mail'];
+        return ['mail','database'];
     }
 
     /**
@@ -53,7 +53,7 @@ class WelcomeActivatedUserEmail extends Notification
     public function toArray(object $notifiable): array
     {
         return [
-            //
+            'new_user_email' => $this->user->email,
         ];
     }
 }

@@ -15,7 +15,8 @@
     //Form
     const formProjectCreate = useForm({
         name: null,
-        tendering_stage: true,
+        awarded: false,
+        date_materials_required: null,
         reference: null,
     });
     const formProjectDelete = useForm({});
@@ -87,7 +88,8 @@
 
         //Populate form
         formProjectCreate.name = project.name;
-        formProjectCreate.tendering_stage = project.tendering_stage === 1;
+        formProjectCreate.awarded = project.awarded === 1;
+        formProjectCreate.date_materials_required = project.date_materials_required;
         formProjectCreate.reference = project.reference;
     }
 </script>
@@ -102,7 +104,7 @@
                     class="dark:bg-gray-900 rounded-xl"
                     :class="editProject ? 'bg-yellow-50' : 'bg-white'"
                 >
-                    <div class="px-6 pt-8 pb-8 mx-auto text-center">
+                    <div class="px-6 pt-8 pb-8 mx-auto text-center shadow-xl">
                         <h1 class="text-3xl font-semibold text-gray-800 dark:text-gray-100">
                             {{editProject ? 'Edit' : 'New'}} Project
                         </h1>
@@ -114,30 +116,62 @@
                         >
                             Back to New Project
                         </p>
-                        <div class="flex flex-col mt-8 space-y-2 sm:space-y-0 sm:flex-row sm:justify-center sm:-mx-2">
+
+
+                        <div class="max-w-4xl p-6 mx-auto">
                             <form @submit.prevent="submit()">
-                                <div>
+                                <div class="grid grid-cols-1 gap-6 mt-4 sm:grid-cols-2">
                                     <!-- Name -->
-                                    <input
-                                        v-model="formProjectCreate.name"
-                                        type="text"
-                                        class="px-4 py-2 text-gray-700 bg-white border rounded-md sm:mx-2 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-600 focus:border-blue-400 dark:focus:border-blue-300 focus:outline-none focus:ring focus:ring-blue-300 focus:ring-opacity-40"
-                                        placeholder="Name"
-                                        required
-                                    >
-                                    <div v-if="formProjectCreate.errors.name">{{ formProjectCreate.errors.name }}</div>
+                                    <div>
+                                        <label class="text-gray-700 dark:text-gray-200">Name</label>
+                                        <input
+                                            v-model="formProjectCreate.name"
+                                            type="text"
+                                            class="w-full px-4 py-2 text-gray-700 bg-white border rounded-md sm:mx-2 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-600 focus:border-blue-400 dark:focus:border-blue-300 focus:outline-none focus:ring focus:ring-blue-300 focus:ring-opacity-40"
+                                            placeholder="Name"
+                                            required
+                                        >
+                                        <div v-if="formProjectCreate.errors.name" class="text-sm text-red-500">{{ formProjectCreate.errors.name }}</div>
+                                    </div>
 
-                                    <!-- Reference -->
-                                    <input
-                                        v-model="formProjectCreate.reference"
-                                        type="text"
-                                        class="px-4 py-2 text-gray-700 bg-white border rounded-md sm:mx-2 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-600 focus:border-blue-400 dark:focus:border-blue-300 focus:outline-none focus:ring focus:ring-blue-300 focus:ring-opacity-40"
-                                        placeholder="Reference ID"
-                                        required
-                                    >
-                                    <div v-if="formProjectCreate.errors.reference">{{ formProjectCreate.errors.reference }}</div>
+                                    <!-- Awarded? -->
+                                    <div class="pt-7">
+                                        <label for="awarded">You've been awarded the project?</label>
+                                        <input
+                                            id="awarded"
+                                            v-model="formProjectCreate.awarded"
+                                            type="checkbox"
+                                            class="ml-2"
+                                        >
+                                    </div>
 
-                                    <!-- submit -->
+                                    <!-- Project reference -->
+                                    <div v-if="formProjectCreate.awarded">
+                                        <label class="text-gray-700 dark:text-gray-200">Reference</label>
+                                        <input
+                                            v-model="formProjectCreate.reference"
+                                            type="text"
+                                            class="w-full px-4 py-2 text-gray-700 bg-white border rounded-md sm:mx-2 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-600 focus:border-blue-400 dark:focus:border-blue-300 focus:outline-none focus:ring focus:ring-blue-300 focus:ring-opacity-40"
+                                            placeholder="Reference ID"
+                                            required
+                                        >
+                                        <div v-if="formProjectCreate.errors.reference" class="text-sm text-red-500">{{ formProjectCreate.errors.reference }}</div>
+                                    </div>
+
+                                    <!-- Date materials required -->
+                                    <div v-if="formProjectCreate.awarded">
+                                        <label class="text-gray-700 dark:text-gray-200">Tentative date materials required</label>
+                                        <input
+                                            v-model="formProjectCreate.date_materials_required"
+                                            type="date"
+                                            class="w-full px-4 py-2 text-gray-700 bg-white border rounded-md sm:mx-2 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-600 focus:border-blue-400 dark:focus:border-blue-300 focus:outline-none focus:ring focus:ring-blue-300 focus:ring-opacity-40"
+                                            required
+                                        >
+                                        <div v-if="formProjectCreate.errors.date_materials_required" class="text-sm text-red-500">{{ formProjectCreate.errors.date_materials_required }}</div>
+                                    </div>
+                                </div>
+
+                                <div class="flex justify-end mt-6">
                                     <button
                                         type="submit"
                                         :disabled="formProjectCreate.processing"
@@ -145,16 +179,6 @@
                                     >
                                         {{editProject ? 'Update' : 'Create'}}
                                     </button>
-                                </div>
-
-                                <div class="mt-4">
-                                    <label for="tendering_stage">Tender phase?</label>
-                                    <input
-                                        id="tendering_stage"
-                                        v-model="formProjectCreate.tendering_stage"
-                                        type="checkbox"
-                                        class="ml-2"
-                                    >
                                 </div>
                             </form>
                         </div>
@@ -214,19 +238,19 @@
                                                 </td>
                                                 <td class="px-8 py-4 text-sm font-medium text-gray-700 whitespace-nowrap">
                                                     <div
-                                                        :class="project.tendering_stage ? 'bg-yellow-200/60' : 'bg-emerald-100/60'"
+                                                        :class="project.awarded ? 'bg-emerald-100/60' : 'bg-yellow-200/60'"
                                                         class="inline-flex items-center px-3 py-1 rounded-full gap-x-2 dark:bg-gray-800"
                                                     >
                                                         <span
-                                                            :class="project.tendering_stage ? 'bg-yellow-500' : 'bg-emerald-500'"
+                                                            :class="project.awarded ? 'bg-emerald-500' : 'bg-yellow-500'"
                                                             class="h-1.5 w-1.5 rounded-full"
                                                         ></span>
 
                                                         <h2
-                                                            :class="project.tendering_stage ? 'text-yellow-800' : 'text-emerald-500'"
+                                                            :class="project.awarded ? 'text-emerald-500' : 'text-yellow-800'"
                                                             class="text-sm font-semibold"
                                                         >
-                                                            {{project.tendering_stage ? 'Tender' : 'Project'}}
+                                                            {{project.awarded ? 'Project' : 'Tender'}}
                                                         </h2>
                                                     </div>
                                                 </td>

@@ -8,7 +8,7 @@ use App\Enums\MeasurementUnitEnums;
 use App\Enums\SurfaceEnums;
 use App\Models\Business;
 use App\Models\RawMaterialQuote;
-use App\Services\ProductService;
+use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -25,7 +25,7 @@ class RawMaterialListClarificationsController extends Controller
          * It's saved by making the "general_product_matches" field = 1x product.
          */
         $user = auth()->user();
-        $productService = new ProductService();
+        $productService = new NotificationService();
 
         foreach($request->all() as $item){
             $selectedProduct = $item["options"][$item["selected"]];

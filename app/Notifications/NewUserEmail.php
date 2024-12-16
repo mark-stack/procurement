@@ -7,7 +7,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class NewUserEmail extends Notification
+class NewUserEmail extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -25,7 +25,7 @@ class NewUserEmail extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['mail'];
+        return ['mail','database'];
     }
 
     /**
@@ -47,7 +47,7 @@ class NewUserEmail extends Notification
     public function toArray(object $notifiable): array
     {
         return [
-            //
+            'new_user_email' => $this->user->email,
         ];
     }
 }

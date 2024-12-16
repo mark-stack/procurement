@@ -25,7 +25,7 @@
     //Variables
     const months = 4;
     const years = 3;
-    const price = 15000;
+    const price = 20000;
 
     //Shared Methods
     //...
@@ -198,7 +198,7 @@
                     <h2 class="max-w-lg mb-6 font-sans text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl sm:leading-none">
                         Prevent
                         <span class="inline-block text-orange-900">${{beforeFees()}} of <u>waste</u></span>
-                        in construction procurement.
+                        in steel fabrication procurement.
                     </h2>
                     <p class="text-base text-gray-700 md:text-lg">
                         <b>Centralised procurement is the key to:</b>
@@ -614,7 +614,7 @@
                                         <circle cx="12" cy="12" fill="none" r="11" stroke="currentColor"></circle>
                                     </svg>
                                 </div>
-                                <p class="font-medium text-gray-800">Unlimited support</p>
+                                <p class="font-medium text-gray-800">White glove support</p>
                             </li>
                         </ul>
                     </div>
@@ -632,7 +632,7 @@
                             <p class="text-sm font-bold tracking-wider uppercase">
                                 {{years}} year{{years > 1 ? 's' : ''}} unlimited usage
                             </p>
-                            <p class="text-5xl font-extrabold">A{{ price.toLocaleString('en-US') }}</p>
+                            <p class="text-5xl font-extrabold">A${{ price.toLocaleString('en-US') }}</p>
                         </div>
                     </div>
                     <div>
@@ -663,7 +663,7 @@
                                         <circle cx="12" cy="12" fill="none" r="11" stroke="currentColor"></circle>
                                     </svg>
                                 </div>
-                                <p class="font-medium text-gray-800">Unlimited support</p>
+                                <p class="font-medium text-gray-800">White glove support</p>
                             </li>
                         </ul>
                     </div>

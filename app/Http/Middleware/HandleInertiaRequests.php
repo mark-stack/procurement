@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -36,6 +37,7 @@ class HandleInertiaRequests extends Middleware
                 "business" => $request->user()?->business,
                 "isAdmin" => $request->user() && $request->user()->isAdmin(),
                 "onboarded" => $request->user() && $request->user()->business->admin_setup_complete,
+                "notifications" => (new NotificationService())->getNotifications($request->user()),
             ],
             'flash' => [
                 'warning' => fn () => $request->session()->get('warning')

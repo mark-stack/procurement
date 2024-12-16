@@ -78,6 +78,6 @@ class Project extends Model
     }
     public function scopeAwarded(Builder $query): void
     {
-        $query->where('tendering_stage',false);
+        $query->where('awarded',true);
     }
 }

@@ -12,7 +12,7 @@ use App\Models\Product;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
 use App\Services\NestingService;
-use App\Services\ProductService;
+use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -33,7 +33,7 @@ class ProductController extends Controller
 
         //Services
         $nestingService = new NestingService();
-        $productService = new ProductService();
+        $productService = new NotificationService();
 
         //Prerequisite variables
         $user = $project->user;
@@ -186,7 +186,7 @@ class ProductController extends Controller
         /**
          * Template detection
          */
-        $productService = new ProductService();
+        $productService = new NotificationService();
         $templatesDetected = $productService->templatesDetected($data,$project->user);
 
         // Optionally delete the file after processing
