@@ -10,6 +10,8 @@
     import NavLink from '@/Components/NavLink.vue';
     import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
     import Notifications from "@/Components/Notifications.vue";
+    import Notifications2 from "@/Components/Notifications2.vue";
+    import NavButton from "@/Components/NavButton.vue";
 
     //Props
     // const props = defineProps({
@@ -25,7 +27,7 @@
     const onboarded = usePage().props.auth.onboarded;
 
     //Variables
-    const showingNavigationDropdown = ref(false);
+    //...
 
     //Methods
     //...
@@ -33,239 +35,105 @@
 </script>
 
 <template>
-    <div>
-        <div class="min-h-screen bg-gray-100">
-            <nav
-                class="border-b border-gray-100 bg-white"
-            >
-                <!-- Primary Navigation Menu -->
-                <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                    <div class="flex h-16 justify-between">
-                        <div class="flex">
-                            <!-- Logo -->
-                            <div class="flex shrink-0 items-center">
-                                <Link href="/">
-                                    <ApplicationLogo
-                                        class="block h-9 w-auto fill-current text-gray-800"
-                                    />
-                                </Link>
-                            </div>
+    <div class="grid grid-cols-5">
 
-                            <!-- Navigation Links -->
-                            <div
-                                class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex"
-                            >
-                                <NavLink
-                                    v-if="!onboarded"
-                                    :href="route('onboarding')"
-                                    :active="route().current('onboarding')"
-                                >
-                                    Onboarding
-                                </NavLink>
-                                <NavLink
-                                    v-if="onboarded"
-                                    :href="route('dashboard')"
-                                    :active="route().current('dashboard')"
-                                >
-                                    Projects
-                                </NavLink>
-                                <NavLink
-                                    v-if="onboarded"
-                                    :href="route('pricebook')"
-                                    :active="route().current('pricebook')"
-                                >
-                                    Pricebook
-                                </NavLink>
-                                <NavLink
-                                    v-if="onboarded"
-                                    :href="route('quotes.index')"
-                                    :active="route().current('quotes.index')"
-                                >
-                                    Quotes
-                                </NavLink>
-                                <NavLink
-                                    v-if="onboarded"
-                                    :href="route('suppliers.index',business.id)"
-                                    :active="route().current('suppliers.index',business.id)"
-                                >
-                                    Suppliers
-                                </NavLink>
-                                <NavLink
-                                    v-if="isAdmin"
-                                    :href="route('admin.users.index')"
-                                    :active="route().current('admin.users.index')"
-                                >
-                                   Users (Admin)
-                                </NavLink>
-                                <a
-                                    v-if="isAdmin"
-                                    href="/telescope/exceptions"
-                                    class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out"
-                                >
-                                    Telescope (Admin)
-                                </a>
-                                <NavLink
-                                    v-if="isAdmin"
-                                    :href="route('admin.update.master.materials.spreadsheet')"
-                                    :active="route().current('admin.update.master.materials.spreadsheet')"
-                                >
-                                    Update Master Materials (Admin)
-                                </NavLink>
-                            </div>
-                        </div>
-
-                        <div class="hidden sm:ms-6 sm:flex sm:items-center">
-                            <!-- Settings Dropdown -->
-                            <div class="flex relative ms-3">
-                                <Notifications/>
-                                <Dropdown align="right" width="48">
-                                    <template #trigger>
-                                        <span class="inline-flex rounded-md">
-                                            <button
-                                                type="button"
-                                                class="inline-flex items-center rounded-md border border-transparent bg-white px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none"
-                                            >
-                                                {{ $page.props.auth.user.name }}
-
-                                                <svg
-                                                    class="-me-0.5 ms-2 h-4 w-4"
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    viewBox="0 0 20 20"
-                                                    fill="currentColor"
-                                                >
-                                                    <path
-                                                        fill-rule="evenodd"
-                                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                                        clip-rule="evenodd"
-                                                    />
-                                                </svg>
-                                            </button>
-                                        </span>
-                                    </template>
-
-                                    <template #content>
-                                        <DropdownLink
-                                            :href="route('profile.edit')"
-                                        >
-                                            Profile
-                                        </DropdownLink>
-                                        <DropdownLink
-                                            :href="route('logout')"
-                                            method="post"
-                                            as="button"
-                                        >
-                                            Log Out
-                                        </DropdownLink>
-                                    </template>
-                                </Dropdown>
-                            </div>
-                        </div>
-
-                        <!-- Hamburger -->
-                        <div class="-me-2 flex items-center sm:hidden">
-                            <button
-                                @click="
-                                    showingNavigationDropdown =
-                                        !showingNavigationDropdown
-                                "
-                                class="inline-flex items-center justify-center rounded-md p-2 text-gray-400 transition duration-150 ease-in-out hover:bg-gray-100 hover:text-gray-500 focus:bg-gray-100 focus:text-gray-500 focus:outline-none"
-                            >
-                                <svg
-                                    class="h-6 w-6"
-                                    stroke="currentColor"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        :class="{
-                                            hidden: showingNavigationDropdown,
-                                            'inline-flex':
-                                                !showingNavigationDropdown,
-                                        }"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M4 6h16M4 12h16M4 18h16"
-                                    />
-                                    <path
-                                        :class="{
-                                            hidden: !showingNavigationDropdown,
-                                            'inline-flex':
-                                                showingNavigationDropdown,
-                                        }"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M6 18L18 6M6 6l12 12"
-                                    />
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Responsive Navigation Menu -->
-                <div
-                    :class="{
-                        block: showingNavigationDropdown,
-                        hidden: !showingNavigationDropdown,
-                    }"
-                    class="sm:hidden"
+        <!--sidebar -->
+        <aside class="col-span-1 h-screen px-2 py-8 overflow-y-auto bg-white border-r dark:bg-gray-900 dark:border-gray-700">
+            <div class="flex justify-between">
+                <a href="/" class="pl-3 font-extrabold">
+                    PROCUREMENT
+                </a>
+                <!-- Logout -->
+                <Link
+                    :href="route('logout')"
+                    method="post"
+                    class="text-gray-500 transition-colors duration-200 rotate-180 dark:text-gray-400 rtl:rotate-0 hover:text-blue-500 dark:hover:text-blue-400"
                 >
-                    <div class="space-y-1 pb-3 pt-2">
-                        <ResponsiveNavLink
-                            :href="route('dashboard')"
-                            :active="route().current('dashboard')"
-                        >
-                            Dashboard
-                        </ResponsiveNavLink>
-                    </div>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+                    </svg>
+                </Link>
+            </div>
 
-                    <!-- Responsive Settings Options -->
-                    <div
-                        class="border-t border-gray-200 pb-1 pt-4"
+
+            <div class="flex flex-col justify-start flex-1 mt-3">
+                <nav class="">
+                    <!-- Onboarding -->
+                    <NavButton
+                        v-if="!onboarded"
+                        :route="route('onboarding')"
+                        label="Onboarding"
+                        icon="fa-solid fa-list-check"
+                    />
+                    <!-- Projects -->
+                    <NavButton
+                        v-if="onboarded"
+                        :route="route('dashboard')"
+                        label="Projects"
+                        icon="fa-solid fa-list"
+                    />
+                    <!-- Price Book -->
+                    <NavButton
+                        v-if="onboarded"
+                        :route="route('pricebook')"
+                        label="Price Book"
+                        icon="fa-solid fa-list"
+                    />
+                    <!-- Quotes -->
+                    <NavButton
+                        v-if="onboarded"
+                        :route="route('quotes.index')"
+                        label="Quotes"
+                        icon="fa-solid fa-comments-dollar"
+                    />
+                    <!-- Suppliers -->
+                    <NavButton
+                        v-if="onboarded"
+                        :route="route('suppliers.index',business.id)"
+                        label="Suppliers"
+                        icon="fa-solid fa-cubes"
+                    />
+                    <!-- Profile -->
+                    <NavButton
+                        v-if="onboarded"
+                        :route="route('profile.edit')"
+                        label="Profile"
+                        icon="fa-solid fa-gear"
+                    />
+                    <!-- Users -->
+                    <NavButton
+                        v-if="isAdmin"
+                        :route="route('admin.users.index')"
+                        label="Users (Admin)"
+                        icon="fa-solid fa-users"
+                    />
+                    <!-- Telescope -->
+                    <a
+                        v-if="isAdmin"
+                        class="flex items-center px-3 py-2 text-gray-600 transition-colors duration-300 transform rounded-lg dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:hover:text-gray-200 hover:text-gray-700"
+                        href="/telescope/exceptions"
                     >
-                        <div class="px-4">
-                            <div
-                                class="text-base font-medium text-gray-800"
-                            >
-                                {{ $page.props.auth.user.name }}
-                            </div>
-                            <div class="text-sm font-medium text-gray-500">
-                                {{ $page.props.auth.user.email }}
-                            </div>
-                        </div>
+                        <i class="fa-solid fa-bug"></i>
+                        <span class="mx-2 text-sm font-medium">Telescope (Admin)</span>
+                    </a>
+                    <!-- Update Materials -->
+                    <NavButton
+                        v-if="isAdmin"
+                        :route="route('admin.update.master.materials.spreadsheet')"
+                        label="Update Materials (Admin)"
+                        icon="fa-solid fa-file-excel"
+                    />
+                </nav>
 
-                        <div class="mt-3 space-y-1">
-                            <ResponsiveNavLink :href="route('profile.edit')">
-                                Profile
-                            </ResponsiveNavLink>
-                            <ResponsiveNavLink
-                                :href="route('logout')"
-                                method="post"
-                                as="button"
-                            >
-                                Log Out
-                            </ResponsiveNavLink>
-                        </div>
-                    </div>
+                <div class="mt-6">
+                    <Notifications2/>
                 </div>
-            </nav>
+            </div>
+        </aside>
 
-            <!-- Page Heading -->
-            <header
-                class="bg-white shadow"
-                v-if="$slots.header"
-            >
-                <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-                    <slot name="header" />
-                </div>
-            </header>
-
-            <!-- Page Content -->
-            <main>
-                <slot />
-            </main>
-        </div>
+        <!-- Main -->
+        <main class="col-span-4 h-screen overflow-y-auto pl-4 pr-4">
+            <slot />
+        </main>
     </div>
 </template>

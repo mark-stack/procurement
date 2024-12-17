@@ -48,6 +48,7 @@ class NewUserEmail extends Notification implements ShouldQueue
     {
         return [
             'new_user_email' => $this->user->email,
+            'new_user_name' => $this->user->name,
         ];
     }
 }

@@ -37,13 +37,13 @@ class ProjectController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'name' => 'required',
             'awarded' => 'required|boolean',
-            "reference" => 'required_if:awarded,true',
-            'date_materials_required' => 'required_if:awarded,true|date|after:today',
+            "reference" => 'nullable|required_if:awarded,true',
+            'date_materials_required' => 'nullable|required_if:awarded,true|date|after:today',
         ]);
 
         //Clear reference and date if not awarded
@@ -87,8 +87,8 @@ class ProjectController extends Controller
         $validated = $request->validate([
             'name' => 'required',
             'awarded' => 'required|boolean',
-            "reference" => 'required_if:awarded,true',
-            'date_materials_required' => 'required_if:awarded,true|date|after:today',
+            "reference" => 'nullable|required_if:awarded,true',
+            'date_materials_required' => 'nullable|required_if:awarded,true|date|after:today',
         ]);
 
         //Clear reference and date if not awarded

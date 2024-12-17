@@ -94,7 +94,7 @@
                     <div class="overflow-x-auto">
                         <div class="inline-block min-w-full py-2 align-middle">
                             <div class="overflow-hidden border border-gray-200 dark:border-gray-700 md:rounded-lg">
-                                <div class="relative overflow-auto" :style="'height:' + (screenHeight - 300) + 'px'">
+                                <div>
                                     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                                         <thead class="sticky top-0 bg-gray-50 dark:bg-gray-800">
                                             <tr>

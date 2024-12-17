@@ -9,7 +9,7 @@ use Illuminate\Notifications\Notification;
 use MagicLink\Actions\LoginAction;
 use MagicLink\MagicLink;
 
-class WelcomeActivatedUserEmail extends Notification implements ShouldQueue
+class ProjectAwardedCheckEmail extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -17,7 +17,8 @@ class WelcomeActivatedUserEmail extends Notification implements ShouldQueue
      * Create a new notification instance.
      */
     public function __construct(
-        public $user,
+        public Object $project,
+        public Object $recipient,
     ) {}
 
     /**
@@ -35,14 +36,19 @@ class WelcomeActivatedUserEmail extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $action = new LoginAction($this->user);
+        //Go to projects page which has notifications for actioning
+        $action = new LoginAction($this->recipient);
         $action->response(redirect()->route("projects.index"));
-        $magicLink = MagicLink::create($action)->url;
+        $magicLink = MagicLink::create($action);
+
+        //MagicLink is being weird making default "localhost" instead of "http://127.0.0.1:8000"
+        $testMode = env("TEST_MODE");
+        $baseUrl = $testMode ? 'http://127.0.0.1:8000' : redirect()->route("projects.index");
+        $magicLinkUrl = $magicLink->baseUrl($baseUrl)->url;
 
         return (new MailMessage)
-                    ->line('Your setup configuration is complete')
-                    ->action("Instant login",$magicLink)
-                    ->line('Thanks!');
+            ->line('Has the project "'.$this->project->name.'" been awarded to you?')
+            ->action("Action this",$magicLinkUrl);
     }
 
     /**
@@ -53,8 +59,8 @@ class WelcomeActivatedUserEmail extends Notification implements ShouldQueue
     public function toArray(object $notifiable): array
     {
         return [
-            'new_user_email' => $this->user->email,
-            'new_user_name' => $this->user->name,
+            'project_id' => $this->project->id,
+            'project_name' => $this->project->name,
         ];
     }
 }

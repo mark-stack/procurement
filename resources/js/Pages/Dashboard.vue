@@ -99,14 +99,14 @@
 
     <AuthenticatedLayout>
         <div class="py-12">
-            <div class="mx-auto max-w-3xl sm:px-6 lg:px-8">
+            <div class="mx-auto max-w-5xl sm:px-6 lg:px-8">
                 <section
                     class="dark:bg-gray-900 rounded-xl"
                     :class="editProject ? 'bg-yellow-50' : 'bg-white'"
                 >
                     <div class="px-6 pt-8 pb-8 mx-auto text-center shadow-xl">
                         <h1 class="text-3xl font-semibold text-gray-800 dark:text-gray-100">
-                            {{editProject ? 'Edit' : 'New'}} Project
+                            {{editProject ? ('Edit "' + formProjectCreate.name + '" ') : 'New'}} Project
                         </h1>
                         <p
                             v-if="editProject"
@@ -118,7 +118,7 @@
                         </p>
 
 
-                        <div class="max-w-4xl p-6 mx-auto">
+                        <div class="max-w-5xl p-6 mx-auto">
                             <form @submit.prevent="submit()">
                                 <div class="grid grid-cols-1 gap-6 mt-4 sm:grid-cols-2">
                                     <!-- Name -->
@@ -195,7 +195,7 @@
                     <div class="flex flex-col mt-6">
                         <div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
                             <div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
-                                <div class="overflow-y-auto border border-gray-200 dark:border-gray-700 md:rounded-lg" style="height:300px">
+                                <div class="overflow-y-auto border border-gray-200 dark:border-gray-700 md:rounded-lg">
                                     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                                         <thead class="bg-gray-50 dark:bg-gray-800">
                                             <tr>

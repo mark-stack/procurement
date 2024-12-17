@@ -142,7 +142,7 @@
 
     <AuthenticatedLayout>
         <div class="py-12">
-            <div class="mx-auto max-w-3xl sm:px-6 lg:px-8">
+            <div class="mx-auto max-w-5xl sm:px-6 lg:px-8">
                 <section
                     class="dark:bg-gray-900 rounded-xl"
                     :class="editSupplier ? 'bg-yellow-50' : 'bg-white'"

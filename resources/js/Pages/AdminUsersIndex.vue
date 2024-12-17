@@ -31,7 +31,7 @@
     <Head title="Users" />
 
     <AuthenticatedLayout>
-        <div class="py-12">
+        <div class="">
             <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
                 <section class="bg-white dark:bg-gray-900 rounded-xl">
                     <div class="px-6 pt-8 pb-8 mx-auto">

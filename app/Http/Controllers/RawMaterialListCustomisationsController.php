@@ -24,7 +24,7 @@ class RawMaterialListCustomisationsController extends Controller
         /**
          * Single purpose: save the non-price book product as user-custom product
          */
-        $productService = new NotificationService();
+        $productService = new ProductService();
         $rows = $request->all();
         $validation = $productService->validationUserCustom($rows);
 

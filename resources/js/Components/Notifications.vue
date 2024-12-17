@@ -1,7 +1,7 @@
 <script setup>
     //General Imports
     import {ref} from "vue";
-    import { Link, usePage } from "@inertiajs/vue3";
+    import {Link, useForm, usePage} from "@inertiajs/vue3";
 
     //Component Imports
     //...
@@ -12,18 +12,40 @@
     // });
 
     //Form
-    //...
+    const formMarkAsRead = useForm({
+        id:null,
+    });
 
     //Shared data
-    const notifications = usePage().props.auth.notifications;
+    let notifications = usePage().props.auth.notifications;
 
     //Variables
     const isOpen = ref(false);
-    let hasNotifications = notifications.length > 0;
+    const hasNotifications = ref(notifications.length > 0);
 
     //Methods
-    //...
+    function markAsRead(id,index){
+        let url = route("notification.mark.as.read");
+        formMarkAsRead.id = id;
+        formMarkAsRead.post(url, {
+            preserveScroll: true,
+            onSuccess: () => {
+                console.log('success');
+                formMarkAsRead.reset();
 
+                //Remove from array
+                notifications.splice(index, 1);
+
+                //Disabled red bell if no more notifications
+                if(notifications.length === 0){
+                    hasNotifications.value = false;
+                }
+            },
+            onError: errors => {
+                console.log('errors',errors);
+            },
+        });
+    }
 </script>
 
 <template>
@@ -54,7 +76,7 @@
         >
             <div v-if="hasNotifications" class="py-2">
                 <div
-                    v-for="notification in notifications"
+                    v-for="(notification,index) in notifications"
                     class="flex items-center px-4 py-3 -mx-2 transition-colors duration-300 transform border-b border-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 dark:border-gray-700"
                 >
                     <img
@@ -62,10 +84,14 @@
                         :src="notification.image"
                         alt="avatar"
                     />
-                    <p class="mx-2 text-sm text-gray-600 dark:text-white">
+                    <div class="mx-2 text-sm text-gray-600 dark:text-white">
                         <span class="font-semibold">{{ notification.message }}</span>
-                        <br><span class="text-xs text-gray-500">{{notification.timestamp}}</span>
-                    </p>
+                        <!-- footer -->
+                        <div class="flex justify-between text-xs">
+                            <span class="text-gray-500">{{notification.timestamp}}</span>
+                            <span @click="markAsRead(notification.id,index)" class="text-blue-500 font-bold" style="cursor: pointer;">Mark as read</span>
+                        </div>
+                    </div>
                 </div>
             </div>
             <Link

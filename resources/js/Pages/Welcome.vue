@@ -23,7 +23,7 @@
     console.log("user",user);
 
     //Variables
-    const months = 4;
+    const months = 2;
     const years = 3;
     const price = 20000;
 

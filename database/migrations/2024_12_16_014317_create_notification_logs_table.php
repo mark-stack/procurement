@@ -18,7 +18,7 @@ return new class extends Migration
 
             $table->integer('recipient_user_id');
             $table->integer("unique_model_id");
-            $table->enum("type", array_map(fn($case) => $case->value, NotificationEnums::cases()));
+            $table->string("type");
         });
     }
 

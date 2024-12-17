@@ -7,9 +7,18 @@ enum NotificationEnums: string
     //A colleague joined
     case COLLEAGUE_JOINED = 'COLLEAGUE_JOINED';
 
+    /**
+     * Projects
+     */
+    //Has the project been awarded to you?
+    case HAS_THE_PROJECT_BEEN_AWARDED_TO_YOU = "HAS_THE_PROJECT_BEEN_AWARDED_TO_YOU";
+
     //Is the tentative materials date still correct?
     case TENTATIVE_MATERIALS_DATE_CORRECT = "TENTATIVE_MATERIALS_DATE_CORRECT";
 
+    /**
+     * Quotes
+     */
     //Quote due
     case QUOTE_DUE = "QUOTE_DUE";
 

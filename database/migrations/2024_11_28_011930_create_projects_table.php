@@ -20,6 +20,7 @@ return new class extends Migration
             $table->boolean("awarded")->default(true);
             $table->string("reference")->nullable();
             $table->date("date_materials_required")->nullable();
+            $table->boolean("tentative")->default(true);
             $table->boolean("archive")->default(false);
         });
     }

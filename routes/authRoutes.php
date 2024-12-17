@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\MarkNotificationStatusController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PricebookController;
 use App\Http\Controllers\ProductController;
@@ -39,6 +40,10 @@ Route::middleware(['auth','verified'])->group(function () {
             return redirect()->route("onboarding");
         }
     })->name('dashboard');
+
+    //Notifications
+    //Route::post("mark-as-read", NotificationMarkAsReadController::class)->name("notification.mark.as.read");
+    Route::post("mark-notification-status", MarkNotificationStatusController::class)->name("mark.notification.status");
 
     //Onboarding is finalised
     Route::middleware([BusinessReadyMiddleware::class])->group(function () {
