@@ -19,6 +19,7 @@ class ProjectTentativeDateCheckEmail extends Notification implements ShouldQueue
     public function __construct(
         public Object $project,
         public Object $recipient,
+        public string $message,
     ) {}
 
     /**
@@ -42,12 +43,13 @@ class ProjectTentativeDateCheckEmail extends Notification implements ShouldQueue
         $magicLink = MagicLink::create($action);
 
         //MagicLink is being weird making default "localhost" instead of "http://127.0.0.1:8000"
-        $testMode = env("TEST_MODE");
-        $baseUrl = $testMode ? 'http://127.0.0.1:8000' : redirect()->route("projects.index");
-        $magicLinkUrl = $magicLink->baseUrl($baseUrl)->url;
+        //$testMode = env("TEST_MODE");
+        //$baseUrl = $testMode ? 'http://127.0.0.1:8000' : redirect()->route("projects.index");
+        //$magicLinkUrl = $magicLink->baseUrl($baseUrl)->url;
+        $magicLinkUrl = $magicLink->url;
 
         return (new MailMessage)
-            ->line('Is the materials date for "'.$this->project->name.'" still correct?')
+            ->line($this->message)
             ->action("Action this",$magicLinkUrl);
     }
 

@@ -18,6 +18,7 @@
         awarded: false,
         date_materials_required: null,
         reference: null,
+        tentative: true,
     });
     const formProjectDelete = useForm({});
 
@@ -91,6 +92,7 @@
         formProjectCreate.awarded = project.awarded === 1;
         formProjectCreate.date_materials_required = project.date_materials_required;
         formProjectCreate.reference = project.reference;
+        formProjectCreate.tentative = project.tentative;
     }
 </script>
 
@@ -98,7 +100,7 @@
     <Head title="Dashboard" />
 
     <AuthenticatedLayout>
-        <div class="py-12">
+        <div class="py-3">
             <div class="mx-auto max-w-5xl sm:px-6 lg:px-8">
                 <section
                     class="dark:bg-gray-900 rounded-xl"
@@ -119,11 +121,11 @@
 
 
                         <div class="max-w-5xl p-6 mx-auto">
-                            <form @submit.prevent="submit()">
+                            <form @submit.prevent="submit()" class="text-left">
                                 <div class="grid grid-cols-1 gap-6 mt-4 sm:grid-cols-2">
                                     <!-- Name -->
                                     <div>
-                                        <label class="text-gray-700 dark:text-gray-200">Name</label>
+                                        <label class="text-gray-700 dark:text-gray-200 ml-2">Project Name</label>
                                         <input
                                             v-model="formProjectCreate.name"
                                             type="text"
@@ -136,7 +138,7 @@
 
                                     <!-- Awarded? -->
                                     <div class="pt-7">
-                                        <label for="awarded">You've been awarded the project?</label>
+                                        <label for="awarded" class="ml-2">You've been awarded the project?</label>
                                         <input
                                             id="awarded"
                                             v-model="formProjectCreate.awarded"
@@ -147,7 +149,7 @@
 
                                     <!-- Project reference -->
                                     <div v-if="formProjectCreate.awarded">
-                                        <label class="text-gray-700 dark:text-gray-200">Reference</label>
+                                        <label class="text-gray-700 dark:text-gray-200 ml-2">Project reference</label>
                                         <input
                                             v-model="formProjectCreate.reference"
                                             type="text"
@@ -160,7 +162,7 @@
 
                                     <!-- Date materials required -->
                                     <div v-if="formProjectCreate.awarded">
-                                        <label class="text-gray-700 dark:text-gray-200">Tentative date materials required</label>
+                                        <label class="text-gray-700 dark:text-gray-200 ml-2">{{formProjectCreate.tentative ? 'Tentative d' : 'D'}}ate materials required</label>
                                         <input
                                             v-model="formProjectCreate.date_materials_required"
                                             type="date"
@@ -189,7 +191,7 @@
                     <div class="flex items-center gap-x-3">
                         <h2 class="text-lg font-medium text-gray-800 dark:text-white">Projects</h2>
 
-                        <span class="px-3 py-1 text-xs text-blue-600 bg-blue-100 rounded-full dark:bg-gray-800 dark:text-blue-400">{{projects.length}} projects</span>
+                        <span class="px-3 py-1 text-xs text-blue-600 bg-blue-100 rounded-full dark:bg-gray-800 dark:text-blue-400">{{projects.data.length}} projects</span>
                     </div>
 
                     <div class="flex flex-col mt-6">
@@ -200,38 +202,38 @@
                                         <thead class="bg-gray-50 dark:bg-gray-800">
                                             <tr>
                                                 <th scope="col" class="py-3.5 px-4 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                                                    <div class="flex items-center gap-x-3">
-                                                        <span>Name</span>
-                                                    </div>
+                                                    Project
                                                 </th>
 
                                                 <th scope="col" class="px-12 py-3.5 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                                                    <button class="flex items-center gap-x-2">
-                                                        <span>Status</span>
-                                                    </button>
+                                                    Awarded
                                                 </th>
 
-                                                <th scope="col" class="px-12 py-3.5 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                                                    <button class="flex items-center gap-x-2">
-                                                        <span>Materials</span>
-                                                    </button>
+                                                <th scope="col" class="px-12 py-3.5 text-sm font-normal text-center text-gray-500 dark:text-gray-400">
+                                                    Imported Materials
                                                 </th>
 
-                                                <th scope="col" class="px-12 py-3.5 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                                                    <button class="flex items-center gap-x-2">
-                                                        <span>Actions</span>
-                                                    </button>
+                                                <th scope="col" class="px-12 py-3.5 text-sm font-normal text-center text-gray-500 dark:text-gray-400">
+                                                    Quoted
+                                                </th>
+
+                                                <th scope="col" class="px-12 py-3.5 text-sm font-normal text-center text-gray-500 dark:text-gray-400">
+                                                    Ordered
+                                                </th>
+
+                                                <th scope="col" class="px-12 py-3.5 text-sm font-normal text-center text-gray-500 dark:text-gray-400">
+                                                    Actions
                                                 </th>
                                             </tr>
                                         </thead>
                                         <tbody class="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-gray-900">
-                                            <tr v-for="project in projects">
+                                            <tr v-for="project in projects.data">
                                                 <td class="px-4 py-4 text-sm font-medium text-gray-700 whitespace-nowrap">
                                                     <div class="inline-flex items-center gap-x-3">
                                                         <div class="flex items-center gap-x-2">
-                                                            <img class="object-cover w-10 h-10 rounded-full" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=880&q=80" alt="">
                                                             <div>
                                                                 <h2 class="font-medium text-gray-800 dark:text-white ">{{ project.name }}</h2>
+                                                                <small>Ref: {{project.reference}}</small>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -250,7 +252,7 @@
                                                             :class="project.awarded ? 'text-emerald-500' : 'text-yellow-800'"
                                                             class="text-sm font-semibold"
                                                         >
-                                                            {{project.awarded ? 'Project' : 'Tender'}}
+                                                            {{project.awarded ? 'Awarded' : 'Tender'}}
                                                         </h2>
                                                     </div>
                                                 </td>
@@ -258,11 +260,24 @@
                                                     <div class="flex justify-center items-center gap-x-6">
                                                         <Link
                                                             :href="route('products.store',project.id)"
-                                                            class="bg-green-50 px-2 py-1 rounded border-2 border-green-300 hover:bg-green-100"
+                                                            :class="project.hasRawMaterialQuotes ? 'bg-green-50 border-green-300 hover:bg-green-100' : 'bg-orange-50 border-orange-300 hover:bg-orange-100'"
+                                                            class="px-2 py-1 rounded border-2"
                                                         >
-                                                            Bill of Materials
+                                                            {{project.hasRawMaterialQuotes ? 'Imported Materials' : 'Import Materials'}}
                                                         </Link>
                                                     </div>
+                                                </td>
+                                                <td
+                                                    class="font-bold px-4 py-4 text-sm whitespace-nowrap text-center"
+                                                    :class="project.percentageOfMaterialsQuoted < 70 ? 'text-orange-500' : ''"
+                                                >
+                                                    {{project.percentageOfMaterialsQuoted}}%
+                                                </td>
+                                                <td
+                                                    class="font-bold px-4 py-4 text-sm whitespace-nowrap text-center"
+                                                    :class="project.percentageOfMaterialsOrdered < 70 ? 'text-orange-500' : ''"
+                                                >
+                                                    {{project.percentageOfMaterialsOrdered}}%
                                                 </td>
                                                 <td class="px-4 py-4 text-sm whitespace-nowrap">
                                                     <div class="flex justify-center items-center gap-x-6">

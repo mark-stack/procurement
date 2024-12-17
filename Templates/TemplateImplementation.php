@@ -1,14 +1,15 @@
 <?php
 
-namespace App\Services\Interfaces;
+namespace Templates;
 
 use App\Models\Project;
-use App\Notifications\ProjectAwardedCheckEmail;
+use App\Notifications\QuoteDueEmail;
+use App\Services\Interfaces\NotificationInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Carbon;
 
-class NotificationProjectAwardedImplementation implements NotificationInterface
+class TemplateImplementation implements NotificationInterface
 {
     public string $subInterval;
 
@@ -21,28 +22,22 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
     public function hourlyCheck(): void
     {
         /**
-         * Has the project been awarded to you?
-         * 1) Project is active (not archived)
-         * 2) Project "awarded" = false
-         * 3) At least 2 days since creating the project (so it doesn't immediate send)
-         * 4) At least 2 days since last reminder
+         * xxx
+         * 1) xxx
+         * 2) xxx
          */
-        $subInterval = $this->subInterval;
-        $nonAwardedProjects = Project::query()
-            ->active()                                                  //1) Project is active (not archived)
-            ->where("awarded",false)                                    //2) Project "awarded" = false
-            ->whereBetween('created_at', [Carbon::now()->$subInterval(2), Carbon::now()]) //3)
-            ->get();
 
-        foreach($nonAwardedProjects as $project) {
-            $projectManager = $project->user;
+        $things = []; //todo
+        foreach($things as $thing) {
+            $recipient = 999; //todo
 
-            if (!$this->notifiedAlready($projectManager)) {
+            if (!$this->notifiedAlready($recipient)) {
                 //Mark all previous as read
-                $this->markPreviousAsRead($projectManager);
+                $this->markPreviousAsRead($recipient);
 
                 //Send notification
-                $this->sendNotification($projectManager,$project);
+                $otherObject = 999; //todo
+                $this->sendNotification($recipient,$otherObject);
             }
         }
     }
@@ -55,15 +50,17 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
         return $recipient->notifications()
             ->where("type","App\Notifications\{$class}")
             ->where("notifiable_type","App\Models\User")
-            ->whereBetween('created_at', [Carbon::now()->$subInterval(2), Carbon::now()]) //4)
+            ->whereBetween('created_at', [Carbon::now()->$subInterval(1), Carbon::now()]) //todo At least 1 day since last reminder
             ->exists();
     }
 
     public function sendNotification(object $recipient, object $otherObject): void
     {
-        $project = $otherObject;
-        $message = $this->message($project->name,"");
-        $recipient->notify(new ProjectAwardedCheckEmail($project, $recipient, $message));
+        $project = $otherObject; //todo
+        $message = $this->message($project->date_materials_required, $project->name); //todo
+
+        //todo change "QuoteDueEmail"
+        $recipient->notify(new QuoteDueEmail($project, $recipient, $message));
     }
 
     public function checkProjectChanges(Project $project): void
@@ -71,27 +68,13 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
         /**
          * Look for any notifications made redundant by project model update, and mark as read
          */
-
-        /*
-         * Has the project been awarded to you?
-         * Condition: awarded=true
-         * enum: HAS_THE_PROJECT_BEEN_AWARDED_TO_YOU
-         */
-        if($project->awarded){
-            $class = $this->getNotificationClass();
-            $classWithPath = "App\Notifications\\".$class;
-            $recipient = $project->user;
-
-            $recipient->notifications()
-                ->where("type",$classWithPath)
-                ->where("notifiable_type","App\Models\User")
-                ->update(['read_at' => now()]);
-        }
+        //todo if affected by any project model changes
     }
 
     public function getNotificationClass(): string
     {
-        return "ProjectAwardedCheckEmail";
+        //todo change "QuoteDueEmail"
+        return "QuoteDueEmail";
     }
 
     public function markPreviousAsRead(object $recipient): void
@@ -124,23 +107,16 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
         //Mark as read
         $notification->markAsRead();
 
-        //Go to project index
-        return redirect()->route('projects.index');
+        //todo actions here
+
+        //todo return response
     }
 
     public function markRed(DatabaseNotification $notification): RedirectResponse
     {
-        //Mark as read
-        $notification->markAsRead();
+        //todo actions here
 
-        //Archive project
-        if(isset($notification->data["project_id"])){
-            $project = Project::findOrFail($notification->data["project_id"]);
-            $project->archive = true;
-            $project->save();
-        }
-
-        return back();
+        //todo return response
     }
 
     public function markYellow(DatabaseNotification $notification): RedirectResponse
@@ -163,17 +139,19 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
         $notificationData = null;
 
         if($this->isCorrectClass($notification)){
-            $projectName = $notification->data["project_name"] ?? null;
-            $message = $this->message($projectName,"");
+            $materialsDate = $notification->data["date_materials_required"] ?? null; //todo
+            $projectName = $notification->data["project_name"] ?? null; //todo
+
+            $message = $this->message($materialsDate,$projectName);
 
             $notificationData = [
                 "id" => $notification->id,
                 "message" => $message,
                 "timestamp" => $notification->created_at->diffForHumans(),
                 "trafficLights" => [
-                    "green" => ["Yes","(Edit)"],
-                    "yellow" => ["Not yet","(Ask later)"],
-                    "red" => ["Lost it","(Archive)"],
+                    "green" => ["Ok","(Go to)"], //todo
+                    "yellow" => ["Wait","(Ask later)"], //todo
+                    "red" => null,
                 ],
             ];
         }
@@ -183,8 +161,10 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
 
     public function message(string $string_1, string $string_2): string
     {
-        $projectName = $string_1;
+        $materialsDate = $string_1; //todo
+        $projectName = $string_2; //todo
 
-        return 'Has the project "'.$projectName.'" been awarded to you?';
+        //todo change this
+        return 'The materials for "'.$projectName.'" are due to be quoted so they can be received before '.$materialsDate;
     }
 }

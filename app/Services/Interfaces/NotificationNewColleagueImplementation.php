@@ -8,28 +8,27 @@ use App\Notifications\NewUserEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Log;
 
 class NotificationNewColleagueImplementation implements NotificationInterface
 {
-    public string $interval;
+    public string $subInterval;
 
     public function __construct()
     {
         $testMode = env("TEST_MODE");
-        $this->interval = $testMode ? 'subMinutes' : 'subDays';
+        $this->subInterval = $testMode ? 'subMinutes' : 'subDays';
     }
 
     public function hourlyCheck(): void
     {
         /**
          * A new colleague signed up. Notify existing staff users of the same business
-         * 1) User created within 2 days
+         * 1) User created within 2 day
          * 2) Not yourself
          */
-        $interval = $this->interval;
+        $subInterval = $this->subInterval;
         $newUsers = User::query()
-            ->where('created_at', '<=', Carbon::now()->$interval(2))
+            ->whereBetween('created_at', [Carbon::now()->$subInterval(2), Carbon::now()])
             ->get();
 
         foreach($newUsers as $newUser){
@@ -59,7 +58,9 @@ class NotificationNewColleagueImplementation implements NotificationInterface
     public function sendNotification(object $recipient, object $otherObject): void
     {
         $newColleague = $otherObject;
-        $recipient->notify(new NewUserEmail($newColleague));
+        $message = $this->message($newColleague->name,"");
+
+        $recipient->notify(new NewUserEmail($newColleague,$message));
     }
 
     public function checkProjectChanges(Project $project): void
@@ -128,18 +129,25 @@ class NotificationNewColleagueImplementation implements NotificationInterface
     {
         $notificationData = null;
 
-        if($notification->type === "App\Notifications\NewUserEmail"){
-
-            $name = $notification->data["new_user_name"] ?? null;
+        if($this->isCorrectClass($notification)){
+            $userName = $notification->data["new_user_name"] ?? null;
+            $message = $this->message($userName,"");
 
             $notificationData = [
                 "id" => $notification->id,
-                "message" => $name." recently joined. You can now batch orders together.",
+                "message" => $message,
                 "timestamp" => $notification->created_at->diffForHumans(),
                 "trafficLights" => null,
             ];
         }
 
         return $notificationData;
+    }
+
+    public function message(string $string_1, string $string_2): string
+    {
+        $userName = $string_1;
+
+        return $userName." recently joined. You can now batch orders together.";
     }
 }

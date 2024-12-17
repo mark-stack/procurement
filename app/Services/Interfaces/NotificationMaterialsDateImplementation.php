@@ -3,22 +3,18 @@
 namespace App\Services\Interfaces;
 
 use App\Models\Project;
-use App\Models\User;
-use App\Notifications\NewUserEmail;
-use App\Notifications\ProjectAwardedCheckEmail;
 use App\Notifications\ProjectTentativeDateCheckEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Log;
 
 class NotificationMaterialsDateImplementation implements NotificationInterface
 {
-    public string $interval;
+    public string $subInterval;
     public function __construct()
     {
         $testMode = env("TEST_MODE");
-        $this->interval = $testMode ? 'subMinutes' : 'subDays';
+        $this->subInterval = $testMode ? 'subMinutes' : 'subDays';
     }
 
     public function hourlyCheck(): void
@@ -28,14 +24,14 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
          * 1) Project is active (not archived)
          * 2) Project tentative = true
          * 3) At least 2 days since creating the project (so it doesn't immediate send)
-         * 4) At least 2 days since last message
+         * 4) At least 2 days since last reminder
          */
-        $interval = $this->interval;
+        $subInterval = $this->subInterval;
 
         $tentativeProjects = Project::query()
-            ->active()                                                  //1) Project is active (not archived)
-            ->where("tentative",true)                                   //2) Project tentative = true
-            ->where('created_at', '<=', Carbon::now()->$interval(2))    //3) At least 2 days since creating the project (so it doesn't immediate send)
+            ->active()                             //1) Project is active (not archived)
+            ->where("tentative",true)              //2) Project tentative = true
+            ->whereBetween('created_at', [Carbon::now()->$subInterval(2), Carbon::now()]) //3)
             ->get();
 
         foreach($tentativeProjects as $project) {
@@ -55,19 +51,20 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
     {
         $class = $this->getNotificationClass();
 
-        $interval = $this->interval;
+        $subInterval = $this->subInterval;
 
         return $recipient->notifications()
             ->where("type","App\Notifications\{$class}")
             ->where("notifiable_type","App\Models\User")
-            ->where('created_at', '<=', Carbon::now()->$interval(2))  //4) At least 2 days since last message
+            ->whereBetween('created_at', [Carbon::now()->$subInterval(2), Carbon::now()])
             ->exists();
     }
 
     public function sendNotification(object $recipient, object $otherObject): void
     {
         $project = $otherObject;
-        $recipient->notify(new ProjectTentativeDateCheckEmail($project, $recipient));
+        $message = $this->message($project->date_materials_required, $project->name);
+        $recipient->notify(new ProjectTentativeDateCheckEmail($project, $recipient, $message));
     }
 
     public function checkProjectChanges(Project $project): void
@@ -126,16 +123,32 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
 
     public function markGreen(DatabaseNotification $notification): RedirectResponse
     {
-        //"Lock it in"
-        //todo: change tentative=true
+        /**
+         * "Lock it in"
+         * tentative=true
+         */
+        $project = Project::findOrFail($notification->data["project_id"]);
+        $project->tentative = false;
+        $project->save();
+
+        //Mark as read
+        $notification->markAsRead();
+
         return back();
     }
 
     public function markRed(DatabaseNotification $notification): RedirectResponse
     {
-        //"No"
-        //todo: redirect to project edit
-        return back();
+        /**
+         * "No"
+         * redirect to project edit
+         */
+
+        //Mark as read
+        $notification->markAsRead();
+
+        //Go to project index
+        return redirect()->route('projects.index');
     }
 
     public function markYellow(DatabaseNotification $notification): RedirectResponse
@@ -158,13 +171,15 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
     {
         $notificationData = null;
 
-        if($notification->type === "App\Notifications\ProjectTentativeDateCheckEmail"){
-            $project_name = $notification->data["project_name"] ?? null;
-            $tentative_date = $notification->data["date_materials_required"] ?? null;
+        if($this->isCorrectClass($notification)){
+            $materialsDate = $notification->data["date_materials_required"] ?? null;
+            $projectName = $notification->data["project_name"] ?? null;
+
+            $message = $this->message($materialsDate,$projectName);
 
             $notificationData = [
                 "id" => $notification->id,
-                "message" => "Is the tentative materials date of ".$tentative_date." for '".$project_name."' still correct?",
+                "message" => $message,
                 "timestamp" => $notification->created_at->diffForHumans(),
                 "trafficLights" => [
                     "green" => ["Lock it in","(Update)"],
@@ -175,5 +190,13 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
         }
 
         return $notificationData;
+    }
+
+    public function message(string $string_1, string $string_2): string
+    {
+        $materialsDate = $string_1;
+        $projectName = $string_2;
+
+        return "Is the tentative materials date of ".$materialsDate." for '".$projectName."' still correct?";
     }
 }

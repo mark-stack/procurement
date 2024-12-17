@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\ProjectResource;
 use App\Models\Project;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,7 +23,7 @@ class ProjectController extends Controller
             ->get();
 
         return Inertia::render('Dashboard',[
-            "projects" => $projects,
+            "projects" => ProjectResource::collection($projects),
         ]);
     }
 

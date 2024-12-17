@@ -16,6 +16,7 @@ class NewUserEmail extends Notification implements ShouldQueue
      */
     public function __construct(
         public Object $user,
+        public string $message,
     ) {}
 
     /**
@@ -34,9 +35,8 @@ class NewUserEmail extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-                    ->line('A new user signed up:')
-                    ->line($this->user->email)
-                    ->line('Bye!');
+                    ->line($this->message)
+                    ->line($this->user->email);
     }
 
     /**

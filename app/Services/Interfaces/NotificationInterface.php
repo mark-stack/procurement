@@ -20,4 +20,5 @@ interface NotificationInterface
     public function markYellow(DatabaseNotification $notification): RedirectResponse;
     public function isCorrectClass(DatabaseNotification $notification): bool;
     public function notificationData(DatabaseNotification $notification): null|array;
+    public function message(string $string_1, string $string_2): string;
 }

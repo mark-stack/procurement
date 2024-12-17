@@ -9,7 +9,7 @@ use Illuminate\Notifications\Notification;
 use MagicLink\Actions\LoginAction;
 use MagicLink\MagicLink;
 
-class ProjectAwardedCheckEmail extends Notification implements ShouldQueue
+class QuoteDueEmail extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -37,9 +37,9 @@ class ProjectAwardedCheckEmail extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): MailMessage
     {
-        //Go to projects page which has notifications for actioning
+        //Go to quotes page which has notifications for actioning
         $action = new LoginAction($this->recipient);
-        $action->response(redirect()->route("projects.index"));
+        $action->response(redirect()->route("quotes.index"));
         $magicLink = MagicLink::create($action);
 
         //MagicLink is being weird making default "localhost" instead of "http://127.0.0.1:8000"
@@ -63,6 +63,7 @@ class ProjectAwardedCheckEmail extends Notification implements ShouldQueue
         return [
             'project_id' => $this->project->id,
             'project_name' => $this->project->name,
+            "date_materials_required" => $this->project->date_materials_required,
         ];
     }
 }

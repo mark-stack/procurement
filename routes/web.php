@@ -39,8 +39,23 @@ Route::get("stock-cutting",function(){
 });
 //todo temporary
 Route::get("test",function(){
-    Log::error("bad",["bad"]);
-    dd("did a log");
+    $testMode = env("TEST_MODE");
+    $addInterval = 'addDays'; //$testMode ? 'addMinutes' : 'addDays';
+    $expectedOrderLeadTime = null; //todo: derived from material data
+    $orderLeadTime = $expectedOrderLeadTime ?? 3;
+    $quoteLeadTime = 2;
+    $totalTime = $orderLeadTime + $quoteLeadTime;
+
+
+    $quoteDueProjects = Project::query()
+        ->active()                                              //1) Project is active (not archived)
+        ->awarded()                                             //2) Project "awarded" = true
+        ->whereBetween('date_materials_required', [             //3)
+            Carbon::now(),
+            Carbon::now()->addDays($totalTime)->toDateString()
+        ])
+        ->get();
+    dd($quoteDueProjects);
     //////
     $project = Project::first();
 

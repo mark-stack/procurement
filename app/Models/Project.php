@@ -72,6 +72,52 @@ class Project extends Model
         return collect($products);
     }
 
+    //Integers
+    public function percentageOfMaterialsQuoted(): int {
+        /**
+         * Based on raw material quote > piece > quote
+         */
+        $percentageOfMaterialsQuoted = 0;
+        $materialListRows = $this->rawMaterialQuotes()->count();
+
+        foreach($this->rawMaterialQuotes as $rawMaterialQuote){
+            $piece = $rawMaterialQuote->piece;
+            if($piece){
+                dd($piece);
+                $quote = $piece->quote;
+                if($quote){
+                    $percentageOfMaterialsQuoted++;
+                }
+            }
+        }
+
+        return $percentageOfMaterialsQuoted > 0
+            ? ceil($percentageOfMaterialsQuoted/$materialListRows*100)
+            : 0;
+    }
+
+    public function percentageOfMaterialsOrdered(): int {
+        /**
+         * Based on raw material quote > piece > order
+         */
+        $percentageOfMaterialsOrdered = 0;
+        $materialListRows = $this->rawMaterialQuotes()->count();
+
+        foreach($this->rawMaterialQuotes as $rawMaterialQuote){
+            $piece = $rawMaterialQuote->piece;
+            if($piece){
+                $order = $piece->order;
+                if($order){
+                    $percentageOfMaterialsOrdered++;
+                }
+            }
+        }
+
+        return $percentageOfMaterialsOrdered > 0
+            ? ceil($percentageOfMaterialsOrdered/$materialListRows*100)
+            : 0;
+    }
+
     //Local scopes
     public function scopeActive(Builder $query): void
     {

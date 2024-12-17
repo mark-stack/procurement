@@ -31,68 +31,10 @@ class NotificationService
                 }
 
 
-                /**
-                 * A colleague joined
-                 */
-//                if($notification->type === "App\Notifications\NewUserEmail"){
-//
-//                    $name = $notification->data["new_user_name"] ?? null;
-//
-//                    $notifications[] = [
-//                        "id" => $notification->id,
-//                        "message" => $name." recently joined. You can now batch orders together.",
-//                        "timestamp" => $notification->created_at->diffForHumans(),
-//                        "yesNoMaybe" => null,
-//                    ];
-//                }
-
-                /**
-                 * Projects
-                 */
-                /*
-                 * Has the project been awarded to you?
-                 */
-//                if($notification->type === "App\Notifications\ProjectAwardedCheckEmail"){
-//                    $project_name = $notification->data["project_name"] ?? null;
-//
-//                    $notifications[] = [
-//                        "id" => $notification->id,
-//                        "message" => "Has the project '".$project_name."' been awarded to you?",
-//                        "timestamp" => $notification->created_at->diffForHumans(),
-//                        "yesNoMaybe" => [
-//                            "Yes" => ["Yes","(Edit)"],
-//                            "Ignore" => ["Not yet","(Ask later)"],
-//                            "No" => ["Lost it","(Archive)"],
-//                        ],
-//                    ];
-//                }
-
-                /*
-                 * Is the tentative materials date still correct?
-                 */
-//                if($notification->type === "App\Notifications\ProjectTentativeDateCheckEmail"){
-//                    $project_name = $notification->data["project_name"] ?? null;
-//                    $tentative_date = $notification->data["date_materials_required"] ?? null;
-//
-//                    $notifications[] = [
-//                        "id" => $notification->id,
-//                        "message" => "Is the tentative materials date of ".$tentative_date." for '".$project_name."' still correct",
-//                        "timestamp" => $notification->created_at->diffForHumans(),
-//                        "yesNoMaybe" => [
-//                            "yes" => ["Yes","(Edit)"],
-//                            "ignore" => ["Not yet","(Ask later)"],
-//                            "no" => ["Lost it","(Archive)"],
-//                        ],
-//                    ];
-//                }
 
                 /**
                  * Quotes
                  */
-                /*
-                 * Quote due
-                 */
-
                 /*
                  * Quote overdue
                  */
