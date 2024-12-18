@@ -3,14 +3,10 @@
 namespace App\Services\Interfaces;
 
 use App\Models\Project;
-use App\Models\User;
-use App\Notifications\NewUserEmail;
-use App\Notifications\ProjectAwardedCheckEmail;
 use App\Notifications\QuoteDueEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Log;
 
 class NotificationQuoteDueImplementation implements NotificationInterface
 {
@@ -32,44 +28,41 @@ class NotificationQuoteDueImplementation implements NotificationInterface
          * 2) Project is awarded
          * 3) Expected or default lead time + 2 days before material received date
          * 4) At least 1 day since last reminder
-         * 5) Not all materials quotes todo
+         * 5) Not all materials quotes
          */
 
-        $expectedOrderLeadTime = null; //todo: derived from material data
-        $orderLeadTime = $expectedOrderLeadTime ?? 3;
-        $quoteLeadTime = 2;
-        $totalTime = $orderLeadTime + $quoteLeadTime;
-
         $quoteDueProjects = Project::query()
-            ->active()                                              //1) Project is active (not archived)
-            ->awarded()                                             //2) Project "awarded" = true
-            ->whereBetween('date_materials_required', [             //3) Expected or default lead time + 2 days before material received date
-                Carbon::now(),
-                Carbon::now()->addDays($totalTime)->toDateString()
-            ])
+            ->active()                          //1) Project is active (not archived)
+            ->awarded()                         //2) Project "awarded" = true
+            ->beforeMaterialsQuotingDeadline()  //3) Expected or default lead time + 2 days before material received date
             ->get();
 
         foreach($quoteDueProjects as $project) {
-            $projectManager = $project->user;
+            //5) Not all materials quotes
+            if($project->percentageOfMaterialsQuoted() < 100){
+                $projectManager = $project->user;
 
-            if (!$this->notifiedAlready($projectManager)) {
-                //Mark all previous as read
-                $this->markPreviousAsRead($projectManager);
+                if (!$this->notifiedAlready($projectManager,$project->id)) {
+                    //Mark all previous as read
+                    $this->markPreviousAsRead($projectManager,$project);
 
-                //Send notification
-                $this->sendNotification($projectManager,$project);
+                    //Send notification
+                    $this->sendNotification($projectManager,$project);
+                }
             }
         }
     }
 
-    public function notifiedAlready(object $recipient): bool
+    public function notifiedAlready(object $recipient, int $uniqueModelId): bool
     {
         $class = $this->getNotificationClass();
 
         $subInterval = $this->subInterval;
+        $classWithPath = "App\Notifications\\".$class;
         return $recipient->notifications()
-            ->where("type","App\Notifications\{$class}")
+            ->where("type",$classWithPath)
             ->where("notifiable_type","App\Models\User")
+            ->where("data->project_id",$uniqueModelId)
             ->whereBetween('created_at', [Carbon::now()->$subInterval(1), Carbon::now()]) //At least 1 day since last reminder
             ->exists();
     }
@@ -93,7 +86,7 @@ class NotificationQuoteDueImplementation implements NotificationInterface
         return "QuoteDueEmail";
     }
 
-    public function markPreviousAsRead(object $recipient): void
+    public function markPreviousAsRead(object $recipient, object $otherObject): void
     {
         $class = $this->getNotificationClass();
         $classWithPath = "App\Notifications\\".$class;
@@ -101,6 +94,7 @@ class NotificationQuoteDueImplementation implements NotificationInterface
         $recipient->notifications()
             ->where("type",$classWithPath)
             ->where("notifiable_type","App\Models\User")
+            ->where("data->project_id",$otherObject)
             ->update(['read_at' => now()]);
     }
 

@@ -21,7 +21,7 @@ class Piece extends Model
 
     public function quotes(): BelongsToMany
     {
-        return $this->belongsTo(Quote::class);
+        return $this->belongsToMany(Quote::class);
     }
 
     public function rawMaterialQuote(): BelongsTo

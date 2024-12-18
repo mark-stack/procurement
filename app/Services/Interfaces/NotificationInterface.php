@@ -9,11 +9,11 @@ use Illuminate\Notifications\DatabaseNotification;
 interface NotificationInterface
 {
     public function hourlyCheck(): void;
-    public function notifiedAlready(object $recipient): bool;
+    public function notifiedAlready(object $recipient, int $uniqueModelId): bool;
     public function sendNotification(object $recipient, object $otherObject): void;
     public function checkProjectChanges(Project $project): void;
     public function getNotificationClass(): string;
-    public function markPreviousAsRead(object $recipient): void;
+    public function markPreviousAsRead(object $recipient, object $otherObject): void;
     public function trafficLight(DatabaseNotification $notification, string $status): null|RedirectResponse;
     public function markGreen(DatabaseNotification $notification): RedirectResponse;
     public function markRed(DatabaseNotification $notification): RedirectResponse;

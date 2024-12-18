@@ -31,6 +31,11 @@ class Quote extends Model
         return $this->belongsToMany(Product::class);
     }
 
+    public function pieces(): BelongsToMany
+    {
+        return $this->belongsToMany(Piece::class);
+    }
+
     //Optional
     public function project(): BelongsTo
     {
@@ -43,8 +48,5 @@ class Quote extends Model
         return $this->hasMany(Order::class);
     }
 
-    public function pieces(): HasMany
-    {
-        return $this->hasMany(Piece::class);
-    }
+
 }

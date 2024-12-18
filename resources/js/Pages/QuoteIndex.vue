@@ -1,6 +1,7 @@
 <script setup>
     //General Imports
     import {ref} from "vue";
+    import moment from "moment";
 
     //Component Imports
     import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
@@ -85,10 +86,10 @@
                     </ul>
                 </p>
 
-                <p v-if="projectsForQuoting.length > 0">
+                <p v-if="projectsForQuoting.data.length > 0">
                     <h2 class="font-semibold">Projects with ready-to-quote materials:</h2>
                     <ul>
-                        <li v-for="(project,index) in projectsForQuoting"> - p{{project.id}}: {{project.name}} (PM is {{project.user.name}}) ([8] days till quote deadline])</li>
+                        <li v-for="(project,index) in projectsForQuoting.data"> - project #{{project.id}}: <i>'{{project.name}}'</i> ({{project.user.name}}'s project) - Quote request deadline: {{moment(project.quoteRequestDeadline).format("MMMM Do YYYY")}} ({{project.daysUntilQuoteRequestDeadline}}).</li>
                     </ul>
                 </p>
                 <p v-else>

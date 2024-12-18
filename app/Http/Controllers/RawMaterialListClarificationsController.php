@@ -40,9 +40,9 @@ class RawMaterialListClarificationsController extends Controller
                 [GradeEnums::from($selectedProduct["grade"])],
                 SurfaceEnums::from($selectedProduct["surface"]),
                 isset($selectedProduct["nominal_units"]) ? MeasurementUnitEnums::from($selectedProduct["nominal_units"]) : null,
-                $selectedProduct["nominal_length"],
-                $selectedProduct["nominal_width"],
-                $selectedProduct["nominal_height"],
+                $selectedProduct["nominal_length"] ?? null,
+                $selectedProduct["nominal_width"] ?? null,
+                $selectedProduct["nominal_height"] ?? null,
             );
 
             if($generalProductMatches->count() === 1){

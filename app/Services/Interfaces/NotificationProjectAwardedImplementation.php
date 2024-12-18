@@ -37,9 +37,9 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
         foreach($nonAwardedProjects as $project) {
             $projectManager = $project->user;
 
-            if (!$this->notifiedAlready($projectManager)) {
+            if (!$this->notifiedAlready($projectManager, $project)) {
                 //Mark all previous as read
-                $this->markPreviousAsRead($projectManager);
+                $this->markPreviousAsRead($projectManager, $project);
 
                 //Send notification
                 $this->sendNotification($projectManager,$project);
@@ -47,14 +47,16 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
         }
     }
 
-    public function notifiedAlready(object $recipient): bool
+    public function notifiedAlready(object $recipient, int $uniqueModelId): bool
     {
         $class = $this->getNotificationClass();
 
         $subInterval = $this->subInterval;
+        $classWithPath = "App\Notifications\\".$class;
         return $recipient->notifications()
-            ->where("type","App\Notifications\{$class}")
+            ->where("type",$classWithPath)
             ->where("notifiable_type","App\Models\User")
+            ->where("data->project_id",$uniqueModelId)
             ->whereBetween('created_at', [Carbon::now()->$subInterval(2), Carbon::now()]) //4)
             ->exists();
     }
@@ -85,6 +87,7 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
             $recipient->notifications()
                 ->where("type",$classWithPath)
                 ->where("notifiable_type","App\Models\User")
+                ->where("data->project_id",$project->id)
                 ->update(['read_at' => now()]);
         }
     }
@@ -94,7 +97,7 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
         return "ProjectAwardedCheckEmail";
     }
 
-    public function markPreviousAsRead(object $recipient): void
+    public function markPreviousAsRead(object $recipient, object $otherObject): void
     {
         $class = $this->getNotificationClass();
         $classWithPath = "App\Notifications\\".$class;
@@ -102,6 +105,7 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
         $recipient->notifications()
             ->where("type",$classWithPath)
             ->where("notifiable_type","App\Models\User")
+            ->where("data->project_id",$otherObject)
             ->update(['read_at' => now()]);
     }
 

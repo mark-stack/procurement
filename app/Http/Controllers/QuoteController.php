@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\ProjectResource;
 use App\Models\Piece;
 use App\Models\Project;
 use App\Models\Quote;
@@ -54,7 +55,7 @@ class QuoteController extends Controller
 
         return Inertia::render('QuoteIndex',[
             "pieces" => $piecesNested,
-            "projectsForQuoting" => $projectsForQuoting,
+            "projectsForQuoting" => ProjectResource::collection($projectsForQuoting),
             "batchGroups" => $batchGroups,
         ]);
     }

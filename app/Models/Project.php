@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 
@@ -83,9 +84,8 @@ class Project extends Model
         foreach($this->rawMaterialQuotes as $rawMaterialQuote){
             $piece = $rawMaterialQuote->piece;
             if($piece){
-                dd($piece);
-                $quote = $piece->quote;
-                if($quote){
+                $quotes = $piece->quotes;
+                if($quotes){
                     $percentageOfMaterialsQuoted++;
                 }
             }
@@ -118,11 +118,49 @@ class Project extends Model
             : 0;
     }
 
+    public function orderDays(): int
+    {
+        return 3; //todo: derive from material data for better accuracy with fallback value of 3 days
+    }
+
+    public function longestDeliveryDays(): int
+    {
+        return 4; //todo derive from actual materials. Fallback = 3 days
+    }
+
+    public function fromQuoteRequestToReceivedDays(): int
+    {
+        $longestDeliveryDays = $this->longestDeliveryDays();
+        $materialQuotingDays = 2;
+
+        return $longestDeliveryDays + $materialQuotingDays;
+    }
+
+    public function daysUntilQuoteRequestDeadline(): string
+    {
+        return $this->quoteRequestDeadline()->diffForHumans();
+    }
+
+    //Datetime
+    public function quoteRequestDeadline(): Carbon
+    {
+        return Carbon::parse($this->date_materials_required)->subDays($this->fromQuoteRequestToReceivedDays());
+    }
+
     //Local scopes
+    public function beforeMaterialsQuotingDeadline(Builder $query): void
+    {
+        $query->whereBetween('date_materials_required', [
+            Carbon::now(),
+            Carbon::now()->addDays($this->fromQuoteRequestToReceivedDays())->toDateString()
+        ]);
+    }
+
     public function scopeActive(Builder $query): void
     {
         $query->where('archive',false);
     }
+
     public function scopeAwarded(Builder $query): void
     {
         $query->where('awarded',true);

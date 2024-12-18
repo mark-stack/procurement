@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\NestingEnums;
 use App\Enums\SurfaceEnums;
 use App\Models\Business;
 use App\Models\Piece;
@@ -9,6 +10,7 @@ use App\Models\Product;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
 use App\Services\NotificationService;
+use App\Services\ProductService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -45,7 +47,9 @@ class RawMaterialListCustomisationsController extends Controller
                 $grade = $item["selected"]["grade"] === "Other"
                     ? $item["selected_other"]["grade"]
                     : $item["selected"]["grade"];
-                $size = $item["selected"]["size"];
+                $nominalLength = $item["selected"]["nominal_length"];
+                $nominalWidth = $item["selected"]["nominal_width"];
+                $nominalHeight = $item["selected"]["nominal_height"];
                 $measurementUnit = $item["selected"]["quantify"];
                 $nestingAlgo = $item["selected"]["nesting_algo"];
                 $purchasable_length_1 = $item["selected"]["purchasable_length_1"];
@@ -81,7 +85,8 @@ class RawMaterialListCustomisationsController extends Controller
                      * For area this means length
                      * For bundles this means pack qty
                      */
-                    $length = $productVariation["purchasable_length"] ?? null;
+                    $purchasableLength = $productVariation["purchasable_length"] ?? null;
+                    $purchasableWidth = $productVariation["purchasable_width"] ?? null;
 
                     //Create item
                     Product::create([
@@ -93,9 +98,9 @@ class RawMaterialListCustomisationsController extends Controller
                         "surface" => SurfaceEnums::NONE->value,
                         "nominal_units" => $measurementUnit,
                         "nesting_algo" => $nestingAlgo,
-                        "size" => $size,
-                        "length" => $length,
-                        "width" => $productVariation["purchasable_width"] ?? null,
+                        "nominal_length" => $purchasableLength,
+                        "nominal_width" => $purchasableWidth,
+                        "nominal_height" => $nominalHeight,
                         "kg_per_m" => 0,
                         "baseline_unit_rate" => 0, //todo get quoted price
                         'business_id' => $business->id,
@@ -106,16 +111,64 @@ class RawMaterialListCustomisationsController extends Controller
                 /**
                  * General product matches
                  */
-                $generalProductMatches = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', 'size')
-                    ->distinct()
-                    ->availableFor($user)
-                    ->where("product", $product)
-                    ->where("material", $material)
-                    ->where("grade", $grade)
-                    ->where("surface", SurfaceEnums::NONE->value)
-                    ->where("nominal_units", $measurementUnit)
-                    ->where("size",$size)
-                    ->get();
+                $generalProductMatches = [];
+
+                //METERAGE
+                if($nestingAlgo === NestingEnums::METERAGE->value) {
+                    //$sizeInclude = ["nominal_height"];
+                    $generalProductMatches = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', "nominal_height")
+                        ->distinct()
+                        ->availableFor($user)
+                        ->where("product", $product)
+                        ->where("material", $material)
+                        ->where("grade", $grade)
+                        ->where("surface", SurfaceEnums::NONE->value)
+                        ->where("nominal_units", $measurementUnit)
+                        ->where("nominal_height",$nominalHeight)
+                        ->get();
+                }
+                //AREA
+                if($nestingAlgo === NestingEnums::AREA->value) {
+                    //$sizeInclude = ["nominal_height"];
+                    $generalProductMatches = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', "nominal_height")
+                        ->distinct()
+                        ->availableFor($user)
+                        ->where("product", $product)
+                        ->where("material", $material)
+                        ->where("grade", $grade)
+                        ->where("surface", SurfaceEnums::NONE->value)
+                        ->where("nominal_units", $measurementUnit)
+                        ->where("nominal_height",$nominalHeight)
+                        ->get();
+                }
+                //BUNDLE
+                if($nestingAlgo === NestingEnums::BUNDLE->value) {
+                    //$sizeInclude = ["nominal_length","nominal_width"];
+                    $generalProductMatches = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', "nominal_length", "nominal_width")
+                        ->distinct()
+                        ->availableFor($user)
+                        ->where("product", $product)
+                        ->where("material", $material)
+                        ->where("grade", $grade)
+                        ->where("surface", SurfaceEnums::NONE->value)
+                        ->where("nominal_units", $measurementUnit)
+                        ->where("nominal_length",$nominalLength)
+                        ->where("nominal_width",$nominalWidth)
+                        ->get();
+                }
+
+
+//                //todo: "size"
+//                $generalProductMatches = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', 'size')
+//                    ->distinct()
+//                    ->availableFor($user)
+//                    ->where("product", $product)
+//                    ->where("material", $material)
+//                    ->where("grade", $grade)
+//                    ->where("surface", SurfaceEnums::NONE->value)
+//                    ->where("nominal_units", $measurementUnit)
+//                    ->where("size",$size) //todo
+//                    ->get();
                 $rawMaterialQuote = RawMaterialQuote::find($item["data"]["id"]);
                 $rawMaterialQuote->general_product_matches = serialize($generalProductMatches->toArray());
                 $rawMaterialQuote->save();
@@ -133,7 +186,9 @@ class RawMaterialListCustomisationsController extends Controller
                     "surface" => SurfaceEnums::NONE->value,
                     "nominal_units" => $measurementUnit,
                     "nesting_algo" => $nestingAlgo,
-                    "size" => $size,
+                    "nominal_length" => $nominalLength,
+                    "nominal_width" => $nominalWidth,
+                    "nominal_height" => $nominalHeight,
                     "actual_length" => $item["data"]["length_required"],
                     "actual_width" => $item["data"]["width_required"],
                     "actual_qty" => $item["data"]["sub_qty"]

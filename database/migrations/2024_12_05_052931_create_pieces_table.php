@@ -25,7 +25,9 @@ return new class extends Migration
             $table->text("surface");                        //NONE
             $table->string("nominal_units")->nullable();    //MILLIMETERS
             $table->string("nesting_algo")->nullable();     //METERAGE
-            $table->string("size");                         //200
+            $table->string("nominal_length")->nullable();   //
+            $table->string("nominal_width")->nullable();    //
+            $table->string("nominal_height")->nullable();   //200
             $table->string("actual_length");                //9
             $table->string("actual_width")->nullable();     //1
             $table->string("actual_qty")->nullable();       //1

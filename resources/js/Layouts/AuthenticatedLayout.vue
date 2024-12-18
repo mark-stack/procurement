@@ -72,19 +72,19 @@
                         label="Projects"
                         icon="fa-solid fa-list"
                     />
+                    <!-- Quotes -->
+                    <NavButton
+                        v-if="onboarded"
+                        :route="route('quotes.index')"
+                        label="Quote Requests"
+                        icon="fa-solid fa-comments-dollar"
+                    />
                     <!-- Price Book -->
                     <NavButton
                         v-if="onboarded"
                         :route="route('pricebook')"
                         label="Price Book"
                         icon="fa-solid fa-list"
-                    />
-                    <!-- Quotes -->
-                    <NavButton
-                        v-if="onboarded"
-                        :route="route('quotes.index')"
-                        label="Quotes"
-                        icon="fa-solid fa-comments-dollar"
                     />
                     <!-- Suppliers -->
                     <NavButton

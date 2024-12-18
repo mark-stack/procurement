@@ -232,7 +232,7 @@ class NestingService
         return $result;
     }
 
-    public function getNestingLabelsFromProduct(string $product)
+    public function getNestingLabelsFromProduct(string $product): array
     {
         $result = [];
 
@@ -356,27 +356,29 @@ class NestingService
     public function nesting(string $nestingAlgoLabel, Collection $allPieces): Collection
     {
         $result = [];
+        $materialSpecs = null;
 
-        $materialSpecs = Piece::select('product', 'material', 'grade', 'surface', 'nominal_units', 'size')
-            ->whereIn("id",$allPieces->pluck("id")->toArray())
-            ->distinct()
-            ->get();
+        //METERAGE
+        if($nestingAlgoLabel === NestingEnums::METERAGE->value){
+            //$sizeInclude = ["nominal_height"];
+            $materialSpecs = Piece::select('product', 'material', 'grade', 'surface', 'nominal_units', "nominal_height")
+                ->whereIn("id",$allPieces->pluck("id")->toArray())
+                ->distinct()
+                ->get();
 
-        foreach($materialSpecs as $materialSpec){
-            $pieces = $allPieces
-                ->where('product',$materialSpec->product)
-                ->where('material',$materialSpec->material)
-                ->where('grade',$materialSpec->grade)
-                ->where('surface',$materialSpec->surface)
-                ->where('nominal_units',$materialSpec->nominal_units)
-                ->where('size',$materialSpec->size)
-                ->sortBy("size");
+            foreach($materialSpecs as $materialSpec){
+                $pieces = $allPieces
+                    ->where('product',$materialSpec->product)
+                    ->where('material',$materialSpec->material)
+                    ->where('grade',$materialSpec->grade)
+                    ->where('surface',$materialSpec->surface)
+                    ->where('nominal_units',$materialSpec->nominal_units)
+                    ->where('size',$materialSpec->size)
+                    ->sortBy("size");
 
-            $appended = $materialSpec;
-            $appended->algo = $nestingAlgoLabel;
+                $appended = $materialSpec;
+                $appended->algo = $nestingAlgoLabel;
 
-            //METERAGE
-            if($nestingAlgoLabel === NestingEnums::METERAGE->value){
                 $piecesArray = [];
                 $cutLengths = [];
                 foreach($pieces as $piece){
@@ -399,9 +401,31 @@ class NestingService
                 $appended->pieces = $piecesArray;
                 $appended->purchasable = $purchasableLengths;
                 $appended->nested = $this->meterageAlgorithm($cutLengths,$purchasableLengths);
+
+                $result[] = $appended;
             }
-            //AREA
-            if($nestingAlgoLabel === NestingEnums::AREA->value){
+        }
+        //AREA
+        if($nestingAlgoLabel === NestingEnums::AREA->value){
+            //$sizeInclude = ["nominal_height"];
+            $materialSpecs = Piece::select('product', 'material', 'grade', 'surface', 'nominal_units', "nominal_height")
+                ->whereIn("id",$allPieces->pluck("id")->toArray())
+                ->distinct()
+                ->get();
+
+            foreach($materialSpecs as $materialSpec){
+                $pieces = $allPieces
+                    ->where('product',$materialSpec->product)
+                    ->where('material',$materialSpec->material)
+                    ->where('grade',$materialSpec->grade)
+                    ->where('surface',$materialSpec->surface)
+                    ->where('nominal_units',$materialSpec->nominal_units)
+                    ->where('size',$materialSpec->size)
+                    ->sortBy("size");
+
+                $appended = $materialSpec;
+                $appended->algo = $nestingAlgoLabel;
+
                 $stockLengths = [];
                 $piecesArray = [];
 
@@ -410,9 +434,31 @@ class NestingService
                 $appended->pieces = $piecesArray;
                 $appended->purchasable = $stockLengths;
                 $appended->nested = []; //todo
+
+                $result[] = $appended;
             }
-            //BUNDLE
-            if($nestingAlgoLabel === NestingEnums::BUNDLE->value){
+        }
+        //BUNDLE
+        if($nestingAlgoLabel === NestingEnums::BUNDLE->value){
+            //$sizeInclude = ["nominal_length","nominal_width"];
+            $materialSpecs = Piece::select('product', 'material', 'grade', 'surface', 'nominal_units', "nominal_length","nominal_width")
+                ->whereIn("id",$allPieces->pluck("id")->toArray())
+                ->distinct()
+                ->get();
+
+            foreach($materialSpecs as $materialSpec){
+                $pieces = $allPieces
+                    ->where('product',$materialSpec->product)
+                    ->where('material',$materialSpec->material)
+                    ->where('grade',$materialSpec->grade)
+                    ->where('surface',$materialSpec->surface)
+                    ->where('nominal_units',$materialSpec->nominal_units)
+                    ->where('size',$materialSpec->size)
+                    ->sortBy("size");
+
+                $appended = $materialSpec;
+                $appended->algo = $nestingAlgoLabel;
+
                 $piecesArray = [];
                 $boxSizes = $this->getPurchasableLengths($materialSpec); //todo: "lengths" is substitute for qty?
                 $totalQty = 0;
@@ -429,21 +475,100 @@ class NestingService
                 $appended->pieces = $piecesArray;
                 $appended->purchasable = $boxSizes;
                 $appended->nested = $this->bundleAlgorithm($totalQty,$boxSizes);
-            }
 
-            $result[] = $appended;
+                $result[] = $appended;
+            }
         }
+
+        ////////////////////////
+//        $result = [];
+//
+//        $materialSpecs = Piece::select('product', 'material', 'grade', 'surface', 'nominal_units', 'size')
+//            ->whereIn("id",$allPieces->pluck("id")->toArray())
+//            ->distinct()
+//            ->get();
+//
+//        foreach($materialSpecs as $materialSpec){
+//            $pieces = $allPieces
+//                ->where('product',$materialSpec->product)
+//                ->where('material',$materialSpec->material)
+//                ->where('grade',$materialSpec->grade)
+//                ->where('surface',$materialSpec->surface)
+//                ->where('nominal_units',$materialSpec->nominal_units)
+//                ->where('size',$materialSpec->size)
+//                ->sortBy("size");
+//
+//            $appended = $materialSpec;
+//            $appended->algo = $nestingAlgoLabel;
+//
+//            //METERAGE
+//            if($nestingAlgoLabel === NestingEnums::METERAGE->value){
+//                $piecesArray = [];
+//                $cutLengths = [];
+//                foreach($pieces as $piece){
+//                    $piecesArray[] = [
+//                        "project" => $piece->project()->first(),
+//                        "length" => $piece->actual_length,
+//                        "nominal_units" => $piece->nominal_units,
+//                        "quantity" => $piece->actual_qty,
+//                    ];
+//                    for ($i = 0; $i < (int) $piece->actual_qty; $i++) {
+//                        $cutLengths[] = [
+//                            "project" => $piece->project()->first()->id,
+//                            "length" => $piece->actual_length,
+//                        ];
+//                    }
+//                }
+//
+//                $purchasableLengths = $this->getPurchasableLengths($materialSpec);
+//
+//                $appended->pieces = $piecesArray;
+//                $appended->purchasable = $purchasableLengths;
+//                $appended->nested = $this->meterageAlgorithm($cutLengths,$purchasableLengths);
+//            }
+//            //AREA
+//            if($nestingAlgoLabel === NestingEnums::AREA->value){
+//                $stockLengths = [];
+//                $piecesArray = [];
+//
+//                //todo loop
+//
+//                $appended->pieces = $piecesArray;
+//                $appended->purchasable = $stockLengths;
+//                $appended->nested = []; //todo
+//            }
+//            //BUNDLE
+//            if($nestingAlgoLabel === NestingEnums::BUNDLE->value){
+//                $piecesArray = [];
+//                $boxSizes = $this->getPurchasableLengths($materialSpec); //todo: "lengths" is substitute for qty?
+//                $totalQty = 0;
+//                foreach($pieces as $piece){
+//                    $piecesArray[] = [
+//                        "project" => $piece->project()->first(),
+//                        "length" => null,
+//                        "nominal_units" => $piece->nominal_units,
+//                        "quantity" => $piece->actual_qty,
+//                    ];
+//                    $totalQty = $totalQty + $piece->actual_qty;
+//                }
+//
+//                $appended->pieces = $piecesArray;
+//                $appended->purchasable = $boxSizes;
+//                $appended->nested = $this->bundleAlgorithm($totalQty,$boxSizes);
+//            }
+//
+//            $result[] = $appended;
+//        }
 
         return collect($result);
     }
 
-    function getPurchasableLengths(Object $materialSpec): array
+    function getPurchasableVariations(Object $materialSpec): array
     {
         /**
-         * To get purchasable lengths, we need to have all parameters for certainty:
-         * 'product', 'material', 'grade', 'surface', 'nominal_units', 'size'
-         *
-         * Otherwise, it'll give bad results like "9m" for a bolt.
+         * METERAGE = nominal_length
+         * AREA = nominal_length & nominal_width
+         * BUNDLE = pack size
          */
         return Product::query()
             ->where("product",$materialSpec->product)
@@ -452,7 +577,7 @@ class NestingService
             ->where("surface",$materialSpec->surface)
             ->where("nominal_units",$materialSpec->nominal_units)
             ->where("size",$materialSpec->size)
-            ->pluck("length")
+            ->pluck("nominal_length") //todo
             ->toArray();
     }
 

@@ -34,9 +34,9 @@ class NotificationNewColleagueImplementation implements NotificationInterface
         foreach($newUsers as $newUser){
             $colleagues = $newUser->business->users()->where("id","!=",$newUser->id)->get();
             foreach($colleagues as $colleague){
-                if(!$this->notifiedAlready($colleague)){
+                if(!$this->notifiedAlready($colleague, )){
                     //Mark all previous as read
-                    $this->markPreviousAsRead($colleague);
+                    $this->markPreviousAsRead($colleague, $newUser);
 
                     //Send notification
                     $this->sendNotification($colleague,$newUser);
@@ -45,13 +45,14 @@ class NotificationNewColleagueImplementation implements NotificationInterface
         }
     }
 
-    public function notifiedAlready(object $recipient): bool
+    public function notifiedAlready(object $recipient, int $uniqueModelId): bool
     {
         $class = $this->getNotificationClass();
-
+        $classWithPath = "App\Notifications\\".$class;
         return $recipient->notifications()
-            ->where("type","App\Notifications\{$class}")
+            ->where("type",$classWithPath)
             ->where("notifiable_type","App\Models\User")
+            ->where("data->user_id",$uniqueModelId)
             ->exists();
     }
 
@@ -75,7 +76,7 @@ class NotificationNewColleagueImplementation implements NotificationInterface
         return "NewUserEmail";
     }
 
-    public function markPreviousAsRead(object $recipient): void
+    public function markPreviousAsRead(object $recipient, object $otherObject): void
     {
         $class = $this->getNotificationClass();
         $classWithPath = "App\Notifications\\".$class;
@@ -83,6 +84,7 @@ class NotificationNewColleagueImplementation implements NotificationInterface
         $recipient->notifications()
             ->where("type",$classWithPath)
             ->where("notifiable_type","App\Models\User")
+            ->where("data->user_id",$otherObject)
             ->update(['read_at' => now()]);
     }
 

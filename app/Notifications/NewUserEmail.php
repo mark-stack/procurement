@@ -47,8 +47,9 @@ class NewUserEmail extends Notification implements ShouldQueue
     public function toArray(object $notifiable): array
     {
         return [
-            'new_user_email' => $this->user->email,
-            'new_user_name' => $this->user->name,
+            "user_id" => $this->user->id,
+            'user_email' => $this->user->email,
+            'user_name' => $this->user->name,
         ];
     }
 }

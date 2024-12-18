@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\MaterialEnums;
 use App\Enums\MeasurementUnitEnums;
 use App\Enums\GradeEnums;
+use App\Enums\NestingEnums;
 use App\Enums\ProductEnums;
 use App\Enums\SurfaceEnums;
 use App\Models\Business;
@@ -63,17 +64,42 @@ class ProductService
         /**
          * Compare the limited attributes provided (grade, size, etc) against the master price book.
          *
-         * NOTE: for METERAGE items, disregard length. For SINGLE items, length is "size". e.g a M16x50 bolt
-         * So find the general "150PFC STEEL GR300" disregarding 9m,12m,etc.
+         * NOTE: for METERAGE items, disregard length. e.g "150PFC STEEL GR300" disregards 9m,12m,etc.
+         * NOTE: for AREA items, disregard length & width
+         * NOTE: for BUNDLE items, disregard none
          */
         $return = collect([]); //default
 
         //"Product" is mandatory
         if($productString) {
-            $query = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', 'nominal_length','nominal_width','nominal_height')
-                ->distinct()
-                ->availableFor($user)
-                ->where("product", $productString);
+            $algo = (new NestingService())->getNestingLabelsFromProduct($productString)[0];
+            $sizeInclude = [];
+            $query = null;
+
+            //METERAGE
+            if($algo === NestingEnums::METERAGE->value){
+                $sizeInclude = ["nominal_height"];
+                $query = Product::select('product', 'material', 'grade', 'surface', 'nominal_units','nominal_height')
+                    ->distinct()
+                    ->availableFor($user)
+                    ->where("product", $productString);
+            }
+            //AREA
+            if($algo === NestingEnums::AREA->value){
+                $sizeInclude = ["nominal_height"];
+                $query = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', 'nominal_height')
+                    ->distinct()
+                    ->availableFor($user)
+                    ->where("product", $productString);
+            }
+            //BUNDLE
+            if($algo === NestingEnums::BUNDLE->value){
+                $sizeInclude = ["nominal_length","nominal_width"];
+                $query = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', 'nominal_length','nominal_width')
+                    ->distinct()
+                    ->availableFor($user)
+                    ->where("product", $productString);
+            }
 
             //Material
             if (!is_null($materialEnum)) {
@@ -100,17 +126,17 @@ class ProductService
             }
 
             //Nominal length
-            if (!is_null($nominalLengthInt)) {
+            if (!is_null($nominalLengthInt) && in_array("nominal_length",$sizeInclude)) {
                 $query->where("nominal_length", $nominalLengthInt);
             }
 
             //Nominal width
-            if (!is_null($nominalWidthInt)) {
+            if (!is_null($nominalWidthInt) && in_array("nominal_width",$sizeInclude)) {
                 $query->where("nominal_width", $nominalWidthInt);
             }
 
             //Nominal height
-            if (!is_null($nominalHeightInt)) {
+            if (!is_null($nominalHeightInt) && in_array("nominal_height",$sizeInclude)) {
                 $query->where("nominal_height", $nominalHeightInt);
             }
 
@@ -976,7 +1002,9 @@ class ProductService
                     "surface" => $item["surface"],
                     "nominal_units" => $item["nominal_units"],
                     "nesting_algo" => (new NestingService())->getNestingLabelsFromProduct($item["product"])[0],
-                    "size" => $item["size"],
+                    "nominal_length" => $item["nominal_length"] ?? null,
+                    "nominal_width" => $item["nominal_width"] ?? null,
+                    "nominal_height" => $item["nominal_height"] ?? null,
                     "actual_length" => $cleanRow["length_required"], //For singular items like bolts, this is "QTY" that's divisible.
                     "actual_width" => $cleanRow["width_required"],
                     "actual_qty" => $cleanRow["sub_qty"],

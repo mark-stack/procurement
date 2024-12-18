@@ -30,10 +30,10 @@ class TemplateImplementation implements NotificationInterface
         $things = []; //todo
         foreach($things as $thing) {
             $recipient = 999; //todo
-
-            if (!$this->notifiedAlready($recipient)) {
+            $otherObject = 999; //todo
+            if (!$this->notifiedAlready($recipient, $otherObject)) {
                 //Mark all previous as read
-                $this->markPreviousAsRead($recipient);
+                $this->markPreviousAsRead($recipient, $otherObject);
 
                 //Send notification
                 $otherObject = 999; //todo
@@ -42,14 +42,16 @@ class TemplateImplementation implements NotificationInterface
         }
     }
 
-    public function notifiedAlready(object $recipient): bool
+    public function notifiedAlready(object $recipient, int $uniqueModelId): bool
     {
         $class = $this->getNotificationClass();
 
         $subInterval = $this->subInterval;
+        $classWithPath = "App\Notifications\\".$class;
         return $recipient->notifications()
-            ->where("type","App\Notifications\{$class}")
+            ->where("type",$classWithPath)
             ->where("notifiable_type","App\Models\User")
+            ->where("data->xxx_id",999)//todo unique model id
             ->whereBetween('created_at', [Carbon::now()->$subInterval(1), Carbon::now()]) //todo At least 1 day since last reminder
             ->exists();
     }
@@ -77,7 +79,7 @@ class TemplateImplementation implements NotificationInterface
         return "QuoteDueEmail";
     }
 
-    public function markPreviousAsRead(object $recipient): void
+    public function markPreviousAsRead(object $recipient, object $otherObject): void
     {
         $class = $this->getNotificationClass();
         $classWithPath = "App\Notifications\\".$class;
@@ -85,6 +87,7 @@ class TemplateImplementation implements NotificationInterface
         $recipient->notifications()
             ->where("type",$classWithPath)
             ->where("notifiable_type","App\Models\User")
+            ->where("data->xxx_id",$otherObject) //todo
             ->update(['read_at' => now()]);
     }
 

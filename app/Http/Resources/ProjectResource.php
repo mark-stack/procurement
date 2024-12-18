@@ -27,6 +27,9 @@ class ProjectResource extends JsonResource
             "hasRawMaterialQuotes" => $this->rawMaterialQuotes()->count() > 0,
             "percentageOfMaterialsQuoted" => $this->percentageOfMaterialsQuoted(),
             "percentageOfMaterialsOrdered" => $this->percentageOfMaterialsOrdered(),
+            "daysUntilQuoteRequestDeadline" => $this->daysUntilQuoteRequestDeadline(),
+            "quoteRequestDeadline" => $this->quoteRequestDeadline(),
+            "user" => $this->user,
         ];
     }
 }
