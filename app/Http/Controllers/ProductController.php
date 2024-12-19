@@ -11,6 +11,7 @@ use App\Enums\SurfaceEnums;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
+use App\Services\CsvService;
 use App\Services\NestingService;
 use App\Services\NotificationService;
 use App\Services\ProductService;
@@ -168,53 +169,28 @@ class ProductController extends Controller
      */
     public function store(Request $request, Project $project): RedirectResponse
     {
+        /**
+         * Single purpose: extract and save materials in a CSV material list
+         */
+        //Validate
         $request->validate([
-            'csv' => 'required|mimes:csv,txt|max:2048', // Validate the file
+            'csv' => 'required|mimes:csv,txt|max:2048',
         ]);
 
-        // Store the uploaded file temporarily
+        //Services
+        $csvService = new CsvService();
+
+        //Store the uploaded file temporarily
         $path = $request->file('csv')->store('uploads');
 
-        // Read the CSV
-        $data = [];
-        if (($handle = fopen(storage_path("app/private/{$path}"), 'r')) !== false) {
-            while (($row = fgetcsv($handle, 1000, ',')) !== false) {
-                $data[] = $row;
-            }
-            fclose($handle);
-        }
+        //Read the CSV
+        $csvArray = $csvService->csvToArray($path);
 
-        /**
-         * Template detection
-         */
-        $productService = new ProductService();
-        $templatesDetected = $productService->templatesDetected($data,$project->user);
+        //Process the CSV
+        $return = $csvService->processCsv($csvArray,$project);
 
-        // Optionally delete the file after processing
+        // Delete the file after processing
         unlink(storage_path("app/private/{$path}"));
-
-        //Only 1 template found (ideal scenario)
-        $return = back();
-        $onlyOneResult = count($templatesDetected) === 1;
-        if($onlyOneResult){
-            //Clean the data (but no default assumptions yet)
-            $cleanCsvData = $productService->cleanCsvData($data,$templatesDetected[0],$project);
-
-            //Sense checks
-            //$productService->senseChecks(); //todo incomplete
-
-            //Find price book products
-            $dataWithProducts = $productService->findProductsFromCleanData($cleanCsvData,$project->user);
-
-            //Save user material list
-            $cleanMaterialList = $productService->saveRawMaterialQuoteData($dataWithProducts,$project);
-
-            //Create new user-custom products
-            $productService->createUserCustomProducts($dataWithProducts,$project);
-        }
-        else{
-            $return = back()->with("warning","The file didn't auto-detect properly. Did the template change? Please email the file to mark.laravel.coder@gmail to have it re-calibrated");
-        }
 
         return $return;
     }

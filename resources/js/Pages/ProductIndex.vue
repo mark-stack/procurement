@@ -252,6 +252,12 @@
         //Has one product match
         if(row['product']){
             let product = row['product'];
+
+            //todo debugging
+            if(product.product === "LVL"){
+                console.log("LVL",product);
+            }
+
             display = shared.formatProduct(product.product,product.nominal_length,product.nominal_width,product.nominal_height,product.grade, product.surface);
         }
 
@@ -509,7 +515,7 @@
                     <div class="overflow-x-auto">
                         <div class="inline-block min-w-full py-2 align-middle">
                             <div class="overflow-hidden border border-gray-200 dark:border-gray-700 md:rounded-lg">
-                                <div class="relative overflow-auto" :style="'height:' + (screenHeight - 300) + 'px'">
+                                <div class="relative overflow-auto">
                                     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                                         <thead class="sticky top-0 bg-gray-50 dark:bg-gray-800">
                                         <tr>

@@ -85,7 +85,7 @@ class NestingService
 
 
 
-        $purchasableLengths = $this->getPurchasableLengths($materialSpec);
+        $purchasableLengths = $this->getPurchasableVariations($materialSpec);
         dd([
             "rawMaterialQuote" => $rawMaterialQuote,
             "measurementEnum" => $measurementEnum,
@@ -396,7 +396,7 @@ class NestingService
                     }
                 }
 
-                $purchasableLengths = $this->getPurchasableLengths($materialSpec);
+                $purchasableLengths = $this->getPurchasableVariations($materialSpec);
 
                 $appended->pieces = $piecesArray;
                 $appended->purchasable = $purchasableLengths;
@@ -460,7 +460,7 @@ class NestingService
                 $appended->algo = $nestingAlgoLabel;
 
                 $piecesArray = [];
-                $boxSizes = $this->getPurchasableLengths($materialSpec); //todo: "lengths" is substitute for qty?
+                $boxSizes = $this->getPurchasableVariations($materialSpec); //todo: "lengths" is substitute for qty?
                 $totalQty = 0;
                 foreach($pieces as $piece){
                     $piecesArray[] = [
@@ -576,7 +576,9 @@ class NestingService
             ->where("grade",$materialSpec->grade)
             ->where("surface",$materialSpec->surface)
             ->where("nominal_units",$materialSpec->nominal_units)
-            ->where("size",$materialSpec->size)
+            ->where("nominal_length",$materialSpec->nominal_length)
+            ->where("nominal_width",$materialSpec->nominal_width)
+            ->where("nominal_height",$materialSpec->nominal_height)
             ->pluck("nominal_length") //todo
             ->toArray();
     }

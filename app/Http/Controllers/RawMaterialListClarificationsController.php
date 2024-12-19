@@ -8,6 +8,7 @@ use App\Enums\MeasurementUnitEnums;
 use App\Enums\SurfaceEnums;
 use App\Models\Business;
 use App\Models\RawMaterialQuote;
+use App\Services\DataClassificationService;
 use App\Services\NotificationService;
 use App\Services\ProductService;
 use Illuminate\Http\RedirectResponse;
@@ -26,14 +27,16 @@ class RawMaterialListClarificationsController extends Controller
          * It's saved by making the "general_product_matches" field = 1x product.
          */
         $user = auth()->user();
-        $productService = new ProductService();
+
+        //Services
+        $dataClassificationService = new DataClassificationService();
 
         foreach($request->all() as $item){
             $selectedProduct = $item["options"][$item["selected"]];
 
             $rawMaterialQuote = RawMaterialQuote::findOrFail($item["data"]["id"]);
 
-            $generalProductMatches = $productService->findGeneralProductMatches(
+            $generalProductMatches = $dataClassificationService->findGeneralProductMatches(
                 $user,
                 $selectedProduct["product"],
                 MaterialEnums::from($selectedProduct["material"]),
