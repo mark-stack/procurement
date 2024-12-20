@@ -10,6 +10,7 @@
     //Props
     const props = defineProps({
         projects: Object,
+        countArchivedProjects: Number,
     });
 
     //Form
@@ -27,6 +28,7 @@
 
     //Variables
     const editProject = ref(null);
+    const showArchivedProjects = ref(false);
 
     //Shared Methods
     //...
@@ -63,7 +65,7 @@
             });
         }
     }
-    function submitDelete(id){
+    function submitArchiveToggle(id){
         let url = route("projects.destroy",id);
         formProjectDelete.delete(url, {
             preserveScroll: true,
@@ -76,11 +78,12 @@
         });
     }
 
-    function deleteConfirmation(id) {
-        const userConfirmed = confirm("Are you sure you want to archive this project? Any quotes or products created from this project will be retained.");
+    function toggleArchive(project) {
+        let msg = project.archive ? "Are you sure you want to restore this project?" : "Are you sure you want to archive this project? It can be restored later of you choose";
+        const userConfirmed = confirm(msg);
         if (userConfirmed) {
             // User clicked "OK"
-            submitDelete(id)
+            submitArchiveToggle(project.id)
         }
     }
 
@@ -93,6 +96,17 @@
         formProjectCreate.date_materials_required = project.date_materials_required;
         formProjectCreate.reference = project.reference;
         formProjectCreate.tentative = project.tentative;
+    }
+
+    function showRow(project){
+        let showRow = true;
+
+        if(showArchivedProjects.value === false){
+            showRow = !project.archive;
+        }
+
+
+        return showRow;
     }
 </script>
 
@@ -227,74 +241,90 @@
                                             </tr>
                                         </thead>
                                         <tbody class="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-gray-900">
-                                            <tr v-for="project in projects.data">
-                                                <td class="px-4 py-4 text-sm font-medium text-gray-700 whitespace-nowrap">
-                                                    <div class="inline-flex items-center gap-x-3">
-                                                        <div class="flex items-center gap-x-2">
-                                                            <div>
-                                                                <h2 class="font-medium text-gray-800 dark:text-white ">{{ project.name }}</h2>
-                                                                <small>Ref: {{project.reference}}</small>
+                                            <template v-for="project in projects.data">
+                                                <tr v-if="showRow(project)" :class="project.archive ? 'bg-red-50' : ''">
+                                                    <td class="px-4 py-4 text-sm font-medium text-gray-700 whitespace-nowrap">
+                                                        <div class="inline-flex items-center gap-x-3">
+                                                            <div class="flex items-center gap-x-2">
+                                                                <div>
+                                                                    <h2 class="font-medium text-gray-800 dark:text-white ">{{ project.name }}</h2>
+                                                                    <small>Ref: {{project.reference}}</small>
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                </td>
-                                                <td class="px-8 py-4 text-sm font-medium text-gray-700 whitespace-nowrap">
-                                                    <div
-                                                        :class="project.awarded ? 'bg-emerald-100/60' : 'bg-yellow-200/60'"
-                                                        class="inline-flex items-center px-3 py-1 rounded-full gap-x-2 dark:bg-gray-800"
-                                                    >
+                                                    </td>
+                                                    <td class="px-8 py-4 text-sm font-medium text-gray-700 whitespace-nowrap">
+                                                        <div
+                                                            :class="project.archive ? 'bg-gray-100/60' : (project.awarded ? 'bg-emerald-100/60' : 'bg-yellow-200/60')"
+                                                            class="inline-flex items-center px-3 py-1 rounded-full gap-x-2 dark:bg-gray-800"
+                                                        >
                                                         <span
-                                                            :class="project.awarded ? 'bg-emerald-500' : 'bg-yellow-500'"
+                                                            :class="project.archive ? 'bg-gray-500' : (project.awarded ? 'bg-emerald-500' : 'bg-yellow-500')"
                                                             class="h-1.5 w-1.5 rounded-full"
                                                         ></span>
 
-                                                        <h2
-                                                            :class="project.awarded ? 'text-emerald-500' : 'text-yellow-800'"
-                                                            class="text-sm font-semibold"
-                                                        >
-                                                            {{project.awarded ? 'Awarded' : 'Tender'}}
-                                                        </h2>
-                                                    </div>
-                                                </td>
-                                                <td class="px-4 py-4 text-sm whitespace-nowrap">
-                                                    <div class="flex justify-center items-center gap-x-6">
-                                                        <Link
-                                                            :href="route('products.store',project.id)"
-                                                            :class="project.hasRawMaterialQuotes ? 'bg-green-50 border-green-300 hover:bg-green-100' : 'bg-orange-50 border-orange-300 hover:bg-orange-100'"
-                                                            class="px-2 py-1 rounded border-2"
-                                                        >
-                                                            {{project.hasRawMaterialQuotes ? 'Imported Materials' : 'Import Materials'}}
-                                                        </Link>
-                                                    </div>
-                                                </td>
-                                                <td
-                                                    class="font-bold px-4 py-4 text-sm whitespace-nowrap text-center"
-                                                    :class="project.percentageOfMaterialsQuoted < 70 ? 'text-orange-500' : ''"
-                                                >
-                                                    {{project.percentageOfMaterialsQuoted}}%
-                                                </td>
-                                                <td
-                                                    class="font-bold px-4 py-4 text-sm whitespace-nowrap text-center"
-                                                    :class="project.percentageOfMaterialsOrdered < 70 ? 'text-orange-500' : ''"
-                                                >
-                                                    {{project.percentageOfMaterialsOrdered}}%
-                                                </td>
-                                                <td class="px-4 py-4 text-sm whitespace-nowrap">
-                                                    <div class="flex justify-center items-center gap-x-6">
-                                                        <button
-                                                            @click="deleteConfirmation(project.id)"
-                                                            class="text-gray-500 transition-colors duration-200 dark:hover:text-red-500 dark:text-gray-300 hover:text-red-500 focus:outline-none"
-                                                        >
-                                                            Archive
-                                                        </button>
-                                                        <button @click="editMode(project)">
-                                                            Edit
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
+                                                            <h2
+                                                                :class="project.archive ? 'text-gray-500' : (project.awarded ? 'text-emerald-500' : 'text-yellow-800')"
+                                                                class="text-sm font-semibold"
+                                                            >
+                                                                {{project.awarded ? 'Awarded' : 'Tender'}}
+                                                            </h2>
+                                                        </div>
+                                                    </td>
+                                                    <td class="px-4 py-4 text-sm whitespace-nowrap">
+                                                        <div class="flex justify-center items-center gap-x-6">
+                                                            <p
+                                                                v-if="project.archive"
+                                                                class="px-2 py-1 rounded border-2 bg-gray-300 border-gray-500"
+                                                            >
+                                                                {{project.hasRawMaterialQuotes ? 'Imported Materials' : 'Import Materials'}}
+                                                            </p>
+                                                            <Link
+                                                                v-else
+                                                                :href="route('products.store',project.id)"
+                                                                :class="project.hasRawMaterialQuotes ? 'bg-green-50 border-green-300 hover:bg-green-100' : 'bg-orange-50 border-orange-300 hover:bg-orange-100'"
+                                                                class="px-2 py-1 rounded border-2"
+                                                            >
+                                                                {{project.hasRawMaterialQuotes ? 'Imported Materials' : 'Import Materials'}}
+                                                            </Link>
+                                                        </div>
+                                                    </td>
+                                                    <td
+                                                        class="font-bold px-4 py-4 text-sm whitespace-nowrap text-center"
+                                                        :class="project.percentageOfMaterialsQuoted < 70 ? 'text-orange-500' : ''"
+                                                    >
+                                                        {{project.percentageOfMaterialsQuoted}}%
+                                                    </td>
+                                                    <td
+                                                        class="font-bold px-4 py-4 text-sm whitespace-nowrap text-center"
+                                                        :class="project.percentageOfMaterialsOrdered < 70 ? 'text-orange-500' : ''"
+                                                    >
+                                                        {{project.percentageOfMaterialsOrdered}}%
+                                                    </td>
+                                                    <td class="px-4 py-4 text-sm whitespace-nowrap">
+                                                        <div class="flex justify-center items-center gap-x-6">
+                                                            <button
+                                                                @click="toggleArchive(project)"
+                                                                class="text-gray-500 transition-colors duration-200 dark:hover:text-red-500 dark:text-gray-300 hover:text-red-500 focus:outline-none"
+                                                            >
+                                                                {{project.archive ? 'Restore' : 'Archive'}}
+                                                            </button>
+                                                            <button v-if="!project.archive" @click="editMode(project)">
+                                                                Edit
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            </template>
                                         </tbody>
                                     </table>
+                                </div>
+                                <div
+                                    v-if="countArchivedProjects > 0"
+                                    @click="showArchivedProjects = !showArchivedProjects"
+                                    class="text-center text-blue-500 underline mt-3"
+                                >
+                                    {{showArchivedProjects ? 'Hide' : 'Show'}} {{countArchivedProjects}} Archived Project{{countArchivedProjects > 1 ? 's' : ''}}
                                 </div>
                             </div>
                         </div>

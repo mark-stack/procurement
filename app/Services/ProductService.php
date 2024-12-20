@@ -122,6 +122,11 @@ class ProductService
                     "status" => "EXACT",
                     "decodedOption" => $decodedOptions[0],
                 ];
+
+                //todo debugging
+//                if($result["decodedOption"]["product"] === "LVL"){
+//                    dd("LVL",$result["decodedOption"]);
+//                }
             }
 
             /**

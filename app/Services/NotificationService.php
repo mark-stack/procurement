@@ -16,7 +16,7 @@ class NotificationService
 
                 //Loop through all interface implementations
                 foreach($implementations as $implementation){
-                    $className = 'App\\Services\\Interfaces\\'.$implementation;
+                    $className = 'App\\Services\\NotificationImplementations\\'.$implementation;
 
                     // Check if the class exists
                     if (class_exists($className)) {
@@ -88,13 +88,10 @@ class NotificationService
 
     public function getImplementations(): array
     {
-        $directory = app_path('Services/Interfaces');
+        $directory = app_path('Services/NotificationImplementations');
         return collect(File::files($directory))
             ->map(function ($file) {
                 return $file->getFilename();
-            })
-            ->reject(function ($filename) {
-                return $filename === 'NotificationInterface.php';
             })
             ->map(function ($filename) {
                 return pathinfo($filename, PATHINFO_FILENAME);

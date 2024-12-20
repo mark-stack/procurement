@@ -1,54 +1,49 @@
 <?php
 
-namespace App\Services\Interfaces;
+namespace App\Services\NotificationImplementations;
 
 use App\Models\Project;
-use App\Notifications\QuoteDueEmail;
+use App\Notifications\ProjectTentativeDateCheckEmail;
+use App\Services\Interfaces\NotificationInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Carbon;
 
-class NotificationQuoteDueImplementation implements NotificationInterface
+class NotificationMaterialsDateImplementation implements NotificationInterface
 {
     public string $subInterval;
-    public string $addInterval;
-
     public function __construct()
     {
         $testMode = env("TEST_MODE");
         $this->subInterval = $testMode ? 'subMinutes' : 'subDays';
-        $this->addInterval = $testMode ? 'addMinutes' : 'addDays';
     }
 
     public function hourlyCheck(): void
     {
         /**
-         * Quote due
-         * 1) Project is active
-         * 2) Project is awarded
-         * 3) Expected or default lead time + 2 days before material received date
-         * 4) At least 1 day since last reminder
-         * 5) Not all materials quotes
+         * Is the materials date still correct?
+         * 1) Project is active (not archived)
+         * 2) Project tentative = true
+         * 3) At least 2 days since creating the project (so it doesn't immediate send)
+         * 4) At least 2 days since last reminder
          */
+        $subInterval = $this->subInterval;
 
-        $quoteDueProjects = Project::query()
-            ->active()                          //1) Project is active (not archived)
-            ->awarded()                         //2) Project "awarded" = true
-            ->beforeMaterialsQuotingDeadline()  //3) Expected or default lead time + 2 days before material received date
+        $tentativeProjects = Project::query()
+            ->active()                             //1) Project is active (not archived)
+            ->where("tentative",true)              //2) Project tentative = true
+            ->whereBetween('created_at', [Carbon::now()->$subInterval(2), Carbon::now()]) //3)
             ->get();
 
-        foreach($quoteDueProjects as $project) {
-            //5) Not all materials quotes
-            if($project->percentageOfMaterialsQuoted() < 100){
-                $projectManager = $project->user;
+        foreach($tentativeProjects as $project) {
+            $projectManager = $project->user;
 
-                if (!$this->notifiedAlready($projectManager,$project->id)) {
-                    //Mark all previous as read
-                    $this->markPreviousAsRead($projectManager,$project);
+            if (!$this->notifiedAlready($projectManager,$project)) {
+                //Mark all previous as read
+                $this->markPreviousAsRead($projectManager,$project);
 
-                    //Send notification
-                    $this->sendNotification($projectManager,$project);
-                }
+                //Send notification
+                $this->sendNotification($projectManager,$project);
             }
         }
     }
@@ -63,7 +58,7 @@ class NotificationQuoteDueImplementation implements NotificationInterface
             ->where("type",$classWithPath)
             ->where("notifiable_type","App\Models\User")
             ->where("data->project_id",$uniqueModelId)
-            ->whereBetween('created_at', [Carbon::now()->$subInterval(1), Carbon::now()]) //At least 1 day since last reminder
+            ->whereBetween('created_at', [Carbon::now()->$subInterval(2), Carbon::now()])
             ->exists();
     }
 
@@ -71,19 +66,37 @@ class NotificationQuoteDueImplementation implements NotificationInterface
     {
         $project = $otherObject;
         $message = $this->message($project->date_materials_required, $project->name);
-        $recipient->notify(new QuoteDueEmail($project, $recipient, $message));
+        $recipient->notify(new ProjectTentativeDateCheckEmail($project, $recipient, $message));
     }
 
     public function checkProjectChanges(Project $project): void
     {
         /**
          * Look for any notifications made redundant by project model update, and mark as read
+         * 1) Changed to tentative=false
          */
+
+        /*
+         * Is the tentative materials date still correct?
+         * Condition: tentative=false
+         * enum: TENTATIVE_MATERIALS_DATE_CORRECT
+         */
+        if($project->tentative === false){
+            $class = $this->getNotificationClass();
+            $classWithPath = "App\Notifications\\".$class;
+            $recipient = $project->user;
+
+            $recipient->notifications()
+                ->where("type",$classWithPath)
+                ->where("notifiable_type","App\Models\User")
+                ->where("data->project_id",$project->id)
+                ->update(['read_at' => now()]);
+        }
     }
 
     public function getNotificationClass(): string
     {
-        return "QuoteDueEmail";
+        return "ProjectTentativeDateCheckEmail";
     }
 
     public function markPreviousAsRead(object $recipient, object $otherObject): void
@@ -114,20 +127,37 @@ class NotificationQuoteDueImplementation implements NotificationInterface
 
     public function markGreen(DatabaseNotification $notification): RedirectResponse
     {
+        /**
+         * "Lock it in"
+         * tentative=true
+         */
+        $project = Project::findOrFail($notification->data["project_id"]);
+        $project->tentative = false;
+        $project->save();
+
         //Mark as read
         $notification->markAsRead();
 
-        //Go to quote index
-        return redirect()->route('quotes.index');
+        return back();
     }
 
     public function markRed(DatabaseNotification $notification): RedirectResponse
     {
-        //Not used
+        /**
+         * "No"
+         * redirect to project edit
+         */
+
+        //Mark as read
+        $notification->markAsRead();
+
+        //Go to project index
+        return redirect()->route('projects.index');
     }
 
     public function markYellow(DatabaseNotification $notification): RedirectResponse
     {
+        //"same"
         $notification->markAsRead();
 
         return back();
@@ -156,9 +186,9 @@ class NotificationQuoteDueImplementation implements NotificationInterface
                 "message" => $message,
                 "timestamp" => $notification->created_at->diffForHumans(),
                 "trafficLights" => [
-                    "green" => ["Ok","(Go to)"],
-                    "yellow" => ["Wait","(Ask later)"],
-                    "red" => null,
+                    "green" => ["Lock it in","(Update)"],
+                    "yellow" => ["Same","(Ask later)"],
+                    "red" => ["No","(Edit)"],
                 ],
             ];
         }
@@ -171,6 +201,6 @@ class NotificationQuoteDueImplementation implements NotificationInterface
         $materialsDate = $string_1;
         $projectName = $string_2;
 
-        return 'The materials for "'.$projectName.'" are due to be quoted so they can be received before '.$materialsDate;
+        return "Is the tentative materials date of ".$materialsDate." for '".$projectName."' still correct?";
     }
 }

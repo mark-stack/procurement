@@ -309,41 +309,41 @@
                 </button>
             </section>
 
-            <!-- Pre-upload checklist and file upload -->
-            <template v-if="senseChecks.length === 0">
+            <!-- Pre-upload checklist and file upload (v-if="senseChecks.length === 0") -->
+            <template v-if="!hasClarifications() && !hasUserCustomProducts()">
                 <!-- clarifications (might re-upload) -->
-                <section class="container max-w-5xl mx-auto">
-                    <h2 class="font-bold text-lg">Pre-upload checklist:</h2>
-                    <div class="flex">
-                        <input
-                            v-model="formPreChecklist.one"
-                            type="checkbox"
-                            class="mt-1 mr-2"
-                            id="one"
-                        />
-                        <label for="one">Are materials un-nested? <small>(the software performs cross-project nesting for material efficiency)</small></label>
-                    </div>
-                    <div class="flex">
-                        <input
-                            v-model="formPreChecklist.two"
-                            type="checkbox"
-                            class="mt-1 mr-2"
-                            id="two"
-                        />
-                        <label for="two">Are consumables allowed for?</label>
-                    </div>
-                    <div class="flex">
-                        <input
-                            v-model="formPreChecklist.three"
-                            type="checkbox"
-                            class="mt-1 mr-2"
-                            id="three"
-                        />
-                        <label for="three">Are deliveries allowed for?</label>
-                    </div>
-                </section>
+<!--                <section class="container max-w-5xl mx-auto">-->
+<!--                    <h2 class="font-bold text-lg">Pre-upload checklist:</h2>-->
+<!--                    <div class="flex">-->
+<!--                        <input-->
+<!--                            v-model="formPreChecklist.one"-->
+<!--                            type="checkbox"-->
+<!--                            class="mt-1 mr-2"-->
+<!--                            id="one"-->
+<!--                        />-->
+<!--                        <label for="one">Are materials un-nested? <small>(the software performs cross-project nesting for material efficiency)</small></label>-->
+<!--                    </div>-->
+<!--                    <div class="flex">-->
+<!--                        <input-->
+<!--                            v-model="formPreChecklist.two"-->
+<!--                            type="checkbox"-->
+<!--                            class="mt-1 mr-2"-->
+<!--                            id="two"-->
+<!--                        />-->
+<!--                        <label for="two">Are consumables allowed for?</label>-->
+<!--                    </div>-->
+<!--                    <div class="flex">-->
+<!--                        <input-->
+<!--                            v-model="formPreChecklist.three"-->
+<!--                            type="checkbox"-->
+<!--                            class="mt-1 mr-2"-->
+<!--                            id="three"-->
+<!--                        />-->
+<!--                        <label for="three">Are deliveries allowed for?</label>-->
+<!--                    </div>-->
+<!--                </section>-->
 
-                <div v-show="formPreChecklist.one && formPreChecklist.two && formPreChecklist.three" class="mx-auto max-w-5xl mt-2">
+                <div class="mx-auto max-w-5xl mt-2">
                     <div class="overflow-hidden shadow-sm sm:rounded-lg">
                         <div>
                             <div

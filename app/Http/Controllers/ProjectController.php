@@ -18,12 +18,16 @@ class ProjectController extends Controller
     {
         $user = auth()->user();
         $projects = $user->projects()
-            ->active()
             ->latest()
             ->get();
 
+        $countArchivedProjects = $user->projects()
+            ->where('archive',true)
+            ->count();
+
         return Inertia::render('Dashboard',[
             "projects" => ProjectResource::collection($projects),
+            "countArchivedProjects" => $countArchivedProjects,
         ]);
     }
 
@@ -106,9 +110,12 @@ class ProjectController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Project $project)
+    public function destroy(Project $project): RedirectResponse
     {
-        $project->archive = true;
+        /**
+         * Single purpose: toggle archive/restore
+         */
+        $project->archive = !$project->archive;
         $project->save();
 
         return back();

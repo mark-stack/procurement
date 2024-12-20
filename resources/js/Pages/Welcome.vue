@@ -20,12 +20,12 @@
 
     //Shared data
     const user = usePage().props.auth.user;
-    console.log("user",user);
 
     //Variables
-    const months = 2;
-    const years = 3;
-    const price = 20000;
+    const trial_months = 2;
+    const savings_period_years = 5;
+    const plan_period_years = 1/52;
+    const price = 195;
 
     //Shared Methods
     //...
@@ -35,9 +35,9 @@
         let spend = formCalculator.spend * 1000000;
         let wasteFraction = (100 - formCalculator.waste)/100; //e.g 3% = 0.97
         let discountFraction = (100 - formCalculator.discounts)/100; //e.g 3% = 0.97
-        let result = years * (spend - (spend * wasteFraction * discountFraction));
+        let savingsOverPeriod = savings_period_years * (spend - (spend * wasteFraction * discountFraction));
 
-        return result;
+        return savingsOverPeriod;
     }
 
     function beforeFees(){
@@ -70,6 +70,25 @@
         }
 
         return display;
+    }
+
+    function getSuffix(plan_period_years){
+        let suffix = "";
+
+        //Yearly
+        if(plan_period_years === 1){
+            suffix = "/year";
+        }
+        //Monthly
+        else if(plan_period_years === (1/12)){
+            suffix = "/month";
+        }
+        //Weekly
+        else if(plan_period_years === (1/52)){
+            suffix = "/week";
+        }
+
+        return suffix;
     }
 </script>
 
@@ -221,7 +240,7 @@
                         :href="route('login')"
                         class="inline-flex items-center justify-center w-full h-12 px-6 mb-3 font-medium tracking-wide text-white transition duration-200 rounded shadow-md md:w-auto md:mr-4 md:mb-0 bg-deep-purple-accent-400 hover:bg-deep-purple-accent-700 focus:shadow-outline focus:outline-none"
                     >
-                        <span class="mr-3">{{months}} Months FREE TRIAL</span>
+                        <span class="mr-3">{{trial_months}} Months FREE TRIAL</span>
                     </Link>
                 </div>
             </div>
@@ -236,8 +255,9 @@
                     <!-- Pricing slider -->
                     <SavingsCalculator
                         :formCalculator="formCalculator"
-                        :years="years"
+                        :years="savings_period_years"
                         :price="price"
+                        :plan_period_years="plan_period_years"
                     />
                 </div>
             </div>
@@ -407,8 +427,9 @@
                 <!-- Pricing slider -->
                 <SavingsCalculator
                     :formCalculator="formCalculator"
-                    :years="years"
+                    :years="savings_period_years"
                     :price="price"
+                    :plan_period_years="plan_period_years"
                 />
             </div>
         </div>
@@ -572,7 +593,7 @@
                     <div class="flex items-center justify-between pb-6 mb-6 border-b">
                         <div>
                             <p class="text-sm font-bold tracking-wider uppercase">
-                                {{months}} Months Trial
+                                {{trial_months}} Months Trial
                             </p>
                             <p class="text-5xl font-extrabold">Free</p>
                         </div>
@@ -587,7 +608,7 @@
                                         <circle cx="12" cy="12" fill="none" r="11" stroke="currentColor"></circle>
                                     </svg>
                                 </div>
-                                <p class="font-medium text-gray-800">{{months}} Months Trial</p>
+                                <p class="font-medium text-gray-800">{{trial_months}} Months Trial</p>
                             </li>
                             <li class="flex items-center">
                                 <div class="mr-2">
@@ -596,7 +617,7 @@
                                         <circle cx="12" cy="12" fill="none" r="11" stroke="currentColor"></circle>
                                     </svg>
                                 </div>
-                                <p class="font-medium text-gray-800">Unlimited staff quote templates</p>
+                                <p class="font-medium text-gray-800">Unlimited import templates</p>
                             </li>
                             <li class="flex items-center">
                                 <div class="mr-2">
@@ -629,10 +650,13 @@
                 <div class="mb-6">
                     <div class="flex items-center justify-between pb-6 mb-6 border-b">
                         <div>
-                            <p class="text-sm font-bold tracking-wider uppercase">
-                                {{years}} year{{years > 1 ? 's' : ''}} unlimited usage
+                            <p v-if="plan_period_years > 1" class="text-sm font-bold tracking-wider uppercase">
+                                {{plan_period_years}} year{{plan_period_years > 1 ? 's' : ''}} unlimited usage
                             </p>
-                            <p class="text-5xl font-extrabold">A${{ price.toLocaleString('en-US') }}</p>
+                            <p v-else class="text-sm font-bold tracking-wider uppercase">
+                                Unlimited plan
+                            </p>
+                            <p class="text-5xl font-extrabold">A${{ price.toLocaleString('en-US') }}<span class="text-xl">{{ getSuffix(plan_period_years) }}</span></p>
                         </div>
                     </div>
                     <div>
@@ -645,7 +669,7 @@
                                         <circle cx="12" cy="12" fill="none" r="11" stroke="currentColor"></circle>
                                     </svg>
                                 </div>
-                                <p class="font-medium text-gray-800">Unlimited staff quote templates</p>
+                                <p class="font-medium text-gray-800">Unlimited import templates</p>
                             </li>
                             <li class="flex items-center">
                                 <div class="mr-2">

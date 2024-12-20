@@ -1,20 +1,13 @@
 <?php
 
 //todo: experimental
-use App\Models\Product;
 use App\Models\Project;
 use App\Models\User;
-use App\Services\Interfaces\NotificationProjectAwardedImplementation;
 use App\Services\NestingService;
 use App\Services\NotificationService;
 use App\Services\ProductService;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
-use MagicLink\Actions\LoginAction;
-use MagicLink\MagicLink;
-use Illuminate\Support\Facades\File;
 
 //todo temporary
 Route::get("pickles",function(){
@@ -47,7 +40,7 @@ Route::get("test",function(){
 
     $implementations = (new NotificationService())->getImplementations();
     foreach($implementations as $implementation){
-        $className = 'App\\Services\\Interfaces\\'.$implementation;
+        $className = 'App\\Services\\NotificationImplementations\\'.$implementation;
 
         // Check if the class exists
         if (class_exists($className)) {

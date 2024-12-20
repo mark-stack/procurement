@@ -26,7 +26,7 @@ class ProjectObserver
          */
         $implementations = (new NotificationService())->getImplementations();
         foreach($implementations as $implementation){
-            $className = 'App\\Services\\Interfaces\\'.$implementation;
+            $className = 'App\\Services\\NotificationImplementations\\'.$implementation;
 
             // Check if the class exists
             if (class_exists($className)) {

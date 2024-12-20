@@ -1,16 +1,18 @@
 <?php
 
-namespace App\Services\Interfaces;
+namespace App\Services\NotificationImplementations;
 
 use App\Models\Project;
-use App\Notifications\ProjectTentativeDateCheckEmail;
+use App\Notifications\ProjectAwardedCheckEmail;
+use App\Services\Interfaces\NotificationInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Carbon;
 
-class NotificationMaterialsDateImplementation implements NotificationInterface
+class NotificationProjectAwardedImplementation implements NotificationInterface
 {
     public string $subInterval;
+
     public function __construct()
     {
         $testMode = env("TEST_MODE");
@@ -20,26 +22,25 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
     public function hourlyCheck(): void
     {
         /**
-         * Is the materials date still correct?
+         * Has the project been awarded to you?
          * 1) Project is active (not archived)
-         * 2) Project tentative = true
+         * 2) Project "awarded" = false
          * 3) At least 2 days since creating the project (so it doesn't immediate send)
          * 4) At least 2 days since last reminder
          */
         $subInterval = $this->subInterval;
-
-        $tentativeProjects = Project::query()
-            ->active()                             //1) Project is active (not archived)
-            ->where("tentative",true)              //2) Project tentative = true
+        $nonAwardedProjects = Project::query()
+            ->active()                                                  //1) Project is active (not archived)
+            ->where("awarded",false)                                    //2) Project "awarded" = false
             ->whereBetween('created_at', [Carbon::now()->$subInterval(2), Carbon::now()]) //3)
             ->get();
 
-        foreach($tentativeProjects as $project) {
+        foreach($nonAwardedProjects as $project) {
             $projectManager = $project->user;
 
-            if (!$this->notifiedAlready($projectManager,$project)) {
+            if (!$this->notifiedAlready($projectManager, $project)) {
                 //Mark all previous as read
-                $this->markPreviousAsRead($projectManager,$project);
+                $this->markPreviousAsRead($projectManager, $project);
 
                 //Send notification
                 $this->sendNotification($projectManager,$project);
@@ -57,30 +58,29 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
             ->where("type",$classWithPath)
             ->where("notifiable_type","App\Models\User")
             ->where("data->project_id",$uniqueModelId)
-            ->whereBetween('created_at', [Carbon::now()->$subInterval(2), Carbon::now()])
+            ->whereBetween('created_at', [Carbon::now()->$subInterval(2), Carbon::now()]) //4)
             ->exists();
     }
 
     public function sendNotification(object $recipient, object $otherObject): void
     {
         $project = $otherObject;
-        $message = $this->message($project->date_materials_required, $project->name);
-        $recipient->notify(new ProjectTentativeDateCheckEmail($project, $recipient, $message));
+        $message = $this->message($project->name,"");
+        $recipient->notify(new ProjectAwardedCheckEmail($project, $recipient, $message));
     }
 
     public function checkProjectChanges(Project $project): void
     {
         /**
          * Look for any notifications made redundant by project model update, and mark as read
-         * 1) Changed to tentative=false
          */
 
         /*
-         * Is the tentative materials date still correct?
-         * Condition: tentative=false
-         * enum: TENTATIVE_MATERIALS_DATE_CORRECT
+         * Has the project been awarded to you?
+         * Condition: awarded=true
+         * enum: HAS_THE_PROJECT_BEEN_AWARDED_TO_YOU
          */
-        if($project->tentative === false){
+        if($project->awarded){
             $class = $this->getNotificationClass();
             $classWithPath = "App\Notifications\\".$class;
             $recipient = $project->user;
@@ -95,7 +95,7 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
 
     public function getNotificationClass(): string
     {
-        return "ProjectTentativeDateCheckEmail";
+        return "ProjectAwardedCheckEmail";
     }
 
     public function markPreviousAsRead(object $recipient, object $otherObject): void
@@ -126,27 +126,6 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
 
     public function markGreen(DatabaseNotification $notification): RedirectResponse
     {
-        /**
-         * "Lock it in"
-         * tentative=true
-         */
-        $project = Project::findOrFail($notification->data["project_id"]);
-        $project->tentative = false;
-        $project->save();
-
-        //Mark as read
-        $notification->markAsRead();
-
-        return back();
-    }
-
-    public function markRed(DatabaseNotification $notification): RedirectResponse
-    {
-        /**
-         * "No"
-         * redirect to project edit
-         */
-
         //Mark as read
         $notification->markAsRead();
 
@@ -154,9 +133,23 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
         return redirect()->route('projects.index');
     }
 
+    public function markRed(DatabaseNotification $notification): RedirectResponse
+    {
+        //Mark as read
+        $notification->markAsRead();
+
+        //Archive project
+        if(isset($notification->data["project_id"])){
+            $project = Project::findOrFail($notification->data["project_id"]);
+            $project->archive = true;
+            $project->save();
+        }
+
+        return back();
+    }
+
     public function markYellow(DatabaseNotification $notification): RedirectResponse
     {
-        //"same"
         $notification->markAsRead();
 
         return back();
@@ -175,19 +168,17 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
         $notificationData = null;
 
         if($this->isCorrectClass($notification)){
-            $materialsDate = $notification->data["date_materials_required"] ?? null;
             $projectName = $notification->data["project_name"] ?? null;
-
-            $message = $this->message($materialsDate,$projectName);
+            $message = $this->message($projectName,"");
 
             $notificationData = [
                 "id" => $notification->id,
                 "message" => $message,
                 "timestamp" => $notification->created_at->diffForHumans(),
                 "trafficLights" => [
-                    "green" => ["Lock it in","(Update)"],
-                    "yellow" => ["Same","(Ask later)"],
-                    "red" => ["No","(Edit)"],
+                    "green" => ["Yes","(Edit)"],
+                    "yellow" => ["Not yet","(Ask later)"],
+                    "red" => ["Lost it","(Archive)"],
                 ],
             ];
         }
@@ -197,9 +188,8 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
 
     public function message(string $string_1, string $string_2): string
     {
-        $materialsDate = $string_1;
-        $projectName = $string_2;
+        $projectName = $string_1;
 
-        return "Is the tentative materials date of ".$materialsDate." for '".$projectName."' still correct?";
+        return 'Has the project "'.$projectName.'" been awarded to you?';
     }
 }

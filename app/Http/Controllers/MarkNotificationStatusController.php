@@ -2,9 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Project;
-use App\Services\Interfaces\NotificationNewColleagueImplementation;
-use App\Services\Interfaces\NotificationProjectAwardedImplementation;
 use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,7 +27,7 @@ class MarkNotificationStatusController extends Controller
 
         $implementations = (new NotificationService())->getImplementations();
         foreach($implementations as $implementation){
-            $className = 'App\\Services\\Interfaces\\'.$implementation;
+            $className = 'App\\Services\\NotificationImplementations\\'.$implementation;
 
             // Check if the class exists
             if (class_exists($className)) {

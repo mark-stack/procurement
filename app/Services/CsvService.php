@@ -5,9 +5,10 @@ namespace App\Services;
 use App\Models\Piece;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
-use App\Models\Template;
+use App\Models\User;
 use Exception;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\File;
 
 class CsvService
 {
@@ -31,48 +32,201 @@ class CsvService
     public function processCsv(array $csvArray, Project $project): RedirectResponse
     {
         /**
-         * Single purpose: detect the import category and direct to relevant post-processing
-         * 1) Project quote
-         * 2) Tekla CAD import todo
-         * todo more
+         * Single purpose: detect template matches
          */
 
-        //Default return if unsuccessful
-        $return = back()->with("warning","The file didn't auto-detect properly. Did the template change? Please email the file to mark.laravel.coder@gmail to have it re-calibrated");
+        //Detect template matches
+        $templatesDetected = $this->templatesDetected($csvArray,$project->user);
 
-        //1) Project quote
-        $importCategory = $this->detectImportCategory($csvArray);
-        if($importCategory === "PROJECT_QUOTE"){
-            //Should have just 1 result
-            $projectQuoteTemplatesDetected = $this->projectQuoteTemplatesDetected($csvArray,$project->user);
+        //Should have just 1 result
+        if(count($templatesDetected) === 1){
+            //Process data
+            $this->processTemplate($csvArray, $templatesDetected[0], $project);
 
-            if(count($projectQuoteTemplatesDetected) === 1){
-                $projectQuoteTemplate = $projectQuoteTemplatesDetected[0];
-                $this->projectQuoteTemplateProcessing($csvArray,$projectQuoteTemplate,$project);
-                $return = back(); //ok
-            }
+            //Return back without warnings
+            $return = back();
         }
-        //2) Tekla CAD import
-        if($importCategory === "CAD_TEKLA"){
-            $return = back(); //ok
+        else{
+            $return = back()->with("warning","The file didn't auto-detect properly. Did the template change? Please email the file to mark.laravel.coder@gmail to have it re-calibrated");
         }
-        //todo more
 
         return $return;
     }
 
-    public function detectImportCategory(array $csvArray): string
+    public function templatesDetected(array $csvArray, User $projectUser): array
     {
-        /**
-         * Single purpose: detect the import category
-         * 1) Project quote
-         * 2) CAD import todo
-         */
+        $templatesDetected = [];
 
-        return "PROJECT_QUOTE"; //todo: needs multiple CAD types
+        $eligibleTemplateClasses = $this->getEligibleTemplateClasses($projectUser);
+
+        foreach($eligibleTemplateClasses as $eligibleTemplateClass){
+            if($this->templateDetected($csvArray,$eligibleTemplateClass)){
+                //Add to list of templates detected
+                $templatesDetected[] = $eligibleTemplateClass;
+            }
+        }
+
+        return $templatesDetected;
     }
 
+    public function getEligibleTemplateClasses(User $user): array
+    {
+        /**
+         * Single purpose: get eligible templates for this user
+         */
+        $eligibleTemplates = [];
 
+        $implementations = $this->getTemplateImplementations();
+        foreach($implementations as $implementation){
+            $className = 'App\\Services\\TemplateImplementations\\'.$implementation;
+
+            // Check if the class exists
+            if (class_exists($className)) {
+                $service = new $className();
+                $domain = $service->ownerDomain();
+
+                if($this->isEligibleForThisTemplate($user, $domain)){
+                    $eligibleTemplates[] = $service;
+                }
+            }
+        }
+
+        return $eligibleTemplates;
+    }
+
+    public function isEligibleForThisTemplate(User $user, string|null $domain): bool
+    {
+        /**
+         * Single purpose: check if this template specifically is eligible for this user
+         */
+
+        //Prerequisite variables
+        $authUser = auth()->user();
+        $isAdmin = $authUser->isAdmin();
+
+        //For everybody
+        $condition_1 = $domain === null;
+
+        //Is admin (sees everything)
+        $condition_2 = $isAdmin;
+
+        //For this business
+        $condition_3 = strtoupper($user->getDomainFromEmail()) === strtoupper($domain);
+
+        return $condition_1 || $condition_2 || $condition_3;
+    }
+
+    public function getTemplateImplementations(): array
+    {
+        $directory = app_path('Services/TemplateImplementations');
+        return collect(File::files($directory))
+            ->map(function ($file) {
+                return $file->getFilename();
+            })
+            ->map(function ($filename) {
+                return pathinfo($filename, PATHINFO_FILENAME);
+            })
+            ->values()
+            ->toArray();
+    }
+
+    public function templateDetected(array $csvArray, object $templateClass): bool
+    {
+        /**
+         * Single purpose: detect template by the 3x fixed cell references
+         */
+
+        $templateDetected = false;
+
+        $tripleCellData = $templateClass->confirmDocumentTripleCell();
+        $spreadsheet_coordinate_1 = $tripleCellData[0]["spreadsheet_coordinate"];
+        $spreadsheet_coordinate_2 = $tripleCellData[1]["spreadsheet_coordinate"];
+        $spreadsheet_coordinate_3 = $tripleCellData[2]["spreadsheet_coordinate"];
+        $text_1 = $tripleCellData[0]["text"];
+        $text_2 = $tripleCellData[1]["text"];
+        $text_3 = $tripleCellData[2]["text"];
+
+        try {
+            /**
+             * Random cell match #1
+             */
+            $randomCellSpreadSheetCoordinate_1 = $this->spreadsheetCoordinateToIndexes($spreadsheet_coordinate_1);
+            $colIndex_1 = $randomCellSpreadSheetCoordinate_1["column_index"];
+            $rowIndex_1 = $randomCellSpreadSheetCoordinate_1["row_index"];
+            $randomCellText_1 = $text_1;
+            $matchRandomCell_1 = strcasecmp($csvArray[$rowIndex_1][$colIndex_1], $randomCellText_1) === 0;
+
+            /**
+             * Random cell match #2
+             */
+            $randomCellSpreadSheetCoordinate_2 = $this->spreadsheetCoordinateToIndexes($spreadsheet_coordinate_2);
+            $colIndex_2 = $randomCellSpreadSheetCoordinate_2["column_index"];
+            $rowIndex_2 = $randomCellSpreadSheetCoordinate_2["row_index"];
+            $randomCellText_2 = $text_2;
+            $matchRandomCell_2 = strcasecmp($csvArray[$rowIndex_2][$colIndex_2], $randomCellText_2) === 0;
+
+            /**
+             * Random cell match #3
+             */
+            $randomCellSpreadSheetCoordinate_3 = $this->spreadsheetCoordinateToIndexes($spreadsheet_coordinate_3);
+            $colIndex_3 = $randomCellSpreadSheetCoordinate_3["column_index"];
+            $rowIndex_3 = $randomCellSpreadSheetCoordinate_3["row_index"];
+            $randomCellText_3 = $text_3;
+            $matchRandomCell_3 = strcasecmp($csvArray[$rowIndex_3][$colIndex_3], $randomCellText_3) === 0;
+
+            $templateDetected = $matchRandomCell_1 && $matchRandomCell_2 && $matchRandomCell_3;
+        }
+        catch (Exception $e) {
+            $templateDetected = false;
+        }
+
+        return $templateDetected;
+    }
+
+    public function processTemplate(array $csvArray, object $templateClass, Project $project): void
+    {
+        /**
+         * Single purpose: extract the materials from all the tables detected
+         */
+
+        //Services
+        $dataClassificationService = new DataClassificationService();
+
+        //Document tables detected
+        $tables = $this->detectTables();
+
+        foreach($tables as $table){
+            //todo do something
+        }
+
+
+        //todo still organising the below....
+
+        //Clean the data (but no default assumptions yet)
+        $cleanCsvData = $this->cleanCsvData($csvArray,$projectQuoteTemplate);
+
+        //Sense checks
+        //$productService->senseChecks(); //todo incomplete
+
+        //Find price book products
+        $dataWithProducts = $dataClassificationService->findProductsFromCleanData($cleanCsvData,$project->user);
+
+        //Save user material list
+        $this->saveRawMaterialQuoteData($dataWithProducts,$project);
+
+        //Create new user-custom products
+        //todo is incomplete
+        $this->createUserCustomProducts($dataWithProducts,$project);
+    }
+
+    public function detectTables(): array
+    {
+        return []; //todo placeholder
+    }
+
+    /**
+     * @deprecated
+     */
     public function projectQuoteTemplateProcessing(array $csvArray, object $projectQuoteTemplate, Project $project): void
     {
         /**
@@ -97,74 +251,6 @@ class CsvService
         //Create new user-custom products
         //todo is incomplete
         $this->createUserCustomProducts($dataWithProducts,$project);
-    }
-
-    public function projectQuoteTemplatesDetected(array $data, object $projectUser): array
-    {
-        /**
-         * Single purpose: detect which admin-configured template this is designed for
-         */
-
-        $projectQuoteTemplatesDetected = [];
-
-        //admin sees all templates
-        $authUser = auth()->user();
-        $isAdmin = $authUser->isAdmin();
-
-        $userTemplates = collect([]);
-        if($isAdmin){
-            $userTemplates = Template::all();
-        }
-        else{
-            $userTemplates = Template::query()
-                ->where("business_id",$projectUser->business->id)
-                ->get();
-        }
-
-        //Check against each template
-        foreach($userTemplates as $template){
-            //Detects this template
-            if($this->checkSingleTemplate($data,$template)){
-                $projectQuoteTemplatesDetected[] = $template;
-            }
-        }
-
-        return $projectQuoteTemplatesDetected;
-    }
-
-    public function checkSingleTemplate(array $data, object $template): bool
-    {
-        /**
-         * Single purpose: Check if this CSV data matches this template
-         */
-
-        $result = false;
-        try {
-            /**
-             * Random cell match #1
-             */
-            $randomCellSpreadSheetCoordinate_1 = $this->spreadsheetCoordinateToIndexes($template->random_cell_1);
-            $colIndex_1 = $randomCellSpreadSheetCoordinate_1["column_index"];
-            $rowIndex_1 = $randomCellSpreadSheetCoordinate_1["row_index"];
-            $randomCellText_1 = $template->random_cell_text_1;
-            $matchRandomCell_1 = strcasecmp($data[$rowIndex_1][$colIndex_1], $randomCellText_1) === 0;
-
-            /**
-             * Random cell match #2
-             */
-            $randomCellSpreadSheetCoordinate_2 = $this->spreadsheetCoordinateToIndexes($template->random_cell_2);
-            $colIndex_2 = $randomCellSpreadSheetCoordinate_2["column_index"];
-            $rowIndex_2 = $randomCellSpreadSheetCoordinate_2["row_index"];
-            $randomCellText_2 = $template->random_cell_text_2;
-            $matchRandomCell_2 = strcasecmp($data[$rowIndex_2][$colIndex_2], $randomCellText_2) === 0;
-
-            $result = $matchRandomCell_1 && $matchRandomCell_2;
-        }
-        catch (Exception $e) {
-            $result = false;
-        }
-
-        return $result;
     }
 
     public function spreadsheetCoordinateToIndexes(string $coordinate): array

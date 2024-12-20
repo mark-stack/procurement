@@ -1,10 +1,11 @@
 <?php
 
-namespace App\Services\Interfaces;
+namespace App\Services\NotificationImplementations;
 
 use App\Models\Project;
 use App\Models\User;
 use App\Notifications\NewUserEmail;
+use App\Services\Interfaces\NotificationInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Carbon;

@@ -10,6 +10,7 @@
         formCalculator: Object,
         years: Number,
         price: Number,
+        plan_period_years: Number,
     });
 
     //Form
@@ -28,8 +29,7 @@
     function calculate(){
         let spend = props.formCalculator.spend * 1000000;
         let wasteFraction = (100 - props.formCalculator.waste)/100; //e.g 3% = 0.97
-        //let discountFraction = (100 - props.formCalculator.discounts)/100; //e.g 3% = 0.97
-        //let result = props.years * (spend - (spend * wasteFraction * discountFraction));
+
         return props.years * (spend - (spend * wasteFraction));
     }
 
@@ -81,8 +81,10 @@
     }
 
     function roiDisplay(){
+        let priceOverSavingsPeriod = (props.price/props.plan_period_years)*props.years;
+
         //"1:15"
-        let ratio = (calculate()/props.price).toFixed(0);
+        let ratio = (calculate()/priceOverSavingsPeriod).toFixed(0);
 
         return "1:"+ratio;
     }
@@ -115,7 +117,7 @@
             <input
                 v-model="formCalculator.waste"
                 type="range"
-                min="1"
+                min="2"
                 max="6"
                 step="1"
                 class="w-full max-w-sm appearance-none bg-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"

@@ -54,7 +54,7 @@ class DataClassificationService
             //METERAGE
             if($algo === NestingEnums::METERAGE->value){
                 $sizeInclude = ["nominal_width","nominal_height"];
-                $query = Product::select('product', 'material', 'grade', 'surface', 'nominal_units','nominal_height')
+                $query = Product::select('product', 'material', 'grade', 'surface', 'nominal_units',"nominal_width",'nominal_height')
                     ->distinct()
                     ->availableFor($user)
                     ->where("product", $productString);
