@@ -90,7 +90,6 @@ class RawMaterialListCustomisationsController extends Controller
 
                     //Create item
                     Product::create([
-                        "spreadsheet_id" => null,
                         "description" => $item["data"]["description"],
                         "product" => $product,
                         "material" => $material,

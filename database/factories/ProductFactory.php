@@ -19,7 +19,6 @@ class ProductFactory extends Factory
     public function definition(): array
     {
         return [
-            "spreadsheet_id" => fake()->uuid(),
             "description" => fake()->jobTitle(),
             "product" => fake()->text(10),
             "material" => fake()->text(10),

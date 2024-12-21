@@ -12,6 +12,9 @@ use Illuminate\Support\Facades\File;
 
 class CsvService
 {
+    /**
+     * @deprecated
+     */
     public function csvToArray(string $path): array
     {
         /**
@@ -135,7 +138,6 @@ class CsvService
         /**
          * Single purpose: detect template by the 3x fixed cell references
          */
-
         $templateDetected = false;
 
         $tripleCellData = $templateClass->confirmDocumentTripleCell();
@@ -193,35 +195,191 @@ class CsvService
         $dataClassificationService = new DataClassificationService();
 
         //Document tables detected
-        $tables = $this->detectTables();
+        $tables = $this->detectTables($csvArray,$templateClass);
 
-        foreach($tables as $table){
-            //todo do something
+        foreach($tables as $tableData){
+            //Do something with each table
+
+            //Sense checks
+            //$productService->senseChecks(); //todo incomplete
+
+            //Find price book products
+            $dataWithProducts = $dataClassificationService->findProductsFromCleanData($tableData,$project->user);
+
+            //Save user material list
+            $this->saveRawMaterialQuoteData($dataWithProducts,$project);
+
+            //Create new user-custom products
+            //todo is incomplete
+            $this->createUserCustomProducts($dataWithProducts,$project);
         }
-
-
-        //todo still organising the below....
-
-        //Clean the data (but no default assumptions yet)
-        $cleanCsvData = $this->cleanCsvData($csvArray,$projectQuoteTemplate);
-
-        //Sense checks
-        //$productService->senseChecks(); //todo incomplete
-
-        //Find price book products
-        $dataWithProducts = $dataClassificationService->findProductsFromCleanData($cleanCsvData,$project->user);
-
-        //Save user material list
-        $this->saveRawMaterialQuoteData($dataWithProducts,$project);
-
-        //Create new user-custom products
-        //todo is incomplete
-        $this->createUserCustomProducts($dataWithProducts,$project);
     }
 
-    public function detectTables(): array
+    public function detectTables(array $csvArray, object $templateClass): array
     {
-        return []; //todo placeholder
+        /**
+         * Single purpose: detect multiple tables within this document
+         */
+        $tables = [];
+        $tableOptions = $templateClass->tableOptions();
+
+        //Check all table options
+        foreach($tableOptions as $tableOption){
+            //Look through all rows
+            foreach($csvArray as $index => $csvRow){
+                $detectTable = $this->detectTable($csvArray,$csvRow,$index,$templateClass,$tableOption);
+                if($detectTable){
+                    $tables[] = $detectTable;
+                }
+            }
+        }
+
+        return $tables;
+    }
+
+    public function detectTable(array $csvArray, array $csvRow, int $index, object $templateClass, array $tableOption): ?array
+    {
+        /**
+         * Single purpose: detect table within this document based on heading row match
+         */
+        $tableData = null;
+
+        $firstDataRowIndex = $this->firstDataRowIndex($csvRow,$index,$tableOption);
+        if($firstDataRowIndex){
+            $tableData = $this->getTableData($csvArray,$firstDataRowIndex,$templateClass,$tableOption);
+        }
+
+        return $tableData;
+    }
+
+    public function firstDataRowIndex(array $csvRow, int $index, array $tableOption): ?int
+    {
+        /**
+         * Single purpose:
+         */
+
+        $firstDataRowIndex = null;
+
+        if($this->isTableHeader($csvRow,$tableOption)){
+            $firstDataRowIndex = $index + $tableOption["OffsetFromHeaderToFirstDataRow"];
+        }
+
+        return $firstDataRowIndex;
+    }
+
+    public function getTableData(array $csvArray, int $firstDataRowIndex,object $templateClass, array $tableOption): array
+    {
+        /**
+         * Single purpose: return the derived table data like:
+         */
+
+        $tableData = [];
+
+        //get specific indexes
+        $descriptionColumnIndex = isset($tableOption["DescriptionColumnNumber"])
+            ? ($tableOption["DescriptionColumnNumber"] - 1)
+            : null;
+        $materialColumnIndex = isset($tableOption["MaterialColumnNumber"])
+            ? ($tableOption["MaterialColumnNumber"] - 1)
+            : null;
+        $lengthRequiredColumnIndex = isset($tableOption["LengthColumnNumber"])
+            ? ($tableOption["LengthColumnNumber"] - 1)
+            : null;
+        $widthRequiredColumnIndex = isset($tableOption["WidthColumnNumber"])
+            ? ($tableOption["WidthColumnNumber"] - 1)
+            : null;
+        $subQtyColumnIndex = isset($tableOption["SubQtyColumnNumber"])
+            ? ($tableOption["SubQtyColumnNumber"] - 1)
+            : null;
+        $unitRateColumnIndex = isset($tableOption["UnitRateColumnNumber"])
+            ? ($tableOption["UnitRateColumnNumber"] - 1)
+            : null;
+
+        $nominalUnits = $tableOption["nominalUnits"];
+
+        //Loop through CSV
+        foreach($csvArray as $index => $csvRow) {
+            //If at or below the 1st data row
+            if ($index >= $firstDataRowIndex) {
+                //Skip rule
+                $shouldSkipRowRule = $tableOption["ShouldSkipRow"];
+                $shouldSkip = $templateClass->$shouldSkipRowRule($csvRow,$descriptionColumnIndex);
+
+                //End of table rule
+                $isLastDataRowRule = $tableOption["isLastDataRow"];
+                $shouldFinish = $templateClass->$isLastDataRowRule($csvArray,$index,$descriptionColumnIndex);
+
+                if($shouldFinish){
+                    break;
+                }
+
+                if (!$shouldSkip) {
+                    //Description
+                    $description = $csvRow[$descriptionColumnIndex];
+
+                    //Material
+                    $material = $materialColumnIndex
+                        ? $csvRow[$materialColumnIndex]
+                        : null;
+
+                    //Length required
+                    $lengthRequired = $lengthRequiredColumnIndex
+                        ? $this->normaliseLengthWidthRequired($csvRow[$lengthRequiredColumnIndex],$nominalUnits)
+                        : null;
+
+                    //Width required
+                    $widthRequired = $widthRequiredColumnIndex
+                        ? $this->normaliseLengthWidthRequired($csvRow[$widthRequiredColumnIndex],$nominalUnits)
+                        : null;
+
+                    //Sub qty
+                    $subQty = $this->getSubQty($csvRow[$subQtyColumnIndex]);
+
+                    //Unit rate
+                    $unitRate = $unitRateColumnIndex
+                        ? $this->getUnitRateDollars($csvRow[$unitRateColumnIndex])
+                        : null;
+
+                    $tableData[] = [
+                        "index" => $index,
+                        "description" => $description,
+                        "material" => $material,
+                        "length_required" => $lengthRequired,
+                        "width_required" => $widthRequired,
+                        "sub_qty" => $subQty,
+                        "unit_rate" => $unitRate,
+                    ];
+                }
+            }
+        }
+
+        return $tableData;
+    }
+
+    public function isTableHeader(array $csvRow, array $tableOption): bool
+    {
+        /**
+         * Single purpose: confirm if this CSV row matches a known table header
+         */
+
+        $expectedHeadingLabels = $tableOption["Expected heading labels"];
+
+        $isTableHeader = false;
+
+        //Check exact order of heading titles
+        $index = 0; // Index for expectedOrder
+        foreach ($csvRow as $columnValue) {
+            if(isset($expectedHeadingLabels[$index])){
+                if (strtoupper($columnValue) === strtoupper($expectedHeadingLabels[$index])) {
+                    $index++;
+                    if ($index === count($expectedHeadingLabels)) {
+                        $isTableHeader = true; // All values matched in order
+                    }
+                }
+            }
+        }
+
+        return $isTableHeader;
     }
 
     /**
@@ -277,6 +435,9 @@ class CsvService
         return ['column_index' => ($columnNumber-1), 'row_index' => ($row-1)];
     }
 
+    /**
+     * @deprecated
+     */
     public function cleanCsvData(array $data, object $template): array
     {
         /**
@@ -395,7 +556,6 @@ class CsvService
         /**
          * Single purpose: extract float numbers from string
          */
-
         $result = 0;
 
         // Regular expression to match integers and floats
@@ -473,9 +633,9 @@ class CsvService
                 "material" => $cleanRow["material"] ?? null,
                 "nominal_units" => $dataClassificationService->findMeasurementUnit($productCategory),
                 "length_required" => $cleanRow["length_required"],
-                "width_required" => $cleanRow["width_required"],
+                "width_required" => $cleanRow["width_required"] ?? null,
                 "sub_qty" => $cleanRow["sub_qty"],
-                "unit_rate" => $cleanRow["unit_rate"],
+                "unit_rate" => $cleanRow["unit_rate"] ?? null,
                 'project_id' => $project->id,
                 "general_product_matches" => serialize($cleanRow["generalProductMatches"]),
             ]);
@@ -501,7 +661,7 @@ class CsvService
                     "nominal_width" => $item["nominal_width"] ?? null,
                     "nominal_height" => $item["nominal_height"] ?? null,
                     "actual_length" => $cleanRow["length_required"], //For singular items like bolts, this is "QTY" that's divisible.
-                    "actual_width" => $cleanRow["width_required"],
+                    "actual_width" => $cleanRow["width_required"] ?? null,
                     "actual_qty" => $cleanRow["sub_qty"],
                 ]);
             }

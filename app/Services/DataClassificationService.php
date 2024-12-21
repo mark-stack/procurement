@@ -45,9 +45,11 @@ class DataClassificationService
          */
         $return = collect([]); //default
 
+        $nestingArray = (new NestingService())->getNestingLabelsFromProduct($productString);
+
         //"Product" is mandatory
-        if($productString) {
-            $algo = (new NestingService())->getNestingLabelsFromProduct($productString)[0];
+        if($productString && count($nestingArray) > 0) {
+            $algo = $nestingArray[0];
             $sizeInclude = [];
             $query = null;
 
@@ -267,6 +269,8 @@ class DataClassificationService
                     "(\d+)+\s+mm+\s+PFC", //200 mm PFC
                     "(\d+)+\s+mm+\s+Parallel Flange Channel",    //200 mm Parallel Flange Channel
                     "(\d+)+mm+\s+Parallel+\s+Flange+\s+Channel", //200 mm Parallel Flange Channel
+                    "PFC+\s+(\d+)",       //"PFC 200",
+                    "PFC+(\d+)",          //"PFC200",
                 ],
                 "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
                 "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
@@ -275,8 +279,10 @@ class DataClassificationService
             [
                 "productEnum" => ProductEnums::UB,
                 "productRegex" => [
-                    "\d+UB",
-                    "\d+\s+UB",
+                    "(\d+)+UB",         //300UB
+                    "(\d+)+\s+UB",      //300 UB
+                    "UB+(\d+)",         //UB300
+                    "UB+\s+(\d+)",      //UB 300
                     "universal+\s+beam",
                     "steel+\s+beam",
                 ],
@@ -289,6 +295,8 @@ class DataClassificationService
                 "nominalHeightRegex" => [
                     "(\d+)+UB",    //300UB
                     "(\d+)+\s+UB", //300 UB
+                    "UB+(\d+)",    //UB300
+                    "UB+\s+(\d+)", //UB 300
                 ],
                 "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
                 "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
@@ -297,8 +305,10 @@ class DataClassificationService
             [
                 "productEnum" => ProductEnums::UC,
                 "productRegex" => [
-                    "\d+UC",
-                    "\d+\s+UC",
+                    "(\d+)+UC",         //3000UC
+                    "(\d+)+\s+UC",      //300 UC
+                    "UC+(\d+)",         //UC300
+                    "UC+\s+(\d+)",      //UC 300
                     "universal+\s+column",
                     "steel+\s+column",
                 ],
@@ -311,6 +321,8 @@ class DataClassificationService
                 "nominalHeightRegex" => [
                     "(\d+)+UC",    //300UC
                     "(\d+)+\s+UC", //300 UC
+                    "UC+(\d+)",    //UC300
+                    "UC+\s+(\d+)", //UC 300
                 ],
                 "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
                 "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,

@@ -2,24 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\GradeEnums;
-use App\Enums\MaterialEnums;
-use App\Enums\MeasurementUnitEnums;
-use App\Enums\NestingEnums;
-use App\Enums\ProductEnums;
-use App\Enums\SurfaceEnums;
 use App\Models\Product;
 use App\Models\Project;
-use App\Models\RawMaterialQuote;
 use App\Services\CsvService;
 use App\Services\NestingService;
-use App\Services\NotificationService;
 use App\Services\ProductService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
+use Maatwebsite\Excel\Facades\Excel;
+use PhpOffice\PhpSpreadsheet\Cell\AdvancedValueBinder;
+use PhpOffice\PhpSpreadsheet\Cell\Cell;
 
 class ProductController extends Controller
 {
@@ -174,17 +169,19 @@ class ProductController extends Controller
          */
         //Validate
         $request->validate([
-            'csv' => 'required|mimes:csv,txt|max:2048',
+            'excel' => 'required|mimes:xlsx,xls|max:2048',
         ]);
 
         //Services
         $csvService = new CsvService();
 
         //Store the uploaded file temporarily
-        $path = $request->file('csv')->store('uploads');
+        $file = $request->file('excel');
+        $path = $file->store('uploads');
 
         //Read the CSV
-        $csvArray = $csvService->csvToArray($path);
+        Cell::setValueBinder(new AdvancedValueBinder());
+        $csvArray = Excel::toArray([], $file)[0];
 
         //Process the CSV
         $return = $csvService->processCsv($csvArray,$project);

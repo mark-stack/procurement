@@ -46,53 +46,94 @@ class MarksExampleProjectQuoteImplementation implements TemplateInterface
         ];
     }
 
-    public function firstDataRowIndex(): int
+    public function tableOptions(): array
     {
-
+        //todo validate this structure for completeness
+        return [
+            [
+                "Expected heading labels" => ["Length","Width","SubQty","Rate","Total"],
+                "OffsetFromHeaderToFirstDataRow" => 2,
+                "ShouldSkipRow" => "shouldSkipRowRule1",
+                "isLastDataRow" => "isLastDataRowRule1",
+                "DescriptionColumnNumber" => 2,
+                "MaterialColumnNumber" => null,
+                "GradeColumnNumber" => null,
+                "SurfaceColumnNumber" => null,
+                "LengthColumnNumber" => 4,
+                "WidthColumnNumber" => null,
+                "SubQtyColumnNumber" => 6,
+                "UnitRateColumnNumber" => 7,
+                "nominalUnits" => "m",
+            ],
+//            [
+//                "Expected heading labels" => [], //todo
+//                "OffsetFromHeaderToFirstDataRow" => 999, //todo
+//                "ShouldSkipRow" => "shouldSkipRowRule1", //todo
+//                "isLastDataRow" => "isLastDataRowRule1", //todo
+//                "DescriptionColumnNumber" => 999, //todo
+//                "MaterialColumnNumber" => 999, //todo
+//                "GradeColumnNumber" => null,
+//                "SurfaceColumnNumber" => null,
+//                "LengthColumnNumber" => 999, //todo
+//                "WidthColumnNumber" => 999, //todo
+//                "SubQtyColumnNumber" => 999, //todo
+//                "UnitRateColumnNumber" => 999, //todo
+//                "nominalUnits" => "999", //mm/m todo
+//            ],
+            //todo add more table options
+        ];
     }
 
-    public function lastDataRowIndex(): int
+    public function isLastDataRowRule1(array $csvArray, int $index, int $descriptionColumnIndex): bool
     {
+        /**
+         * 2 consecutive blank 'description' cells
+         */
+        $thisDescription = $csvArray[$index][$descriptionColumnIndex];
+        $thisDescriptionCellBlank = $thisDescription === "" || $thisDescription === null;
 
+        //Next row exists
+        $nextDescriptionCellBlank = false;
+        if(isset($csvArray[$index + 1])){
+            $nextDescription = $csvArray[$index + 1][$descriptionColumnIndex];
+            $nextDescriptionCellBlank = $nextDescription === "" || $nextDescription === null;
+        }
+
+        return $thisDescriptionCellBlank && $nextDescriptionCellBlank;
     }
 
-    public function skipRowRule(): void
+    public function isLastDataRowRule2(array $csvArray, int $index, int $descriptionColumnIndex): bool
     {
-
+        //not used
+        return true; //todo placeholder
     }
 
-    public function assemblyReferenceRule(): void
+    public function isLastDataRowRule3(array $csvArray, int $index, int $descriptionColumnIndex): bool
     {
-
+        //not used
+        return true; //todo placeholder
     }
 
-    public function descriptionColumnIndex(): int
+    public function shouldSkipRowRule1(array $csvRow, int $descriptionColumnIndex): bool
     {
-
+        //If description column is blank
+        return $csvRow[$descriptionColumnIndex] === "" || $csvRow[$descriptionColumnIndex] === null;
     }
 
-    public function materialColumnIndex(): ?int
+    public function shouldSkipRowRule2(array $csvRow, int $descriptionColumnIndex): bool
     {
-
+        return false;
     }
 
-    public function lengthColumnIndex(): int
+    public function getAssemblyReferenceRule1(): string
     {
-
+        //not used
+        return ""; //todo placeholder
     }
 
-    public function widthColumnIndex(): ?int
+    public function getAssemblyReferenceRule2(): string
     {
-
-    }
-
-    public function subQtyColumnIndex(): int
-    {
-
-    }
-
-    public function unitRateColumnIndex(): ?int
-    {
-
+        //not used
+        return ""; //todo placeholder
     }
 }

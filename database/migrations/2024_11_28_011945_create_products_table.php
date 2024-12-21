@@ -14,7 +14,6 @@ return new class extends Migration
         Schema::create('products', function (Blueprint $table) {
             $table->id();
             $table->timestamps();
-            $table->text("spreadsheet_id")->nullable();     //PFC-7
             $table->text("description");                    //200PFC
             $table->text("product");                        //PFC
             $table->text("material");                       //PLAIN CARBON STEEL

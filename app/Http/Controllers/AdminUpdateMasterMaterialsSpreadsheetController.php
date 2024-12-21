@@ -25,20 +25,19 @@ class AdminUpdateMasterMaterialsSpreadsheetController extends Controller
                 //Skip blank rows
                 if($row[0] !== ""){
                     $data[] = [
-                        "spreadsheet_id" => $row[0],
-                        "description" => $row[1],
-                        "product" => $row[2],
-                        "material" => $row[3],
-                        "grade" => $row[4],
-                        "surface" => $row[5],
-                        "nesting_algo" => $row[6],
-                        "certificates" => $row[7],
-                        "nominal_units" => $row[8],
-                        "nominal_length" => $row[9],
-                        "nominal_width" => $row[10],
-                        "nominal_height" => $row[11],
-                        "kg_per_m" => $row[12],
-                        "baseline_unit_rate" => $row[13],
+                        "description" => $row[0],
+                        "product" => $row[1],
+                        "material" => $row[2],
+                        "grade" => $row[3],
+                        "surface" => $row[4],
+                        "nesting_algo" => $row[5],
+                        "certificates" => $row[6],
+                        "nominal_units" => $row[7],
+                        "nominal_length" => $row[8],
+                        "nominal_width" => $row[9],
+                        "nominal_height" => $row[10],
+                        "kg_per_m" => $row[11],
+                        "baseline_unit_rate" => $row[12],
                     ];
                 }
             }
@@ -51,75 +50,130 @@ class AdminUpdateMasterMaterialsSpreadsheetController extends Controller
         $dataCollection = collect($data);
 
         /**
-         * Update, Create, Deprecate
-         *   1) Update: if exists
-         *   2) Create: if doesn't exists
-         *   3) Deprecate: not present in master sheet anymore
+         * Create or Deprecate
+         *   1) Create: If it doesn't exist
+         *   2) Deprecate: not present in master sheet anymore
+         */
+
+        $added = [];
+        $deprecated = [];
+
+        /*
+         * 1) Create: If it doesn't exist
+         * Loop spreadsheet looking for DB matches
          */
         $allCurrentMasterProductRecords = Product::query()
             ->platformCreated()
+            ->active()
             ->get();
+        foreach($dataCollection as $index => $row){
+            $productId = $this->findDatabaseRowToMatchSpreadsheetRow($row,$allCurrentMasterProductRecords);
 
-        $allCurrentMasterProductRecordSpreadsheetIds = $allCurrentMasterProductRecords->pluck("spreadsheet_id");
-
-        foreach($allCurrentMasterProductRecords as $productObject){
-            $spreadsheetRowData = $dataCollection->where("spreadsheet_id",$productObject->spreadsheet_id)->first();
-
-            /**
-             * 1) Update: if exists
-             */
-            if($spreadsheetRowData){
-                $productObject->update([
-                    "description" => $spreadsheetRowData["description"],
-                    "product" => $spreadsheetRowData["product"],
-                    "material" => $spreadsheetRowData["material"],
-                    "grade" => $spreadsheetRowData["grade"],
-                    "surface" => $spreadsheetRowData["surface"],
-                    "nesting_algo" => $spreadsheetRowData["nesting_algo"],
-                    "certificates" => $spreadsheetRowData["certificates"],
-                    "nominal_units" => $spreadsheetRowData["nominal_units"],
-                    "nominal_length" => $spreadsheetRowData["nominal_length"],
-                    "nominal_width" => $spreadsheetRowData["nominal_width"],
-                    "nominal_height" => $spreadsheetRowData["nominal_height"],
-                    "kg_per_m" => $spreadsheetRowData["kg_per_m"],
-                    "baseline_unit_rate" => $spreadsheetRowData["baseline_unit_rate"],
+            //Spreadsheet row is NOT in the database
+            if(!$productId){
+                //Create
+                Product::create([
+                    "description" => $row["description"],
+                    "product" => $row["product"],
+                    "material" => $row["material"],
+                    "grade" => $row["grade"],
+                    "surface" => $row["surface"],
+                    "nesting_algo" => $row["nesting_algo"],
+                    "certificates" => $row["certificates"],
+                    "nominal_units" => $row["nominal_units"],
+                    "nominal_length" => $row["nominal_length"],
+                    "nominal_width" => $row["nominal_width"],
+                    "nominal_height" => $row["nominal_height"],
+                    "kg_per_m" => $row["kg_per_m"],
+                    "baseline_unit_rate" => $row["baseline_unit_rate"],
+                    'business_id' => null,
+                    "deprecated" => false,
                 ]);
+
+                $added[] = $row["description"];
             }
-            /**
-             * 3) Deprecate: not present in master sheet anymore
-             */
-            else{
+        }
+
+        /*
+         * 2) Deprecate: not present in master sheet anymore
+         * Loop DB looking for spreadsheet matches
+         */
+        foreach($allCurrentMasterProductRecords as $productObject){
+            $spreadsheetIndex = $this->findSpreadsheetRowToMatchDatabaseRow($productObject,$dataCollection);
+
+            //Database row is NOT in the spreadsheet
+            if(!$spreadsheetIndex){
                 $productObject->deprecated = true;
                 $productObject->save();
+
+                $deprecated[] = $productObject->description;
             }
         }
 
-        /**
-         * 2) Create: if doesn't exists
-         */
-        $productsNotYetCreated = $dataCollection->whereNotIn("spreadsheet_id",$allCurrentMasterProductRecordSpreadsheetIds);
+        dd([
+            "added" => $added,
+            "deprecated" => $deprecated,
+        ]);
+    }
 
-        foreach($productsNotYetCreated as $spreadsheetRowData){
-            Product::create([
-                "spreadsheet_id" => $spreadsheetRowData["spreadsheet_id"],
-                "description" => $spreadsheetRowData["description"],
-                "product" => $spreadsheetRowData["product"],
-                "material" => $spreadsheetRowData["material"],
-                "grade" => $spreadsheetRowData["grade"],
-                "surface" => $spreadsheetRowData["surface"],
-                "nesting_algo" => $spreadsheetRowData["nesting_algo"],
-                "certificates" => $spreadsheetRowData["certificates"],
-                "nominal_units" => $spreadsheetRowData["nominal_units"],
-                "nominal_length" => $spreadsheetRowData["nominal_length"],
-                "nominal_width" => $spreadsheetRowData["nominal_width"],
-                "nominal_height" => $spreadsheetRowData["nominal_height"],
-                "kg_per_m" => $spreadsheetRowData["kg_per_m"],
-                "baseline_unit_rate" => $spreadsheetRowData["baseline_unit_rate"],
-                'business_id' => null,
-                "deprecated" => false,
-            ]);
+    public function findSpreadsheetRowToMatchDatabaseRow(Product $productObject, object $dataCollection): ?int
+    {
+        $matchedIndex = null;
+        foreach($dataCollection as $index => $row){
+            $description = strtoupper($row["description"]) === strtoupper($productObject->description);
+            $product = strtoupper($row["product"]) === strtoupper($productObject->product);
+            $material = strtoupper($row["material"]) === strtoupper($productObject->material);
+            $grade = strtoupper($row["grade"]) === strtoupper($productObject->grade);
+            $surface = strtoupper($row["surface"]) === strtoupper($productObject->surface);
+            $nesting_algo = strtoupper($row["nesting_algo"]) === strtoupper($productObject->nesting_algo);
+            $certificates = strtoupper($row["certificates"]) === strtoupper($productObject->certificates);
+            $nominal_units = strtoupper($row["nominal_units"]) === strtoupper($productObject->nominal_units);
+            $nominal_length = strtoupper($row["nominal_length"]) === strtoupper($productObject->nominal_length);
+            $nominal_width = strtoupper($row["nominal_width"]) === strtoupper($productObject->nominal_width);
+            $nominal_height = strtoupper($row["nominal_height"]) === strtoupper($productObject->nominal_height);
+            $kg_per_m = strtoupper($row["kg_per_m"]) === strtoupper($productObject->kg_per_m);
+            $baseline_unit_rate = strtoupper($row["baseline_unit_rate"]) === strtoupper($productObject->baseline_unit_rate);
+
+            if(
+                $description &&
+                $product &&
+                $material &&
+                $grade &&
+                $surface &&
+                $nesting_algo &&
+                $certificates &&
+                $nominal_units &&
+                $nominal_length &&
+                $nominal_width &&
+                $nominal_height &&
+                $kg_per_m &&
+                $baseline_unit_rate
+            ){
+                $matchedIndex = $index;
+            }
         }
 
-        dd("done");
+        return $matchedIndex;
+    }
+
+    public function findDatabaseRowToMatchSpreadsheetRow(array $row, object $allCurrentMasterProductRecords): ?int
+    {
+        $record = $allCurrentMasterProductRecords
+            ->where("description",$row["description"])
+            ->where("product",$row["product"])
+            ->where("material",$row["material"])
+            ->where("grade",$row["grade"])
+            ->where("surface",$row["surface"])
+            ->where("nesting_algo",$row["nesting_algo"])
+            ->where("certificates",$row["certificates"])
+            ->where("nominal_units",$row["nominal_units"])
+            ->where("nominal_length",$row["nominal_length"])
+            ->where("nominal_width",$row["nominal_width"])
+            ->where("nominal_height",$row["nominal_height"])
+            ->where("kg_per_m",$row["kg_per_m"])
+            ->where("baseline_unit_rate",$row["baseline_unit_rate"])
+            ->first();
+
+        return $record ? $record->id : null;
     }
 }

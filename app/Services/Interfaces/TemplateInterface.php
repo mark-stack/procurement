@@ -8,15 +8,12 @@ interface TemplateInterface
     public function type(): string;
     public function source(): string;
     public function confirmDocumentTripleCell(): array;
-
-    public function firstDataRowIndex(): int;
-    public function lastDataRowIndex(): int;
-    public function skipRowRule(): void;
-    public function assemblyReferenceRule(): void;
-    public function descriptionColumnIndex(): int;
-    public function materialColumnIndex(): ?int;
-    public function lengthColumnIndex(): int;
-    public function widthColumnIndex(): ?int;
-    public function subQtyColumnIndex(): int;
-    public function unitRateColumnIndex(): ?int;
+    public function tableOptions(): array;
+    public function isLastDataRowRule1(array $csvArray, int $index, int $descriptionColumnIndex): bool;
+    public function isLastDataRowRule2(array $csvArray, int $index, int $descriptionColumnIndex): bool;
+    public function isLastDataRowRule3(array $csvArray, int $index, int $descriptionColumnIndex): bool;
+    public function shouldSkipRowRule1(array $csvRow, int $descriptionColumnIndex): bool;
+    public function shouldSkipRowRule2(array $csvRow, int $descriptionColumnIndex): bool;
+    public function getAssemblyReferenceRule1(): string;
+    public function getAssemblyReferenceRule2(): string;
 }

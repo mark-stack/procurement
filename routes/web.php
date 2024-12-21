@@ -3,6 +3,7 @@
 //todo: experimental
 use App\Models\Project;
 use App\Models\User;
+use App\Services\DataClassificationService;
 use App\Services\NestingService;
 use App\Services\NotificationService;
 use App\Services\ProductService;
@@ -33,60 +34,43 @@ Route::get("stock-cutting",function(){
 //todo temporary
 Route::get("test",function(){
 
-    $x = (new NestingService())->getNestingLabelsFromProduct("PLATE");
-    dd($x);
-    //////
-    $project = Project::first();
-
-    $implementations = (new NotificationService())->getImplementations();
-    foreach($implementations as $implementation){
-        $className = 'App\\Services\\NotificationImplementations\\'.$implementation;
-
-        // Check if the class exists
-        if (class_exists($className)) {
-            $service = new $className();
-            $result = $service->checkProjectChanges($project);
-            dd($result);
-        } else {
-            dd("Class {$className} does not exist");
-        }
-    }
 
     /////////////////////////////////////
-    $description = "PFC SS316";
+    $description = "UB250*31";
 
     $productService = new ProductService();
+    $dataClassificationService = new DataClassificationService();
 
     //PRODUCT
-    $product = $productService->findProduct($description);
+    $product = $dataClassificationService->findProduct($description);
 
     //Has product
     if($product){
         //MATERIAL
-        $materialEnum = $productService->findMaterial($product,$description);
+        $materialEnum = $dataClassificationService->findMaterial($product,$description);
 
         //GRADE
-        $gradesEnums = $productService->findGrades($product,$description);
+        $gradesEnums = $dataClassificationService->findGrades($product,$description);
 
         //SURFACE
-        $surfaceEnum = $productService->findSurface($product,$description,$gradesEnums);
+        $surfaceEnum = $dataClassificationService->findSurface($product,$description,$gradesEnums);
 
         //NOMINAL UNITS
-        $measurementUnitEnum = $productService->findMeasurementUnit($product);
+        $measurementUnitEnum = $dataClassificationService->findMeasurementUnit($product);
 
         //NOMINAL LENGTH
-        $nominalLengthInt = $productService->findNominal($product,$description,"nominalLengthRegex");
+        $nominalLengthInt = $dataClassificationService->findNominal($product,$description,"nominalLengthRegex");
 
         //NOMINAL WIDTH
-        $nominalWidthInt = $productService->findNominal($product,$description,"nominalWidthRegex");
+        $nominalWidthInt = $dataClassificationService->findNominal($product,$description,"nominalWidthRegex");
 
         //NOMINAL HEIGHT
-        $nominalHeightInt = $productService->findNominal($product,$description,"nominalHeightRegex");
+        $nominalHeightInt = $dataClassificationService->findNominal($product,$description,"nominalHeightRegex");
 
 
         //Price book search
         $user = auth()->user();
-        $generalProductMatches = $productService->findGeneralProductMatches(
+        $generalProductMatches = $dataClassificationService->findGeneralProductMatches(
             $user,
             $product["productEnum"]->value,
             $materialEnum,

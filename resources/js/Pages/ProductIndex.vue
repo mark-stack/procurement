@@ -23,7 +23,7 @@
 
     //Form
     const formStore = useForm({
-        csv: null,
+        excel: null,
     });
     const formBulkActions = useForm({
         selectedRawMaterialQuoteIds: [], //initialMapBulkActions(),
@@ -98,13 +98,13 @@
         isDragging.value = false;
         const file = event.dataTransfer.files[0];
         if(file){
-            formStore.csv = file;
+            formStore.excel = file;
             processFile(file);
         }
     };
 
     function handleFileSelect(){
-        const file = formStore.csv;
+        const file = formStore.excel;
         if(file){
             processFile(file);
         }
@@ -115,9 +115,11 @@
     };
 
     function processFile(file){
-        console.log("processFile");
-        if (file.type !== 'text/csv') {
-            alert('Please upload a valid CSV file.');
+        let allowedFileTypes = [
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ];
+        if (!allowedFileTypes.includes(file.type)) {
+            alert('Please upload a valid Excel file.');
             return;
         }
 
@@ -150,7 +152,7 @@
 
         uploading.value = true;
 
-        console.log("formStore.file",formStore.csv);
+        console.log("formStore.file",formStore.excel);
     }
 
     function clearFileInput() {
@@ -175,7 +177,7 @@
 
             dropzone.addEventListener('dragleave', () => {
                 dropzone.style.borderColor = '#ccc';
-                // dropzone.textContent = 'Drag and drop your CSV file here';
+                // dropzone.textContent = 'Drag and drop your excel file here';
             });
         }
     });
@@ -356,15 +358,15 @@
                                 :style="isDragging ? 'border-color: #00f;color: #00f;' : 'color: #aaa;'"
                             >
                                 <div class="w-full mx-auto text-center">
-                                    {{isDragging ? 'Drop it here!' : 'Material list in CSV format: Click to upload, or drag & drop here'}}
+                                    {{isDragging ? 'Drop it here!' : 'Material list in Excel format: Click to upload, or drag & drop here'}}
                                 </div>
                             </div>
                             <input
                                 id="dropzone-file"
                                 type="file"
                                 ref="fileInput"
-                                accept=".csv"
-                                @input="formStore.csv = $event.target.files[0]; handleFileSelect()"
+                                accept=".xlsx,.xls"
+                                @input="formStore.excel = $event.target.files[0]; handleFileSelect()"
                                 hidden
                             />
                             <div v-if="uploading">Uploading...</div>

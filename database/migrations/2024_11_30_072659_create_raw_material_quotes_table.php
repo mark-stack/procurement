@@ -20,9 +20,9 @@ return new class extends Migration
             $table->text("material")->nullable();
             $table->string("nominal_units");
             $table->string("length_required");
-            $table->string("width_required");
+            $table->string("width_required")->nullable();
             $table->string("sub_qty");
-            $table->string("unit_rate");
+            $table->string("unit_rate")->nullable();
             $table->foreignId('project_id')->constrained();
             $table->text("general_product_matches")->nullable();
         });
