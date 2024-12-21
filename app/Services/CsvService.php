@@ -38,8 +38,12 @@ class CsvService
          * Single purpose: detect template matches
          */
 
-        //Detect template matches
-        $templatesDetected = $this->templatesDetected($csvArray,$project->user);
+        //Eligible Tables
+        $eligibleTables = $this->eligibleTables();
+
+        //Detected Tables
+        $detectedTables = $this->detectedTables($csvArray,$eligibleTables);
+        dd("detected Tables",$detectedTables);
 
         //Should have just 1 result
         if(count($templatesDetected) === 1){
@@ -56,6 +60,44 @@ class CsvService
         return $return;
     }
 
+    public function eligibleTables(): array
+    {
+        //Users
+        $authUser = auth()->user();
+
+        $eligibleTables = [];
+        foreach(config("TableTemplates") as $table){
+            $ownerDomain = $table["ownerDomain"];
+
+            if($this->isEligibleForThisTable($authUser,$ownerDomain)){
+                $eligibleTables[] = $table;
+            }
+        }
+
+        return $eligibleTables;
+    }
+
+    public function isEligibleForThisTable(object $authUser, string|null $domain): bool
+    {
+        /**
+         * Single purpose: check if this template specifically is eligible for this user
+         */
+
+        //For everybody
+        $condition_1 = $domain === null;
+
+        //Is admin (sees everything)
+        $condition_2 = $authUser->isAdmin();
+
+        //For this business
+        $condition_3 = strtoupper($authUser->getDomainFromEmail()) === strtoupper($domain);
+
+        return $condition_1 || $condition_2 || $condition_3;
+    }
+
+    /**
+     * @deprecated
+     */
     public function templatesDetected(array $csvArray, User $projectUser): array
     {
         $templatesDetected = [];
@@ -72,6 +114,9 @@ class CsvService
         return $templatesDetected;
     }
 
+    /**
+     * @deprecated
+     */
     public function getEligibleTemplateClasses(User $user): array
     {
         /**
@@ -97,6 +142,9 @@ class CsvService
         return $eligibleTemplates;
     }
 
+    /**
+     * @deprecated
+     */
     public function isEligibleForThisTemplate(User $user, string|null $domain): bool
     {
         /**
@@ -119,6 +167,9 @@ class CsvService
         return $condition_1 || $condition_2 || $condition_3;
     }
 
+    /**
+     * @deprecated
+     */
     public function getTemplateImplementations(): array
     {
         $directory = app_path('Services/TemplateImplementations');
@@ -133,6 +184,9 @@ class CsvService
             ->toArray();
     }
 
+    /**
+     * @deprecated
+     */
     public function templateDetected(array $csvArray, object $templateClass): bool
     {
         /**
@@ -195,7 +249,7 @@ class CsvService
         $dataClassificationService = new DataClassificationService();
 
         //Document tables detected
-        $tables = $this->detectTables($csvArray,$templateClass);
+        $tables = $this->detectedTables($csvArray,$templateClass);
 
         foreach($tables as $tableData){
             //Do something with each table
@@ -215,21 +269,22 @@ class CsvService
         }
     }
 
-    public function detectTables(array $csvArray, object $templateClass): array
+    public function detectedTables(array $csvArray, array $eligibleTables): array
     {
         /**
          * Single purpose: detect multiple tables within this document
          */
         $tables = [];
-        $tableOptions = $templateClass->tableOptions();
 
-        //Check all table options
-        foreach($tableOptions as $tableOption){
-            //Look through all rows
-            foreach($csvArray as $index => $csvRow){
-                $detectTable = $this->detectTable($csvArray,$csvRow,$index,$templateClass,$tableOption);
-                if($detectTable){
-                    $tables[] = $detectTable;
+        //Look through all rows
+        foreach($csvArray as $index => $csvRow){
+            $blankRow = count(array_filter($csvRow, function ($value) { return $value !== null; })) === 0;
+            if(!$blankRow){
+                $detectTableInstances = $this->detectTable($csvArray, $csvRow, $index, $eligibleTables);
+                if(count($detectTableInstances) > 0){
+                    foreach($detectTableInstances as $table){
+                        $tables[] = $table;
+                    }
                 }
             }
         }
@@ -237,27 +292,74 @@ class CsvService
         return $tables;
     }
 
-    public function detectTable(array $csvArray, array $csvRow, int $index, object $templateClass, array $tableOption): ?array
+    /**
+     * @deprecated
+     */
+//    public function detectedTables(array $csvArray, object $templateClass): array
+//    {
+//        /**
+//         * Single purpose: detect multiple tables within this document
+//         */
+//        $tables = [];
+//        $tableOptions = $templateClass->tableOptions();
+//
+//        //Check all table options
+//        foreach($tableOptions as $tableOption){
+//            //Look through all rows
+//            foreach($csvArray as $index => $csvRow){
+//                $detectTable = $this->detectTable($csvArray,$csvRow,$index,$templateClass,$tableOption);
+//                if($detectTable){
+//                    $tables[] = $detectTable;
+//                }
+//            }
+//        }
+//
+//        return $tables;
+//    }
+
+    public function detectTable(array $csvArray, array $csvRow, int $index, array $tableOptions): ?array
     {
         /**
          * Single purpose: detect table within this document based on heading row match
          */
-        $tableData = null;
+        $detectTableInstances = [];
 
-        $firstDataRowIndex = $this->firstDataRowIndex($csvRow,$index,$tableOption);
-        if($firstDataRowIndex){
-            $tableData = $this->getTableData($csvArray,$firstDataRowIndex,$templateClass,$tableOption);
+        foreach($tableOptions as $tableOption){
+            $firstDataRowIndex = $this->firstDataRowIndex($csvRow,$index,$tableOption);
+            if($firstDataRowIndex){
+                $detectTableInstances[] = [
+                    "type" => $tableOption["type"],
+                    "data" => $this->getTableData($csvArray,$firstDataRowIndex,$tableOption)
+                ];
+            }
         }
 
-        return $tableData;
+        return $detectTableInstances;
     }
+
+//    /**
+//     * @deprecated
+//     */
+//    public function detectTable(array $csvArray, array $csvRow, int $index, object $templateClass, array $tableOption): ?array
+//    {
+//        /**
+//         * Single purpose: detect table within this document based on heading row match
+//         */
+//        $tableData = null;
+//
+//        $firstDataRowIndex = $this->firstDataRowIndex($csvRow,$index,$tableOption);
+//        if($firstDataRowIndex){
+//            $tableData = $this->getTableData($csvArray,$firstDataRowIndex,$templateClass,$tableOption);
+//        }
+//
+//        return $tableData;
+//    }
 
     public function firstDataRowIndex(array $csvRow, int $index, array $tableOption): ?int
     {
         /**
          * Single purpose:
          */
-
         $firstDataRowIndex = null;
 
         if($this->isTableHeader($csvRow,$tableOption)){
@@ -267,12 +369,11 @@ class CsvService
         return $firstDataRowIndex;
     }
 
-    public function getTableData(array $csvArray, int $firstDataRowIndex,object $templateClass, array $tableOption): array
+    public function getTableData(array $csvArray, int $firstDataRowIndex, array $tableOption): array
     {
         /**
          * Single purpose: return the derived table data like:
          */
-
         $tableData = [];
 
         //get specific indexes
@@ -301,42 +402,59 @@ class CsvService
         foreach($csvArray as $index => $csvRow) {
             //If at or below the 1st data row
             if ($index >= $firstDataRowIndex) {
-                //Skip rule
-                $shouldSkipRowRule = $tableOption["ShouldSkipRow"];
-                $shouldSkip = $templateClass->$shouldSkipRowRule($csvRow,$descriptionColumnIndex);
-
                 //End of table rule
-                $isLastDataRowRule = $tableOption["isLastDataRow"];
-                $shouldFinish = $templateClass->$isLastDataRowRule($csvArray,$index,$descriptionColumnIndex);
-
+                $shouldFinish = $this->shouldFinish($tableOption["isLastDataRow"],$csvArray, $csvRow, $index, $descriptionColumnIndex);
                 if($shouldFinish){
                     break;
                 }
 
-                if (!$shouldSkip) {
-                    //Description
-                    $description = $csvRow[$descriptionColumnIndex];
+                //Skip rule
+                $shouldSkip = $this->shouldSkip($tableOption["ShouldSkipRow"], $csvRow, $descriptionColumnIndex);
 
+                //Description
+                $description = ($descriptionColumnIndex !== null && isset($csvRow[$descriptionColumnIndex]))
+                    ? $csvRow[$descriptionColumnIndex]
+                    : null;
+
+                //todo debug
+//                if($tableOption["label"] === "Hot Rolled, Angles, and more."){
+//                    if($shouldSkip){
+//                        dd("should skip",$csvRow);
+//                    }
+//                    dd([
+//                        "csvRow" => $csvRow,
+//                        "shouldSkip" => $shouldSkip,
+//                        "description" => $description,
+//                        "descriptionColumnIndex" => $descriptionColumnIndex,
+//                        "tableOption" => $tableOption,
+//                        "ShouldSkipRow" => $tableOption["ShouldSkipRow"],
+//                        "isLastDataRow" => $tableOption["isLastDataRow"],
+//                    ]);
+//                }
+
+                if ($description && !$shouldSkip) {
                     //Material
-                    $material = $materialColumnIndex
+                    $material = ($materialColumnIndex !== null && isset($csvRow[$materialColumnIndex]))
                         ? $csvRow[$materialColumnIndex]
                         : null;
 
                     //Length required
-                    $lengthRequired = $lengthRequiredColumnIndex
+                    $lengthRequired = ($lengthRequiredColumnIndex !== null && isset($csvRow[$lengthRequiredColumnIndex]))
                         ? $this->normaliseLengthWidthRequired($csvRow[$lengthRequiredColumnIndex],$nominalUnits)
                         : null;
 
                     //Width required
-                    $widthRequired = $widthRequiredColumnIndex
+                    $widthRequired = ($widthRequiredColumnIndex !== null && isset($csvRow[$widthRequiredColumnIndex]))
                         ? $this->normaliseLengthWidthRequired($csvRow[$widthRequiredColumnIndex],$nominalUnits)
                         : null;
 
                     //Sub qty
-                    $subQty = $this->getSubQty($csvRow[$subQtyColumnIndex]);
+                    $subQty = isset($csvRow[$subQtyColumnIndex])
+                        ? $this->getSubQty($csvRow[$subQtyColumnIndex])
+                        : null;
 
                     //Unit rate
-                    $unitRate = $unitRateColumnIndex
+                    $unitRate = ($unitRateColumnIndex !== null && isset($csvRow[$unitRateColumnIndex]))
                         ? $this->getUnitRateDollars($csvRow[$unitRateColumnIndex])
                         : null;
 
@@ -362,21 +480,34 @@ class CsvService
          * Single purpose: confirm if this CSV row matches a known table header
          */
 
-        $expectedHeadingLabels = $tableOption["Expected heading labels"];
+        $expectedHeadingLabels = $tableOption["ExpectedHeadingLabels"];
 
         $isTableHeader = false;
 
-        //Check exact order of heading titles
-        $index = 0; // Index for expectedOrder
-        foreach ($csvRow as $columnValue) {
-            if(isset($expectedHeadingLabels[$index])){
-                if (strtoupper($columnValue) === strtoupper($expectedHeadingLabels[$index])) {
-                    $index++;
-                    if ($index === count($expectedHeadingLabels)) {
-                        $isTableHeader = true; // All values matched in order
+        /*
+         * First check if the row contains at least the first heading label before determining order which is computationally expensive
+         */
+        $csvRow = array_map('strtoupper', $csvRow);
+        $hasAtLeastOne = in_array(strtoupper($expectedHeadingLabels[0]),$csvRow);
+
+        if($hasAtLeastOne){
+            //Check exact order of heading titles
+            $index = 0; // Index for expectedOrder
+            foreach ($csvRow as $columnValue) {
+                if(isset($expectedHeadingLabels[$index])){
+                    if (strtoupper($columnValue) === strtoupper($expectedHeadingLabels[$index])) {
+                        $index++;
+                        if ($index === count($expectedHeadingLabels)) {
+                            $isTableHeader = true; // All values matched in order
+                        }
                     }
                 }
             }
+
+//            //todo debug
+//            if($expectedHeadingLabels[0] === "Profile" && $csvRow[0] !== "MARK"){
+//                dd("one",$csvRow,$tableOption,$expectedHeadingLabels[0],$isTableHeader,$index);
+//            }
         }
 
         return $isTableHeader;
@@ -669,4 +800,98 @@ class CsvService
 
         return $materialList;
     }
+
+    public function shouldFinish(string|null $text, array $csvArray, array $csvRow, int $index, int $descriptionColumnIndex): bool
+    {
+        $shouldFinish = false;
+
+        //Has text
+        if($text){
+            $shouldFinish = $this->isLastDataRowDescriptionTextContains($text, $csvRow, $descriptionColumnIndex);
+        }
+        else{
+            $shouldFinish = $this->isLastDataRow2BlankDescriptionCells($csvArray, $index, $descriptionColumnIndex);
+        }
+
+        return $shouldFinish;
+    }
+    public function isLastDataRow2BlankDescriptionCells(array $csvArray, int $index, int $descriptionColumnIndex): bool
+    {
+        /**
+         * 2 consecutive blank 'description' cells
+         */
+        $thisDescriptionCellBlank = false;
+        if(isset($csvArray[$index][$descriptionColumnIndex])){
+            $thisDescription = $csvArray[$index][$descriptionColumnIndex];
+            $thisDescriptionCellBlank = $thisDescription === "" || $thisDescription === null;
+        }
+
+        //Next row exists
+        $nextDescriptionCellBlank = false;
+        if(isset($csvArray[$index + 1][$descriptionColumnIndex])){
+            $nextDescription = $csvArray[$index + 1][$descriptionColumnIndex];
+            $nextDescriptionCellBlank = $nextDescription === "" || $nextDescription === null;
+        }
+
+        return $thisDescriptionCellBlank && $nextDescriptionCellBlank;
+    }
+
+    public function isLastDataRowDescriptionTextContains(string $text, array $csvRow, int $descriptionColumnIndex): bool
+    {
+        /**
+         * Description cell contains specific
+         */
+        $result = false;
+
+        if(isset($csvRow[$descriptionColumnIndex])){
+            $result = strtoupper($csvRow[$descriptionColumnIndex]) === strtoupper($text);
+        }
+
+        return $result;
+    }
+
+    public function shouldSkip(string|null $text, array $csvRow, int $descriptionColumnIndex): bool
+    {
+        $shouldSkip = false;
+
+        //Blank row
+        $blankRow = count(array_filter($csvRow, function ($value) { return $value !== null; })) === 0;
+        if($blankRow){
+            $shouldSkip = true;
+        }
+        else{
+            //Has text
+            if($text){
+                $shouldSkip = $this->shouldSkipRowDescriptionTextContains($text,$csvRow,$descriptionColumnIndex);
+            }
+            else{
+                $shouldSkip = $this->shouldSkipRowBlankDescription($csvRow,$descriptionColumnIndex);
+            }
+        }
+
+        return $shouldSkip;
+    }
+
+    public function shouldSkipRowBlankDescription(array $csvRow, int $descriptionColumnIndex): bool
+    {
+        /**
+         * If description column is blank
+         */
+        $skip = false;
+
+        if(isset($csvRow[$descriptionColumnIndex])){
+            $skip =  $csvRow[$descriptionColumnIndex] === "" || $csvRow[$descriptionColumnIndex] === null;
+        }
+
+        return $skip;
+    }
+
+    public function shouldSkipRowDescriptionTextContains(string $text, array $csvRow, int $descriptionColumnIndex): bool
+    {
+        /**
+         * Description cell contains specific
+         */
+        return strtoupper($csvRow[$descriptionColumnIndex]) === strtoupper($text);
+    }
+
 }

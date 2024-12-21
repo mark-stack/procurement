@@ -6,6 +6,9 @@ use App\Enums\TemplateEnums;
 use App\Enums\TemplateSourceEnums;
 use App\Services\Interfaces\TemplateInterface;
 
+/**
+ * @deprecated
+ */
 class MarksExampleProjectQuoteImplementation implements TemplateInterface
 {
     public function __construct()
@@ -51,7 +54,7 @@ class MarksExampleProjectQuoteImplementation implements TemplateInterface
         //todo validate this structure for completeness
         return [
             [
-                "Expected heading labels" => ["Length","Width","SubQty","Rate","Total"],
+                "ExpectedHeadingLabels" => ["Length","Width","SubQty","Rate","Total"],
                 "OffsetFromHeaderToFirstDataRow" => 2,
                 "ShouldSkipRow" => "shouldSkipRowRule1",
                 "isLastDataRow" => "isLastDataRowRule1",
@@ -66,7 +69,7 @@ class MarksExampleProjectQuoteImplementation implements TemplateInterface
                 "nominalUnits" => "m",
             ],
 //            [
-//                "Expected heading labels" => [], //todo
+//                "ExpectedHeadingLabels" => [], //todo
 //                "OffsetFromHeaderToFirstDataRow" => 999, //todo
 //                "ShouldSkipRow" => "shouldSkipRowRule1", //todo
 //                "isLastDataRow" => "isLastDataRowRule1", //todo

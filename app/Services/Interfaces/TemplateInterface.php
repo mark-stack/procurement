@@ -2,6 +2,9 @@
 
 namespace App\Services\Interfaces;
 
+/**
+ * @deprecated
+ */
 interface TemplateInterface
 {
     public function ownerDomain(): ?string;

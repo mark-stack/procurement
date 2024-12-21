@@ -24,8 +24,8 @@
     //Variables
     const trial_months = 2;
     const savings_period_years = 5;
-    const plan_period_years = 1/52;
-    const price = 195;
+    const plan_period_years = 1/12;
+    const price = 850;
 
     //Shared Methods
     //...

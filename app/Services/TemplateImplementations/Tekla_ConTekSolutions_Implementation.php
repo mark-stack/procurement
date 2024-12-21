@@ -6,6 +6,9 @@ use App\Enums\TemplateEnums;
 use App\Enums\TemplateSourceEnums;
 use App\Services\Interfaces\TemplateInterface;
 
+/**
+ * @deprecated
+ */
 class Tekla_ConTekSolutions_Implementation implements TemplateInterface
 {
     public function __construct()
@@ -51,7 +54,7 @@ class Tekla_ConTekSolutions_Implementation implements TemplateInterface
         //todo validate this structure for completeness
         return [
             [
-                "Expected heading labels" => ["Mark","Qty","Profile","Name","Finish","Length (mm)","Unit Area (m2)","Unit Weight (kg)"],
+                "ExpectedHeadingLabels" => ["Mark","Qty","Profile","Name","Finish","Length (mm)","Unit Area (m2)","Unit Weight (kg)"],
                 "OffsetFromHeaderToFirstDataRow" => 1,
                 "ShouldSkipRow" => "shouldSkipRowRule1",
                 "isLastDataRow" => "isLastDataRowRule1",
@@ -66,7 +69,7 @@ class Tekla_ConTekSolutions_Implementation implements TemplateInterface
                 "nominalUnits" => "mm",
             ],
             [
-                "Expected heading labels" => ["Profile","Grade","Park Mark","Qty","Length[mm]","Unit Area (m2)","Total Area (m2)","Unit Weight (kg)","Total Weight (kg)"], //todo
+                "ExpectedHeadingLabels" => ["Profile","Grade","Part Mark","Qty","Length[mm]","Unit Area (m2)","Total Area (m2)","Unit Weight (kg)","Total Weight (kg)"], //todo
                 "OffsetFromHeaderToFirstDataRow" => 1,
                 "ShouldSkipRow" => "shouldSkipRowRule2",
                 "isLastDataRow" => "isLastDataRowRule2",
@@ -81,7 +84,7 @@ class Tekla_ConTekSolutions_Implementation implements TemplateInterface
                 "nominalUnits" => "mm",
             ],
             [
-                "Expected heading labels" => ["Bolt Dia","Bolt Grade","Length(mm)","Qty","Comments"],
+                "ExpectedHeadingLabels" => ["Bolt Dia","Bolt Grade","Length(mm)","Qty","Comments"],
                 "OffsetFromHeaderToFirstDataRow" => 1,
                 "ShouldSkipRow" => "shouldSkipRowRule1",
                 "isLastDataRow" => "isLastDataRowRule3",
@@ -99,7 +102,7 @@ class Tekla_ConTekSolutions_Implementation implements TemplateInterface
             //Bolt Dia Profile Name Length(mm) Qty Finish
 
 //            [
-//                "Expected heading labels" => [], //todo
+//                "ExpectedHeadingLabels" => [], //todo
 //                "OffsetFromHeaderToFirstDataRow" => 999, //todo
 //                "ShouldSkipRow" => "shouldSkipRowRule1", //todo
 //                "isLastDataRow" => "isLastDataRowRule1", //todo
