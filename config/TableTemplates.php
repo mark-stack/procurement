@@ -129,7 +129,7 @@ return [
         "GradeColumnNumber" => null,
         "SurfaceColumnNumber" => null,
         "LengthColumnNumber" => 4,
-        "WidthColumnNumber" => null,
+        "WidthColumnNumber" => 5,
         "SubQtyColumnNumber" => 6,
         "UnitRateColumnNumber" => 7,
         "nominalUnits" => "m",

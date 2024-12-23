@@ -542,48 +542,14 @@ class ProductService
         return preg_split('/\W+/', $sentence, -1, PREG_SPLIT_NO_EMPTY);
     }
 
-
-
-
-
-
-//    public function getGeneralProductMatches(array $cleanRow): array
-//    {
-//        $getGeneralProductMatches = [];
-//        if(count($cleanRow["products_unconfirmed"]) > 0){
-//            $getGeneralProductMatches = $cleanRow["products_unconfirmed"]["generalProductMatches"];
-//        }
-//
-//        return $getGeneralProductMatches;
-//    }
-
-//    public function getProductPossibilities(array $cleanRow): array
-//    {
-//        /**
-//         * Possibilities that are non-length attributed
-//         */
-//        $getProductPossibilities = [];
-//
-//        if(count($cleanRow["products_unconfirmed"]) > 0){
-//            foreach($cleanRow["products_unconfirmed"] as $product){
-//                dd($product,$cleanRow["products_unconfirmed"]);
-//                //$getProductPossibilities[] = $product->id;
-//            }
-//        }
-//
-//        return $getProductPossibilities;
-//    }
-
-
-
-
-
     public function validationUserCustom($rows): array
     {
         $validator = Validator::make([], []);
         $validationErrors = 0;
 
-        foreach($rows as $index => $row){
+        foreach($rows as $row){
+            $id = $row["data"]["id"];
+
             $product = $row["selected"]["product"];
             $material = $row["selected"]["material"];
             $grade = $row["selected"]["grade"];
@@ -603,36 +569,36 @@ class ProductService
             if($product){
                 if($product === "Other" && !$row['selected_other']['product']){
                     $validationErrors++;
-                    $validator->errors()->add($index."-product", 'product');
+                    $validator->errors()->add($id."-product", 'product');
                 }
             }
             else{
                 $validationErrors++;
-                $validator->errors()->add($index."-product", 'product');
+                $validator->errors()->add($id."-product", 'product');
             }
 
             //material
             if($material){
                 if($material === "Other" && !$row['selected_other']['material']){
                     $validationErrors++;
-                    $validator->errors()->add($index."-material", 'material');
+                    $validator->errors()->add($id."-material", 'material');
                 }
             }
             else{
                 $validationErrors++;
-                $validator->errors()->add($index."-material", 'material');
+                $validator->errors()->add($id."-material", 'material');
             }
 
             //Grade
             if($grade){
                 if($grade === "Other" && !$row['selected_other']['grade']){
                     $validationErrors++;
-                    $validator->errors()->add($index."-grade", 'grade');
+                    $validator->errors()->add($id."-grade", 'grade');
                 }
             }
             else{
                 $validationErrors++;
-                $validator->errors()->add($index."-grade", 'grade');
+                $validator->errors()->add($id."-grade", 'grade');
             }
 
             /*
@@ -643,21 +609,21 @@ class ProductService
                 if($shouldHaveLength){
                     if(!$nominalLength){
                         $validationErrors++;
-                        $validator->errors()->add($index."-nominal_length", 'nominal_length');
+                        $validator->errors()->add($id."-nominal_length", 'nominal_length');
                     }
                 }
                 $shouldHaveWidth = $row["nominalSizeData"][$product]["width"];
                 if($shouldHaveWidth){
                     if(!$nominalWidth){
                         $validationErrors++;
-                        $validator->errors()->add($index."-nominal_width", 'nominal_width');
+                        $validator->errors()->add($id."-nominal_width", 'nominal_width');
                     }
                 }
                 $shouldHaveHeight = $row["nominalSizeData"][$product]["height"];
                 if($shouldHaveHeight){
                     if(!$nominalHeight){
                         $validationErrors++;
-                        $validator->errors()->add($index."-nominal_height", 'nominal_height');
+                        $validator->errors()->add($id."-nominal_height", 'nominal_height');
                     }
                 }
             }
@@ -689,12 +655,12 @@ class ProductService
                     //todo
 //                    if(!$size){
 //                        $validationErrors++;
-//                        $validator->errors()->add($index."-size", 'size');
+//                        $validator->errors()->add($id."-size", 'size');
 //                    }
                     //purchasable_length_1: TRUE
                     if(!$purchasable_length_1){
                         $validationErrors++;
-                        $validator->errors()->add($index."-purchasable_length_1", 'purchasable_length_1');
+                        $validator->errors()->add($id."-purchasable_length_1", 'purchasable_length_1');
                     }
                 }
                 /*
@@ -708,18 +674,18 @@ class ProductService
                     //Measurement units required: TRUE
                     if(!$measurementUnit){
                         $validationErrors++;
-                        $validator->errors()->add($index."-quantify", 'quantify');
+                        $validator->errors()->add($id."-quantify", 'quantify');
                     }
                     //Size required: TRUE
                     //todo
 //                    if(!$size){
 //                        $validationErrors++;
-//                        $validator->errors()->add($index."-size", 'size');
+//                        $validator->errors()->add($id."-size", 'size');
 //                    }
                     //purchasable_length_1: TRUE
                     if(!$purchasable_length_1){
                         $validationErrors++;
-                        $validator->errors()->add($index."-purchasable_length_1", 'purchasable_length_1');
+                        $validator->errors()->add($id."-purchasable_length_1", 'purchasable_length_1');
                     }
                 }
                 /*
@@ -733,38 +699,38 @@ class ProductService
                     //Measurement units required: TRUE
                     if(!$measurementUnit){
                         $validationErrors++;
-                        $validator->errors()->add($index."-quantify", 'quantify');
+                        $validator->errors()->add($id."-quantify", 'quantify');
                     }
                     //purchasable_length_1: TRUE
                     if(!$purchasable_length_1){
                         $validationErrors++;
-                        $validator->errors()->add($index."-purchasable_length_1", 'purchasable_length_1');
+                        $validator->errors()->add($id."-purchasable_length_1", 'purchasable_length_1');
                     }
                     //purchasable_width_1: TRUE
                     if(!$purchasable_width_1){
                         $validationErrors++;
-                        $validator->errors()->add($index."-purchasable_width_1", 'purchasable_width_1');
+                        $validator->errors()->add($id."-purchasable_width_1", 'purchasable_width_1');
                     }
                     //Must have L and W (purchasable_length_2 && purchasable_width_2)
                     if($purchasable_length_2 || $purchasable_width_2){
                         if(!$purchasable_length_2){
                             $validationErrors++;
-                            $validator->errors()->add($index."-purchasable_length_2", 'purchasable_length_2');
+                            $validator->errors()->add($id."-purchasable_length_2", 'purchasable_length_2');
                         }
                         if(!$purchasable_width_2){
                             $validationErrors++;
-                            $validator->errors()->add($index."-purchasable_width_2", 'purchasable_width_2');
+                            $validator->errors()->add($id."-purchasable_width_2", 'purchasable_width_2');
                         }
                     }
                     //Must have L and W (purchasable_length_3 && purchasable_width_3)
                     if($purchasable_length_3 || $purchasable_width_3){
                         if(!$purchasable_length_3){
                             $validationErrors++;
-                            $validator->errors()->add($index."-purchasable_length_3", 'purchasable_length_3');
+                            $validator->errors()->add($id."-purchasable_length_3", 'purchasable_length_3');
                         }
                         if(!$purchasable_width_3){
                             $validationErrors++;
-                            $validator->errors()->add($index."-purchasable_width_3", 'purchasable_width_3');
+                            $validator->errors()->add($id."-purchasable_width_3", 'purchasable_width_3');
                         }
                     }
                     //L greater than W
@@ -772,7 +738,7 @@ class ProductService
             }
             else{
                 $validationErrors++;
-                $validator->errors()->add($index."-nesting_algo", 'nesting_algo');
+                $validator->errors()->add($id."-nesting_algo", 'nesting_algo');
             }
         }
 

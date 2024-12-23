@@ -290,9 +290,17 @@
         let message = "Are you sure you want delete this row item";
         const userConfirmed = confirm(message);
         if (userConfirmed) {
+            //Delete item
             formBulkActions.selectedRawMaterialQuoteIds = [rawMaterialQuoteId];
             submitBulkDelete();
+
+            //Reset 'formCustomisations' form to remove the deleted items (prevents validation errors)
+            formCustomisations = useForm(props.requiresCustom);
         }
+    }
+
+    function isNumeric(value) {
+        return !isNaN(value) && !isNaN(parseFloat(value));
     }
 </script>
 
@@ -518,20 +526,23 @@
                 <p class="mb-3 text-gray-600">
                     This action is just required once. It will be added to the price book for you and other members in your company.
                 </p>
-                <form @submit.prevent="submitCustomisations()">
 
+                <form @submit.prevent="submitCustomisations()">
                     <div class="grid grid-cols-3 gap-6">
-                        <CustomProductForm
-                            v-for="(item,index) in requiresCustom"
-                            class="mt-3"
-                            :item="item"
-                            :index="index"
-                            :form="formCustomisations"
-                            :allMeasurements="allMeasurements"
-                            :formDependentData="formDependentData"
-                            :allGrades="allGrades"
-                            @deleteOne="id => deleteOne(id)"
-                        />
+                        <template v-for="(item,index) in formCustomisations">
+                            <CustomProductForm
+                                v-if="isNumeric(index)"
+                                class="mt-3"
+                                :item="item"
+                                :index="index"
+                                :form="formCustomisations"
+                                :allMeasurements="allMeasurements"
+                                :formDependentData="formDependentData"
+                                :allGrades="allGrades"
+                                @deleteOne="id => deleteOne(id)"
+                                :key="'custom-product-form-'+index"
+                            />
+                        </template>
                     </div>
 
                     <button

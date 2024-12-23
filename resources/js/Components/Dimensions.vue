@@ -9,6 +9,7 @@
     const props = defineProps({
         form: Object,
         index: Number,
+        id: Number,
     });
 
     //Variables
@@ -30,7 +31,7 @@
             type="number"
             :placeholder="getPlaceholder('length_placeholder')"
             class="w-full rounded"
-            :class="form.errors[index+'-nominal_length'] ? 'border-2 border-red-500' : ''"
+            :class="form.errors[id+'-nominal_length'] ? 'border-2 border-red-500' : ''"
         />
         <input
             v-if="nominalSizeData[currentProductSelection]['width']"
@@ -38,7 +39,7 @@
             type="number"
             :placeholder="getPlaceholder('width_placeholder')"
             class="w-full rounded"
-            :class="form.errors[index+'-nominal_width'] ? 'border-2 border-red-500' : ''"
+            :class="form.errors[id+'-nominal_width'] ? 'border-2 border-red-500' : ''"
         />
         <input
             v-if="nominalSizeData[currentProductSelection]['height']"
@@ -46,7 +47,7 @@
             type="number"
             :placeholder="getPlaceholder('height_placeholder')"
             class="w-full rounded"
-            :class="form.errors[index+'-nominal_height'] ? 'border-2 border-red-500' : ''"
+            :class="form.errors[id+'-nominal_height'] ? 'border-2 border-red-500' : ''"
         />
     </div>
 </template>

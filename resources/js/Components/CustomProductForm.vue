@@ -311,9 +311,10 @@
             <span class="text-red-500" @click="$emit('deleteOne',item.data.id)" style="cursor: pointer;"><i class="fa-solid fa-xmark"></i></span>
         </div>
 
-        Spreadsheet row #{{item.data.csv_index + 1}}
+        Spreadsheet row #{{item.data.csv_index + 1}} [{{item.data.id}}]
         <!-- PRODUCT -->
         <SelectOrType
+            :id="item.data.id"
             label="Product Category"
             reference="product"
             :index="index"
@@ -325,6 +326,7 @@
         <!-- MATERIAL (customOptions['materials'][form[index]['subOption']['material']])-->
         <SelectOrType
             v-if="showMaterials(index)"
+            :id="item.data.id"
             label="Material"
             reference="material"
             :index="index"
@@ -339,6 +341,7 @@
         >
             <!-- GRADE -->
             <SelectOrType
+                :id="item.data.id"
                 label="Grade"
                 reference="grade"
                 :index="index"
@@ -351,6 +354,7 @@
             <Dimensions
                 :form="form"
                 :index="index"
+                :id="item.data.id"
             />
         </div>
         <!-- NESTING -->
@@ -359,7 +363,7 @@
             <select
                 class="w-full rounded"
                 v-model="form[index]['selected']['nesting_algo']"
-                :class="form.errors[index+'-nesting_algo'] ? 'border-2 border-red-500' : ''"
+                :class="form.errors[item.data.id+'-nesting_algo'] ? 'border-2 border-red-500' : ''"
             >
                 <option
                     v-if="Object.values(getNestingOptions(index)).length > 1"
@@ -382,7 +386,7 @@
             <select
                 class="w-full rounded"
                 v-model="form[index]['selected']['quantify']"
-                :class="form.errors[index+'-quantify'] ? 'border-2 border-red-500' : ''"
+                :class="form.errors[item.data.id+'-quantify'] ? 'border-2 border-red-500' : ''"
             >
                 <option :value="null" disabled>Select</option>
                 <template v-for="option in allMeasurements">
@@ -406,7 +410,7 @@
                     :step="purchasableStep(index)"
                     :placeholder="purchasablesPlaceholder(index)"
                     class="w-full rounded"
-                    :class="form.errors[index+'-purchasable_length_1'] ? 'border-2 border-red-500' : ''"
+                    :class="form.errors[item.data.id+'-purchasable_length_1'] ? 'border-2 border-red-500' : ''"
                 />
                 <input
                     v-model="form[index]['selected']['purchasable_length_2']"
@@ -416,7 +420,7 @@
                     :step="purchasableStep(index)"
                     :placeholder="purchasablesPlaceholder(index)"
                     class="w-full rounded"
-                    :class="form.errors[index+'-purchasable_length_2'] ? 'border-2 border-red-500' : ''"
+                    :class="form.errors[item.data.id+'-purchasable_length_2'] ? 'border-2 border-red-500' : ''"
                 />
                 <input
                     v-model="form[index]['selected']['purchasable_length_3']"
@@ -426,7 +430,7 @@
                     :step="purchasableStep(index)"
                     :placeholder="purchasablesPlaceholder(index)"
                     class="w-full rounded"
-                    :class="form.errors[index+'-purchasable_length_3'] ? 'border-2 border-red-500' : ''"
+                    :class="form.errors[item.data.id+'-purchasable_length_3'] ? 'border-2 border-red-500' : ''"
                 />
             </div>
         </div>
@@ -441,7 +445,7 @@
                             type="number"
                             placeholder="Length"
                             class="w-full rounded"
-                            :class="form.errors[index+'-purchasable_length_1'] ? 'border-2 border-red-500' : ''"
+                            :class="form.errors[item.data.id+'-purchasable_length_1'] ? 'border-2 border-red-500' : ''"
                         />
                         <span class="mt-2 ml-2">X</span>
                     </div>
@@ -450,7 +454,7 @@
                         type="number"
                         placeholder="Width"
                         class="w-full rounded"
-                        :class="form.errors[index+'-purchasable_width_1'] ? 'border-2 border-red-500' : ''"
+                        :class="form.errors[item.data.id+'-purchasable_width_1'] ? 'border-2 border-red-500' : ''"
                     />
                 </div>
                 <div class="grid grid-cols-2 gap-2">
@@ -460,7 +464,7 @@
                             type="number"
                             placeholder="Length"
                             class="w-full rounded"
-                            :class="form.errors[index+'-purchasable_length_2'] ? 'border-2 border-red-500' : ''"
+                            :class="form.errors[item.data.id+'-purchasable_length_2'] ? 'border-2 border-red-500' : ''"
                         />
                         <span class="mt-2 ml-2">X</span>
                     </div>
@@ -469,7 +473,7 @@
                         type="number"
                         placeholder="Width"
                         class="w-full rounded"
-                        :class="form.errors[index+'-purchasable_width_2'] ? 'border-2 border-red-500' : ''"
+                        :class="form.errors[item.data.id+'-purchasable_width_2'] ? 'border-2 border-red-500' : ''"
                     />
                 </div>
                 <div class="grid grid-cols-2 gap-2">
@@ -479,7 +483,7 @@
                             type="number"
                             placeholder="Length"
                             class="w-full rounded"
-                            :class="form.errors[index+'-purchasable_length_3'] ? 'border-2 border-red-500' : ''"
+                            :class="form.errors[item.data.id+'-purchasable_length_3'] ? 'border-2 border-red-500' : ''"
                         />
                         <span class="mt-2 ml-2">X</span>
                     </div>
@@ -488,7 +492,7 @@
                         type="number"
                         placeholder="Width"
                         class="w-full rounded"
-                        :class="form.errors[index+'-purchasable_width_3'] ? 'border-2 border-red-500' : ''"
+                        :class="form.errors[item.data.id+'-purchasable_width_3'] ? 'border-2 border-red-500' : ''"
                     />
                 </div>
             </div>

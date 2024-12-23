@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Imports\ExcelImport;
 use App\Models\Product;
 use App\Models\Project;
 use App\Services\CsvService;
@@ -13,8 +14,6 @@ use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
-use PhpOffice\PhpSpreadsheet\Cell\AdvancedValueBinder;
-use PhpOffice\PhpSpreadsheet\Cell\Cell;
 
 class ProductController extends Controller
 {
@@ -180,8 +179,7 @@ class ProductController extends Controller
         $path = $file->store('uploads');
 
         //Read the CSV
-        Cell::setValueBinder(new AdvancedValueBinder());
-        $csvArray = Excel::toArray([], $file)[0];
+        $csvArray = Excel::toArray(new ExcelImport(), $file)[0];
 
         //Process the CSV
         $return = $csvService->processCsv($csvArray,$project);

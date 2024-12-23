@@ -7,6 +7,7 @@
 
     //Props
     const props = defineProps({
+        id: Number,
         label: String,
         reference: String,
         index: Number,
@@ -70,7 +71,7 @@
             v-if="form['selected'][reference] !== 'Other'"
             v-model="form['selected'][reference]"
             class="w-full rounded"
-            :class="errors[props.index+'-'+props.reference] ? 'border-2 border-red-500' : ''"
+            :class="errors[id+'-'+reference] ? 'border-2 border-red-500' : ''"
             @change="changeActions()"
         >
             <option :value="null" disabled>Select</option>
@@ -92,7 +93,7 @@
                 type="text"
                 placeholder="Other"
                 class="w-full rounded"
-                :class="errors[props.index+'-'+props.reference] ? 'border-2 border-red-500' : ''"
+                :class="errors[props.id+'-'+props.reference] ? 'border-2 border-red-500' : ''"
             />
 
             <!-- "X" button -->

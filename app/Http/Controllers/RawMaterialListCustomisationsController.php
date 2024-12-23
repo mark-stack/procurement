@@ -48,92 +48,80 @@ class RawMaterialListCustomisationsController extends Controller
                 foreach($productVariations as $productVariation){
                     Product::create($productVariation);
                 }
-                dd("created products");
 
                 /**
                  * General product matches
                  */
                 $generalProductMatches = [];
+                $nestingAlgo = $formData["selected"]["nesting_algo"];
 
                 //METERAGE
-                if($formData["nestingAlgo"] === NestingEnums::METERAGE->value) {
+                if($nestingAlgo === NestingEnums::METERAGE->value) {
                     //$sizeInclude = ["nominal_height"];
                     $generalProductMatches = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', "nominal_height")
                         ->distinct()
                         ->availableFor($user)
-                        ->where("product", $product)
-                        ->where("material", $material)
-                        ->where("grade", $grade)
+                        ->where("product", $preparedFormData["product"])
+                        ->where("material", $preparedFormData["material"])
+                        ->where("grade", $preparedFormData["grade"])
                         ->where("surface", SurfaceEnums::NONE->value)
-                        ->where("nominal_units", $measurementUnit)
-                        ->where("nominal_height",$nominalHeight)
+                        ->where("nominal_units", $preparedFormData["nominal_units"])
+                        ->where("nominal_height",$preparedFormData["nominal_height"])
                         ->get();
                 }
                 //AREA
-                if($formData["nestingAlgo"] === NestingEnums::AREA->value) {
+                if($nestingAlgo === NestingEnums::AREA->value) {
                     //$sizeInclude = ["nominal_height"];
                     $generalProductMatches = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', "nominal_height")
                         ->distinct()
                         ->availableFor($user)
-                        ->where("product", $product)
-                        ->where("material", $material)
-                        ->where("grade", $grade)
+                        ->where("product", $preparedFormData["product"])
+                        ->where("material", $preparedFormData["material"])
+                        ->where("grade", $preparedFormData["grade"])
                         ->where("surface", SurfaceEnums::NONE->value)
-                        ->where("nominal_units", $measurementUnit)
-                        ->where("nominal_height",$nominalHeight)
+                        ->where("nominal_units", $preparedFormData["nominal_units"])
+                        ->where("nominal_height",$preparedFormData["nominal_height"])
                         ->get();
                 }
                 //BUNDLE
-                if($formData["nestingAlgo"] === NestingEnums::BUNDLE->value) {
+                if($nestingAlgo === NestingEnums::BUNDLE->value) {
                     //$sizeInclude = ["nominal_length","nominal_width"];
                     $generalProductMatches = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', "nominal_length", "nominal_width")
                         ->distinct()
                         ->availableFor($user)
-                        ->where("product", $product)
-                        ->where("material", $material)
-                        ->where("grade", $grade)
+                        ->where("product", $preparedFormData["product"])
+                        ->where("material", $preparedFormData["material"])
+                        ->where("grade", $preparedFormData["grade"])
                         ->where("surface", SurfaceEnums::NONE->value)
-                        ->where("nominal_units", $measurementUnit)
-                        ->where("nominal_length",$nominalLength)
-                        ->where("nominal_width",$nominalWidth)
+                        ->where("nominal_units", $preparedFormData["nominal_units"])
+                        ->where("nominal_length",$preparedFormData["nominal_length"])
+                        ->where("nominal_width",$preparedFormData["nominal_width"])
                         ->get();
                 }
 
-
-//                //todo: "size"
-//                $generalProductMatches = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', 'size')
-//                    ->distinct()
-//                    ->availableFor($user)
-//                    ->where("product", $product)
-//                    ->where("material", $material)
-//                    ->where("grade", $grade)
-//                    ->where("surface", SurfaceEnums::NONE->value)
-//                    ->where("nominal_units", $measurementUnit)
-//                    ->where("size",$size) //todo
-//                    ->get();
-                $rawMaterialQuote = RawMaterialQuote::find($item["data"]["id"]);
+                $rawMaterialQuote = RawMaterialQuote::find($formData["data"]["id"]);
                 $rawMaterialQuote->general_product_matches = serialize($generalProductMatches->toArray());
                 $rawMaterialQuote->save();
 
                 /**
                  * Create 'Pieces'
                  */
-                $project = Project::findOrFail($item["data"]["project_id"]);
+                $project = Project::findOrFail($formData["data"]["project_id"]);
                 Piece::create([
                     'project_id' => $project->id,
                     "raw_material_quote_id" => $rawMaterialQuote->id,
-                    "product" => $product,
-                    "material" => $material,
-                    "grade" => $grade,
+                    "product" => $preparedFormData["product"],
+                    "material" => $preparedFormData["material"],
+                    "grade" => $preparedFormData["grade"],
                     "surface" => SurfaceEnums::NONE->value,
-                    "nominal_units" => $measurementUnit,
-                    "nesting_algo" => $formData["nestingAlgo"],
-                    "nominal_length" => $nominalLength,
-                    "nominal_width" => $nominalWidth,
-                    "nominal_height" => $nominalHeight,
-                    "actual_length" => $item["data"]["length_required"],
-                    "actual_width" => $item["data"]["width_required"],
-                    "actual_qty" => $item["data"]["sub_qty"]
+                    "nominal_units" => $preparedFormData['nominal_units'],
+                    "nesting_algo" => $preparedFormData['nesting_algo'],
+                    "nominal_length" => $preparedFormData['nominal_length'],
+                    "nominal_width" => $preparedFormData['nominal_width'],
+                    "nominal_height" => $preparedFormData['nominal_height'],
+                    "actual_length" => $formData["data"]["length_required"],
+                    "actual_width" => $formData["data"]["width_required"],
+                    "actual_qty" => $formData["data"]["sub_qty"]
                 ]);
             }
 
@@ -158,11 +146,11 @@ class RawMaterialListCustomisationsController extends Controller
             "grade" => $formData["selected"]["grade"] === "Other"
                 ? $formData["selected_other"]["grade"]
                 : $formData["selected"]["grade"],
-            "nominalLength" => $formData["selected"]["nominal_length"],
-            "nominalWidth" => $formData["selected"]["nominal_width"],
-            "nominalHeight" => $formData["selected"]["nominal_height"],
-            "measurementUnit" => $formData["selected"]["quantify"],
-            "nestingAlgo" => $formData["selected"]["nesting_algo"],
+            "nominal_length" => $formData["selected"]["nominal_length"],
+            "nominal_width" => $formData["selected"]["nominal_width"],
+            "nominal_height" => $formData["selected"]["nominal_height"],
+            "nominal_units" => $formData["selected"]["quantify"],
+            "nesting_algo" => $formData["selected"]["nesting_algo"],
             "purchasable_length_1" => $formData["selected"]["purchasable_length_1"],
             "purchasable_length_2" => $formData["selected"]["purchasable_length_2"],
             "purchasable_length_3" => $formData["selected"]["purchasable_length_3"],
@@ -185,12 +173,12 @@ class RawMaterialListCustomisationsController extends Controller
         /*
          * METERAGE
          */
-        if($preparedFormData["nestingAlgo"] === NestingEnums::METERAGE->value){
+        if($preparedFormData["nesting_algo"] === NestingEnums::METERAGE->value){
             if($preparedFormData["purchasable_length_1"]){
                 $variations[] = [
                     "nominal_length" => $preparedFormData["purchasable_length_1"],
-                    "nominal_width" => $preparedFormData["nominalWidth"] ?? null,
-                    "nominal_height" => $preparedFormData["nominalHeight"] ?? null,
+                    "nominal_width" => $preparedFormData["nominal_width"] ?? null,
+                    "nominal_height" => $preparedFormData["nominal_height"] ?? null,
                     "pack_size_1" => 1, //Can purchase 1
                     "pack_size_2" => null,
                     "pack_size_3" => null,
@@ -199,8 +187,8 @@ class RawMaterialListCustomisationsController extends Controller
             if($preparedFormData["purchasable_length_2"]){
                 $variations[] = [
                     "nominal_length" => $preparedFormData["purchasable_length_2"],
-                    "nominal_width" => $preparedFormData["nominalWidth"] ?? null,
-                    "nominal_height" => $preparedFormData["nominalHeight"] ?? null,
+                    "nominal_width" => $preparedFormData["nominal_width"] ?? null,
+                    "nominal_height" => $preparedFormData["nominal_height"] ?? null,
                     "pack_size_1" => 1, //Can purchase 1
                     "pack_size_2" => null,
                     "pack_size_3" => null,
@@ -209,8 +197,8 @@ class RawMaterialListCustomisationsController extends Controller
             if($preparedFormData["purchasable_length_3"]){
                 $variations[] = [
                     "nominal_length" => $preparedFormData["purchasable_length_3"],
-                    "nominal_width" => $preparedFormData["nominalWidth"] ?? null,
-                    "nominal_height" => $preparedFormData["nominalHeight"] ?? null,
+                    "nominal_width" => $preparedFormData["nominal_width"] ?? null,
+                    "nominal_height" => $preparedFormData["nominal_height"] ?? null,
                     "pack_size_1" => 1, //Can purchase 1
                     "pack_size_2" => null,
                     "pack_size_3" => null,
@@ -220,12 +208,12 @@ class RawMaterialListCustomisationsController extends Controller
         /*
          * AREA
          */
-        if($preparedFormData["nestingAlgo"] === NestingEnums::AREA->value){
+        if($preparedFormData["nesting_algo"] === NestingEnums::AREA->value){
             if($preparedFormData["purchasable_length_1"] && $preparedFormData["purchasable_width_1"]){
                 $variations[] = [
                     "nominal_length" => $preparedFormData["purchasable_length_1"],
                     "nominal_width" => $preparedFormData["purchasable_width_1"],
-                    "nominal_height" => $preparedFormData["nominalHeight"],
+                    "nominal_height" => $preparedFormData["nominal_height"],
                     "pack_size_1" => 1, //Can purchase 1
                     "pack_size_2" => null,
                     "pack_size_3" => null,
@@ -235,7 +223,7 @@ class RawMaterialListCustomisationsController extends Controller
                 $variations[] = [
                     "nominal_length" => $preparedFormData["purchasable_length_2"],
                     "nominal_width" => $preparedFormData["purchasable_width_2"],
-                    "nominal_height" => $preparedFormData["nominalHeight"],
+                    "nominal_height" => $preparedFormData["nominal_height"],
                     "pack_size_1" => 1, //Can purchase 1
                     "pack_size_2" => null,
                     "pack_size_3" => null,
@@ -245,7 +233,7 @@ class RawMaterialListCustomisationsController extends Controller
                 $variations[] = [
                     "nominal_length" => $preparedFormData["purchasable_length_3"],
                     "nominal_width" => $preparedFormData["purchasable_width_3"],
-                    "nominal_height" => $preparedFormData["nominalHeight"],
+                    "nominal_height" => $preparedFormData["nominal_height"],
                     "pack_size_1" => 1, //Can purchase 1
                     "pack_size_2" => null,
                     "pack_size_3" => null,
@@ -255,11 +243,11 @@ class RawMaterialListCustomisationsController extends Controller
         /*
          * BUNDLE
          */
-        if($preparedFormData["nestingAlgo"] === NestingEnums::BUNDLE->value){
+        if($preparedFormData["nesting_algo"] === NestingEnums::BUNDLE->value){
             $variations[] = [
-                "nominal_length" => $preparedFormData["nominalLength"],
-                "nominal_width" => $preparedFormData["nominalWidth"],
-                "nominal_height" => $preparedFormData["nominalHeight"],
+                "nominal_length" => $preparedFormData["nominal_length"],
+                "nominal_width" => $preparedFormData["nominal_width"],
+                "nominal_height" => $preparedFormData["nominal_height"],
                 "pack_size_1" => $preparedFormData["purchasable_length_1"],
                 "pack_size_2" => $preparedFormData["purchasable_length_2"],
                 "pack_size_3" => $preparedFormData["purchasable_length_3"],
@@ -274,8 +262,8 @@ class RawMaterialListCustomisationsController extends Controller
                 "material" => $preparedFormData["material"],
                 "grade" => $preparedFormData["grade"],
                 "surface" => SurfaceEnums::NONE->value, //todo this is ok?,
-                "nominal_units" => $preparedFormData["measurementUnit"],
-                "nesting_algo" => $preparedFormData["nestingAlgo"],
+                "nominal_units" => $preparedFormData["nominal_units"],
+                "nesting_algo" => $preparedFormData["nesting_algo"],
                 "nominal_length" => $variation["nominal_length"],
                 "nominal_width" => $variation["nominal_width"],
                 "nominal_height" => $variation["nominal_height"],
