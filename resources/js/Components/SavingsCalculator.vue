@@ -9,7 +9,8 @@
     const props = defineProps({
         formCalculator: Object,
         years: Number,
-        price: Number,
+        fullPriceAnnual: Number,
+        firstYearDiscount: Number,
         plan_period_years: Number,
     });
 
@@ -81,7 +82,10 @@
     }
 
     function roiDisplay(){
-        let priceOverSavingsPeriod = (props.price/props.plan_period_years)*props.years;
+
+        let priceFirstYearAfterDiscount = props.fullPriceAnnual*((100-props.firstYearDiscount)/100);
+        let priceAfterFirstYearFullPrice = props.fullPriceAnnual;
+        let priceOverSavingsPeriod = priceFirstYearAfterDiscount + ((props.years - 1) * priceAfterFirstYearFullPrice);
 
         //"1:15"
         let ratio = (calculate()/priceOverSavingsPeriod).toFixed(0);

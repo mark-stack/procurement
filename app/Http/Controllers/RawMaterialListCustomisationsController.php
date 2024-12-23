@@ -37,75 +37,18 @@ class RawMaterialListCustomisationsController extends Controller
         else{
             $user = auth()->user();
 
-            foreach($rows as $item){
-                $product = $item["selected"]["product"] === "Other"
-                    ? $item["selected_other"]["product"]
-                    : $item["selected"]["product"];
-                $material = $item["selected"]["material"] === "Other"
-                    ? $item["selected_other"]["material"]
-                    : $item["selected"]["material"];
-                $grade = $item["selected"]["grade"] === "Other"
-                    ? $item["selected_other"]["grade"]
-                    : $item["selected"]["grade"];
-                $nominalLength = $item["selected"]["nominal_length"];
-                $nominalWidth = $item["selected"]["nominal_width"];
-                $nominalHeight = $item["selected"]["nominal_height"];
-                $measurementUnit = $item["selected"]["quantify"];
-                $nestingAlgo = $item["selected"]["nesting_algo"];
-                $purchasable_length_1 = $item["selected"]["purchasable_length_1"];
-                $purchasable_length_2 = $item["selected"]["purchasable_length_2"];
-                $purchasable_length_3 = $item["selected"]["purchasable_length_3"];
-                $purchasable_width_1 = $item["selected"]["purchasable_width_1"];
-                $purchasable_width_2 = $item["selected"]["purchasable_width_2"];
-                $purchasable_width_3 = $item["selected"]["purchasable_width_3"];
+            foreach($rows as $formData){
+                //Prepare single product item
+                $preparedFormData = $this->preparedFormDataSingleProduct($formData);
 
-                $productVariations = [
-                    [
-                        "purchasable_length" => $purchasable_length_1,
-                        "purchasable_width" => $purchasable_width_1,
-                    ],
-                ];
-                if($purchasable_length_2 && $purchasable_width_2){
-                    $productVariations[] = [
-                        "purchasable_length" => $purchasable_length_2,
-                        "purchasable_width" => $purchasable_width_2,
-                    ];
-                }
-                if($purchasable_length_3 && $purchasable_width_3){
-                    $productVariations[] = [
-                        "purchasable_length" => $purchasable_length_3,
-                        "purchasable_width" => $purchasable_width_3,
-                    ];
-                }
+                //Prepare product variations (e.g lengths)
+                $productVariations = $this->productVariations($preparedFormData,$business);
 
+                //Create product variations
                 foreach($productVariations as $productVariation){
-                    /**
-                     * "Length" means purchasable qty.
-                     * For meterage this means length like meters. e.g 9 meters
-                     * For area this means length
-                     * For bundles this means pack qty
-                     */
-                    $purchasableLength = $productVariation["purchasable_length"] ?? null;
-                    $purchasableWidth = $productVariation["purchasable_width"] ?? null;
-
-                    //Create item
-                    Product::create([
-                        "description" => $item["data"]["description"],
-                        "product" => $product,
-                        "material" => $material,
-                        "grade" => $grade,
-                        "surface" => SurfaceEnums::NONE->value,
-                        "nominal_units" => $measurementUnit,
-                        "nesting_algo" => $nestingAlgo,
-                        "nominal_length" => $purchasableLength,
-                        "nominal_width" => $purchasableWidth,
-                        "nominal_height" => $nominalHeight,
-                        "kg_per_m" => 0,
-                        "baseline_unit_rate" => 0, //todo get quoted price
-                        'business_id' => $business->id,
-                        "deprecated" => false,
-                    ]);
+                    Product::create($productVariation);
                 }
+                dd("created products");
 
                 /**
                  * General product matches
@@ -113,7 +56,7 @@ class RawMaterialListCustomisationsController extends Controller
                 $generalProductMatches = [];
 
                 //METERAGE
-                if($nestingAlgo === NestingEnums::METERAGE->value) {
+                if($formData["nestingAlgo"] === NestingEnums::METERAGE->value) {
                     //$sizeInclude = ["nominal_height"];
                     $generalProductMatches = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', "nominal_height")
                         ->distinct()
@@ -127,7 +70,7 @@ class RawMaterialListCustomisationsController extends Controller
                         ->get();
                 }
                 //AREA
-                if($nestingAlgo === NestingEnums::AREA->value) {
+                if($formData["nestingAlgo"] === NestingEnums::AREA->value) {
                     //$sizeInclude = ["nominal_height"];
                     $generalProductMatches = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', "nominal_height")
                         ->distinct()
@@ -141,7 +84,7 @@ class RawMaterialListCustomisationsController extends Controller
                         ->get();
                 }
                 //BUNDLE
-                if($nestingAlgo === NestingEnums::BUNDLE->value) {
+                if($formData["nestingAlgo"] === NestingEnums::BUNDLE->value) {
                     //$sizeInclude = ["nominal_length","nominal_width"];
                     $generalProductMatches = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', "nominal_length", "nominal_width")
                         ->distinct()
@@ -184,7 +127,7 @@ class RawMaterialListCustomisationsController extends Controller
                     "grade" => $grade,
                     "surface" => SurfaceEnums::NONE->value,
                     "nominal_units" => $measurementUnit,
-                    "nesting_algo" => $nestingAlgo,
+                    "nesting_algo" => $formData["nestingAlgo"],
                     "nominal_length" => $nominalLength,
                     "nominal_width" => $nominalWidth,
                     "nominal_height" => $nominalHeight,
@@ -196,5 +139,156 @@ class RawMaterialListCustomisationsController extends Controller
 
             return back();
         }
+    }
+
+    private function preparedFormDataSingleProduct(array $formData): array
+    {
+        /**
+         * Single purpose: prepare data array for single product
+         */
+
+        return [
+            "description" => $formData["data"]["description"],
+            "product" => $formData["selected"]["product"] === "Other"
+                ? $formData["selected_other"]["product"]
+                : $formData["selected"]["product"],
+            "material" => $formData["selected"]["material"] === "Other"
+                ? $formData["selected_other"]["material"]
+                : $formData["selected"]["material"],
+            "grade" => $formData["selected"]["grade"] === "Other"
+                ? $formData["selected_other"]["grade"]
+                : $formData["selected"]["grade"],
+            "nominalLength" => $formData["selected"]["nominal_length"],
+            "nominalWidth" => $formData["selected"]["nominal_width"],
+            "nominalHeight" => $formData["selected"]["nominal_height"],
+            "measurementUnit" => $formData["selected"]["quantify"],
+            "nestingAlgo" => $formData["selected"]["nesting_algo"],
+            "purchasable_length_1" => $formData["selected"]["purchasable_length_1"],
+            "purchasable_length_2" => $formData["selected"]["purchasable_length_2"],
+            "purchasable_length_3" => $formData["selected"]["purchasable_length_3"],
+            "purchasable_width_1" => $formData["selected"]["purchasable_width_1"],
+            "purchasable_width_2" => $formData["selected"]["purchasable_width_2"],
+            "purchasable_width_3" => $formData["selected"]["purchasable_width_3"],
+        ];
+    }
+    private function productVariations(array $preparedFormData, Business $business): array
+    {
+        /**
+         * Prepare product variations.
+         * 1) METERAGE: lengths are the variations
+         * 2) AREA: length AND width combinations are the variations
+         * 3) BUNDLE: no variations
+         */
+
+        $variations = [];
+
+        /*
+         * METERAGE
+         */
+        if($preparedFormData["nestingAlgo"] === NestingEnums::METERAGE->value){
+            if($preparedFormData["purchasable_length_1"]){
+                $variations[] = [
+                    "nominal_length" => $preparedFormData["purchasable_length_1"],
+                    "nominal_width" => $preparedFormData["nominalWidth"] ?? null,
+                    "nominal_height" => $preparedFormData["nominalHeight"] ?? null,
+                    "pack_size_1" => 1, //Can purchase 1
+                    "pack_size_2" => null,
+                    "pack_size_3" => null,
+                ];
+            }
+            if($preparedFormData["purchasable_length_2"]){
+                $variations[] = [
+                    "nominal_length" => $preparedFormData["purchasable_length_2"],
+                    "nominal_width" => $preparedFormData["nominalWidth"] ?? null,
+                    "nominal_height" => $preparedFormData["nominalHeight"] ?? null,
+                    "pack_size_1" => 1, //Can purchase 1
+                    "pack_size_2" => null,
+                    "pack_size_3" => null,
+                ];
+            }
+            if($preparedFormData["purchasable_length_3"]){
+                $variations[] = [
+                    "nominal_length" => $preparedFormData["purchasable_length_3"],
+                    "nominal_width" => $preparedFormData["nominalWidth"] ?? null,
+                    "nominal_height" => $preparedFormData["nominalHeight"] ?? null,
+                    "pack_size_1" => 1, //Can purchase 1
+                    "pack_size_2" => null,
+                    "pack_size_3" => null,
+                ];
+            }
+        }
+        /*
+         * AREA
+         */
+        if($preparedFormData["nestingAlgo"] === NestingEnums::AREA->value){
+            if($preparedFormData["purchasable_length_1"] && $preparedFormData["purchasable_width_1"]){
+                $variations[] = [
+                    "nominal_length" => $preparedFormData["purchasable_length_1"],
+                    "nominal_width" => $preparedFormData["purchasable_width_1"],
+                    "nominal_height" => $preparedFormData["nominalHeight"],
+                    "pack_size_1" => 1, //Can purchase 1
+                    "pack_size_2" => null,
+                    "pack_size_3" => null,
+                ];
+            }
+            if($preparedFormData["purchasable_length_2"] && $preparedFormData["purchasable_width_2"]){
+                $variations[] = [
+                    "nominal_length" => $preparedFormData["purchasable_length_2"],
+                    "nominal_width" => $preparedFormData["purchasable_width_2"],
+                    "nominal_height" => $preparedFormData["nominalHeight"],
+                    "pack_size_1" => 1, //Can purchase 1
+                    "pack_size_2" => null,
+                    "pack_size_3" => null,
+                ];
+            }
+            if($preparedFormData["purchasable_length_3"] && $preparedFormData["purchasable_width_3"]){
+                $variations[] = [
+                    "nominal_length" => $preparedFormData["purchasable_length_3"],
+                    "nominal_width" => $preparedFormData["purchasable_width_3"],
+                    "nominal_height" => $preparedFormData["nominalHeight"],
+                    "pack_size_1" => 1, //Can purchase 1
+                    "pack_size_2" => null,
+                    "pack_size_3" => null,
+                ];
+            }
+        }
+        /*
+         * BUNDLE
+         */
+        if($preparedFormData["nestingAlgo"] === NestingEnums::BUNDLE->value){
+            $variations[] = [
+                "nominal_length" => $preparedFormData["nominalLength"],
+                "nominal_width" => $preparedFormData["nominalWidth"],
+                "nominal_height" => $preparedFormData["nominalHeight"],
+                "pack_size_1" => $preparedFormData["purchasable_length_1"],
+                "pack_size_2" => $preparedFormData["purchasable_length_2"],
+                "pack_size_3" => $preparedFormData["purchasable_length_3"],
+            ];
+        }
+
+        $results = [];
+        foreach($variations as $variation){
+            $results[] = [
+                "description" => $preparedFormData["description"],
+                "product" => $preparedFormData["product"],
+                "material" => $preparedFormData["material"],
+                "grade" => $preparedFormData["grade"],
+                "surface" => SurfaceEnums::NONE->value, //todo this is ok?,
+                "nominal_units" => $preparedFormData["measurementUnit"],
+                "nesting_algo" => $preparedFormData["nestingAlgo"],
+                "nominal_length" => $variation["nominal_length"],
+                "nominal_width" => $variation["nominal_width"],
+                "nominal_height" => $variation["nominal_height"],
+                "pack_size_1" => $variation["pack_size_1"],
+                "pack_size_2" => $variation["pack_size_2"],
+                "pack_size_3" => $variation["pack_size_3"],
+                "kg_per_m" => 0, //todo can get this from somewhere?
+                "baseline_unit_rate" => 0, //todo get quoted price
+                'business_id' => $business->id,
+                "deprecated" => false,
+            ];
+        }
+
+        return $results;
     }
 }

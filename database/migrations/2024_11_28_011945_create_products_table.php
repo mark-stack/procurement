@@ -25,6 +25,9 @@ return new class extends Migration
             $table->string("nominal_length")->nullable();   //9000
             $table->string("nominal_width")->nullable();    //
             $table->string("nominal_height")->nullable();   //200
+            $table->string("pack_size_1")->nullable();      //1
+            $table->string("pack_size_2")->nullable();
+            $table->string("pack_size_3")->nullable();
             $table->text("kg_per_m")->nullable();           //17.5
             $table->text("baseline_unit_rate")->nullable(); //$13.54
             $table->foreignId('business_id')->nullable()->constrained(); //QSW (null means platform created)

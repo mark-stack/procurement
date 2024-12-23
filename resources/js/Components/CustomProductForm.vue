@@ -240,6 +240,15 @@
             props.form[index]['selected']['material'] = null;
             props.form[index]['selected']['grade'] = null;
             props.form[index]['selected']['nesting_algo'] = null;
+            props.form[index]['selected']['nominal_length'] = null;
+            props.form[index]['selected']['nominal_width'] = null;
+            props.form[index]['selected']['nominal_height'] = null;
+            props.form[index]['selected']['purchasable_length_1'] = null;
+            props.form[index]['selected']['purchasable_length_2'] = null;
+            props.form[index]['selected']['purchasable_length_3'] = null;
+            props.form[index]['selected']['purchasable_width_1'] = null;
+            props.form[index]['selected']['purchasable_width_2'] = null;
+            props.form[index]['selected']['purchasable_width_3'] = null;
 
             //Set material
             let currentProductSelection = props.form[index]['selected']['product'];

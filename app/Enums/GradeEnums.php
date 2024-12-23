@@ -1,9 +1,7 @@
 <?php
 
 namespace App\Enums;
-/**
- * @deprecated
- */
+
 enum GradeEnums: string
 {
     //STEEL
@@ -11,8 +9,10 @@ enum GradeEnums: string
     case GR250 = "GR250";
     case GR300 = "GR300";
     case GR350 = "GR350";
-    case GR_4_6 = "GR_8_8";
     case GR_8_8 = "GR_4_6";
+    case GR_5_8 = "GR_5_8";
+    case GR_4_6 = "GR_8_8";
+
 
     //TIMBER
     case E13 = "E13";
@@ -21,27 +21,4 @@ enum GradeEnums: string
     case HDPE = "HDPE";
 
     //todo more.
-
-
-    public function label(): string
-    {
-        return match ($this) {
-            self::NONE => "NONE",
-
-            //STEEL
-            self::GR250 => "GR250",
-            self::GR300 => "GR300",
-            self::GR350 => "GR350",
-            self::GR_4_6 => "GR_4_6",
-            self::GR_8_8 => "GR_8_8",
-
-            //TIMBER
-            self::E13 => "E13",
-
-            //PLASTIC
-            self::HDPE => "HDPE",
-
-            //todo more. timber etc
-        };
-    }
 }

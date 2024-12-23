@@ -2,28 +2,19 @@
 
 namespace App\Enums;
 
-/**
- * @deprecated
- */
 enum SurfaceEnums: string
 {
+    //General
     case NONE = 'NONE';
     case PAINTED = "PAINTED";
+
+    //Metal
     case GALVANISED = "GALVANISED";
+    case ZINC = "ZINC";
     case PASSIVATED = "PASSIVATED";
+
+    //Timber
     case TREATED_H2 = "TREATED_H2";
     case TREATED = "TREATED";
 
-
-    public function label(): string
-    {
-        return match ($this) {
-            self::NONE => "NONE",
-            self::PAINTED => "PAINTED",
-            self::GALVANISED => 'GALVANISED',
-            self::PASSIVATED => 'PASSIVATED',
-            self::TREATED => "TREATED",
-            self::TREATED_H2 => "TREATED H2",
-        };
-    }
 }

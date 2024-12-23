@@ -781,5 +781,131 @@ class ProductService
             "validator" => $validator,
         ];
     }
+
+    public function generateProductLabel(
+        string $product,
+        ?float $nominal_length,
+        ?float $nominal_width,
+        ?float $nominal_height,
+        ?string $grade,
+        ?string $surface
+    ): string
+    {
+        //Grade
+        $actualGrade = $grade;
+        if ($grade === "NONE") {
+            $actualGrade = "";
+        }
+        if ($grade === "GR_4_6" || $grade === "4.6S") {
+            $actualGrade = "GR4.6";
+        }
+        if ($grade === "GR_8_8" || $grade === "8.8S") {
+            $actualGrade = "GR8.8";
+        }
+
+        //Surface
+        $actualSurface = ' '.$surface;
+        if ($surface === "NONE") {
+            $actualSurface = " ";
+        }
+        if ($surface === "GALVANISED") {
+            $actualSurface = " GALV";
+        }
+        if ($surface === "TREATED_H2") {
+            $actualSurface = " H2";
+        }
+
+        $result = "";
+
+        if($product === "BOLT"){
+            $result = $this->formatBOLT($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
+        }
+        else if($product === "UB"){
+            $result = $this->formatUB($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
+        }
+        else if($product === "UC"){
+            $result = $this->formatUC($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
+        }
+        else if($product === "PFC"){
+            $result = $this->formatPFC($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
+        }
+        else if($product === "PLATE"){
+            $result = $this->formatPLATE($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
+        }
+        else if($product === "LVL"){
+            $result = $this->formatLVL($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
+        }
+        else if($product === "SHS"){
+            $result = $this->formatSHS($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
+        }
+        else if($product === "RHS"){
+            $result = $this->formatRHS($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
+        }
+        else{
+            $result = $this->formatDefault($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
+        }
+
+        return $result;
+    }
+
+    private function formatDefault($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface): string
+    {
+        return "Nominal ".$product." ".$actualGrade.$actualSurface;
+    }
+
+    private function formatBOLT($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface): string
+    {
+        //Size
+        $actualSize = "";
+        if ($nominal_length) {
+            $actualSize = "M".$nominal_width."x".$nominal_length;
+        } else {
+            $actualSize = "M".$nominal_width;
+        }
+
+        return $actualSize." ".$actualGrade.$actualSurface;
+    }
+
+    private function formatUB($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface): string
+    {
+        $actualSize = $nominal_height;
+        return $actualSize." ".$actualGrade.$actualSurface;
+    }
+
+    private function formatUC($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface): string
+    {
+        $actualSize = $nominal_height;
+        return $actualSize." ".$actualGrade.$actualSurface;
+    }
+
+    private function formatPFC($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface): string
+    {
+        $actualSize = $nominal_height;
+        return $actualSize.$product." ".$actualGrade.$actualSurface;
+    }
+
+    private function formatPLATE($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface): string
+    {
+        $actualSize = $nominal_height."PL";
+        return $actualSize." ".$actualGrade.$actualSurface;
+    }
+
+    private function formatLVL($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface): string
+    {
+        $actualSize = $nominal_height."x".$nominal_width;
+        return $actualSize." ".$actualGrade.$actualSurface;
+    }
+
+    private function formatSHS($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface): string
+    {
+        $actualSize = $nominal_height."x".$nominal_width;
+        return $actualSize." ".$actualGrade.$actualSurface;
+    }
+
+    private function formatRHS($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface): string
+    {
+        $actualSize = $nominal_height."x".$nominal_width;
+        return $actualSize." ".$actualGrade.$actualSurface;
+    }
 }
 

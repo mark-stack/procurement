@@ -43,18 +43,17 @@ class CsvService
 
         //Detected Tables
         $detectedTables = $this->detectedTables($csvArray,$eligibleTables);
-        dd("detected Tables",$detectedTables);
 
-        //Should have just 1 result
-        if(count($templatesDetected) === 1){
+        //Should have at least 1 result
+        if(count($detectedTables) > 0){
             //Process data
-            $this->processTemplate($csvArray, $templatesDetected[0], $project);
+            $this->processTemplate($detectedTables, $project);
 
             //Return back without warnings
             $return = back();
         }
         else{
-            $return = back()->with("warning","The file didn't auto-detect properly. Did the template change? Please email the file to mark.laravel.coder@gmail to have it re-calibrated");
+            $return = back()->with("warning","The file didn't auto-detect properly. Did the template change? Please email the file to mark.laravel.coder@gmail to have it re-calibrated quickly.");
         }
 
         return $return;
@@ -239,7 +238,7 @@ class CsvService
         return $templateDetected;
     }
 
-    public function processTemplate(array $csvArray, object $templateClass, Project $project): void
+    public function processTemplate(array $detectedTables, Project $project): void
     {
         /**
          * Single purpose: extract the materials from all the tables detected
@@ -248,20 +247,27 @@ class CsvService
         //Services
         $dataClassificationService = new DataClassificationService();
 
-        //Document tables detected
-        $tables = $this->detectedTables($csvArray,$templateClass);
-
-        foreach($tables as $tableData){
-            //Do something with each table
+        foreach($detectedTables as $tableInstance){
+            $type = $tableInstance["type"];
+            $rows = $tableInstance["data"];
+            $predeterminedProductCategory = $tableInstance["predeterminedProductCategory"];
 
             //Sense checks
             //$productService->senseChecks(); //todo incomplete
 
             //Find price book products
-            $dataWithProducts = $dataClassificationService->findProductsFromCleanData($tableData,$project->user);
+            $dataWithProducts = $dataClassificationService->findProductsFromCleanData(
+                $rows,
+                $project->user,
+                $predeterminedProductCategory
+            );
 
             //Save user material list
-            $this->saveRawMaterialQuoteData($dataWithProducts,$project);
+            $this->saveRawMaterialQuoteData(
+                $dataWithProducts,
+                $project,
+                $predeterminedProductCategory
+            );
 
             //Create new user-custom products
             //todo is incomplete
@@ -329,7 +335,8 @@ class CsvService
             if($firstDataRowIndex){
                 $detectTableInstances[] = [
                     "type" => $tableOption["type"],
-                    "data" => $this->getTableData($csvArray,$firstDataRowIndex,$tableOption)
+                    "data" => $this->getTableData($csvArray,$firstDataRowIndex,$tableOption),
+                    "predeterminedProductCategory" => $tableOption["predeterminedProductCategory"],
                 ];
             }
         }
@@ -383,6 +390,12 @@ class CsvService
         $materialColumnIndex = isset($tableOption["MaterialColumnNumber"])
             ? ($tableOption["MaterialColumnNumber"] - 1)
             : null;
+        $gradeColumnIndex = isset($tableOption["GradeColumnNumber"])
+            ? ($tableOption["GradeColumnNumber"] - 1)
+            : null;
+        $surfaceColumnIndex = isset($tableOption["SurfaceColumnNumber"])
+            ? ($tableOption["SurfaceColumnNumber"] - 1)
+            : null;
         $lengthRequiredColumnIndex = isset($tableOption["LengthColumnNumber"])
             ? ($tableOption["LengthColumnNumber"] - 1)
             : null;
@@ -398,44 +411,41 @@ class CsvService
 
         $nominalUnits = $tableOption["nominalUnits"];
 
+        $skipOrFinishCheckColumnIndex = $tableOption['skipOrFinishCheckColumnNumber'] - 1;
+
         //Loop through CSV
         foreach($csvArray as $index => $csvRow) {
             //If at or below the 1st data row
             if ($index >= $firstDataRowIndex) {
                 //End of table rule
-                $shouldFinish = $this->shouldFinish($tableOption["isLastDataRow"],$csvArray, $csvRow, $index, $descriptionColumnIndex);
+                $shouldFinish = $this->shouldFinish($tableOption["isLastDataRow"],$csvArray, $csvRow, $index, $skipOrFinishCheckColumnIndex);
                 if($shouldFinish){
                     break;
                 }
 
                 //Skip rule
-                $shouldSkip = $this->shouldSkip($tableOption["ShouldSkipRow"], $csvRow, $descriptionColumnIndex);
+                $shouldSkip = $this->shouldSkip($tableOption["ShouldSkipRow"], $csvRow, $skipOrFinishCheckColumnIndex);
 
                 //Description
                 $description = ($descriptionColumnIndex !== null && isset($csvRow[$descriptionColumnIndex]))
                     ? $csvRow[$descriptionColumnIndex]
                     : null;
+                $canHaveNoDescription = $tableOption["predeterminedProductCategory"] !== null;
 
-                //todo debug
-//                if($tableOption["label"] === "Hot Rolled, Angles, and more."){
-//                    if($shouldSkip){
-//                        dd("should skip",$csvRow);
-//                    }
-//                    dd([
-//                        "csvRow" => $csvRow,
-//                        "shouldSkip" => $shouldSkip,
-//                        "description" => $description,
-//                        "descriptionColumnIndex" => $descriptionColumnIndex,
-//                        "tableOption" => $tableOption,
-//                        "ShouldSkipRow" => $tableOption["ShouldSkipRow"],
-//                        "isLastDataRow" => $tableOption["isLastDataRow"],
-//                    ]);
-//                }
-
-                if ($description && !$shouldSkip) {
+                if (!$shouldSkip && ($description || (!$description && $canHaveNoDescription))){
                     //Material
                     $material = ($materialColumnIndex !== null && isset($csvRow[$materialColumnIndex]))
                         ? $csvRow[$materialColumnIndex]
+                        : null;
+
+                    //Grade
+                    $grade = ($gradeColumnIndex !== null && isset($csvRow[$gradeColumnIndex]))
+                        ? $csvRow[$gradeColumnIndex]
+                        : null;
+
+                    //Surface
+                    $surface = ($surfaceColumnIndex !== null && isset($csvRow[$surfaceColumnIndex]))
+                        ? $csvRow[$surfaceColumnIndex]
                         : null;
 
                     //Length required
@@ -462,6 +472,8 @@ class CsvService
                         "index" => $index,
                         "description" => $description,
                         "material" => $material,
+                        "grade" => $grade,
+                        "surface" => $surface,
                         "length_required" => $lengthRequired,
                         "width_required" => $widthRequired,
                         "sub_qty" => $subQty,
@@ -664,22 +676,24 @@ class CsvService
          * Single purpose: extract just the number from string number representation.
          */
 
-        $float = 1.0; //default
+        //$float = 1.0; //default
         $removeLetters = preg_replace('/[a-zA-Z]/', '', $quantity);
         $removeCurrencySymbols =preg_replace('/[€£¥₹$¢₱₽₩₦฿]/u', '', $removeLetters);
 
-        if (is_numeric($removeCurrencySymbols)) {
-            //If template length/width is METERS
-            if($lengthWidthUnits === "m"){
-                $float = (float) $removeCurrencySymbols;
-            }
-            //If template length/width is MILLIMETERS
-            if($lengthWidthUnits === "mm"){
-                $float = (float) ($removeCurrencySymbols/1000);
-            }
-        }
+        return (float) $removeCurrencySymbols;
 
-        return $float;
+//        if (is_numeric($removeCurrencySymbols)) {
+//            //If template length/width is METERS
+//            if($lengthWidthUnits === "m"){
+//                $float = (float) $removeCurrencySymbols;
+//            }
+//            //If template length/width is MILLIMETERS
+//            if($lengthWidthUnits === "mm"){
+//                $float = (float) ($removeCurrencySymbols/1000);
+//            }
+//        }
+//
+//        return $float;
     }
 
     public function getUnitRateDollars(string $rawUnitRate): float
@@ -741,7 +755,7 @@ class CsvService
 //        }
     }
 
-    public function saveRawMaterialQuoteData($dataWithProducts,$project): array
+    public function saveRawMaterialQuoteData($dataWithProducts,$project, ?string $predeterminedProductCategory): array
     {
         /**
          * Single purpose:
@@ -749,19 +763,30 @@ class CsvService
 
         //Services
         $dataClassificationService = new DataClassificationService();
+        $productService = new ProductService();
 
         $materialList = [];
         foreach($dataWithProducts as $cleanRow){
-            $productCategory = $dataClassificationService->findProduct($cleanRow["description"]);
+            $productCategory = $dataClassificationService->findProduct($cleanRow["description"],$predeterminedProductCategory);
+            $productCategoryDisplay = $productCategory ? $productCategory["productEnum"]->value : null;
 
             /**
              * Create 'RawMaterialQuote' item
              */
             $rawMaterialQuote = RawMaterialQuote::create([
                 "csv_index" => $cleanRow["index"],
-                "description" => $cleanRow["description"],
-                "product_category" => $productCategory ? $productCategory["productEnum"]->value : null,
+                "description" => $cleanRow["description"] ?? $productService->generateProductLabel(
+                        $productCategoryDisplay,
+                        $cleanRow["length_required"],
+                        $cleanRow["width_required"],
+                        null,
+                        $cleanRow["grade"],
+                        $cleanRow["surface"]
+                    ),
+                "product_category" => $productCategoryDisplay,
                 "material" => $cleanRow["material"] ?? null,
+                "grade" => $cleanRow["grade"] ?? null,
+                "surface" => $cleanRow["surface"] ?? null,
                 "nominal_units" => $dataClassificationService->findMeasurementUnit($productCategory),
                 "length_required" => $cleanRow["length_required"],
                 "width_required" => $cleanRow["width_required"] ?? null,
@@ -801,56 +826,69 @@ class CsvService
         return $materialList;
     }
 
-    public function shouldFinish(string|null $text, array $csvArray, array $csvRow, int $index, int $descriptionColumnIndex): bool
+    public function shouldFinish(string|null $text, array $csvArray, array $csvRow, int $index, int $skipOrFinishCheckColumnIndex): bool
     {
         $shouldFinish = false;
 
         //Has text
         if($text){
-            $shouldFinish = $this->isLastDataRowDescriptionTextContains($text, $csvRow, $descriptionColumnIndex);
+            $shouldFinish = $this->isLastDataRowTextContains($text, $csvRow, $skipOrFinishCheckColumnIndex);
         }
         else{
-            $shouldFinish = $this->isLastDataRow2BlankDescriptionCells($csvArray, $index, $descriptionColumnIndex);
+            $shouldFinish = $this->isLastDataRow2BlankCells($csvArray, $index, $skipOrFinishCheckColumnIndex);
         }
 
         return $shouldFinish;
     }
-    public function isLastDataRow2BlankDescriptionCells(array $csvArray, int $index, int $descriptionColumnIndex): bool
+    public function isLastDataRow2BlankCells(array $csvArray, int $index, int $skipOrFinishCheckColumnIndex): bool
     {
         /**
          * 2 consecutive blank 'description' cells
          */
-        $thisDescriptionCellBlank = false;
-        if(isset($csvArray[$index][$descriptionColumnIndex])){
-            $thisDescription = $csvArray[$index][$descriptionColumnIndex];
-            $thisDescriptionCellBlank = $thisDescription === "" || $thisDescription === null;
+
+        $thisCellBlank = true;
+        if(isset($csvArray[$index][$skipOrFinishCheckColumnIndex])){
+            $thisCell = $csvArray[$index][$skipOrFinishCheckColumnIndex];
+            $thisCellBlank = $thisCell=== "" || $thisCell === null;
         }
 
         //Next row exists
-        $nextDescriptionCellBlank = false;
-        if(isset($csvArray[$index + 1][$descriptionColumnIndex])){
-            $nextDescription = $csvArray[$index + 1][$descriptionColumnIndex];
-            $nextDescriptionCellBlank = $nextDescription === "" || $nextDescription === null;
+        $nextCellBlank = true;
+        if(isset($csvArray[$index + 1][$skipOrFinishCheckColumnIndex])){
+            $nextCell = $csvArray[$index + 1][$skipOrFinishCheckColumnIndex];
+            $nextCellBlank = $nextCell === "" || $nextCell === null;
         }
 
-        return $thisDescriptionCellBlank && $nextDescriptionCellBlank;
+//        //todo debug
+//        if($index === 107){
+//            dd([
+//                "index" => $index,
+//                "skipOrFinishCheckColumnIndex" => $skipOrFinishCheckColumnIndex,
+//                "this row" => $csvArray[$index][$skipOrFinishCheckColumnIndex],
+//                "next row" => $csvArray[$index + 1][$skipOrFinishCheckColumnIndex],
+//                "cond 1" => isset($csvArray[$index][$skipOrFinishCheckColumnIndex]),
+//                "cond 2" => isset($csvArray[$index + 1][$skipOrFinishCheckColumnIndex]),
+//            ]);
+//        }
+
+        return $thisCellBlank && $nextCellBlank;
     }
 
-    public function isLastDataRowDescriptionTextContains(string $text, array $csvRow, int $descriptionColumnIndex): bool
+    public function isLastDataRowTextContains(string $text, array $csvRow, int $skipOrFinishCheckColumnIndex): bool
     {
         /**
          * Description cell contains specific
          */
         $result = false;
 
-        if(isset($csvRow[$descriptionColumnIndex])){
-            $result = strtoupper($csvRow[$descriptionColumnIndex]) === strtoupper($text);
+        if(isset($csvRow[$skipOrFinishCheckColumnIndex])){
+            $result = strtoupper($csvRow[$skipOrFinishCheckColumnIndex]) === strtoupper($text);
         }
 
         return $result;
     }
 
-    public function shouldSkip(string|null $text, array $csvRow, int $descriptionColumnIndex): bool
+    public function shouldSkip(string|null $text, array $csvRow, int $skipOrFinishCheckColumnIndex): bool
     {
         $shouldSkip = false;
 
@@ -862,10 +900,10 @@ class CsvService
         else{
             //Has text
             if($text){
-                $shouldSkip = $this->shouldSkipRowDescriptionTextContains($text,$csvRow,$descriptionColumnIndex);
+                $shouldSkip = $this->shouldSkipRowDescriptionTextContains($text,$csvRow,$skipOrFinishCheckColumnIndex);
             }
             else{
-                $shouldSkip = $this->shouldSkipRowBlankDescription($csvRow,$descriptionColumnIndex);
+                $shouldSkip = $this->shouldSkipRowBlankDescription($csvRow,$skipOrFinishCheckColumnIndex);
             }
         }
 

@@ -24,8 +24,8 @@
     //Variables
     const trial_months = 2;
     const savings_period_years = 5;
-    const plan_period_years = 1/12;
-    const price = 850;
+    const fullPriceAnnual = 10000;
+    const firstYearDiscount = 40;
 
     //Shared Methods
     //...
@@ -70,25 +70,6 @@
         }
 
         return display;
-    }
-
-    function getSuffix(plan_period_years){
-        let suffix = "";
-
-        //Yearly
-        if(plan_period_years === 1){
-            suffix = "/year";
-        }
-        //Monthly
-        else if(plan_period_years === (1/12)){
-            suffix = "/month";
-        }
-        //Weekly
-        else if(plan_period_years === (1/52)){
-            suffix = "/week";
-        }
-
-        return suffix;
     }
 </script>
 
@@ -256,7 +237,8 @@
                     <SavingsCalculator
                         :formCalculator="formCalculator"
                         :years="savings_period_years"
-                        :price="price"
+                        :fullPriceAnnual="fullPriceAnnual"
+                        :firstYearDiscount="firstYearDiscount"
                         :plan_period_years="plan_period_years"
                     />
                 </div>
@@ -428,7 +410,8 @@
                 <SavingsCalculator
                     :formCalculator="formCalculator"
                     :years="savings_period_years"
-                    :price="price"
+                    :fullPriceAnnual="fullPriceAnnual"
+                    :firstYearDiscount="firstYearDiscount"
                     :plan_period_years="plan_period_years"
                 />
             </div>
@@ -608,7 +591,7 @@
                                         <circle cx="12" cy="12" fill="none" r="11" stroke="currentColor"></circle>
                                     </svg>
                                 </div>
-                                <p class="font-medium text-gray-800">{{trial_months}} Months Trial</p>
+                                <p class="font-medium text-gray-800">Unlimited import templates</p>
                             </li>
                             <li class="flex items-center">
                                 <div class="mr-2">
@@ -617,7 +600,7 @@
                                         <circle cx="12" cy="12" fill="none" r="11" stroke="currentColor"></circle>
                                     </svg>
                                 </div>
-                                <p class="font-medium text-gray-800">Unlimited import templates</p>
+                                <p class="font-medium text-gray-800">Unlimited staff</p>
                             </li>
                             <li class="flex items-center">
                                 <div class="mr-2">
@@ -656,12 +639,29 @@
                             <p v-else class="text-sm font-bold tracking-wider uppercase">
                                 Unlimited plan
                             </p>
-                            <p class="text-5xl font-extrabold">A${{ price.toLocaleString('en-US') }}<span class="text-xl">{{ getSuffix(plan_period_years) }}</span></p>
+
+                            <div class="mt-4 flex items-baseline justify-start">
+                                <p class="text-3xl font-extrabold">
+                                    <s class="font-medium">${{ fullPriceAnnual.toLocaleString('en-US') }}</s><span class="font-bold text-xl">/year</span>
+                                </p>
+                            </div>
+
+
+                            <p class="text-5xl font-extrabold">A${{ (fullPriceAnnual*((100-firstYearDiscount)/100)).toLocaleString('en-US') }}<span class="text-xl">/year</span></p>
                         </div>
                     </div>
                     <div>
                         <p class="mb-2 font-bold tracking-wide">Features</p>
                         <ul class="space-y-2">
+                            <li class="flex items-center">
+                                <div class="mr-2">
+                                    <svg class="w-4 h-4 text-green-500" viewBox="0 0 24 24" stroke-linecap="round" stroke-width="2">
+                                        <polyline fill="none" stroke="currentColor" points="6,12 10,16 18,8"></polyline>
+                                        <circle cx="12" cy="12" fill="none" r="11" stroke="currentColor"></circle>
+                                    </svg>
+                                </div>
+                                <p class="font-medium text-green-500">{{firstYearDiscount}}% first year discount</p>
+                            </li>
                             <li class="flex items-center">
                                 <div class="mr-2">
                                     <svg class="w-4 h-4 text-deep-purple-accent-400" viewBox="0 0 24 24" stroke-linecap="round" stroke-width="2">
@@ -670,6 +670,15 @@
                                     </svg>
                                 </div>
                                 <p class="font-medium text-gray-800">Unlimited import templates</p>
+                            </li>
+                            <li class="flex items-center">
+                                <div class="mr-2">
+                                    <svg class="w-4 h-4 text-deep-purple-accent-400" viewBox="0 0 24 24" stroke-linecap="round" stroke-width="2">
+                                        <polyline fill="none" stroke="currentColor" points="6,12 10,16 18,8"></polyline>
+                                        <circle cx="12" cy="12" fill="none" r="11" stroke="currentColor"></circle>
+                                    </svg>
+                                </div>
+                                <p class="font-medium text-gray-800">Unlimited staff</p>
                             </li>
                             <li class="flex items-center">
                                 <div class="mr-2">
@@ -705,3 +714,22 @@
     </div>
 
 </template>
+
+<style scoped>
+    s, strike{text-decoration:none;position:relative;}
+    s::before, strike::before {
+        top: 50%; /*tweak this to adjust the vertical position if it's off a bit due to your font family */
+        background:red; /*this is the color of the line*/
+        opacity:.7;
+        content: '';
+        width: 110%;
+        position: absolute;
+        height:.1em;
+        border-radius:.1em;
+        left: -5%;
+        white-space:nowrap;
+        display: block;
+        transform: rotate(-15deg);
+    }
+    s.straight::before, strike.straight::before{transform: rotate(0deg);left:-1%;width:102%;}
+</style>

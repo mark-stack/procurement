@@ -36,8 +36,11 @@ class AdminUpdateMasterMaterialsSpreadsheetController extends Controller
                         "nominal_length" => $row[8],
                         "nominal_width" => $row[9],
                         "nominal_height" => $row[10],
-                        "kg_per_m" => $row[11],
-                        "baseline_unit_rate" => $row[12],
+                        "pack_size_1" => $row[11],
+                        "pack_size_2" => $row[12],
+                        "pack_size_3" => $row[13],
+                        "kg_per_m" => $row[14],
+                        "baseline_unit_rate" => $row[15],
                     ];
                 }
             }
@@ -84,6 +87,9 @@ class AdminUpdateMasterMaterialsSpreadsheetController extends Controller
                     "nominal_length" => $row["nominal_length"],
                     "nominal_width" => $row["nominal_width"],
                     "nominal_height" => $row["nominal_height"],
+                    "pack_size_1" => $row["pack_size_1"],
+                    "pack_size_2" => $row["pack_size_2"],
+                    "pack_size_3" => $row["pack_size_3"],
                     "kg_per_m" => $row["kg_per_m"],
                     "baseline_unit_rate" => $row["baseline_unit_rate"],
                     'business_id' => null,

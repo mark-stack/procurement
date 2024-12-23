@@ -124,7 +124,7 @@ class DataClassificationService
     }
 
 
-    public function findProductsInRow(array $cleanCsvRow, User $user): array
+    public function findProductsInRow(array $cleanCsvRow, User $user, ?string $predeterminedProductCategory): array
     {
         /**
          * Single purpose:
@@ -140,7 +140,7 @@ class DataClassificationService
 //        "unit_rate" => 50.0
 
         //Product (category like "PFC")
-        $productCategory = $this->findProduct($cleanCsvRow["description"]);
+        $productCategory = $this->findProduct($cleanCsvRow["description"],$predeterminedProductCategory);
 
         //Has product
         $generalProductMatches = collect([]);
@@ -157,10 +157,12 @@ class DataClassificationService
             $materialEnum = $this->findMaterial($productCategory,$cleanCsvRow["description"]);
 
             //GRADE
-            $gradesEnums = $this->findGrades($productCategory,$cleanCsvRow["description"]);
+            $searchGradeField = $cleanCsvRow["grade"] ?? $cleanCsvRow["description"];
+            $gradesEnums = $this->findGrades($productCategory,$searchGradeField);
 
             //SURFACE
-            $surfaceEnum = $this->findSurface($productCategory,$cleanCsvRow["description"],$gradesEnums); //todo this might be a column
+            $searchSurfaceField = $cleanCsvRow["surface"] ?? $cleanCsvRow["description"];
+            $surfaceEnum = $this->findSurface($productCategory,$searchSurfaceField,$gradesEnums);
 
             //NOMINAL UNITS
             $measurementUnitEnum = $this->findMeasurementUnit($productCategory);
@@ -196,7 +198,7 @@ class DataClassificationService
         ];
     }
 
-    public function findProductsFromCleanData(array $cleanCsvData, User $user): array
+    public function findProductsFromCleanData(array $cleanCsvData, User $user, ?string $predeterminedProductCategory): array
     {
         /**
          * Single purpose:
@@ -205,7 +207,7 @@ class DataClassificationService
         $result = [];
 
         foreach($cleanCsvData as $cleanCsvRow){
-            $productsInRow = $this->findProductsInRow($cleanCsvRow,$user);
+            $productsInRow = $this->findProductsInRow($cleanCsvRow,$user,$predeterminedProductCategory);
 
             $append = $cleanCsvRow;
             $append["generalProductMatches"] = $productsInRow["generalProductMatches"];
@@ -215,7 +217,7 @@ class DataClassificationService
         return $result;
     }
 
-    public function findProduct(string $text): ?array
+    public function findProduct(?string $text, ?string $predeterminedProductCategory): ?array
     {
         /**
          * Single purpose: extract a 'product' from text. e.g "PFC"
@@ -353,7 +355,7 @@ class DataClassificationService
                 "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
                 "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
             ],
-            //Bolts
+            //BOLT
             [
                 "productEnum" => ProductEnums::BOLT,
                 "productRegex" => [
@@ -363,6 +365,30 @@ class DataClassificationService
                 "nominalLengthRegex" => [
                     "x+(\d+)",      //x100
                     "x+\s+(\d+)",   //x 100
+                ],
+                "nominalWidthRegex" => [
+                    "M+(\d+)", //M16
+                ],
+                "nominalHeightRegex" => [
+
+                ],
+                "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
+                "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
+            ],
+            //BOLT
+            [
+                "productEnum" => ProductEnums::ALLTHREAD,
+                "productRegex" => [
+                    "M+\d",
+                    "chemset",
+                    "allthread",
+                    "chemical+\s+anchor"
+                ],
+                "nominalLengthRegex" => [
+                    "x+(\d+)",      //x100
+                    "x+\s+(\d+)",   //x 100
+                    "(\d+)+\s+mm",  //1000 mm
+                    "(\d+)+mm",     //1000mm
                 ],
                 "nominalWidthRegex" => [
                     "M+(\d+)", //M16
@@ -396,11 +422,22 @@ class DataClassificationService
             //todo more
         ];
 
-        foreach($products as $product){
-            foreach($product["productRegex"] as $pattern){
-                $regex = "/".$pattern."/i";
-                if(preg_match($regex, $text)){
+        //Predetermined category
+        if($predeterminedProductCategory){
+            foreach($products as $product){
+                if($product["productEnum"]->value === $predeterminedProductCategory){
                     $resultProduct = $product;
+                }
+            }
+        }
+        //Find category in description text
+        else{
+            foreach($products as $product){
+                foreach($product["productRegex"] as $pattern){
+                    $regex = "/".$pattern."/i";
+                    if(preg_match($regex, $text)){
+                        $resultProduct = $product;
+                    }
                 }
             }
         }
