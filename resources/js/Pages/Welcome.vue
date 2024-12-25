@@ -25,7 +25,9 @@
     const trial_months = 2;
     const savings_period_years = 5;
     const fullPriceAnnual = 10000;
-    const firstYearDiscount = 40;
+    const fullPriceMonthly = 850;
+    const firstYearDiscount = 0;
+    const whichPlan = "MONTHLY";
 
     //Shared Methods
     //...
@@ -238,8 +240,9 @@
                         :formCalculator="formCalculator"
                         :years="savings_period_years"
                         :fullPriceAnnual="fullPriceAnnual"
+                        :fullPriceMonthly="fullPriceMonthly"
+                        :whichPlan="whichPlan"
                         :firstYearDiscount="firstYearDiscount"
-                        :plan_period_years="plan_period_years"
                     />
                 </div>
             </div>
@@ -411,8 +414,9 @@
                     :formCalculator="formCalculator"
                     :years="savings_period_years"
                     :fullPriceAnnual="fullPriceAnnual"
+                    :fullPriceMonthly="fullPriceMonthly"
+                    :whichPlan="whichPlan"
                     :firstYearDiscount="firstYearDiscount"
-                    :plan_period_years="plan_period_years"
                 />
             </div>
         </div>
@@ -632,11 +636,9 @@
             <div class="flex flex-col justify-between p-5 bg-white border rounded shadow-sm">
                 <div class="mb-6">
                     <div class="flex items-center justify-between pb-6 mb-6 border-b">
-                        <div>
-                            <p v-if="plan_period_years > 1" class="text-sm font-bold tracking-wider uppercase">
-                                {{plan_period_years}} year{{plan_period_years > 1 ? 's' : ''}} unlimited usage
-                            </p>
-                            <p v-else class="text-sm font-bold tracking-wider uppercase">
+                        <!-- Annual plan -->
+                        <div v-if="whichPlan === 'ANNUAL'">
+                            <p class="text-sm font-bold tracking-wider uppercase">
                                 Unlimited plan
                             </p>
 
@@ -645,22 +647,34 @@
                                     <s class="font-medium">${{ fullPriceAnnual.toLocaleString('en-US') }}</s><span class="font-bold text-xl">/year</span>
                                 </p>
                             </div>
-
-
                             <p class="text-5xl font-extrabold">A${{ (fullPriceAnnual*((100-firstYearDiscount)/100)).toLocaleString('en-US') }}<span class="text-xl">/year</span></p>
+                        </div>
+
+                        <!-- Monthly plan -->
+                        <div v-if="whichPlan === 'MONTHLY'">
+                            <p class="text-sm font-bold tracking-wider uppercase">
+                                Unlimited plan
+                            </p>
+
+                            <div v-if="firstYearDiscount > 0" class="mt-4 flex items-baseline justify-start">
+                                <p class="text-3xl font-extrabold">
+                                    <s class="font-medium">${{ fullPriceMonthly.toLocaleString('en-US') }}</s><span class="font-bold text-xl">/month</span>
+                                </p>
+                            </div>
+                            <p class="text-5xl font-extrabold">A${{ (fullPriceMonthly*((100-firstYearDiscount)/100)).toLocaleString('en-US') }}<span class="text-xl">/month</span></p>
                         </div>
                     </div>
                     <div>
                         <p class="mb-2 font-bold tracking-wide">Features</p>
                         <ul class="space-y-2">
-                            <li class="flex items-center">
+                            <li v-if="firstYearDiscount > 0" class="flex items-center">
                                 <div class="mr-2">
                                     <svg class="w-4 h-4 text-green-500" viewBox="0 0 24 24" stroke-linecap="round" stroke-width="2">
                                         <polyline fill="none" stroke="currentColor" points="6,12 10,16 18,8"></polyline>
                                         <circle cx="12" cy="12" fill="none" r="11" stroke="currentColor"></circle>
                                     </svg>
                                 </div>
-                                <p class="font-medium text-green-500">{{firstYearDiscount}}% first year discount</p>
+                                <p class="font-bold text-green-500">{{firstYearDiscount}}% first year discount</p>
                             </li>
                             <li class="flex items-center">
                                 <div class="mr-2">

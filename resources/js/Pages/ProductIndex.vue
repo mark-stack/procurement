@@ -26,7 +26,7 @@
         excel: null,
     });
     const formBulkActions = useForm({
-        selectedRawMaterialQuoteIds: [], //initialMapBulkActions(),
+        selectedRawMaterialQuoteIds: [],
     });
     const formPreChecklist = useForm({
         one: false,
@@ -37,16 +37,16 @@
         pre_nested_check: false,
     });
     let formClarifications = useForm(props.partialProductMatches);
-    let formCustomisations = useForm(props.requiresCustom);
+    let formCustomisations = useForm(Object.assign({}, props.requiresCustom, {deletedIds:[]}));
 
     //Variables
     const isDragging = ref(false);
     const uploading = ref(false);
     const fileInput = ref(null);
     const allChecked = ref(false);
-    const screenHeight = window.innerHeight;
     const showClarifications = ref(hasClarifications());
     const showUserCustomProducts = ref(hasUserCustomProducts());
+    const isAdmin = usePage().props.auth.isAdmin;
 
     //Shared data
     const warning = computed(() => usePage().props.flash.warning);
@@ -128,8 +128,6 @@
         formStore.post(url, {
             preserveScroll: true,
             onSuccess: () => {
-                console.log('success');
-
                 uploading.value = false;
 
                 clearFileInput();
@@ -151,8 +149,6 @@
         });
 
         uploading.value = true;
-
-        console.log("formStore.file",formStore.excel);
     }
 
     function clearFileInput() {
@@ -183,7 +179,19 @@
     });
 
     function getUnitDisplay(row,slash){
-        return slash ? "/m" : "m";
+        let unitDisplay = "";
+
+        if(row.nesting_algo === "METERAGE"){
+            unitDisplay =  slash ? "/m" : "m";
+        }
+        if(row.nesting_algo === "AREA"){
+            unitDisplay =  slash ? "/m2" : "m2";
+        }
+        if(row.nesting_algo === "BUNDLE"){
+            unitDisplay =  slash ? "/each" : "";
+        }
+
+        return unitDisplay;
     }
 
     function cropText(text, maxLength = 25) {
@@ -198,7 +206,6 @@
         formBulkActions.post(url, {
             preserveScroll: true,
             onSuccess: () => {
-                console.log('success');
                 uploading.value = false;
                 formBulkActions.selectedRawMaterialQuoteIds = [];
                 allChecked.value = false;
@@ -224,7 +231,7 @@
                 showClarifications.value = false;
 
                 //Update custom products
-                formCustomisations = useForm(props.requiresCustom);
+                formCustomisations = useForm(Object.assign({}, props.requiresCustom, {deletedIds:[]}));
 
                 //Show custom products
                 showUserCustomProducts.value = true;
@@ -253,14 +260,7 @@
 
         //Has one product match
         if(row['product']){
-            let product = row['product'];
-
-            //todo debugging
-            if(product.product === "LVL"){
-                console.log("LVL",product);
-            }
-
-            display = shared.formatProduct(product.product,product.nominal_length,product.nominal_width,product.nominal_height,product.grade, product.surface);
+            display = row.product.product_derived_label;
         }
 
         return display;
@@ -290,17 +290,41 @@
         let message = "Are you sure you want delete this row item";
         const userConfirmed = confirm(message);
         if (userConfirmed) {
-            //Delete item
-            formBulkActions.selectedRawMaterialQuoteIds = [rawMaterialQuoteId];
-            submitBulkDelete();
+            //Add to list of "promise to delete" to actually delete after submitting form
+            formCustomisations.deletedIds.push(rawMaterialQuoteId);
 
-            //Reset 'formCustomisations' form to remove the deleted items (prevents validation errors)
-            formCustomisations = useForm(props.requiresCustom);
+            //If delete all the items, then auto submit the form
+            if(props.requiresCustom.length === formCustomisations.deletedIds.length){
+                submitCustomisations();
+            }
         }
     }
 
     function isNumeric(value) {
         return !isNaN(value) && !isNaN(parseFloat(value));
+    }
+
+    function isDeleted(id){
+        let isDeleted = false;
+
+        if(formCustomisations.deletedIds !== undefined){
+            isDeleted = formCustomisations.deletedIds.includes(id);
+        }
+
+        return isDeleted;
+    }
+
+    function getUnitRateColour(row){
+        let unitRateColour = "text-gray-800";
+
+        if(row.baseline_unit_rate_comparison === "HIGH"){
+            unitRateColour = "text-yellow-800";
+        }
+        if(row.baseline_unit_rate_comparison === "LOW"){
+            unitRateColour = "text-red-700";
+        }
+
+        return unitRateColour;
     }
 </script>
 
@@ -504,7 +528,7 @@
                                         :value="option_index"
                                         required
                                     >
-                                    {{ shared.formatProduct(option.product,option.nominal_length,option.nominal_width,option.nominal_height,option.grade,option.surface)}}
+                                    {{ option.product_derived_label }}
                                 </label>
                             </div>
                         </div>
@@ -531,7 +555,7 @@
                     <div class="grid grid-cols-3 gap-6">
                         <template v-for="(item,index) in formCustomisations">
                             <CustomProductForm
-                                v-if="isNumeric(index)"
+                                v-if="isNumeric(index) && !isDeleted(item.data.id)"
                                 class="mt-3"
                                 :item="item"
                                 :index="index"
@@ -611,6 +635,12 @@
                                                 </div>
                                             </th>
 
+                                            <th v-if="isAdmin" scope="col" class="sticky top-0 py-3.5 px-4 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400">
+                                                <div class="flex items-center gap-x-3">
+                                                    <span>Baseline</span>
+                                                </div>
+                                            </th>
+
                                             <th scope="col" class="sticky top-0 py-3.5 px-4 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400">
                                                 <div class="flex items-center gap-x-3">
                                                     <span>Subtotal</span>
@@ -657,7 +687,7 @@
                                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="m0 0h512v512h-512z"/><path d="m39.557 19 283.883 254h149.003l-283.883-254h-149.002zm-14.557 11.13v25.847l286 255.893v-25.846zm64 107.263v34.584l286 255.893v-84.843l-64-13.002zm-11.445 48.497-42.9 10.723 287.79 257.498 42.9-10.723-287.789-257.498zm-52.555 26.24v23.847l286 255.893v-23.847zm304 78.87v21.973l64 16v126.054l-64 16v21.973h158v-21.973l-64-16v-126.054l64-16v-21.973zm112 135.865v14.108l21.88 5.47z" fill="#fff"/></svg>
                                                         <div>
                                                             <h2 class="font-medium text-gray-800 dark:text-white ">
-                                                                {{ row.length_required }}<span class="text-xs">{{getUnitDisplay(row,false)}}</span>
+                                                                {{ parseFloat(row.length_required).toFixed(3) }}<span class="text-xs">{{getUnitDisplay(row,false)}}</span>
                                                             </h2>
                                                         </div>
                                                     </div>
@@ -669,8 +699,8 @@
                                                     <div class="flex items-center gap-x-2">
                                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="m0 0h512v512h-512z"/><path d="m39.557 19 283.883 254h149.003l-283.883-254h-149.002zm-14.557 11.13v25.847l286 255.893v-25.846zm64 107.263v34.584l286 255.893v-84.843l-64-13.002zm-11.445 48.497-42.9 10.723 287.79 257.498 42.9-10.723-287.789-257.498zm-52.555 26.24v23.847l286 255.893v-23.847zm304 78.87v21.973l64 16v126.054l-64 16v21.973h158v-21.973l-64-16v-126.054l64-16v-21.973zm112 135.865v14.108l21.88 5.47z" fill="#fff"/></svg>
                                                         <div>
-                                                            <h2 class="font-medium text-gray-800 dark:text-white ">
-                                                                {{ row.width_required }}<span class="text-xs">{{getUnitDisplay(row,false)}}</span>
+                                                            <h2 v-if="row.nesting_algo === 'AREA'" class="font-medium text-gray-800 dark:text-white ">
+                                                                {{ parseFloat(row.width_required).toFixed(3) }}<span class="text-xs">{{getUnitDisplay(row,false)}}</span>
                                                             </h2>
                                                         </div>
                                                     </div>
@@ -683,7 +713,7 @@
                                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="m0 0h512v512h-512z"/><path d="m39.557 19 283.883 254h149.003l-283.883-254h-149.002zm-14.557 11.13v25.847l286 255.893v-25.846zm64 107.263v34.584l286 255.893v-84.843l-64-13.002zm-11.445 48.497-42.9 10.723 287.79 257.498 42.9-10.723-287.789-257.498zm-52.555 26.24v23.847l286 255.893v-23.847zm304 78.87v21.973l64 16v126.054l-64 16v21.973h158v-21.973l-64-16v-126.054l64-16v-21.973zm112 135.865v14.108l21.88 5.47z" fill="#fff"/></svg>
                                                         <div>
                                                             <h2 class="font-medium text-gray-800 dark:text-white ">
-                                                                {{ row.sub_qty }}
+                                                                {{ parseFloat(row.sub_qty).toFixed(2) }}
                                                             </h2>
                                                         </div>
                                                     </div>
@@ -697,6 +727,20 @@
                                                         <div>
                                                             <h2 class="font-medium text-gray-800 dark:text-white ">
                                                                 {{ new Intl.NumberFormat('en-US', {style: 'currency', currency: 'USD',}).format(row.unit_rate) }}<span class="text-xs">{{getUnitDisplay(row,true)}}</span>
+                                                            </h2>
+                                                            <p v-if="row.baseline_unit_rate_comparison !== 'NONE'" :class="getUnitRateColour(row)" class="text-xs">Too {{ row.baseline_unit_rate_comparison.toLowerCase() }}?</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <!-- baseline (admin) -->
+                                            <td v-if="isAdmin" class="px-4 py-4 text-sm font-medium text-gray-700 whitespace-nowrap">
+                                                <div class="inline-flex items-center gap-x-3">
+                                                    <div class="flex items-center gap-x-2">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="m0 0h512v512h-512z"/><path d="m39.557 19 283.883 254h149.003l-283.883-254h-149.002zm-14.557 11.13v25.847l286 255.893v-25.846zm64 107.263v34.584l286 255.893v-84.843l-64-13.002zm-11.445 48.497-42.9 10.723 287.79 257.498 42.9-10.723-287.789-257.498zm-52.555 26.24v23.847l286 255.893v-23.847zm304 78.87v21.973l64 16v126.054l-64 16v21.973h158v-21.973l-64-16v-126.054l64-16v-21.973zm112 135.865v14.108l21.88 5.47z" fill="#fff"/></svg>
+                                                        <div>
+                                                            <h2 v-if="row.baseline_unit_rate" class="font-medium text-gray-800 dark:text-white ">
+                                                                {{ new Intl.NumberFormat('en-US', {style: 'currency', currency: 'USD',}).format(row.baseline_unit_rate) }}<span class="text-xs">{{getUnitDisplay(row,true)}}</span>
                                                             </h2>
                                                         </div>
                                                     </div>

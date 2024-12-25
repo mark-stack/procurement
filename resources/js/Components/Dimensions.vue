@@ -18,7 +18,24 @@
 
     //Methods
     function getPlaceholder(field){
-        return nominalSizeData[currentProductSelection][field];
+        let placeholder = field;
+
+        if(nominalSizeData[currentProductSelection] === undefined){
+            if(field === "length_placeholder"){
+                placeholder = "Length";
+            }
+            if(field === "width_placeholder"){
+                placeholder = "Width";
+            }
+            if(field === "height_placeholder"){
+                placeholder = "Height";
+            }
+        }
+        else{
+            placeholder = nominalSizeData[currentProductSelection][field];
+        }
+
+        return placeholder;
     }
 </script>
 
@@ -26,7 +43,7 @@
     <div>
         <label class="block text-gray-500 text-sm">Dimensions</label>
         <input
-            v-if="nominalSizeData[currentProductSelection]['length']"
+            v-if="nominalSizeData[currentProductSelection] ? nominalSizeData[currentProductSelection]['length'] : true"
             v-model="form[index]['selected']['nominal_length']"
             type="number"
             :placeholder="getPlaceholder('length_placeholder')"
@@ -34,7 +51,7 @@
             :class="form.errors[id+'-nominal_length'] ? 'border-2 border-red-500' : ''"
         />
         <input
-            v-if="nominalSizeData[currentProductSelection]['width']"
+            v-if="nominalSizeData[currentProductSelection] ? nominalSizeData[currentProductSelection]['width'] : true"
             v-model="form[index]['selected']['nominal_width']"
             type="number"
             :placeholder="getPlaceholder('width_placeholder')"
@@ -42,7 +59,7 @@
             :class="form.errors[id+'-nominal_width'] ? 'border-2 border-red-500' : ''"
         />
         <input
-            v-if="nominalSizeData[currentProductSelection]['height']"
+            v-if="nominalSizeData[currentProductSelection] ? nominalSizeData[currentProductSelection]['height'] : true"
             v-model="form[index]['selected']['nominal_height']"
             type="number"
             :placeholder="getPlaceholder('height_placeholder')"

@@ -10,8 +10,9 @@
         formCalculator: Object,
         years: Number,
         fullPriceAnnual: Number,
+        fullPriceMonthly: Number,
+        whichPlan: String,
         firstYearDiscount: Number,
-        plan_period_years: Number,
     });
 
     //Form
@@ -82,10 +83,20 @@
     }
 
     function roiDisplay(){
+        let priceFirstYearAfterDiscount = null;
+        let priceAfterFirstYearFullPrice = null;
+        let priceOverSavingsPeriod = null;
 
-        let priceFirstYearAfterDiscount = props.fullPriceAnnual*((100-props.firstYearDiscount)/100);
-        let priceAfterFirstYearFullPrice = props.fullPriceAnnual;
-        let priceOverSavingsPeriod = priceFirstYearAfterDiscount + ((props.years - 1) * priceAfterFirstYearFullPrice);
+        if(props.whichPlan === "ANNUAL"){
+            priceFirstYearAfterDiscount = props.fullPriceAnnual*((100-props.firstYearDiscount)/100);
+            priceAfterFirstYearFullPrice = props.fullPriceAnnual;
+            priceOverSavingsPeriod = priceFirstYearAfterDiscount + ((props.years - 1) * priceAfterFirstYearFullPrice);
+        }
+        if(props.whichPlan === "MONTHLY"){
+            priceFirstYearAfterDiscount = 12*props.fullPriceMonthly*((100-props.firstYearDiscount)/100);
+            priceAfterFirstYearFullPrice = 12*props.fullPriceMonthly;
+            priceOverSavingsPeriod = priceFirstYearAfterDiscount + ((props.years - 1) * priceAfterFirstYearFullPrice);
+        }
 
         //"1:15"
         let ratio = (calculate()/priceOverSavingsPeriod).toFixed(0);

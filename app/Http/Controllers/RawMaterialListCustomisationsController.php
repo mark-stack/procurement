@@ -28,101 +28,111 @@ class RawMaterialListCustomisationsController extends Controller
          */
         $productService = new ProductService();
         $rows = $request->all();
-        $validation = $productService->validationUserCustom($rows);
+
+        $validation = $productService->validationUserCustom($rows,$request->deletedIds);
 
         //Has errors
         if($validation['validationErrors'] > 0){
             throw new ValidationException($validation['validator']);
         }
         else{
+            //Delete the "promised to delete" items
+            RawMaterialQuote::query()->whereIn("id",$request->deletedIds)->delete();
+
             $user = auth()->user();
 
             foreach($rows as $formData){
-                //Prepare single product item
-                $preparedFormData = $this->preparedFormDataSingleProduct($formData);
+                $id = isset($formData["data"]) ? $formData["data"]["id"] : null;
 
-                //Prepare product variations (e.g lengths)
-                $productVariations = $this->productVariations($preparedFormData,$business);
+                if($id && !in_array($id,$request->deletedIds)){
 
-                //Create product variations
-                foreach($productVariations as $productVariation){
-                    Product::create($productVariation);
+                    //Prepare single product item
+                    $preparedFormData = $this->preparedFormDataSingleProduct($formData);
+
+                    //Prepare product variations (e.g lengths)
+                    $productVariations = $this->productVariations($preparedFormData,$business);
+
+                    //Create product variations
+                    foreach($productVariations as $productVariation){
+                        Product::create($productVariation);
+                    }
+
+                    /**
+                     * General product matches
+                     */
+                    $generalProductMatches = [];
+                    $nestingAlgo = $formData["selected"]["nesting_algo"];
+
+                    //METERAGE
+                    if($nestingAlgo === NestingEnums::METERAGE->value) {
+                        //$sizeInclude = ["nominal_height"];
+                        $generalProductMatches = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', "nominal_height")
+                            ->distinct()
+                            ->availableFor($user)
+                            ->where("product", $preparedFormData["product"])
+                            ->where("material", $preparedFormData["material"])
+                            ->where("grade", $preparedFormData["grade"])
+                            ->where("surface", SurfaceEnums::NONE->value)
+                            ->where("nominal_units", $preparedFormData["nominal_units"])
+                            ->where("nominal_height",$preparedFormData["nominal_height"])
+                            ->get();
+                    }
+                    //AREA
+                    if($nestingAlgo === NestingEnums::AREA->value) {
+                        //$sizeInclude = ["nominal_height"];
+                        $generalProductMatches = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', "nominal_height")
+                            ->distinct()
+                            ->availableFor($user)
+                            ->where("product", $preparedFormData["product"])
+                            ->where("material", $preparedFormData["material"])
+                            ->where("grade", $preparedFormData["grade"])
+                            ->where("surface", SurfaceEnums::NONE->value)
+                            ->where("nominal_units", $preparedFormData["nominal_units"])
+                            ->where("nominal_height",$preparedFormData["nominal_height"])
+                            ->get();
+                    }
+                    //BUNDLE
+                    if($nestingAlgo === NestingEnums::BUNDLE->value) {
+                        //$sizeInclude = ["nominal_length","nominal_width"];
+                        $generalProductMatches = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', "nominal_length", "nominal_width")
+                            ->distinct()
+                            ->availableFor($user)
+                            ->where("product", $preparedFormData["product"])
+                            ->where("material", $preparedFormData["material"])
+                            ->where("grade", $preparedFormData["grade"])
+                            ->where("surface", SurfaceEnums::NONE->value)
+                            ->where("nominal_units", $preparedFormData["nominal_units"])
+                            ->where("nominal_length",$preparedFormData["nominal_length"])
+                            ->where("nominal_width",$preparedFormData["nominal_width"])
+                            ->get();
+                    }
+
+                    $rawMaterialQuote = RawMaterialQuote::find($formData["data"]["id"]);
+                    $rawMaterialQuote->product_category = $preparedFormData["product"];
+                    $rawMaterialQuote->general_product_matches = serialize($generalProductMatches->toArray());
+                    $rawMaterialQuote->save();
+
+                    /**
+                     * Create 'Pieces'
+                     */
+                    $project = Project::findOrFail($formData["data"]["project_id"]);
+                    Piece::create([
+                        'project_id' => $project->id,
+                        "raw_material_quote_id" => $rawMaterialQuote->id,
+                        "product" => $preparedFormData["product"],
+                        "material" => $preparedFormData["material"],
+                        "grade" => $preparedFormData["grade"],
+                        "surface" => SurfaceEnums::NONE->value,
+                        "nominal_units" => $preparedFormData['nominal_units'],
+                        "nesting_algo" => $preparedFormData['nesting_algo'],
+                        "nominal_length" => $preparedFormData['nominal_length'],
+                        "nominal_width" => $preparedFormData['nominal_width'],
+                        "nominal_height" => $preparedFormData['nominal_height'],
+                        "actual_length" => $formData["data"]["length_required"],
+                        "actual_width" => $formData["data"]["width_required"],
+                        "actual_qty" => $formData["data"]["sub_qty"]
+                    ]);
                 }
-
-                /**
-                 * General product matches
-                 */
-                $generalProductMatches = [];
-                $nestingAlgo = $formData["selected"]["nesting_algo"];
-
-                //METERAGE
-                if($nestingAlgo === NestingEnums::METERAGE->value) {
-                    //$sizeInclude = ["nominal_height"];
-                    $generalProductMatches = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', "nominal_height")
-                        ->distinct()
-                        ->availableFor($user)
-                        ->where("product", $preparedFormData["product"])
-                        ->where("material", $preparedFormData["material"])
-                        ->where("grade", $preparedFormData["grade"])
-                        ->where("surface", SurfaceEnums::NONE->value)
-                        ->where("nominal_units", $preparedFormData["nominal_units"])
-                        ->where("nominal_height",$preparedFormData["nominal_height"])
-                        ->get();
-                }
-                //AREA
-                if($nestingAlgo === NestingEnums::AREA->value) {
-                    //$sizeInclude = ["nominal_height"];
-                    $generalProductMatches = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', "nominal_height")
-                        ->distinct()
-                        ->availableFor($user)
-                        ->where("product", $preparedFormData["product"])
-                        ->where("material", $preparedFormData["material"])
-                        ->where("grade", $preparedFormData["grade"])
-                        ->where("surface", SurfaceEnums::NONE->value)
-                        ->where("nominal_units", $preparedFormData["nominal_units"])
-                        ->where("nominal_height",$preparedFormData["nominal_height"])
-                        ->get();
-                }
-                //BUNDLE
-                if($nestingAlgo === NestingEnums::BUNDLE->value) {
-                    //$sizeInclude = ["nominal_length","nominal_width"];
-                    $generalProductMatches = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', "nominal_length", "nominal_width")
-                        ->distinct()
-                        ->availableFor($user)
-                        ->where("product", $preparedFormData["product"])
-                        ->where("material", $preparedFormData["material"])
-                        ->where("grade", $preparedFormData["grade"])
-                        ->where("surface", SurfaceEnums::NONE->value)
-                        ->where("nominal_units", $preparedFormData["nominal_units"])
-                        ->where("nominal_length",$preparedFormData["nominal_length"])
-                        ->where("nominal_width",$preparedFormData["nominal_width"])
-                        ->get();
-                }
-
-                $rawMaterialQuote = RawMaterialQuote::find($formData["data"]["id"]);
-                $rawMaterialQuote->general_product_matches = serialize($generalProductMatches->toArray());
-                $rawMaterialQuote->save();
-
-                /**
-                 * Create 'Pieces'
-                 */
-                $project = Project::findOrFail($formData["data"]["project_id"]);
-                Piece::create([
-                    'project_id' => $project->id,
-                    "raw_material_quote_id" => $rawMaterialQuote->id,
-                    "product" => $preparedFormData["product"],
-                    "material" => $preparedFormData["material"],
-                    "grade" => $preparedFormData["grade"],
-                    "surface" => SurfaceEnums::NONE->value,
-                    "nominal_units" => $preparedFormData['nominal_units'],
-                    "nesting_algo" => $preparedFormData['nesting_algo'],
-                    "nominal_length" => $preparedFormData['nominal_length'],
-                    "nominal_width" => $preparedFormData['nominal_width'],
-                    "nominal_height" => $preparedFormData['nominal_height'],
-                    "actual_length" => $formData["data"]["length_required"],
-                    "actual_width" => $formData["data"]["width_required"],
-                    "actual_qty" => $formData["data"]["sub_qty"]
-                ]);
             }
 
             return back();
@@ -271,7 +281,7 @@ class RawMaterialListCustomisationsController extends Controller
                 "pack_size_2" => $variation["pack_size_2"],
                 "pack_size_3" => $variation["pack_size_3"],
                 "kg_per_m" => 0, //todo can get this from somewhere?
-                "baseline_unit_rate" => 0, //todo get quoted price
+                "baseline_unit_rate" => null, //todo get quoted price
                 'business_id' => $business->id,
                 "deprecated" => false,
             ];

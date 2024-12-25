@@ -355,6 +355,8 @@ class NestingService
 
     public function nesting(string $nestingAlgoLabel, Collection $allPieces): Collection
     {
+        $productService = new ProductService();
+
         $result = [];
         $materialSpecs = null;
 
@@ -376,9 +378,16 @@ class NestingService
                     ->where('size',$materialSpec->size)
                     ->sortBy("size");
 
+                //Material spec
                 $appended = $materialSpec;
+
+                //Derived product label. e.g "200PFC SS316"
+                $appended->product_derived_label = $productService->getDerivedProductLabel($materialSpec);
+
+                //Nesting algorithm
                 $appended->algo = $nestingAlgoLabel;
 
+                //Pieces array
                 $piecesArray = [];
                 $cutLengths = [];
                 foreach($pieces as $piece){
@@ -396,6 +405,7 @@ class NestingService
                     }
                 }
 
+                //Purchasables
                 $purchasableLengths = $this->getPurchasableVariations($materialSpec);
 
                 $appended->pieces = $piecesArray;
@@ -423,7 +433,13 @@ class NestingService
                     ->where('size',$materialSpec->size)
                     ->sortBy("size");
 
+                //Material spec
                 $appended = $materialSpec;
+
+                //Derived product label. e.g "200PFC SS316"
+                $appended->product_derived_label = $productService->getDerivedProductLabel($materialSpec);
+
+                //Nesting algorithm
                 $appended->algo = $nestingAlgoLabel;
 
                 $stockLengths = [];
@@ -456,7 +472,13 @@ class NestingService
                     ->where('size',$materialSpec->size)
                     ->sortBy("size");
 
+                //Material spec
                 $appended = $materialSpec;
+
+                //Derived product label. e.g "200PFC SS316"
+                $appended->product_derived_label = $productService->getDerivedProductLabel($materialSpec);
+
+                //Nesting algorithm
                 $appended->algo = $nestingAlgoLabel;
 
                 $piecesArray = [];

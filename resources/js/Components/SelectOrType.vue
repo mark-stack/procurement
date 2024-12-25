@@ -35,8 +35,14 @@
         if(option === 'GR_4_6'){
             display = "GR 4.6";
         }
+        if(option === 'GR_5_8'){
+            display = "GR 5.8";
+        }
         if(option === 'GR_8_8'){
             display = "GR 8.8";
+        }
+        if(option === 'PLAIN_CARBON_STEEL'){
+            display = "PLAIN CARBON STEEL";
         }
 
         return display;
@@ -61,6 +67,12 @@
         // else{
         //     props.form['subOption']['grade'] = "all";
         // }
+    }
+
+    function clearSingleForm(){
+        props.form['selected_other'][props.reference] = null;
+        props.form['selected'][props.reference] = null;
+        props.form['selected']['material'] = null;
     }
 </script>
 
@@ -100,7 +112,7 @@
             <button
                 type="button"
                 class="absolute mb-1 text-xl inset-y-0 right-2 flex items-center text-gray-500 hover:text-gray-700"
-                @click="form['selected_other'][reference] = false; form['selected'][reference] = null"
+                @click="clearSingleForm()"
             >
                 &times;
             </button>

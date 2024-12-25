@@ -282,8 +282,8 @@
                                                             <Link
                                                                 v-else
                                                                 :href="route('products.store',project.id)"
-                                                                :class="project.hasRawMaterialQuotes ? 'bg-green-50 border-green-300 hover:bg-green-100' : 'bg-orange-50 border-orange-300 hover:bg-orange-100'"
-                                                                class="px-2 py-1 rounded border-2"
+                                                                :class="project.hasRawMaterialQuotes ? 'text-emerald-500 bg-emerald-100 border-emerald-300 hover:bg-emerald-200' : 'text-orange-500 bg-orange-50 border-orange-300 hover:bg-orange-100'"
+                                                                class="px-2 py-1 rounded border-2 font-semibold"
                                                             >
                                                                 {{project.hasRawMaterialQuotes ? 'Imported Materials' : 'Import Materials'}}
                                                             </Link>

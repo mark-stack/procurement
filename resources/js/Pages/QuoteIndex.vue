@@ -36,9 +36,9 @@
         Object.values(batchGroup).forEach(item => {
             //Meterage
             if(item.algo === 'METERAGE'){
-                // Build the materual list
+                // Build the material list
 
-                let description = shared.formatProduct(item.product,item.nominal_length,item.nominal_width,item.nominal_height,item.grade, item.surface)
+                let description = item.product_derived_label;
 
                 item.nested.orderList.forEach(bar => {
                     let text = " - " + description + ": " + bar.count + " off " + bar.result + " " + item.nominal_units.toLowerCase();
@@ -137,7 +137,7 @@
                                     <!-- Spec -->
                                     <div>
                                         <h2 class="font-bold">Material Spec</h2>
-                                        {{shared.formatProduct(item.product,item.nominal_length,item.nominal_width,item.nominal_height,item.grade, item.surface)}}
+                                        {{item.product_derived_label}}
                                         <p class="text-xs">
                                             <span class="block">Product: {{item.product}}</span>
                                             <span class="block">Material: {{item.material}}</span>

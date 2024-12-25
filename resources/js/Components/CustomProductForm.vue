@@ -113,35 +113,53 @@
 
     function showMaterials(index){
         //todo: "props.form[index]" is not found after submitting clarifications
-        let anyProductIsSelected = props.form[index]['selected']['product'];
+        let anyProductIsSelected = false;
+
+        if(props.form[index] !== undefined){
+            anyProductIsSelected = props.form[index]['selected']['product'];
+        }
 
         return anyProductIsSelected;
     }
 
     function showGrade(index){
-        let anyMaterialIsSelected = props.form[index]['selected']['material'];
+        let anyMaterialIsSelected = false;
+
+        if(props.form[index] !== undefined){
+            anyMaterialIsSelected = props.form[index]['selected']['material'];
+        }
 
         return anyMaterialIsSelected;
     }
 
     function showQuantify(index){
-        //NONE/BUNDLE/METERAGE/AREA
-        let nesting_algo = props.form[index]['selected']['nesting_algo'];
+        let showQuantify = false;
 
-        //Dimensional
-        if(nesting_algo === "METERAGE" || nesting_algo === "AREA"){
-            return true;
+        if(props.form[index] !== undefined){
+            //NONE/BUNDLE/METERAGE/AREA
+            let nesting_algo = props.form[index]['selected']['nesting_algo'];
+
+            //Dimensional
+            if(nesting_algo === "METERAGE" || nesting_algo === "AREA"){
+                showQuantify = true;
+            }
+            else{
+                showQuantify = false;
+            }
         }
-        else{
-            return false;
-        }
+
+        return showQuantify;
     }
 
     function showNesting(index){
         /**
             Any grade selected
          */
-        let anyGradeIsSelected = props.form[index]['selected']['grade'];
+        let anyGradeIsSelected = false;
+
+        if(props.form[index] !== undefined){
+            anyGradeIsSelected = props.form[index]['selected']['grade'];
+        }
 
         return anyGradeIsSelected;
     }
@@ -150,15 +168,22 @@
         /**
          For LENGTH and QTY types
          */
-        //NONE/BUNDLE/METERAGE/AREA
-        let nesting_algo = props.form[index]['selected']['nesting_algo'];
+        let showPurchasables = false;
 
-        if(nesting_algo === "METERAGE" || nesting_algo === "BUNDLE"){
-            return true;
+        if(props.form[index] !== undefined){
+            //NONE/BUNDLE/METERAGE/AREA
+            let nesting_algo = props.form[index]['selected']['nesting_algo'];
+
+            //Dimensional
+            if(nesting_algo === "METERAGE" || nesting_algo === "BUNDLE"){
+                showPurchasables = true;
+            }
+            else{
+                showPurchasables = false;
+            }
         }
-        else{
-            return false;
-        }
+
+        return showPurchasables;
     }
 
     function showPurchasablesArea(index){
@@ -311,7 +336,7 @@
             <span class="text-red-500" @click="$emit('deleteOne',item.data.id)" style="cursor: pointer;"><i class="fa-solid fa-xmark"></i></span>
         </div>
 
-        Spreadsheet row #{{item.data.csv_index + 1}} [{{item.data.id}}]
+        Spreadsheet row #{{item.data.csv_index + 1}}
         <!-- PRODUCT -->
         <SelectOrType
             :id="item.data.id"
@@ -391,6 +416,7 @@
                 <option :value="null" disabled>Select</option>
                 <template v-for="option in allMeasurements">
                     <option
+                        v-if="option"
                         :value="option"
                     >
                         {{option}}

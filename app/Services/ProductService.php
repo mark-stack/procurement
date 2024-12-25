@@ -112,7 +112,16 @@ class ProductService
         }
         //Price book candidate
         else{
-            $decodedOptions = unserialize($rawMaterialQuote->general_product_matches);
+            $decodedOptionsRaw = unserialize($rawMaterialQuote->general_product_matches);
+
+            /*
+             * Add derived product label to every option. e.g "200PFC SS316"
+             */
+            $decodedOptions = [];
+            foreach($decodedOptionsRaw as $option){
+                $option["product_derived_label"] = $this->getDerivedProductLabel($option);
+                $decodedOptions[] = $option;
+            }
 
             /**
              * 2) Price book exact match
@@ -122,11 +131,6 @@ class ProductService
                     "status" => "EXACT",
                     "decodedOption" => $decodedOptions[0],
                 ];
-
-                //todo debugging
-//                if($result["decodedOption"]["product"] === "LVL"){
-//                    dd("LVL",$result["decodedOption"]);
-//                }
             }
 
             /**
@@ -148,6 +152,41 @@ class ProductService
         }
 
         return $result;
+    }
+
+    public function getDerivedProductLabel(array|object $productSpec): string
+    {
+        /**
+         * Convert product spec array to derived product label
+         */
+
+        //convert object to array
+        if(gettype($productSpec) === "object"){
+            $productSpec = $productSpec->toArray();
+        }
+
+        $productCategory = $productSpec["product"];
+        $nominal_length = isset($productSpec["nominal_length"])
+            ? floatval($productSpec["nominal_length"])
+            : null;
+        $nominal_width = isset($productSpec["nominal_width"])
+            ? floatval($productSpec["nominal_width"])
+            : null;
+        $nominal_height = isset($productSpec["nominal_height"])
+            ? floatval($productSpec["nominal_height"])
+            : null;
+        $grade = $productSpec["grade"];
+        $surface = $productSpec["surface"];
+
+        //Derived label. e.g "200PFC SS316"
+        return $this->generateProductLabel(
+            $productCategory,
+            $nominal_length,
+            $nominal_width,
+            $nominal_height,
+            $grade,
+            $surface,
+        );
     }
 
     public function getNominalSizeData(): array
@@ -542,203 +581,204 @@ class ProductService
         return preg_split('/\W+/', $sentence, -1, PREG_SPLIT_NO_EMPTY);
     }
 
-    public function validationUserCustom($rows): array
+    public function validationUserCustom(array $rows,$deletedIds): array
     {
         $validator = Validator::make([], []);
         $validationErrors = 0;
-
         foreach($rows as $row){
-            $id = $row["data"]["id"];
+            $id = isset($row["data"]) ? $row["data"]["id"] : null;
 
-            $product = $row["selected"]["product"];
-            $material = $row["selected"]["material"];
-            $grade = $row["selected"]["grade"];
-            $nominalLength = $row["selected"]["nominal_length"];
-            $nominalWidth = $row["selected"]["nominal_width"];
-            $nominalHeight = $row["selected"]["nominal_height"];
-            $measurementUnit = $row["selected"]["quantify"];
-            $nestingType = $row["selected"]["nesting_algo"];
-            $purchasable_length_1 = $row["selected"]["purchasable_length_1"];
-            $purchasable_length_2 = $row["selected"]["purchasable_length_2"];
-            $purchasable_length_3 = $row["selected"]["purchasable_length_3"];
-            $purchasable_width_1 = $row["selected"]["purchasable_width_1"];
-            $purchasable_width_2 = $row["selected"]["purchasable_width_2"];
-            $purchasable_width_3 = $row["selected"]["purchasable_width_3"];
+            if($id && !in_array($id,$deletedIds)){
+                $product = $row["selected"]["product"];
+                $material = $row["selected"]["material"];
+                $grade = $row["selected"]["grade"];
+                $nominalLength = $row["selected"]["nominal_length"];
+                $nominalWidth = $row["selected"]["nominal_width"];
+                $nominalHeight = $row["selected"]["nominal_height"];
+                $measurementUnit = $row["selected"]["quantify"];
+                $nestingType = $row["selected"]["nesting_algo"];
+                $purchasable_length_1 = $row["selected"]["purchasable_length_1"];
+                $purchasable_length_2 = $row["selected"]["purchasable_length_2"];
+                $purchasable_length_3 = $row["selected"]["purchasable_length_3"];
+                $purchasable_width_1 = $row["selected"]["purchasable_width_1"];
+                $purchasable_width_2 = $row["selected"]["purchasable_width_2"];
+                $purchasable_width_3 = $row["selected"]["purchasable_width_3"];
 
-            //product
-            if($product){
-                if($product === "Other" && !$row['selected_other']['product']){
+                //product
+                if($product){
+                    if($product === "Other" && !$row['selected_other']['product']){
+                        $validationErrors++;
+                        $validator->errors()->add($id."-product", 'product');
+                    }
+                }
+                else{
                     $validationErrors++;
                     $validator->errors()->add($id."-product", 'product');
                 }
-            }
-            else{
-                $validationErrors++;
-                $validator->errors()->add($id."-product", 'product');
-            }
 
-            //material
-            if($material){
-                if($material === "Other" && !$row['selected_other']['material']){
+                //material
+                if($material){
+                    if($material === "Other" && !$row['selected_other']['material']){
+                        $validationErrors++;
+                        $validator->errors()->add($id."-material", 'material');
+                    }
+                }
+                else{
                     $validationErrors++;
                     $validator->errors()->add($id."-material", 'material');
                 }
-            }
-            else{
-                $validationErrors++;
-                $validator->errors()->add($id."-material", 'material');
-            }
 
-            //Grade
-            if($grade){
-                if($grade === "Other" && !$row['selected_other']['grade']){
+                //Grade
+                if($grade){
+                    if($grade === "Other" && !$row['selected_other']['grade']){
+                        $validationErrors++;
+                        $validator->errors()->add($id."-grade", 'grade');
+                    }
+                }
+                else{
                     $validationErrors++;
                     $validator->errors()->add($id."-grade", 'grade');
                 }
-            }
-            else{
-                $validationErrors++;
-                $validator->errors()->add($id."-grade", 'grade');
-            }
 
-            /*
-             * Size
-             */
-            if(isset($row["nominalSizeData"][$product])){
-                $shouldHaveLength = $row["nominalSizeData"][$product]["length"];
-                if($shouldHaveLength){
-                    if(!$nominalLength){
-                        $validationErrors++;
-                        $validator->errors()->add($id."-nominal_length", 'nominal_length');
+                /*
+                 * Size
+                 */
+                if(isset($row["nominalSizeData"][$product])){
+                    $shouldHaveLength = $row["nominalSizeData"][$product]["length"];
+                    if($shouldHaveLength){
+                        if(!$nominalLength){
+                            $validationErrors++;
+                            $validator->errors()->add($id."-nominal_length", 'nominal_length');
+                        }
+                    }
+                    $shouldHaveWidth = $row["nominalSizeData"][$product]["width"];
+                    if($shouldHaveWidth){
+                        if(!$nominalWidth){
+                            $validationErrors++;
+                            $validator->errors()->add($id."-nominal_width", 'nominal_width');
+                        }
+                    }
+                    $shouldHaveHeight = $row["nominalSizeData"][$product]["height"];
+                    if($shouldHaveHeight){
+                        if(!$nominalHeight){
+                            $validationErrors++;
+                            $validator->errors()->add($id."-nominal_height", 'nominal_height');
+                        }
                     }
                 }
-                $shouldHaveWidth = $row["nominalSizeData"][$product]["width"];
-                if($shouldHaveWidth){
-                    if(!$nominalWidth){
-                        $validationErrors++;
-                        $validator->errors()->add($id."-nominal_width", 'nominal_width');
-                    }
-                }
-                $shouldHaveHeight = $row["nominalSizeData"][$product]["height"];
-                if($shouldHaveHeight){
-                    if(!$nominalHeight){
-                        $validationErrors++;
-                        $validator->errors()->add($id."-nominal_height", 'nominal_height');
-                    }
-                }
-            }
 
-            //Nesting & measurement units
-            if($nestingType){
-                /**
-                 * Quantify (measurement units)
-                 */
-                /*
-                 * NONE (no minimum volume)
-                 *  - Measurement units required: FALSE
-                 *  - Size required: FALSE
-                 *  - purchasable_length_1: FALSE
-                 *  - purchasable_width_1: FALSE
-                 */
-                if($nestingType === "NONE"){
-                    //No actions
-                }
-                /*
-                 * BUNDLE
-                 * - Measurement units required: FALSE
-                 * - Size required: TRUE
-                 * - purchasable_length_1: TRUE
-                 * - purchasable_width_1: FALSE
-                 */
-                if($nestingType === "BUNDLE"){
-                    //Size required: TRUE
-                    //todo
+                //Nesting & measurement units
+                if($nestingType){
+                    /**
+                     * Quantify (measurement units)
+                     */
+                    /*
+                     * NONE (no minimum volume)
+                     *  - Measurement units required: FALSE
+                     *  - Size required: FALSE
+                     *  - purchasable_length_1: FALSE
+                     *  - purchasable_width_1: FALSE
+                     */
+                    if($nestingType === "NONE"){
+                        //No actions
+                    }
+                    /*
+                     * BUNDLE
+                     * - Measurement units required: FALSE
+                     * - Size required: TRUE
+                     * - purchasable_length_1: TRUE
+                     * - purchasable_width_1: FALSE
+                     */
+                    if($nestingType === "BUNDLE"){
+                        //Size required: TRUE
+                        //todo
 //                    if(!$size){
 //                        $validationErrors++;
 //                        $validator->errors()->add($id."-size", 'size');
 //                    }
-                    //purchasable_length_1: TRUE
-                    if(!$purchasable_length_1){
-                        $validationErrors++;
-                        $validator->errors()->add($id."-purchasable_length_1", 'purchasable_length_1');
+                        //purchasable_length_1: TRUE
+                        if(!$purchasable_length_1){
+                            $validationErrors++;
+                            $validator->errors()->add($id."-purchasable_length_1", 'purchasable_length_1');
+                        }
                     }
-                }
-                /*
-                 * METERAGE
-                 * - Measurement units required: TRUE
-                 * - Size required: TRUE
-                 * - purchasable_length_1: TRUE
-                 * - purchasable_width_1: FALSE
-                 */
-                if($nestingType === "METERAGE"){
-                    //Measurement units required: TRUE
-                    if(!$measurementUnit){
-                        $validationErrors++;
-                        $validator->errors()->add($id."-quantify", 'quantify');
-                    }
-                    //Size required: TRUE
-                    //todo
+                    /*
+                     * METERAGE
+                     * - Measurement units required: TRUE
+                     * - Size required: TRUE
+                     * - purchasable_length_1: TRUE
+                     * - purchasable_width_1: FALSE
+                     */
+                    if($nestingType === "METERAGE"){
+                        //Measurement units required: TRUE
+                        if(!$measurementUnit){
+                            $validationErrors++;
+                            $validator->errors()->add($id."-quantify", 'quantify');
+                        }
+                        //Size required: TRUE
+                        //todo
 //                    if(!$size){
 //                        $validationErrors++;
 //                        $validator->errors()->add($id."-size", 'size');
 //                    }
-                    //purchasable_length_1: TRUE
-                    if(!$purchasable_length_1){
-                        $validationErrors++;
-                        $validator->errors()->add($id."-purchasable_length_1", 'purchasable_length_1');
+                        //purchasable_length_1: TRUE
+                        if(!$purchasable_length_1){
+                            $validationErrors++;
+                            $validator->errors()->add($id."-purchasable_length_1", 'purchasable_length_1');
+                        }
+                    }
+                    /*
+                     * AREA
+                     * - Measurement units required: TRUE
+                     * - Size required: FALSE
+                     * - purchasable_length_1: TRUE
+                     * - purchasable_width_1: TRUE
+                     */
+                    if($nestingType === "AREA"){
+                        //Measurement units required: TRUE
+                        if(!$measurementUnit){
+                            $validationErrors++;
+                            $validator->errors()->add($id."-quantify", 'quantify');
+                        }
+                        //purchasable_length_1: TRUE
+                        if(!$purchasable_length_1){
+                            $validationErrors++;
+                            $validator->errors()->add($id."-purchasable_length_1", 'purchasable_length_1');
+                        }
+                        //purchasable_width_1: TRUE
+                        if(!$purchasable_width_1){
+                            $validationErrors++;
+                            $validator->errors()->add($id."-purchasable_width_1", 'purchasable_width_1');
+                        }
+                        //Must have L and W (purchasable_length_2 && purchasable_width_2)
+                        if($purchasable_length_2 || $purchasable_width_2){
+                            if(!$purchasable_length_2){
+                                $validationErrors++;
+                                $validator->errors()->add($id."-purchasable_length_2", 'purchasable_length_2');
+                            }
+                            if(!$purchasable_width_2){
+                                $validationErrors++;
+                                $validator->errors()->add($id."-purchasable_width_2", 'purchasable_width_2');
+                            }
+                        }
+                        //Must have L and W (purchasable_length_3 && purchasable_width_3)
+                        if($purchasable_length_3 || $purchasable_width_3){
+                            if(!$purchasable_length_3){
+                                $validationErrors++;
+                                $validator->errors()->add($id."-purchasable_length_3", 'purchasable_length_3');
+                            }
+                            if(!$purchasable_width_3){
+                                $validationErrors++;
+                                $validator->errors()->add($id."-purchasable_width_3", 'purchasable_width_3');
+                            }
+                        }
+                        //L greater than W
                     }
                 }
-                /*
-                 * AREA
-                 * - Measurement units required: TRUE
-                 * - Size required: FALSE
-                 * - purchasable_length_1: TRUE
-                 * - purchasable_width_1: TRUE
-                 */
-                if($nestingType === "AREA"){
-                    //Measurement units required: TRUE
-                    if(!$measurementUnit){
-                        $validationErrors++;
-                        $validator->errors()->add($id."-quantify", 'quantify');
-                    }
-                    //purchasable_length_1: TRUE
-                    if(!$purchasable_length_1){
-                        $validationErrors++;
-                        $validator->errors()->add($id."-purchasable_length_1", 'purchasable_length_1');
-                    }
-                    //purchasable_width_1: TRUE
-                    if(!$purchasable_width_1){
-                        $validationErrors++;
-                        $validator->errors()->add($id."-purchasable_width_1", 'purchasable_width_1');
-                    }
-                    //Must have L and W (purchasable_length_2 && purchasable_width_2)
-                    if($purchasable_length_2 || $purchasable_width_2){
-                        if(!$purchasable_length_2){
-                            $validationErrors++;
-                            $validator->errors()->add($id."-purchasable_length_2", 'purchasable_length_2');
-                        }
-                        if(!$purchasable_width_2){
-                            $validationErrors++;
-                            $validator->errors()->add($id."-purchasable_width_2", 'purchasable_width_2');
-                        }
-                    }
-                    //Must have L and W (purchasable_length_3 && purchasable_width_3)
-                    if($purchasable_length_3 || $purchasable_width_3){
-                        if(!$purchasable_length_3){
-                            $validationErrors++;
-                            $validator->errors()->add($id."-purchasable_length_3", 'purchasable_length_3');
-                        }
-                        if(!$purchasable_width_3){
-                            $validationErrors++;
-                            $validator->errors()->add($id."-purchasable_width_3", 'purchasable_width_3');
-                        }
-                    }
-                    //L greater than W
+                else{
+                    $validationErrors++;
+                    $validator->errors()->add($id."-nesting_algo", 'nesting_algo');
                 }
-            }
-            else{
-                $validationErrors++;
-                $validator->errors()->add($id."-nesting_algo", 'nesting_algo');
             }
         }
 
@@ -872,6 +912,67 @@ class ProductService
     {
         $actualSize = $nominal_height."x".$nominal_width;
         return $actualSize." ".$actualGrade.$actualSurface;
+    }
+
+    public function getBaseLineUnitRateFromGeneral(Product|array|null $productSpec): ?float
+    {
+        /**
+         * Get the baseline unit rate (comes from master materials spreadsheet)
+         */
+        $baselineUnitRate = null;
+
+        if($productSpec !== null){
+            //If object, convert to array
+            if(gettype($productSpec) === "object"){
+                $productSpec = $productSpec->toArray();
+            }
+
+            unset($productSpec["product_derived_label"]);
+
+            //Find product match
+            $query = Product::query();
+            foreach($productSpec as $fieldKey => $fieldValue){
+                $query->where($fieldKey,$fieldValue);
+            }
+            $productMatch = $query->first();
+
+            //Get baseline unit rate if product found
+            if($productMatch){
+                //Extract float from "$40.54"
+                $baselineUnitRate = $this->extractFloat($productMatch->baseline_unit_rate);
+            }
+        }
+
+        return $baselineUnitRate;
+    }
+
+    public function getBaselineUnitRateHighLowComparison(string $unitRate, ?string $baseline_unit_rate): string
+    {
+        $comparison = "NONE";
+        $unitRate = floatval($unitRate);
+        $baseline_unit_rate = $baseline_unit_rate
+            ? floatval($baseline_unit_rate)
+            : null;
+
+        if($baseline_unit_rate){
+            if($unitRate < ($baseline_unit_rate*0.9)){
+                $comparison = "LOW";
+            }
+            if($unitRate > ($baseline_unit_rate*1.3)){
+                $comparison = "HIGH";
+            }
+        }
+
+
+        return $comparison;
+    }
+
+    function extractFloat(string $string): ?float
+    {
+        if (preg_match('/\d+(\.\d+)?/', $string, $matches)) {
+            return (float)$matches[0];
+        }
+        return null; // Return null if no float found
     }
 }
 
