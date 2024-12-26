@@ -32,7 +32,7 @@ class CsvService
         return $data;
     }
 
-    public function processCsv(array $csvArray, Project $project): RedirectResponse
+    public function processCsv(array $csvArray, Project $project, string $errorMsg): RedirectResponse
     {
         /**
          * Single purpose: detect template matches
@@ -53,7 +53,7 @@ class CsvService
             $return = back();
         }
         else{
-            $return = back()->with("warning","The file didn't auto-detect properly. Did the template change? Please email the file to mark.laravel.coder@gmail to have it re-calibrated quickly.");
+            $return = back()->with("warning",$errorMsg);
         }
 
         return $return;
@@ -332,10 +332,11 @@ class CsvService
 
         foreach($tableOptions as $tableOption){
             $firstDataRowIndex = $this->firstDataRowIndex($csvRow,$index,$tableOption);
+            $firstHeadingColumnAbsoluteIndex = $this->firstHeadingColumnAbsoluteIndex($firstDataRowIndex,$tableOption,$csvArray);
             if($firstDataRowIndex){
                 $detectTableInstances[] = [
                     "type" => $tableOption["type"],
-                    "data" => $this->getTableData($csvArray,$firstDataRowIndex,$tableOption),
+                    "data" => $this->getTableData($csvArray,$firstDataRowIndex,$firstHeadingColumnAbsoluteIndex,$tableOption),
                     "predeterminedProductCategory" => $tableOption["predeterminedProductCategory"],
                 ];
             }
@@ -376,96 +377,151 @@ class CsvService
         return $firstDataRowIndex;
     }
 
-    public function getTableData(array $csvArray, int $firstDataRowIndex, array $tableOption): array
+    public function firstHeadingColumnAbsoluteIndex(?int $firstDataRowIndex, array $tableOption, array $csvArray): int
+    {
+        $firstHeadingColumnAbsoluteIndex = 0;
+
+        //Table was found
+        if($firstDataRowIndex){
+            //Get table heading
+            $indexOfHeadingRow = $firstDataRowIndex - $tableOption["OffsetFromHeaderToFirstDataRow"];
+            $headingRow = $csvArray[$indexOfHeadingRow];
+            $firstHeadingLabel = $tableOption["ExpectedHeadingLabels"][0];
+
+            //Get index of 1st heading label
+            $firstHeadingColumnAbsoluteIndex = $this->arraySearchCaseInsensitive($firstHeadingLabel, $headingRow);
+
+            //First data column can be left of the table heading labels
+            //Note: default "999" is if it's null, so it definitely won't be the lowest number.
+//            $lowestHorizontalOffset = min(
+//                $tableOption["skipOrFinishCheckRelativeOffset"] ?? 999,
+//                $tableOption["DescriptionRelativeOffset"] ?? 999,
+//                $tableOption["MaterialRelativeOffset"] ?? 999,
+//                $tableOption["GradeRelativeOffset"] ?? 999,
+//                $tableOption["SurfaceRelativeOffset"] ?? 999,
+//                $tableOption["LengthRelativeOffset"] ?? 999,
+//                $tableOption["WidthRelativeOffset"] ?? 999,
+//                $tableOption["SubQtyRelativeOffset"] ?? 999,
+//                $tableOption["UnitRateRelativeOffset"] ?? 999,
+//            );
+
+            //$firstHeadingColumnAbsoluteIndex = $firstHeadingLabelColumnAbsoluteIndex + $lowestHorizontalOffset;
+
+//            dd([
+//                "firstHeadingLabel" => $firstHeadingLabel,
+//                "firstHeadingLabelColumnAbsoluteIndex" => $firstHeadingLabelColumnAbsoluteIndex,
+//                "lowestHorizontalOffset" => $lowestHorizontalOffset,
+//                "firstHeadingColumnAbsoluteIndex" => $firstHeadingColumnAbsoluteIndex,
+//            ]);
+        }
+
+        return $firstHeadingColumnAbsoluteIndex;
+    }
+
+    private function arraySearchCaseInsensitive($needle, $haystack): int
     {
         /**
-         * Single purpose: return the derived table data like:
+         * Single purpose: return index of the result
+         */
+        // Convert both the needle and haystack values to lowercase for comparison
+        $lowercaseHaystack = array_map('strtolower', $haystack);
+        $needleLowercase = strtolower($needle);
+
+        // Use array_search to find the index
+        return array_search($needleLowercase, $lowercaseHaystack);
+    }
+
+    public function getTableData(array $csvArray, int $firstDataRowIndex, int $firstHeadingColumnAbsoluteIndex, array $tableOption): array
+    {
+        /**
+         * Single purpose: return the derived table data
          */
         $tableData = [];
 
         //get specific indexes
-        $descriptionColumnIndex = isset($tableOption["DescriptionColumnNumber"])
-            ? ($tableOption["DescriptionColumnNumber"] - 1)
+        $descriptionColumnAbsoluteIndex = isset($tableOption["DescriptionRelativeOffset"])
+            ? ($firstHeadingColumnAbsoluteIndex + $tableOption["DescriptionRelativeOffset"])
             : null;
-        $materialColumnIndex = isset($tableOption["MaterialColumnNumber"])
-            ? ($tableOption["MaterialColumnNumber"] - 1)
+        $materialColumnAbsoluteIndex = isset($tableOption["MaterialRelativeOffset"])
+            ? ($firstHeadingColumnAbsoluteIndex + $tableOption["MaterialRelativeOffset"])
             : null;
-        $gradeColumnIndex = isset($tableOption["GradeColumnNumber"])
-            ? ($tableOption["GradeColumnNumber"] - 1)
+        $gradeColumnAbsoluteIndex = isset($tableOption["GradeRelativeOffset"])
+            ? ($firstHeadingColumnAbsoluteIndex + $tableOption["GradeRelativeOffset"])
             : null;
-        $surfaceColumnIndex = isset($tableOption["SurfaceColumnNumber"])
-            ? ($tableOption["SurfaceColumnNumber"] - 1)
+        $surfaceColumnAbsoluteIndex = isset($tableOption["SurfaceRelativeOffset"])
+            ? ($firstHeadingColumnAbsoluteIndex + $tableOption["SurfaceRelativeOffset"])
             : null;
-        $lengthRequiredColumnIndex = isset($tableOption["LengthColumnNumber"])
-            ? ($tableOption["LengthColumnNumber"] - 1)
+        $lengthRequiredColumnAbsoluteIndex = isset($tableOption["LengthRelativeOffset"])
+            ? ($firstHeadingColumnAbsoluteIndex + $tableOption["LengthRelativeOffset"])
             : null;
-        $widthRequiredColumnIndex = isset($tableOption["WidthColumnNumber"])
-            ? ($tableOption["WidthColumnNumber"] - 1)
+        $widthRequiredColumnAbsoluteIndex = isset($tableOption["WidthRelativeOffset"])
+            ? ($firstHeadingColumnAbsoluteIndex + $tableOption["WidthRelativeOffset"])
             : null;
-        $subQtyColumnIndex = isset($tableOption["SubQtyColumnNumber"])
-            ? ($tableOption["SubQtyColumnNumber"] - 1)
+        $subQtyColumnAbsoluteIndex = isset($tableOption["SubQtyRelativeOffset"])
+            ? ($firstHeadingColumnAbsoluteIndex + $tableOption["SubQtyRelativeOffset"])
             : null;
-        $unitRateColumnIndex = isset($tableOption["UnitRateColumnNumber"])
-            ? ($tableOption["UnitRateColumnNumber"] - 1)
+        $unitRateColumnAbsoluteIndex = isset($tableOption["UnitRateRelativeOffset"])
+            ? ($firstHeadingColumnAbsoluteIndex + $tableOption["UnitRateRelativeOffset"])
             : null;
 
         $nominalUnits = $tableOption["nominalUnits"];
 
-        $skipOrFinishCheckColumnIndex = $tableOption['skipOrFinishCheckColumnNumber'] - 1;
+        $skipOrFinishCheckColumnAbsoluteIndex = $firstHeadingColumnAbsoluteIndex + $tableOption['skipOrFinishCheckRelativeOffset'];
 
         //Loop through CSV
         foreach($csvArray as $index => $csvRow) {
             //If at or below the 1st data row
             if ($index >= $firstDataRowIndex) {
                 //End of table rule
-                $shouldFinish = $this->shouldFinish($tableOption["isLastDataRow"],$csvArray, $csvRow, $index, $skipOrFinishCheckColumnIndex);
+                $shouldFinish = $this->shouldFinish($tableOption["isLastDataRow"],$csvArray, $csvRow, $index, $skipOrFinishCheckColumnAbsoluteIndex);
                 if($shouldFinish){
                     break;
                 }
 
                 //Skip rule
-                $shouldSkip = $this->shouldSkip($tableOption["ShouldSkipRow"], $csvRow, $skipOrFinishCheckColumnIndex);
+                $shouldSkip = $this->shouldSkip($tableOption["ShouldSkipRow"], $csvRow, $skipOrFinishCheckColumnAbsoluteIndex);
 
                 //Description
-                $description = ($descriptionColumnIndex !== null && isset($csvRow[$descriptionColumnIndex]))
-                    ? $csvRow[$descriptionColumnIndex]
+                $description = ($descriptionColumnAbsoluteIndex !== null && isset($csvRow[$descriptionColumnAbsoluteIndex]))
+                    ? $csvRow[$descriptionColumnAbsoluteIndex]
                     : null;
+
                 $canHaveNoDescription = $tableOption["predeterminedProductCategory"] !== null;
 
                 if (!$shouldSkip && ($description || (!$description && $canHaveNoDescription))){
                     //Material
-                    $material = ($materialColumnIndex !== null && isset($csvRow[$materialColumnIndex]))
-                        ? $csvRow[$materialColumnIndex]
+                    $material = ($materialColumnAbsoluteIndex !== null && isset($csvRow[$materialColumnAbsoluteIndex]))
+                        ? $csvRow[$materialColumnAbsoluteIndex]
                         : null;
 
                     //Grade
-                    $grade = ($gradeColumnIndex !== null && isset($csvRow[$gradeColumnIndex]))
-                        ? $csvRow[$gradeColumnIndex]
+                    $grade = ($gradeColumnAbsoluteIndex !== null && isset($csvRow[$gradeColumnAbsoluteIndex]))
+                        ? $csvRow[$gradeColumnAbsoluteIndex]
                         : null;
 
                     //Surface
-                    $surface = ($surfaceColumnIndex !== null && isset($csvRow[$surfaceColumnIndex]))
-                        ? $csvRow[$surfaceColumnIndex]
+                    $surface = ($surfaceColumnAbsoluteIndex !== null && isset($csvRow[$surfaceColumnAbsoluteIndex]))
+                        ? $csvRow[$surfaceColumnAbsoluteIndex]
                         : null;
 
                     //Length required
-                    $lengthRequired = ($lengthRequiredColumnIndex !== null && isset($csvRow[$lengthRequiredColumnIndex]))
-                        ? $this->normaliseLengthWidthRequired($csvRow[$lengthRequiredColumnIndex],$nominalUnits)
+                    $lengthRequired = ($lengthRequiredColumnAbsoluteIndex !== null && isset($csvRow[$lengthRequiredColumnAbsoluteIndex]))
+                        ? $this->normaliseLengthWidthRequired($csvRow[$lengthRequiredColumnAbsoluteIndex],$nominalUnits)
                         : null;
 
                     //Width required
-                    $widthRequired = ($widthRequiredColumnIndex !== null && isset($csvRow[$widthRequiredColumnIndex]))
-                        ? $this->normaliseLengthWidthRequired($csvRow[$widthRequiredColumnIndex],$nominalUnits)
+                    $widthRequired = ($widthRequiredColumnAbsoluteIndex !== null && isset($csvRow[$widthRequiredColumnAbsoluteIndex]))
+                        ? $this->normaliseLengthWidthRequired($csvRow[$widthRequiredColumnAbsoluteIndex],$nominalUnits)
                         : null;
 
                     //Sub qty
-                    $subQty = isset($csvRow[$subQtyColumnIndex])
-                        ? $this->getSubQty($csvRow[$subQtyColumnIndex])
+                    $subQty = isset($csvRow[$subQtyColumnAbsoluteIndex])
+                        ? $this->getSubQty($csvRow[$subQtyColumnAbsoluteIndex])
                         : null;
 
                     //Unit rate
-                    $unitRate = ($unitRateColumnIndex !== null && isset($csvRow[$unitRateColumnIndex]))
-                        ? $this->getUnitRateDollars($csvRow[$unitRateColumnIndex])
+                    $unitRate = ($unitRateColumnAbsoluteIndex !== null && isset($csvRow[$unitRateColumnAbsoluteIndex]))
+                        ? $this->getUnitRateDollars($csvRow[$unitRateColumnAbsoluteIndex])
                         : null;
 
                     $tableData[] = [
@@ -478,6 +534,7 @@ class CsvService
                         "width_required" => $widthRequired,
                         "sub_qty" => $subQty,
                         "unit_rate" => $unitRate,
+                        "assembly_mark" => $this->getAssemblyMark($tableOption,$csvRow,$csvArray,$firstDataRowIndex,$firstHeadingColumnAbsoluteIndex),
                     ];
                 }
             }
@@ -515,11 +572,6 @@ class CsvService
                     }
                 }
             }
-
-//            //todo debug
-//            if($expectedHeadingLabels[0] === "Profile" && $csvRow[0] !== "MARK"){
-//                dd("one",$csvRow,$tableOption,$expectedHeadingLabels[0],$isTableHeader,$index);
-//            }
         }
 
         return $isTableHeader;
@@ -569,13 +621,13 @@ class CsvService
         $row = (int)$rowMatches[0];
 
         // Convert the column letters to a number (base-26)
-        $columnNumber = 0;
+        $Offset = 0;
         $columnLength = strlen($columnString);
         for ($i = 0; $i < $columnLength; $i++) {
-            $columnNumber = $columnNumber * 26 + (ord(strtoupper($columnString[$i])) - ord('A') + 1);
+            $Offset = $Offset * 26 + (ord(strtoupper($columnString[$i])) - ord('A') + 1);
         }
 
-        return ['column_index' => ($columnNumber-1), 'row_index' => ($row-1)];
+        return ['column_index' => ($Offset-1), 'row_index' => ($row-1)];
     }
 
     /**
@@ -794,6 +846,7 @@ class CsvService
                 "unit_rate" => $cleanRow["unit_rate"] ?? null,
                 'project_id' => $project->id,
                 "general_product_matches" => serialize($cleanRow["generalProductMatches"]),
+                "assembly_mark" => $cleanRow["assembly_mark"] ?? "",
             ]);
 
             $materialList[] = $rawMaterialQuote;
@@ -859,18 +912,6 @@ class CsvService
             $nextCellBlank = $nextCell === "" || $nextCell === null;
         }
 
-//        //todo debug
-//        if($index === 107){
-//            dd([
-//                "index" => $index,
-//                "skipOrFinishCheckColumnIndex" => $skipOrFinishCheckColumnIndex,
-//                "this row" => $csvArray[$index][$skipOrFinishCheckColumnIndex],
-//                "next row" => $csvArray[$index + 1][$skipOrFinishCheckColumnIndex],
-//                "cond 1" => isset($csvArray[$index][$skipOrFinishCheckColumnIndex]),
-//                "cond 2" => isset($csvArray[$index + 1][$skipOrFinishCheckColumnIndex]),
-//            ]);
-//        }
-
         return $thisCellBlank && $nextCellBlank;
     }
 
@@ -932,4 +973,55 @@ class CsvService
         return strtoupper($csvRow[$descriptionColumnIndex]) === strtoupper($text);
     }
 
+    public function getAssemblyMark(array $tableOption, array $csvRow, array $csvArray, int $firstDataRowIndex, int $firstHeadingColumnAbsoluteIndex): ?string
+    {
+        /**
+         * Get an assembly mark (reference) for each CSV row (if available).
+         * 1) Directly from a column for each row
+         * 2) A fixed cell reference applied to all rows.
+         *    Relative coordinates relative to first table heading. up & left = minus. e.g X,Y = [3,-1]
+         * 3) None available
+         */
+
+        $assemblyMark = "";
+
+        //1) Directly from a column for each row
+        if($tableOption["assemblyMarkRule"][0] === "COLUMN"){
+            $assemblyMark = $this->assemblyMarkRuleColumn($firstHeadingColumnAbsoluteIndex,$tableOption["assemblyMarkRule"][1],$csvRow);
+        }
+
+        //2) A fixed cell reference applied to all rows
+        if($tableOption["assemblyMarkRule"][0] === "FIXED"){
+            $assemblyMark = $this->assemblyMarkRuleFixed(
+                $tableOption["assemblyMarkRule"][1],
+                $csvArray,
+                $firstDataRowIndex,
+                $firstHeadingColumnAbsoluteIndex,
+                $tableOption,
+            );
+        }
+
+        return $assemblyMark;
+    }
+
+    private function assemblyMarkRuleColumn(int $firstHeadingColumnAbsoluteIndex, int $relativeOffset, array $csvRow): ? string
+    {
+
+        $columnIndex = $firstHeadingColumnAbsoluteIndex + $relativeOffset - 1;
+
+        return $csvRow[$columnIndex];
+    }
+
+    private function assemblyMarkRuleFixed(array $relativeCoordinates, array $csvArray, int $firstDataRowIndex, int $firstHeadingColumnAbsoluteIndex, array $tableOption): ? string
+    {
+        /**
+         * Relative coordinates relative to first table heading. up & left = minus. e.g X,Y = [3,-1]
+         */
+        $indexOfHeadingRow = $firstDataRowIndex - $tableOption["OffsetFromHeaderToFirstDataRow"];
+
+        $newX = $firstHeadingColumnAbsoluteIndex + $relativeCoordinates[0];
+        $newY = $indexOfHeadingRow + $relativeCoordinates[1];
+
+        return $csvArray[$newY][$newX];
+    }
 }

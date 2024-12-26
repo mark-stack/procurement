@@ -11,6 +11,24 @@ use Illuminate\Support\Facades\Validator;
 
 class ProductService
 {
+    public function getCertificateFromProductCategory(?string $productCategory): bool
+    {
+        $certificate = false;
+
+        //Has product category
+        if($productCategory){
+            $product = Product::query()
+                ->where("product",$productCategory)
+                ->first();
+
+            $certificate = $product
+                ? $product->certificates
+                : false;
+        }
+
+        return $certificate;
+    }
+
     /**
      * @deprecated
      */
@@ -604,7 +622,7 @@ class ProductService
                 $purchasable_width_2 = $row["selected"]["purchasable_width_2"];
                 $purchasable_width_3 = $row["selected"]["purchasable_width_3"];
 
-                //product
+                //Product
                 if($product){
                     if($product === "Other" && !$row['selected_other']['product']){
                         $validationErrors++;
@@ -616,7 +634,7 @@ class ProductService
                     $validator->errors()->add($id."-product", 'product');
                 }
 
-                //material
+                //Material
                 if($material){
                     if($material === "Other" && !$row['selected_other']['material']){
                         $validationErrors++;
@@ -690,22 +708,49 @@ class ProductService
                      * - purchasable_width_1: FALSE
                      */
                     if($nestingType === "BUNDLE"){
-                        //Size required: TRUE
-                        //todo
-//                    if(!$size){
-//                        $validationErrors++;
-//                        $validator->errors()->add($id."-size", 'size');
-//                    }
                         //purchasable_length_1: TRUE
                         if(!$purchasable_length_1){
                             $validationErrors++;
                             $validator->errors()->add($id."-purchasable_length_1", 'purchasable_length_1');
                         }
+                        //$purchasable_length_2 must be unique
+                        if($purchasable_length_2){
+                            //Compare to 1
+                            if($purchasable_length_1){
+                                if($purchasable_length_2 == $purchasable_length_1){
+                                    $validationErrors++;
+                                    $validator->errors()->add($id."-purchasable_length_2", 'purchasable_length_2');
+                                }
+                            }
+                            //Compare to 3
+                            if($purchasable_length_3){
+                                if($purchasable_length_2 == $purchasable_length_3){
+                                    $validationErrors++;
+                                    $validator->errors()->add($id."-purchasable_length_2", 'purchasable_length_2');
+                                }
+                            }
+                        }
+                        //$purchasable_length_3 must be unique
+                        if($purchasable_length_3){
+                            //Compare to 2
+                            if($purchasable_length_2){
+                                if($purchasable_length_3 == $purchasable_length_2){
+                                    $validationErrors++;
+                                    $validator->errors()->add($id."-purchasable_length_3", 'purchasable_length_3');
+                                }
+                            }
+                            //Compare to 1
+                            if($purchasable_length_1){
+                                if($purchasable_length_3 == $purchasable_length_1){
+                                    $validationErrors++;
+                                    $validator->errors()->add($id."-purchasable_length_3", 'purchasable_length_3');
+                                }
+                            }
+                        }
                     }
                     /*
                      * METERAGE
                      * - Measurement units required: TRUE
-                     * - Size required: TRUE
                      * - purchasable_length_1: TRUE
                      * - purchasable_width_1: FALSE
                      */
@@ -715,16 +760,44 @@ class ProductService
                             $validationErrors++;
                             $validator->errors()->add($id."-quantify", 'quantify');
                         }
-                        //Size required: TRUE
-                        //todo
-//                    if(!$size){
-//                        $validationErrors++;
-//                        $validator->errors()->add($id."-size", 'size');
-//                    }
                         //purchasable_length_1: TRUE
                         if(!$purchasable_length_1){
                             $validationErrors++;
                             $validator->errors()->add($id."-purchasable_length_1", 'purchasable_length_1');
+                        }
+                        //purchasable_length_2 must unique
+                        if($purchasable_length_2){
+                            //Compare #1
+                            if($purchasable_length_1){
+                                if($purchasable_length_2 == $purchasable_length_1){
+                                    $validationErrors++;
+                                    $validator->errors()->add($id."-purchasable_length_2", 'purchasable_length_2');
+                                }
+                            }
+                            //Compare #3
+                            if($purchasable_length_3){
+                                if($purchasable_length_2 == $purchasable_length_3){
+                                    $validationErrors++;
+                                    $validator->errors()->add($id."-purchasable_length_2", 'purchasable_length_2');
+                                }
+                            }
+                        }
+                        //purchasable_length_3 must unique
+                        if($purchasable_length_3){
+                            //Compare #1
+                            if($purchasable_length_1){
+                                if($purchasable_length_3 == $purchasable_length_1){
+                                    $validationErrors++;
+                                    $validator->errors()->add($id."-purchasable_length_3", 'purchasable_length_3');
+                                }
+                            }
+                            //Compare #2
+                            if($purchasable_length_2){
+                                if($purchasable_length_3 == $purchasable_length_2){
+                                    $validationErrors++;
+                                    $validator->errors()->add($id."-purchasable_length_3", 'purchasable_length_3');
+                                }
+                            }
                         }
                     }
                     /*
@@ -946,15 +1019,16 @@ class ProductService
         return $baselineUnitRate;
     }
 
-    public function getBaselineUnitRateHighLowComparison(string $unitRate, ?string $baseline_unit_rate): string
+    public function getBaselineUnitRateHighLowComparison(?string $unitRate, ?string $baseline_unit_rate): string
     {
         $comparison = "NONE";
-        $unitRate = floatval($unitRate);
-        $baseline_unit_rate = $baseline_unit_rate
-            ? floatval($baseline_unit_rate)
-            : null;
 
-        if($baseline_unit_rate){
+        if($unitRate && $baseline_unit_rate){
+            $unitRate = floatval($unitRate);
+            $baseline_unit_rate = $baseline_unit_rate
+                ? floatval($baseline_unit_rate)
+                : null;
+
             if($unitRate < ($baseline_unit_rate*0.9)){
                 $comparison = "LOW";
             }
@@ -962,7 +1036,6 @@ class ProductService
                 $comparison = "HIGH";
             }
         }
-
 
         return $comparison;
     }

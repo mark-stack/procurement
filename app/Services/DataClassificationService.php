@@ -329,7 +329,7 @@ class DataClassificationService
                 "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
                 "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
             ],
-            //Steel plate
+            //PLATE
             [
                 "productEnum" => ProductEnums::PLATE,
                 "productRegex" => [
@@ -339,8 +339,11 @@ class DataClassificationService
                     "(\d+)+\s+PL",          //20 PL
                     "(\d+)+mm+\s+PL",       //20mm PL
                     "(\d+)+mm+\s+plate",    //20mm plate
+                    "PLT(\d+)",             //PLT8
                     "Steel+\s+Plate",       //Steel plate
                     "Steel+\s+Plates",      //steel plates
+                    "(\d+)+mm\b.*\b(1200|1220|2400|2440|3000|3100|3200)",    //20mm plus one of 1200|1220|2400|2440|3000|3100|3200
+                    "(\d+)+\s+mm\b.*\b(1200|1220|2400|2440|3000|3100|3200)", //20 mm plus one of 1200|1220|2400|2440|3000|3100|3200
                 ],
                 "nominalLengthRegex" => [
 
@@ -351,6 +354,7 @@ class DataClassificationService
                 "nominalHeightRegex" => [
                     "\b(0|[1-9][0-9]?|1[0-4][0-9]|150) ?PL", //16PL or 16 PL
                     "\b(0|[1-9][0-9]?|1[0-4][0-9]|150) ?mm", //16mm or 16 mm
+                    "PLT(\d+)\*",                            //PLT10*234
                 ],
                 "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
                 "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,

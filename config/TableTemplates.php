@@ -20,19 +20,30 @@ return [
         "webSource" => "https://www.tekconservices.com.au/_files/ugd/c061a1_1d2d677884e24c5f9b54801278710ea3.pdf",
         "ExpectedHeadingLabels" => ["Mark","Qty","Profile","Name","Finish","Length (mm)","Unit Area (m2)","Unit Weight (kg)"],
         "OffsetFromHeaderToFirstDataRow" => 1,
-        "skipOrFinishCheckColumnNumber" => 1,
+        "skipOrFinishCheckRelativeOffset" => 1,
         "ShouldSkipRow" => null, //None
         "isLastDataRow" => null, //2 consecutive blank 'description' cells
-        "DescriptionColumnNumber" => 4,
-        "MaterialColumnNumber" => null,
-        "GradeColumnNumber" => null,
-        "SurfaceColumnNumber" => 15, //"O"
-        "LengthColumnNumber" => 19, //"S"
-        "WidthColumnNumber" => null,
-        "SubQtyColumnNumber" => 2, //"B"
-        "UnitRateColumnNumber" => null,
+        "DescriptionRelativeOffset" => 4,
+        "MaterialRelativeOffset" => null,
+        "GradeRelativeOffset" => null,
+        "SurfaceRelativeOffset" => 15, //"O"
+        "LengthRelativeOffset" => 19, //"S"
+        "WidthRelativeOffset" => null,
+        "SubQtyRelativeOffset" => 2, //"B"
+        "UnitRateRelativeOffset" => null,
         "nominalUnits" => "mm",
         "numberOfTablesInDocument" => 1,
+        /*
+         * Assembly mark
+         * 1) Directly from a column for each row
+         *    - provide column number
+         *    - "COLUMN"
+         * 2) A fixed cell reference applied to all rows
+         *    - provide relative coordinates relative to first table heading. up & left = minus. e.g X,Y = [3,-1]
+         *    - "FIXED"
+         * 3) None: null
+         */
+        "assemblyMarkRule" => ["COLUMN",1],
     ],
     [
         "label" => "Hot Rolled, Angles, and more.",
@@ -44,19 +55,30 @@ return [
         "webSource" => "https://www.tekconservices.com.au/_files/ugd/c061a1_1d2d677884e24c5f9b54801278710ea3.pdf",
         "ExpectedHeadingLabels" => ["Profile","Grade","Part Mark","Qty","Length[mm]","Unit Area (m2)","Total Area (m2)","Unit Weight (kg)","Total Weight (kg)"], //todo
         "OffsetFromHeaderToFirstDataRow" => 1,
-        "skipOrFinishCheckColumnNumber" => 1,
+        "skipOrFinishCheckRelativeOffset" => 1,
         "ShouldSkipRow" => "Subtotal",  //Description column = "Subtotal"
         "isLastDataRow" => "Total",     //Description cell = "Total"
-        "DescriptionColumnNumber" => 1,
-        "MaterialColumnNumber" => null,
-        "GradeColumnNumber" => 3,
-        "SurfaceColumnNumber" => null,
-        "LengthColumnNumber" => 11,
-        "WidthColumnNumber" => null,
-        "SubQtyColumnNumber" => 8,
-        "UnitRateColumnNumber" => null,
+        "DescriptionRelativeOffset" => 1,
+        "MaterialRelativeOffset" => null,
+        "GradeRelativeOffset" => 3,
+        "SurfaceRelativeOffset" => null,
+        "LengthRelativeOffset" => 11,
+        "WidthRelativeOffset" => null,
+        "SubQtyRelativeOffset" => 8,
+        "UnitRateRelativeOffset" => null,
         "nominalUnits" => "mm",
         "numberOfTablesInDocument" => 5,
+        /*
+         * Assembly mark
+         * 1) Directly from a column for each row
+         *    - provide column number
+         *    - "COLUMN"
+         * 2) A fixed cell reference applied to all rows
+         *    - provide relative coordinates relative to first table heading. up & left = minus. e.g X,Y = [3,-1]
+         *    - "FIXED"
+         * 3) None: null
+         */
+        "assemblyMarkRule" => ["COLUMN",3],
     ],
     [
         "label" => "Bolt Summary - top",
@@ -68,19 +90,30 @@ return [
         "webSource" => "https://www.tekconservices.com.au/_files/ugd/c061a1_1d2d677884e24c5f9b54801278710ea3.pdf",
         "ExpectedHeadingLabels" => ["Bolt Dia","Bolt Grade","Length(mm)","Qty","Comments"],
         "OffsetFromHeaderToFirstDataRow" => 1,
-        "skipOrFinishCheckColumnNumber" => 1,
+        "skipOrFinishCheckRelativeOffset" => 1,
         "ShouldSkipRow" => null,        //None
         "isLastDataRow" => "Bolt Dia",  //cell = "Bolt Dia"
-        "DescriptionColumnNumber" => null,
-        "MaterialColumnNumber" => null,
-        "GradeColumnNumber" => 5, //"E"
-        "SurfaceColumnNumber" => null,
-        "LengthColumnNumber" => 13, //"M"
-        "WidthColumnNumber" => 1, //"A"
-        "SubQtyColumnNumber" => 16, //"P"
-        "UnitRateColumnNumber" => null,
+        "DescriptionRelativeOffset" => null,
+        "MaterialRelativeOffset" => null,
+        "GradeRelativeOffset" => 5, //"E"
+        "SurfaceRelativeOffset" => null,
+        "LengthRelativeOffset" => 13, //"M"
+        "WidthRelativeOffset" => 1, //"A"
+        "SubQtyRelativeOffset" => 16, //"P"
+        "UnitRateRelativeOffset" => null,
         "nominalUnits" => "mm",
         "numberOfTablesInDocument" => 1,
+        /*
+         * Assembly mark
+         * 1) Directly from a column for each row
+         *    - provide column number
+         *    - "COLUMN"
+         * 2) A fixed cell reference applied to all rows
+         *    - provide relative coordinates relative to first table heading. up & left = minus. e.g X,Y = [3,-1]
+         *    - "FIXED"
+         * 3) None: null
+         */
+        "assemblyMarkRule" => ["FIXED",[5,-3]],
     ],
     [
         "label" => "Bolt Summary - bottom",
@@ -92,19 +125,30 @@ return [
         "webSource" => "https://www.tekconservices.com.au/_files/ugd/c061a1_1d2d677884e24c5f9b54801278710ea3.pdf",
         "ExpectedHeadingLabels" => ["Bolt Dia","Profile","Name","Length(mm)","Qty","Finish"],
         "OffsetFromHeaderToFirstDataRow" => 1,
-        "skipOrFinishCheckColumnNumber" => 1,
+        "skipOrFinishCheckRelativeOffset" => 1,
         "ShouldSkipRow" => null, //None
         "isLastDataRow" => null,
-        "DescriptionColumnNumber" => null, //Has no description column, so need product category derived from "predeterminedProductCategory"
-        "MaterialColumnNumber" => null,
-        "GradeColumnNumber" => null,
-        "SurfaceColumnNumber" => null,
-        "LengthColumnNumber" => 16, //"P"
-        "WidthColumnNumber" => 1, //"A"
-        "SubQtyColumnNumber" => 20, //"T"
-        "UnitRateColumnNumber" => null,
+        "DescriptionRelativeOffset" => null, //Has no description column, so need product category derived from "predeterminedProductCategory"
+        "MaterialRelativeOffset" => null,
+        "GradeRelativeOffset" => null,
+        "SurfaceRelativeOffset" => null,
+        "LengthRelativeOffset" => 16, //"P"
+        "WidthRelativeOffset" => 1, //"A"
+        "SubQtyRelativeOffset" => 20, //"T"
+        "UnitRateRelativeOffset" => null,
         "nominalUnits" => "mm",
         "numberOfTablesInDocument" => 1,
+        /*
+         * Assembly mark
+         * 1) Directly from a column for each row
+         *    - provide column number
+         *    - "COLUMN"
+         * 2) A fixed cell reference applied to all rows
+         *    - provide relative coordinates relative to first table heading. up & left = minus. e.g X,Y = [3,-1]
+         *    - "FIXED"
+         * 3) None: null
+         */
+        "assemblyMarkRule" => ["NONE"],
     ],
 
     /**
@@ -121,18 +165,29 @@ return [
         "webSource" => "https://docs.google.com/spreadsheets/d/1NVv5x0np2qhD4vrLQEb2csr9DLYQCT8i-PofZmuD4pU/edit?gid=0#gid=0",
         "ExpectedHeadingLabels" => ["Length","Width","SubQty","Rate","Total"],
         "OffsetFromHeaderToFirstDataRow" => 2,
-        "skipOrFinishCheckColumnNumber" => 2,
+        "skipOrFinishCheckRelativeOffset" => -2,
         "ShouldSkipRow" => null, //If description column is blank
         "isLastDataRow" => null, //2 consecutive blank 'description' cells
-        "DescriptionColumnNumber" => 2,
-        "MaterialColumnNumber" => null,
-        "GradeColumnNumber" => null,
-        "SurfaceColumnNumber" => null,
-        "LengthColumnNumber" => 4,
-        "WidthColumnNumber" => 5,
-        "SubQtyColumnNumber" => 6,
-        "UnitRateColumnNumber" => 7,
+        "DescriptionRelativeOffset" => -2,
+        "MaterialRelativeOffset" => null,
+        "GradeRelativeOffset" => null,
+        "SurfaceRelativeOffset" => null,
+        "LengthRelativeOffset" => 0,
+        "WidthRelativeOffset" => 1,
+        "SubQtyRelativeOffset" => 2,
+        "UnitRateRelativeOffset" => 3,
         "nominalUnits" => "m",
         "numberOfTablesInDocument" => 1,
+        /*
+         * Assembly mark
+         * 1) Directly from a column for each row
+         *    - provide column number
+         *    - "COLUMN"
+         * 2) A fixed cell reference applied to all rows
+         *    - provide relative coordinates relative to first table heading. up & left = minus. e.g X,Y = [3,-1]
+         *    - "FIXED"
+         * 3) None: null
+         */
+        "assemblyMarkRule" => ["FIXED",[-2,-1]],
     ],
 ];

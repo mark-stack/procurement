@@ -34,15 +34,13 @@ Route::get("stock-cutting",function(){
 //todo temporary
 Route::get("test",function(){
 
-
-    /////////////////////////////////////
-    $description = "UB250*31";
+    $description = "PLT10*160";
 
     $productService = new ProductService();
     $dataClassificationService = new DataClassificationService();
 
     //PRODUCT
-    $product = $dataClassificationService->findProduct($description);
+    $product = $dataClassificationService->findProduct($description,null);
 
     //Has product
     if($product){

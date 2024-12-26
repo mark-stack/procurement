@@ -211,7 +211,7 @@
             label = "Purchasable pack quantities (at least 1)";
         }
         if(nesting_algo === "METERAGE"){
-            label = "Purchasable lengths (at least 1)";
+            label = "Purchasable lengths (At least 1, must be different)";
         }
 
         return label;

@@ -178,6 +178,7 @@ class RawMaterialListCustomisationsController extends Controller
          * 3) BUNDLE: no variations
          */
 
+        $productService = new ProductService();
         $variations = [];
 
         /*
@@ -274,6 +275,7 @@ class RawMaterialListCustomisationsController extends Controller
                 "surface" => SurfaceEnums::NONE->value, //todo this is ok?,
                 "nominal_units" => $preparedFormData["nominal_units"],
                 "nesting_algo" => $preparedFormData["nesting_algo"],
+                "certificates" => $productService->getCertificateFromProductCategory($preparedFormData["product"]),
                 "nominal_length" => $variation["nominal_length"],
                 "nominal_width" => $variation["nominal_width"],
                 "nominal_height" => $variation["nominal_height"],

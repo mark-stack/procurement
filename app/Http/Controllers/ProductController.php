@@ -115,7 +115,10 @@ class ProductController extends Controller
              * Mill products //todo: get from master_materials
              */
             foreach($allCertificateProductLabels as $mp){
-                if(strtoupper($rawMaterialQuote->product_category) == strtoupper($mp->value)){
+                //Could be enum or string
+                $value = gettype($mp) === "object" ? $mp->value : $mp;
+
+                if(strtoupper($rawMaterialQuote->product_category) == strtoupper($value)){
                     $hasCertificateProducts = true;
                 }
             }
@@ -189,7 +192,13 @@ class ProductController extends Controller
         $csvArray = Excel::toArray(new ExcelImport(), $file)[0];
 
         //Process the CSV
-        $return = $csvService->processCsv($csvArray,$project);
+        $errorMsg = "The file didn't auto-detect properly. Did the template change? Please email the file to mark.laravel.coder@gmail to have it re-calibrated quickly.";
+        try {
+            $return = $csvService->processCsv($csvArray,$project,$errorMsg);
+        }
+        catch (\Exception $e) {
+            $return = back()->with("warning",$errorMsg);
+        }
 
         // Delete the file after processing
         unlink(storage_path("app/private/{$path}"));
