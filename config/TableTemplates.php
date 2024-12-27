@@ -14,22 +14,22 @@ return [
         "label" => "Assembly List",
         "ownerDomain" => null, //For everybody
         "type" => TemplateEnums::CAD_BILL_OF_MATERIALS->value,
-        "predeterminedProductCategory" => null,
+        "compoundDescription" => null, //replaces "predeterminedProductCategory"
         "source" => TemplateSourceEnums::TEKLA->value,
         "testFile" => "tekla single page report",
         "webSource" => "https://www.tekconservices.com.au/_files/ugd/c061a1_1d2d677884e24c5f9b54801278710ea3.pdf",
         "ExpectedHeadingLabels" => ["Mark","Qty","Profile","Name","Finish","Length (mm)","Unit Area (m2)","Unit Weight (kg)"],
         "OffsetFromHeaderToFirstDataRow" => 1,
-        "skipOrFinishCheckRelativeOffset" => 1,
+        "skipOrFinishCheckRelativeOffset" => 0,
         "ShouldSkipRow" => null, //None
         "isLastDataRow" => null, //2 consecutive blank 'description' cells
-        "DescriptionRelativeOffset" => 4,
+        "DescriptionRelativeOffset" => 3,
         "MaterialRelativeOffset" => null,
         "GradeRelativeOffset" => null,
-        "SurfaceRelativeOffset" => 15, //"O"
-        "LengthRelativeOffset" => 19, //"S"
+        "SurfaceRelativeOffset" => 14, //"O"
+        "LengthRelativeOffset" => 18, //"S"
         "WidthRelativeOffset" => null,
-        "SubQtyRelativeOffset" => 2, //"B"
+        "SubQtyRelativeOffset" => 1, //"B"
         "UnitRateRelativeOffset" => null,
         "nominalUnits" => "mm",
         "numberOfTablesInDocument" => 1,
@@ -49,25 +49,25 @@ return [
         "label" => "Hot Rolled, Angles, and more.",
         "ownerDomain" => null, //For everybody
         "type" => TemplateEnums::CAD_BILL_OF_MATERIALS->value,
-        "predeterminedProductCategory" => null,
+        "compoundDescription" => null,
         "source" => TemplateSourceEnums::TEKLA->value,
         "testFile" => "tekla single page report",
         "webSource" => "https://www.tekconservices.com.au/_files/ugd/c061a1_1d2d677884e24c5f9b54801278710ea3.pdf",
         "ExpectedHeadingLabels" => ["Profile","Grade","Part Mark","Qty","Length[mm]","Unit Area (m2)","Total Area (m2)","Unit Weight (kg)","Total Weight (kg)"], //todo
         "OffsetFromHeaderToFirstDataRow" => 1,
-        "skipOrFinishCheckRelativeOffset" => 1,
+        "skipOrFinishCheckRelativeOffset" => 0,
         "ShouldSkipRow" => "Subtotal",  //Description column = "Subtotal"
         "isLastDataRow" => "Total",     //Description cell = "Total"
-        "DescriptionRelativeOffset" => 1,
+        "DescriptionRelativeOffset" => 0,
         "MaterialRelativeOffset" => null,
-        "GradeRelativeOffset" => 3,
+        "GradeRelativeOffset" => 2,
         "SurfaceRelativeOffset" => null,
-        "LengthRelativeOffset" => 11,
+        "LengthRelativeOffset" => 10,
         "WidthRelativeOffset" => null,
-        "SubQtyRelativeOffset" => 8,
+        "SubQtyRelativeOffset" => 7,
         "UnitRateRelativeOffset" => null,
         "nominalUnits" => "mm",
-        "numberOfTablesInDocument" => 5,
+        "numberOfTablesInDocument" => 4,
         /*
          * Assembly mark
          * 1) Directly from a column for each row
@@ -84,22 +84,30 @@ return [
         "label" => "Bolt Summary - top",
         "ownerDomain" => null, //For everybody
         "type" => TemplateEnums::CAD_BILL_OF_MATERIALS->value,
-        "predeterminedProductCategory" => ProductEnums::BOLT->value, //This is fringe case when there's no 'description' column to identify the category. e.g "200PFC" indicates it's PFC. In this case, maybe there's a table title "Parallel Flange Channels"
+        /*
+         * 'M' + 'Bolt Dia' + 'Bolt Grade' + 'Length(mm)'
+         * Provide relative offsets
+         */
+        "compoundDescription" => [
+            "prefix" => "M",
+            "suffix" => "mm",
+            "relativeOffsets" => [0,4,12],
+        ],
         "source" => TemplateSourceEnums::TEKLA->value,
         "testFile" => "tekla single page report",
         "webSource" => "https://www.tekconservices.com.au/_files/ugd/c061a1_1d2d677884e24c5f9b54801278710ea3.pdf",
         "ExpectedHeadingLabels" => ["Bolt Dia","Bolt Grade","Length(mm)","Qty","Comments"],
         "OffsetFromHeaderToFirstDataRow" => 1,
-        "skipOrFinishCheckRelativeOffset" => 1,
+        "skipOrFinishCheckRelativeOffset" => 0,
         "ShouldSkipRow" => null,        //None
         "isLastDataRow" => "Bolt Dia",  //cell = "Bolt Dia"
         "DescriptionRelativeOffset" => null,
         "MaterialRelativeOffset" => null,
-        "GradeRelativeOffset" => 5, //"E"
+        "GradeRelativeOffset" => 4, //"E"
         "SurfaceRelativeOffset" => null,
-        "LengthRelativeOffset" => 13, //"M"
-        "WidthRelativeOffset" => 1, //"A"
-        "SubQtyRelativeOffset" => 16, //"P"
+        "LengthRelativeOffset" => 12, //"M"
+        "WidthRelativeOffset" => 0, //"A"
+        "SubQtyRelativeOffset" => 15, //"P"
         "UnitRateRelativeOffset" => null,
         "nominalUnits" => "mm",
         "numberOfTablesInDocument" => 1,
@@ -119,22 +127,30 @@ return [
         "label" => "Bolt Summary - bottom",
         "ownerDomain" => null, //For everybody
         "type" => TemplateEnums::CAD_BILL_OF_MATERIALS->value,
-        "predeterminedProductCategory" => ProductEnums::BOLT->value, //This is fringe case when there's no 'description' column to identify the category. e.g "200PFC" indicates it's PFC. In this case, maybe there's a table title "Parallel Flange Channels"
+        /*
+         * 'M' + 'Bolt Dia' + 'Bolt Grade' + 'Length(mm)'
+         * Provide relative offsets
+         */
+        "compoundDescription" => [
+            "prefix" => "M",
+            "suffix" => "mm",
+            "relativeOffsets" => [0,12,15],
+        ],
         "source" => TemplateSourceEnums::TEKLA->value,
         "testFile" => "tekla single page report",
         "webSource" => "https://www.tekconservices.com.au/_files/ugd/c061a1_1d2d677884e24c5f9b54801278710ea3.pdf",
         "ExpectedHeadingLabels" => ["Bolt Dia","Profile","Name","Length(mm)","Qty","Finish"],
         "OffsetFromHeaderToFirstDataRow" => 1,
-        "skipOrFinishCheckRelativeOffset" => 1,
+        "skipOrFinishCheckRelativeOffset" => 0,
         "ShouldSkipRow" => null, //None
         "isLastDataRow" => null,
-        "DescriptionRelativeOffset" => null, //Has no description column, so need product category derived from "predeterminedProductCategory"
+        "DescriptionRelativeOffset" => null, //Has no description column, so need product category derived from "compoundDescription"
         "MaterialRelativeOffset" => null,
         "GradeRelativeOffset" => null,
         "SurfaceRelativeOffset" => null,
-        "LengthRelativeOffset" => 16, //"P"
-        "WidthRelativeOffset" => 1, //"A"
-        "SubQtyRelativeOffset" => 20, //"T"
+        "LengthRelativeOffset" => 15, //"P"
+        "WidthRelativeOffset" => 0, //"A"
+        "SubQtyRelativeOffset" => 19, //"T"
         "UnitRateRelativeOffset" => null,
         "nominalUnits" => "mm",
         "numberOfTablesInDocument" => 1,
@@ -159,7 +175,7 @@ return [
         "label" => "Project Quote",
         "ownerDomain" => "gmail.com",
         "type" => TemplateEnums::PROJECT_QUOTE->value,
-        "predeterminedProductCategory" => null,
+        "compoundDescription" => null,
         "source" => TemplateSourceEnums::PROJECT_MANAGER->value,
         "testFile" => "Monthly budget excel",
         "webSource" => "https://docs.google.com/spreadsheets/d/1NVv5x0np2qhD4vrLQEb2csr9DLYQCT8i-PofZmuD4pU/edit?gid=0#gid=0",

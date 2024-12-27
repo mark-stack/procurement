@@ -250,7 +250,7 @@ class CsvService
         foreach($detectedTables as $tableInstance){
             $type = $tableInstance["type"];
             $rows = $tableInstance["data"];
-            $predeterminedProductCategory = $tableInstance["predeterminedProductCategory"];
+            $compoundDescription = $tableInstance["compoundDescription"];
 
             //Sense checks
             //$productService->senseChecks(); //todo incomplete
@@ -258,15 +258,14 @@ class CsvService
             //Find price book products
             $dataWithProducts = $dataClassificationService->findProductsFromCleanData(
                 $rows,
-                $project->user,
-                $predeterminedProductCategory
+                $project->user
             );
 
             //Save user material list
             $this->saveRawMaterialQuoteData(
                 $dataWithProducts,
                 $project,
-                $predeterminedProductCategory
+                $compoundDescription,
             );
 
             //Create new user-custom products
@@ -337,7 +336,7 @@ class CsvService
                 $detectTableInstances[] = [
                     "type" => $tableOption["type"],
                     "data" => $this->getTableData($csvArray,$firstDataRowIndex,$firstHeadingColumnAbsoluteIndex,$tableOption),
-                    "predeterminedProductCategory" => $tableOption["predeterminedProductCategory"],
+                    "compoundDescription" => $tableOption["compoundDescription"],
                 ];
             }
         }
@@ -482,13 +481,17 @@ class CsvService
                 $shouldSkip = $this->shouldSkip($tableOption["ShouldSkipRow"], $csvRow, $skipOrFinishCheckColumnAbsoluteIndex);
 
                 //Description
-                $description = ($descriptionColumnAbsoluteIndex !== null && isset($csvRow[$descriptionColumnAbsoluteIndex]))
-                    ? $csvRow[$descriptionColumnAbsoluteIndex]
-                    : null;
+                $compoundDescription = $this->decodeCompoundDescription($tableOption["compoundDescription"],$csvRow,$firstHeadingColumnAbsoluteIndex);
+                if($compoundDescription){
+                    $description = $compoundDescription;
+                }
+                else{
+                    $description = ($descriptionColumnAbsoluteIndex !== null && isset($csvRow[$descriptionColumnAbsoluteIndex]))
+                        ? $csvRow[$descriptionColumnAbsoluteIndex]
+                        : null;
+                }
 
-                $canHaveNoDescription = $tableOption["predeterminedProductCategory"] !== null;
-
-                if (!$shouldSkip && ($description || (!$description && $canHaveNoDescription))){
+                if (!$shouldSkip && $description){
                     //Material
                     $material = ($materialColumnAbsoluteIndex !== null && isset($csvRow[$materialColumnAbsoluteIndex]))
                         ? $csvRow[$materialColumnAbsoluteIndex]
@@ -807,7 +810,7 @@ class CsvService
 //        }
     }
 
-    public function saveRawMaterialQuoteData($dataWithProducts,$project, ?string $predeterminedProductCategory): array
+    public function saveRawMaterialQuoteData($dataWithProducts,$project): array
     {
         /**
          * Single purpose:
@@ -819,7 +822,7 @@ class CsvService
 
         $materialList = [];
         foreach($dataWithProducts as $cleanRow){
-            $productCategory = $dataClassificationService->findProduct($cleanRow["description"],$predeterminedProductCategory);
+            $productCategory = $dataClassificationService->findProduct($cleanRow["description"]);
             $productCategoryDisplay = $productCategory ? $productCategory["productEnum"]->value : null;
 
             /**
@@ -1023,5 +1026,26 @@ class CsvService
         $newY = $indexOfHeadingRow + $relativeCoordinates[1];
 
         return $csvArray[$newY][$newX];
+    }
+
+    private function decodeCompoundDescription(?array $compoundDescription, array $csvRow, int $firstHeadingColumnAbsoluteIndex): ?string
+    {
+        /**
+         * Decode: "M##Bolt Dia##Bolt Grade##Length(mm)"
+         * see "compoundDescription" variables in TableTemplates.php
+         */
+        $decodeCompoundDescription = null;
+
+        if($compoundDescription){
+            $prefix = $compoundDescription["prefix"] ?? "";
+            $decodeCompoundDescription = $prefix;
+            foreach($compoundDescription["relativeOffsets"] as $index => $offset){
+                $decodeCompoundDescription = $decodeCompoundDescription.($index > 0 ? ' ' : '').$csvRow[$firstHeadingColumnAbsoluteIndex + $offset];
+            }
+            $suffix = $compoundDescription["suffix"] ?? "";
+            $decodeCompoundDescription = $decodeCompoundDescription.$suffix;
+        }
+
+        return $decodeCompoundDescription;
     }
 }

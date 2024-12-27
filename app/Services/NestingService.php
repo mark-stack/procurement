@@ -821,5 +821,38 @@ class NestingService
 
         return $result;
     }
+
+    public function getNestingGroups(): array
+    {
+        $nestingGroups = [];
+
+        //Meterage
+        $products = Product::query()
+            ->where("nesting_algo",NestingEnums::METERAGE->value)
+            ->pluck("product")
+            ->unique()
+            ->toArray();
+        $nestingGroups[NestingEnums::METERAGE->value] = array_values($products);
+
+
+        //Area
+        $products = Product::query()
+            ->where("nesting_algo",NestingEnums::AREA->value)
+            ->pluck("product")
+            ->unique()
+            ->toArray();
+        $nestingGroups[NestingEnums::AREA->value] = array_values($products);
+
+
+        //Bundle
+        $products = Product::query()
+            ->where("nesting_algo",NestingEnums::BUNDLE->value)
+            ->pluck("product")
+            ->unique()
+            ->toArray();
+        $nestingGroups[NestingEnums::BUNDLE->value] = array_values($products);
+
+        return $nestingGroups;
+    }
 }
 

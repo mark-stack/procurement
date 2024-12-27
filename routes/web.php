@@ -34,7 +34,7 @@ Route::get("stock-cutting",function(){
 //todo temporary
 Route::get("test",function(){
 
-    $description = "PLT10*160";
+    $description = "M12 PB1230 30";
 
     $productService = new ProductService();
     $dataClassificationService = new DataClassificationService();

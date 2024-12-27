@@ -613,7 +613,7 @@ class ProductService
                 $nominalLength = $row["selected"]["nominal_length"];
                 $nominalWidth = $row["selected"]["nominal_width"];
                 $nominalHeight = $row["selected"]["nominal_height"];
-                $measurementUnit = $row["selected"]["quantify"];
+                //$measurementUnit = $row["selected"]["quantify"];
                 $nestingType = $row["selected"]["nesting_algo"];
                 $purchasable_length_1 = $row["selected"]["purchasable_length_1"];
                 $purchasable_length_2 = $row["selected"]["purchasable_length_2"];
@@ -756,10 +756,10 @@ class ProductService
                      */
                     if($nestingType === "METERAGE"){
                         //Measurement units required: TRUE
-                        if(!$measurementUnit){
-                            $validationErrors++;
-                            $validator->errors()->add($id."-quantify", 'quantify');
-                        }
+//                        if(!$measurementUnit){
+//                            $validationErrors++;
+//                            $validator->errors()->add($id."-quantify", 'quantify');
+//                        }
                         //purchasable_length_1: TRUE
                         if(!$purchasable_length_1){
                             $validationErrors++;
@@ -809,10 +809,10 @@ class ProductService
                      */
                     if($nestingType === "AREA"){
                         //Measurement units required: TRUE
-                        if(!$measurementUnit){
-                            $validationErrors++;
-                            $validator->errors()->add($id."-quantify", 'quantify');
-                        }
+//                        if(!$measurementUnit){
+//                            $validationErrors++;
+//                            $validator->errors()->add($id."-quantify", 'quantify');
+//                        }
                         //purchasable_length_1: TRUE
                         if(!$purchasable_length_1){
                             $validationErrors++;
@@ -878,6 +878,9 @@ class ProductService
         if ($grade === "GR_4_6" || $grade === "4.6S") {
             $actualGrade = "GR4.6";
         }
+        if ($grade === "GR_5_8" || $grade === "5.8S") {
+            $actualGrade = "GR5.8";
+        }
         if ($grade === "GR_8_8" || $grade === "8.8S") {
             $actualGrade = "GR8.8";
         }
@@ -896,33 +899,37 @@ class ProductService
 
         $result = "";
 
-        if($product === "BOLT"){
+        if($product === ProductEnums::BOLT->value){
             $result = $this->formatBOLT($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
         }
-        else if($product === "UB"){
+        if($product === ProductEnums::ALLTHREAD->value){
+            $result = $this->formatALLTHREAD($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
+        }
+        else if($product === ProductEnums::UB->value){
             $result = $this->formatUB($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
         }
-        else if($product === "UC"){
+        else if($product === ProductEnums::UC->value){
             $result = $this->formatUC($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
         }
-        else if($product === "PFC"){
+        else if($product === ProductEnums::PFC->value){
             $result = $this->formatPFC($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
         }
-        else if($product === "PLATE"){
+        else if($product === ProductEnums::PLATE->value){
             $result = $this->formatPLATE($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
         }
-        else if($product === "LVL"){
+        else if($product === ProductEnums::LVL->value){
             $result = $this->formatLVL($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
         }
-        else if($product === "SHS"){
+        else if($product === ProductEnums::SHS->value){
             $result = $this->formatSHS($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
         }
-        else if($product === "RHS"){
+        else if($product === ProductEnums::RHS->value){
             $result = $this->formatRHS($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
         }
         else{
             $result = $this->formatDefault($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
         }
+        //todo can it be made SOLID with a loop
 
         return $result;
     }
@@ -943,6 +950,19 @@ class ProductService
         }
 
         return $actualSize." ".$actualGrade.$actualSurface;
+    }
+
+    private function formatALLTHREAD($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface): string
+    {
+        //Size
+        $actualSize = "";
+        if ($nominal_length) {
+            $actualSize = "M".$nominal_width."x".$nominal_length;
+        } else {
+            $actualSize = "M".$nominal_width;
+        }
+
+        return $actualSize." ".$actualGrade.$actualSurface." Allthread";
     }
 
     private function formatUB($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface): string

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\MeasurementUnitEnums;
 use App\Enums\NestingEnums;
 use App\Enums\SurfaceEnums;
 use App\Models\Business;
@@ -73,7 +74,7 @@ class RawMaterialListCustomisationsController extends Controller
                             ->where("material", $preparedFormData["material"])
                             ->where("grade", $preparedFormData["grade"])
                             ->where("surface", SurfaceEnums::NONE->value)
-                            ->where("nominal_units", $preparedFormData["nominal_units"])
+                            ->where("nominal_units", MeasurementUnitEnums::MILLIMETERS->value)
                             ->where("nominal_height",$preparedFormData["nominal_height"])
                             ->get();
                     }
@@ -87,7 +88,7 @@ class RawMaterialListCustomisationsController extends Controller
                             ->where("material", $preparedFormData["material"])
                             ->where("grade", $preparedFormData["grade"])
                             ->where("surface", SurfaceEnums::NONE->value)
-                            ->where("nominal_units", $preparedFormData["nominal_units"])
+                            ->where("nominal_units", MeasurementUnitEnums::MILLIMETERS->value)
                             ->where("nominal_height",$preparedFormData["nominal_height"])
                             ->get();
                     }
@@ -101,7 +102,7 @@ class RawMaterialListCustomisationsController extends Controller
                             ->where("material", $preparedFormData["material"])
                             ->where("grade", $preparedFormData["grade"])
                             ->where("surface", SurfaceEnums::NONE->value)
-                            ->where("nominal_units", $preparedFormData["nominal_units"])
+                            ->where("nominal_units", MeasurementUnitEnums::MILLIMETERS->value)
                             ->where("nominal_length",$preparedFormData["nominal_length"])
                             ->where("nominal_width",$preparedFormData["nominal_width"])
                             ->get();
@@ -123,7 +124,7 @@ class RawMaterialListCustomisationsController extends Controller
                         "material" => $preparedFormData["material"],
                         "grade" => $preparedFormData["grade"],
                         "surface" => SurfaceEnums::NONE->value,
-                        "nominal_units" => $preparedFormData['nominal_units'],
+                        "nominal_units" => MeasurementUnitEnums::MILLIMETERS->value,
                         "nesting_algo" => $preparedFormData['nesting_algo'],
                         "nominal_length" => $preparedFormData['nominal_length'],
                         "nominal_width" => $preparedFormData['nominal_width'],
@@ -159,7 +160,7 @@ class RawMaterialListCustomisationsController extends Controller
             "nominal_length" => $formData["selected"]["nominal_length"],
             "nominal_width" => $formData["selected"]["nominal_width"],
             "nominal_height" => $formData["selected"]["nominal_height"],
-            "nominal_units" => $formData["selected"]["quantify"],
+            //"nominal_units" => $formData["selected"]["quantify"],
             "nesting_algo" => $formData["selected"]["nesting_algo"],
             "purchasable_length_1" => $formData["selected"]["purchasable_length_1"],
             "purchasable_length_2" => $formData["selected"]["purchasable_length_2"],
@@ -273,7 +274,7 @@ class RawMaterialListCustomisationsController extends Controller
                 "material" => $preparedFormData["material"],
                 "grade" => $preparedFormData["grade"],
                 "surface" => SurfaceEnums::NONE->value, //todo this is ok?,
-                "nominal_units" => $preparedFormData["nominal_units"],
+                "nominal_units" => MeasurementUnitEnums::MILLIMETERS->value,
                 "nesting_algo" => $preparedFormData["nesting_algo"],
                 "certificates" => $productService->getCertificateFromProductCategory($preparedFormData["product"]),
                 "nominal_length" => $variation["nominal_length"],

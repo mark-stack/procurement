@@ -64,7 +64,7 @@ class ProductController extends Controller
                             "nominal_length" => null,
                             "nominal_width" => null,
                             "nominal_height" => null,
-                            "quantify" => null,
+                            //"quantify" => null,
                             "nesting_algo" => null,
                             "purchasable_length_1" => null,
                             "purchasable_length_2" => null,
@@ -79,7 +79,7 @@ class ProductController extends Controller
                             "material" => null,
                             "grade" => null,
                             "surface" => null,
-                            "quantify" => null,
+                            //"quantify" => null,
                             "suppliers" => [],
                         ],
                         "data" => $rawMaterialQuote,
@@ -147,6 +147,11 @@ class ProductController extends Controller
         $allMeasurements = $nestingService->allMeasurementUnitLabels();
         $formDependentData = $nestingService->buildDependencyArray();
 
+        /**
+         * Nesting groups
+         */
+        $nestingGroups = $nestingService->getNestingGroups();
+
         return Inertia::render('ProductIndex', [
             "project" => $project,
             "materialListRows" => $materialListRows,
@@ -157,6 +162,7 @@ class ProductController extends Controller
             "formDependentData" => $formDependentData,
             "allGrades" => $allGrades,
             "business" => $project->user->business,
+            "nestingGroups" => $nestingGroups,
         ]);
     }
 
@@ -193,11 +199,18 @@ class ProductController extends Controller
 
         //Process the CSV
         $errorMsg = "The file didn't auto-detect properly. Did the template change? Please email the file to mark.laravel.coder@gmail to have it re-calibrated quickly.";
-        try {
+
+        //Users to get nice error message, admin to throw error.
+        if(auth()->user()->isAdmin()){
             $return = $csvService->processCsv($csvArray,$project,$errorMsg);
         }
-        catch (\Exception $e) {
-            $return = back()->with("warning",$errorMsg);
+        else{
+            try {
+                $return = $csvService->processCsv($csvArray,$project,$errorMsg);
+            }
+            catch (\Exception $e) {
+                $return = back()->with("warning",$errorMsg);
+            }
         }
 
         // Delete the file after processing

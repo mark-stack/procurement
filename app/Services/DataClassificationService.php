@@ -43,88 +43,97 @@ class DataClassificationService
          * NOTE: for AREA items, disregard length & width
          * NOTE: for BUNDLE items, disregard none
          */
-        $return = collect([]); //default
+        $results = [];
 
         $nestingArray = (new NestingService())->getNestingLabelsFromProduct($productString);
 
         //"Product" is mandatory
         if($productString && count($nestingArray) > 0) {
-            $algo = $nestingArray[0];
-            $sizeInclude = [];
-            $query = null;
+            //Loop different nesting algos. e.g ALLTHREAD has bundle and meterage
+            foreach($nestingArray as $algo){
+                $sizeInclude = [];
+                $query = null;
 
-            //METERAGE
-            if($algo === NestingEnums::METERAGE->value){
-                $sizeInclude = ["nominal_width","nominal_height"];
-                $query = Product::select('product', 'material', 'grade', 'surface', 'nominal_units',"nominal_width",'nominal_height')
-                    ->distinct()
-                    ->availableFor($user)
-                    ->where("product", $productString);
-            }
-            //AREA
-            if($algo === NestingEnums::AREA->value){
-                $sizeInclude = ["nominal_height"];
-                $query = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', 'nominal_height')
-                    ->distinct()
-                    ->availableFor($user)
-                    ->where("product", $productString);
-            }
-            //BUNDLE
-            if($algo === NestingEnums::BUNDLE->value){
-                $sizeInclude = ["nominal_length","nominal_width"];
-                $query = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', 'nominal_length','nominal_width')
-                    ->distinct()
-                    ->availableFor($user)
-                    ->where("product", $productString);
-            }
-
-            //Material
-            if (!is_null($materialEnum)) {
-                $query->where("material", $materialEnum->value);
-            }
-
-            //Grade
-            if (!is_null($gradesEnums)) {
-                $gradesArrayValues = [];
-                foreach($gradesEnums as $grade){
-                    $gradesArrayValues[] = $grade->value;
+                //METERAGE
+                if($algo === NestingEnums::METERAGE->value){
+                    $sizeInclude = ["nominal_width","nominal_height"];
+                    $query = Product::select('product', 'material', 'grade', 'surface', 'nominal_units',"nominal_width",'nominal_height')
+                        ->distinct()
+                        ->availableFor($user)
+                        ->where("product", $productString)
+                        ->where("nesting_algo",$algo);
                 }
-                $query->whereIn("grade",$gradesArrayValues);
-            }
+                //AREA
+                if($algo === NestingEnums::AREA->value){
+                    $sizeInclude = ["nominal_height"];
+                    $query = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', 'nominal_height')
+                        ->distinct()
+                        ->availableFor($user)
+                        ->where("product", $productString)
+                        ->where("nesting_algo",$algo);
+                }
+                //BUNDLE
+                if($algo === NestingEnums::BUNDLE->value){
+                    $sizeInclude = ["nominal_length","nominal_width"];
+                    $query = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', 'nominal_length','nominal_width')
+                        ->distinct()
+                        ->availableFor($user)
+                        ->where("product", $productString)
+                        ->where("nesting_algo",$algo);
+                }
 
-            //Surface
-            if (!is_null($surfaceEnum)) {
-                $query->where("surface", $surfaceEnum->value);
-            }
+                //Material
+                if (!is_null($materialEnum)) {
+                    $query->where("material", $materialEnum->value);
+                }
 
-            //Measurement Unit
-            if (!is_null($measurementUnitEnum)) {
-                $query->where("nominal_units", $measurementUnitEnum->value);
-            }
+                //Grade
+                if (!is_null($gradesEnums)) {
+                    $gradesArrayValues = [];
+                    foreach($gradesEnums as $grade){
+                        $gradesArrayValues[] = $grade->value;
+                    }
+                    $query->whereIn("grade",$gradesArrayValues);
+                }
 
-            //Nominal length
-            if (!is_null($nominalLengthInt) && in_array("nominal_length",$sizeInclude)) {
-                $query->where("nominal_length", $nominalLengthInt);
-            }
+                //Surface
+                if (!is_null($surfaceEnum)) {
+                    $query->where("surface", $surfaceEnum->value);
+                }
 
-            //Nominal width
-            if (!is_null($nominalWidthInt) && in_array("nominal_width",$sizeInclude)) {
-                $query->where("nominal_width", $nominalWidthInt);
-            }
+                //Measurement Unit
+                if (!is_null($measurementUnitEnum)) {
+                    $query->where("nominal_units", $measurementUnitEnum->value);
+                }
 
-            //Nominal height
-            if (!is_null($nominalHeightInt) && in_array("nominal_height",$sizeInclude)) {
-                $query->where("nominal_height", $nominalHeightInt);
-            }
+                //Nominal length
+                if (!is_null($nominalLengthInt) && in_array("nominal_length",$sizeInclude)) {
+                    $query->where("nominal_length", $nominalLengthInt);
+                }
 
-            return $query->get();
+                //Nominal width
+                if (!is_null($nominalWidthInt) && in_array("nominal_width",$sizeInclude)) {
+                    $query->where("nominal_width", $nominalWidthInt);
+                }
+
+                //Nominal height
+                if (!is_null($nominalHeightInt) && in_array("nominal_height",$sizeInclude)) {
+                    $query->where("nominal_height", $nominalHeightInt);
+                }
+
+                if($query->count() > 0){
+                    foreach($query->get()->toArray() as $item){
+                        $results[] = $item;
+                    }
+                }
+            }
         }
 
-        return $return;
+        return collect($results);
     }
 
 
-    public function findProductsInRow(array $cleanCsvRow, User $user, ?string $predeterminedProductCategory): array
+    public function findProductsInRow(array $cleanCsvRow, User $user): array
     {
         /**
          * Single purpose:
@@ -140,7 +149,7 @@ class DataClassificationService
 //        "unit_rate" => 50.0
 
         //Product (category like "PFC")
-        $productCategory = $this->findProduct($cleanCsvRow["description"],$predeterminedProductCategory);
+        $productCategory = $this->findProduct($cleanCsvRow["description"]);
 
         //Has product
         $generalProductMatches = collect([]);
@@ -190,6 +199,11 @@ class DataClassificationService
                 $nominalWidthInt,
                 $nominalHeightInt
             );
+
+            //todo debug
+//            if($cleanCsvRow["length_required"] == 250){
+//                dd(250,$generalProductMatches,$cleanCsvRow);
+//            }
         }
 
         return [
@@ -198,7 +212,7 @@ class DataClassificationService
         ];
     }
 
-    public function findProductsFromCleanData(array $cleanCsvData, User $user, ?string $predeterminedProductCategory): array
+    public function findProductsFromCleanData(array $cleanCsvData, User $user): array
     {
         /**
          * Single purpose:
@@ -207,7 +221,7 @@ class DataClassificationService
         $result = [];
 
         foreach($cleanCsvData as $cleanCsvRow){
-            $productsInRow = $this->findProductsInRow($cleanCsvRow,$user,$predeterminedProductCategory);
+            $productsInRow = $this->findProductsInRow($cleanCsvRow,$user);
 
             $append = $cleanCsvRow;
             $append["generalProductMatches"] = $productsInRow["generalProductMatches"];
@@ -217,13 +231,13 @@ class DataClassificationService
         return $result;
     }
 
-    public function findProduct(?string $text, ?string $predeterminedProductCategory): ?array
+    public function findProduct(?string $text): ?array
     {
         /**
          * Single purpose: extract a 'product' from text. e.g "PFC"
          */
 
-        $resultProduct = null;
+        $resultProducts = [];
 
         $products = [
 
@@ -367,8 +381,8 @@ class DataClassificationService
                     "bolt",
                 ],
                 "nominalLengthRegex" => [
-                    "x+(\d+)",      //x100
-                    "x+\s+(\d+)",   //x 100
+                    "x+(1?[0-9]?[0-9]|200)",      //x100  (200 or under)
+                    "x+\s+(1?[0-9]?[0-9]|200)",   //x 100 (200 or under)
                 ],
                 "nominalWidthRegex" => [
                     "M+(\d+)", //M16
@@ -379,20 +393,22 @@ class DataClassificationService
                 "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
                 "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
             ],
-            //BOLT
+            //ALLTHREAD
             [
                 "productEnum" => ProductEnums::ALLTHREAD,
                 "productRegex" => [
                     "M+\d",
                     "chemset",
                     "allthread",
-                    "chemical+\s+anchor"
+                    "chemical+\s+anchor",
+                    "anchor+\s+rod",
+                    "hd+\s+bolt",
                 ],
                 "nominalLengthRegex" => [
-                    "x+(\d+)",      //x100
-                    "x+\s+(\d+)",   //x 100
-                    "(\d+)+\s+mm",  //1000 mm
-                    "(\d+)+mm",     //1000mm
+                    "x+(20[1-9]|2[1-9][0-9]|[3-9][0-9]{2,}|\d{4,})",      //x100     (201+)
+                    "x+\s+(20[1-9]|2[1-9][0-9]|[3-9][0-9]{2,}|\d{4,})",   //x 100    (201+)
+                    "(20[1-9]|2[1-9][0-9]|[3-9][0-9]{2,}|\d{4,})+\s+mm",  //1000 mm  (201+)
+                    "(20[1-9]|2[1-9][0-9]|[3-9][0-9]{2,}|\d{4,})+mm",     //1000mm   (201+)
                 ],
                 "nominalWidthRegex" => [
                     "M+(\d+)", //M16
@@ -426,22 +442,31 @@ class DataClassificationService
             //todo more
         ];
 
-        //Predetermined category
-        if($predeterminedProductCategory){
-            foreach($products as $product){
-                if($product["productEnum"]->value === $predeterminedProductCategory){
-                    $resultProduct = $product;
+        foreach($products as $product){
+            foreach($product["productRegex"] as $pattern){
+                $regex = "/".$pattern."/i";
+                if(preg_match($regex, $text)){
+                    $resultProducts[] = $product;
                 }
             }
         }
-        //Find category in description text
-        else{
-            foreach($products as $product){
-                foreach($product["productRegex"] as $pattern){
-                    $regex = "/".$pattern."/i";
-                    if(preg_match($regex, $text)){
-                        $resultProduct = $product;
-                    }
+
+
+        /**
+         * If multiple results, do priority ranking to take best result.
+         */
+        $resultProduct = null;
+        if(count($resultProducts) === 1){
+            $resultProduct = $resultProducts[0];
+        }
+        if(count($resultProducts) > 1){
+            //Default take first result
+            $resultProduct = $resultProducts[0];
+
+            //ALLTHREAD over BOLT
+            foreach($resultProducts as $product){
+                if($product["productEnum"] === ProductEnums::ALLTHREAD){
+                    $resultProduct = $product;
                 }
             }
         }

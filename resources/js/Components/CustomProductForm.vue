@@ -14,6 +14,7 @@
         allMeasurements: Object,
         formDependentData: Object,
         allGrades: Object,
+        nestingGroups: Object,
     });
 
     //Form
@@ -132,24 +133,24 @@
         return anyMaterialIsSelected;
     }
 
-    function showQuantify(index){
-        let showQuantify = false;
-
-        if(props.form[index] !== undefined){
-            //NONE/BUNDLE/METERAGE/AREA
-            let nesting_algo = props.form[index]['selected']['nesting_algo'];
-
-            //Dimensional
-            if(nesting_algo === "METERAGE" || nesting_algo === "AREA"){
-                showQuantify = true;
-            }
-            else{
-                showQuantify = false;
-            }
-        }
-
-        return showQuantify;
-    }
+    // function showQuantify(index){
+    //     let showQuantify = false;
+    //
+    //     if(props.form[index] !== undefined){
+    //         //NONE/BUNDLE/METERAGE/AREA
+    //         let nesting_algo = props.form[index]['selected']['nesting_algo'];
+    //
+    //         //Dimensional
+    //         if(nesting_algo === "METERAGE" || nesting_algo === "AREA"){
+    //             showQuantify = true;
+    //         }
+    //         else{
+    //             showQuantify = false;
+    //         }
+    //     }
+    //
+    //     return showQuantify;
+    // }
 
     function showNesting(index){
         /**
@@ -227,7 +228,7 @@
             placeholder = "Qty";
         }
         if(nesting_algo === "METERAGE"){
-            placeholder = "length";
+            placeholder = "mm";
         }
 
         return placeholder;
@@ -280,11 +281,23 @@
             if(currentProductSelection === "LVL"){
                 props.form[index]['selected']['material'] = "TIMBER";
             }
+            if(currentProductSelection === "PFC" || currentProductSelection === "RHS" || currentProductSelection === "SHS"){
+                props.form[index]['selected']['material'] = "PLAIN_CARBON_STEEL";
+            }
         }
         if(field === 'material'){
             //Clear
             props.form[index]['selected']['grade'] = null;
             props.form[index]['selected']['nesting_algo'] = null;
+            props.form[index]['selected']['nominal_length'] = null;
+            props.form[index]['selected']['nominal_width'] = null;
+            props.form[index]['selected']['nominal_height'] = null;
+            props.form[index]['selected']['purchasable_length_1'] = null;
+            props.form[index]['selected']['purchasable_length_2'] = null;
+            props.form[index]['selected']['purchasable_length_3'] = null;
+            props.form[index]['selected']['purchasable_width_1'] = null;
+            props.form[index]['selected']['purchasable_width_2'] = null;
+            props.form[index]['selected']['purchasable_width_3'] = null;
         }
         if(field === 'grade'){
             //Clear
@@ -293,36 +306,19 @@
             //Set nesting type (NONE/BUNDLE/METERAGE/AREA)
             //BOLT/UB/UC/PFC/PLATE/LVL/SHS
             let currentProductSelection = props.form[index]['selected']['product'];
+            let meterageProducts = props.nestingGroups["METERAGE"]; //["UB","UC","PFC","LVL","RHS","SHS"];
+            let areaProducts = props.nestingGroups["AREA"]; //["PLATE"];
+            let bundleProducts = props.nestingGroups["BUNDLE"]; //["BOLT","ALLTHREAD"];
 
-            if(currentProductSelection === "BOLT"){
-                props.form[index]['selected']['nesting_algo'] = "BUNDLE";
-            }
-
-            if(currentProductSelection === "UB"){
+            if(meterageProducts.includes(currentProductSelection)){
                 props.form[index]['selected']['nesting_algo'] = "METERAGE";
             }
-
-            if(currentProductSelection === "UC"){
-                props.form[index]['selected']['nesting_algo'] = "METERAGE";
-            }
-
-            if(currentProductSelection === "PFC"){
-                props.form[index]['selected']['nesting_algo'] = "METERAGE";
-            }
-
-            if(currentProductSelection === "PLATE"){
+            if(areaProducts.includes(currentProductSelection)){
                 props.form[index]['selected']['nesting_algo'] = "AREA";
             }
-
-            if(currentProductSelection === "LVL"){
-                props.form[index]['selected']['nesting_algo'] = "METERAGE";
+            if(bundleProducts.includes(currentProductSelection)){
+                props.form[index]['selected']['nesting_algo'] = "BUNDLE";
             }
-
-            if(currentProductSelection === "SHS"){
-                props.form[index]['selected']['nesting_algo'] = "METERAGE";
-            }
-
-            //todo more
         }
     }
 </script>
@@ -405,25 +401,25 @@
                 </option>
             </select>
         </div>
-        <!-- Measurement Units -->
-        <div v-show="showQuantify(index)">
-            <label class="block text-gray-500 text-sm">Measurement Units</label>
-            <select
-                class="w-full rounded"
-                v-model="form[index]['selected']['quantify']"
-                :class="form.errors[item.data.id+'-quantify'] ? 'border-2 border-red-500' : ''"
-            >
-                <option :value="null" disabled>Select</option>
-                <template v-for="option in allMeasurements">
-                    <option
-                        v-if="option"
-                        :value="option"
-                    >
-                        {{option}}
-                    </option>
-                </template>
-            </select>
-        </div>
+<!--        &lt;!&ndash; Measurement Units &ndash;&gt;-->
+<!--        <div v-show="showQuantify(index)">-->
+<!--            <label class="block text-gray-500 text-sm">Measurement Units</label>-->
+<!--            <select-->
+<!--                class="w-full rounded"-->
+<!--                v-model="form[index]['selected']['quantify']"-->
+<!--                :class="form.errors[item.data.id+'-quantify'] ? 'border-2 border-red-500' : ''"-->
+<!--            >-->
+<!--                <option :value="null" disabled>Select</option>-->
+<!--                <template v-for="option in allMeasurements">-->
+<!--                    <option-->
+<!--                        v-if="option"-->
+<!--                        :value="option"-->
+<!--                    >-->
+<!--                        {{option}}-->
+<!--                    </option>-->
+<!--                </template>-->
+<!--            </select>-->
+<!--        </div>-->
         <!-- Purchasable (length & size) -->
         <div v-if="showPurchasables(index)">
             <label class="block text-gray-500 text-sm">{{purchasablesLabel(index)}}</label>

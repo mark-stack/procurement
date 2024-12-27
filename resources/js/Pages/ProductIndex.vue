@@ -19,6 +19,7 @@
         formDependentData: Object,
         allGrades: Object,
         business: Object,
+        nestingGroups: Object,
     });
 
     //Form
@@ -563,6 +564,7 @@
                                 :allMeasurements="allMeasurements"
                                 :formDependentData="formDependentData"
                                 :allGrades="allGrades"
+                                :nestingGroups="nestingGroups"
                                 @deleteOne="id => deleteOne(id)"
                                 :key="'custom-product-form-'+index"
                             />
