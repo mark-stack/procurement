@@ -21,7 +21,14 @@ class PFC_Implementation extends ProductBaseImplementation
     public function config(): array
     {
         return [
-            "productCategory" => $this->productEnum()->value, //todo: note changed from "productEnum"
+            "productCategory" => $this->productEnum()->value,
+            "isFastener" => false,
+//            "positiveKeyword" => [
+//                //todo
+//            ],
+            "negativeKeywords" => [
+                //
+            ],
             "productRegex" => [
                 "PFC",
                 "Parallel+\s+Flange+\s+Channel",
@@ -46,9 +53,6 @@ class PFC_Implementation extends ProductBaseImplementation
             ],
             "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
             "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
-            "negativeKeywords" => [
-                //todo
-            ],
         ];
     }
 

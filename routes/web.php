@@ -31,12 +31,12 @@ Route::get("stock-cutting",function(){
 });
 //todo temporary
 Route::get("test",function(){
-    $description = "75PFC 9m";
+    $description = "M20 x 65";
 
     $dataClassificationService = new DataClassificationService();
 
-    $generalProductMatches = $dataClassificationService->findGeneralProductMatchesFromText($description);
-    dd($generalProductMatches);
+    $generalProductMatches = $dataClassificationService->findGeneralProductMatchesFromText($description,auth()->user());
+    dd($description,$generalProductMatches);
 });
 
 require __DIR__.'/auth.php';

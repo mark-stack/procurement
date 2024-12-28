@@ -22,6 +22,13 @@ class LVL_Implementation extends ProductBaseImplementation
     {
         return [
             "productCategory" => $this->productEnum()->value,
+            "isFastener" => false,
+//            "positiveKeyword" => [
+//                //todo
+//            ],
+            "negativeKeywords" => [
+                //
+            ],
             "productRegex" => [
                 "LVL",
             ],
@@ -38,9 +45,6 @@ class LVL_Implementation extends ProductBaseImplementation
             ],
             "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
             "defaultMaterial" => MaterialEnums::TIMBER,
-            "negativeKeywords" => [
-                //todo
-            ],
         ];
     }
 

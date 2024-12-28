@@ -13,7 +13,7 @@ use ReflectionClass;
 
 class ProductService
 {
-    public function getProductConfigs(): array
+    public function getProductConfigs(bool $fasteners): array
     {
         $productConfigs= [];
 
@@ -23,7 +23,12 @@ class ProductService
             // Check if the class exists
             if (class_exists($implementation)) {
                 $service = new $implementation();
-                $productConfigs[] = $service->config();
+                $config = $service->config();
+
+                //Fasteners
+                if($config["isFastener"] === $fasteners){
+                    $productConfigs[] = $config;
+                }
             }
         }
 
@@ -48,52 +53,6 @@ class ProductService
         return $certificate;
     }
 
-    /**
-     * @deprecated
-     */
-    public function findByAttributes($user, $product, $material, $grades, $surface, $measurementUnit, $size, $length): Collection
-    {
-        //"product" is mandatory
-        if($product){
-            $query = Product::query()
-                ->availableFor($user)
-                ->where("product_category", $product->value);
-
-            if (!is_null($material)) {
-                $query->where("material", $material->value);
-            }
-
-            if (!is_null($grades)) {
-                $gradesArrayValues = [];
-                foreach($grades as $grade){
-                    $gradesArrayValues[] = $grade->value;
-                }
-                $query->whereIn("grade",$gradesArrayValues);
-            }
-
-            if (!is_null($surface)) {
-                $query->where("surface", $surface->value);
-            }
-
-            if (!is_null($measurementUnit)) {
-                $query->where("nominal_units", $measurementUnit->value);
-            }
-
-            if (!is_null($size)) {
-                $query->where("size", $size);
-            }
-
-            if (!is_null($length)) {
-                $query->where("length", $length);
-            }
-
-            return $query->get();
-        }
-        else{
-            return collect([]);
-        }
-    }
-
     public function senseChecks($materialListRows,$productCategories,$hasCertificateProducts): array
     {
         $senseChecks = [];
@@ -103,7 +62,7 @@ class ProductService
              * Has bolts?
              */
             $senseChecks["has_bolts"] = false;
-            if(in_array(ProductEnums::BOLT->value,$productCategories)){
+            if(in_array(ProductEnums::HEX_BOLT->value,$productCategories)){
                 $senseChecks["has_bolts"] = true;
             }
 
@@ -581,11 +540,11 @@ class ProductService
 //        return $match;
 //    }
 
-    public function tokenizeSentence($sentence): array|false
-    {
-        // Use preg_split to split the sentence into words
-        return preg_split('/\W+/', $sentence, -1, PREG_SPLIT_NO_EMPTY);
-    }
+//    public function tokenizeSentence($sentence): array|false
+//    {
+//        // Use preg_split to split the sentence into words
+//        return preg_split('/\W+/', $sentence, -1, PREG_SPLIT_NO_EMPTY);
+//    }
 
     public function validationUserCustom(array $rows,$deletedIds): array
     {

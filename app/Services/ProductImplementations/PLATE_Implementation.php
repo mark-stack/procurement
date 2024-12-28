@@ -22,6 +22,13 @@ class PLATE_Implementation extends ProductBaseImplementation
     {
         return [
             "productCategory" => $this->productEnum()->value,
+            "isFastener" => false,
+//            "positiveKeyword" => [
+//                //todo
+//            ],
+            "negativeKeywords" => [
+                //
+            ],
             "productRegex" => [
                 "Plate",                //plate
                 "Plates",               //plates
@@ -48,9 +55,6 @@ class PLATE_Implementation extends ProductBaseImplementation
             ],
             "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
             "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
-            "negativeKeywords" => [
-                //todo
-            ],
         ];
     }
 

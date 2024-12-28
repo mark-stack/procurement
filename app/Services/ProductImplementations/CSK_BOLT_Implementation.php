@@ -22,8 +22,19 @@ class CSK_BOLT_Implementation extends ProductBaseImplementation
     {
         return [
             "productCategory" => $this->productEnum()->value,
+            "isFastener" => true,
+//            "positiveKeyword" => [
+//                //todo
+//            ],
+            "negativeKeywords" => [
+//                "chemset",
+//                "allthread",
+//                "chemical anchor",
+//                "anchor rod",
+//                "threaded rod",
+//                "hd bolt",
+            ],
             "productRegex" => [
-                "M+(\d+)",      //M12
                 "countersunk",
                 "countersink",
                 "csk",
@@ -42,14 +53,6 @@ class CSK_BOLT_Implementation extends ProductBaseImplementation
             ],
             "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
             "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
-            "negativeKeywords" => [
-                "chemset",
-                "allthread",
-                "chemical anchor",
-                "anchor rod",
-                "threaded rod",
-                "hd bolt",
-            ],
         ];
     }
 

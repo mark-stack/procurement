@@ -6,7 +6,7 @@ use App\Enums\MaterialEnums;
 use App\Enums\MeasurementUnitEnums;
 use App\Enums\ProductEnums;
 
-class ALLTHREAD_Implementation extends ProductBaseImplementation
+class ANCHOR_STUD_Implementation extends ProductBaseImplementation
 {
     public function __construct()
     {
@@ -15,7 +15,7 @@ class ALLTHREAD_Implementation extends ProductBaseImplementation
 
     public function productEnum(): ProductEnums
     {
-        return ProductEnums::ALLTHREAD;
+        return ProductEnums::ANCHOR_STUD;
     }
 
     public function config(): array
@@ -32,15 +32,14 @@ class ALLTHREAD_Implementation extends ProductBaseImplementation
 //                "countersunk",
             ],
             "productRegex" => [
-                "chemset",              //chemset
-                "allthread",            //allthread
-                "threaded+\s+rod",      //thread rod
+                "anchor",
+                "chemical+\s+anchor",   //chemical anchor
+                "anchor+\s+rod",        //anchor rod
+                "hd+\s+bolt",           //hd bolt
             ],
             "nominalLengthRegex" => [
-                "x+(20[1-9]|2[1-9][0-9]|[3-9][0-9]{2,}|\d{4,})",      //x100     (201+)
-                "x+\s+(20[1-9]|2[1-9][0-9]|[3-9][0-9]{2,}|\d{4,})",   //x 100    (201+)
-                "(20[1-9]|2[1-9][0-9]|[3-9][0-9]{2,}|\d{4,})+\s+mm",  //1000 mm  (201+)
-                "(20[1-9]|2[1-9][0-9]|[3-9][0-9]{2,}|\d{4,})+mm",     //1000mm   (201+)
+                "(\d+)mm",      //20mm
+                "(\d+)\s+mm",   //20 mm
             ],
             "nominalWidthRegex" => [
                 "M+(\d+)", //M16
@@ -52,7 +51,6 @@ class ALLTHREAD_Implementation extends ProductBaseImplementation
             "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
         ];
     }
-
 
     public function getNominalSizeData(): array
     {
@@ -76,6 +74,6 @@ class ALLTHREAD_Implementation extends ProductBaseImplementation
             $actualSize = "M".$nominal_width;
         }
 
-        return "x".$actualSize." ".$actualGrade.$actualSurface." Allthread";
+        return $actualSize." Anchor Stud. ".$actualGrade." ".$actualSurface;
     }
 }

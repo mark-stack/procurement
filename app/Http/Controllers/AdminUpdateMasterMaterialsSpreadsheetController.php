@@ -127,7 +127,7 @@ class AdminUpdateMasterMaterialsSpreadsheetController extends Controller
         $matchedIndex = null;
         foreach($dataCollection as $index => $row){
             $description = strtoupper($row["description"]) === strtoupper($productObject->description);
-            $product = strtoupper($row["product"]) === strtoupper($productObject->product);
+            $product = strtoupper($row["product_category"]) === strtoupper($productObject->product_category);
             $material = strtoupper($row["material"]) === strtoupper($productObject->material);
             $grade = strtoupper($row["grade"]) === strtoupper($productObject->grade);
             $surface = strtoupper($row["surface"]) === strtoupper($productObject->surface);

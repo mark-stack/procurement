@@ -132,42 +132,59 @@ class DataClassificationService
         return collect($results);
     }
 
-    public function findGeneralProductMatchesFromText(?string $text, User $user): Collection
+    public function findGeneralProductMatchesFromText(?string $text, object $user): Collection
     {
+        $generalProductMatches = collect([]);
+
         $productConfig = $this->findProductConfigFromText($text);
+        if($productConfig){
+            //MATERIAL
+            $materialEnum = $this->findMaterial($productConfig,$text);
 
-        //MATERIAL
-        $materialEnum = $this->findMaterial($productConfig,$text);
+            //GRADE
+            $gradesEnums = $this->findGrades($productConfig,$text);
 
-        //GRADE
-        $gradesEnums = $this->findGrades($productConfig,$text);
+            //SURFACE
+            $surfaceEnum = $this->findSurface($productConfig,$text,$gradesEnums);
 
-        //SURFACE
-        $surfaceEnum = $this->findSurface($productConfig,$text,$gradesEnums);
+            //NOMINAL UNITS
+            $measurementUnitEnum = $this->findMeasurementUnit($productConfig);
 
-        //NOMINAL UNITS
-        $measurementUnitEnum = $this->findMeasurementUnit($productConfig);
+            //NOMINAL LENGTH
+            $nominalLengthInt = $this->findNominal($productConfig,$text,"nominalLengthRegex");
 
-        //NOMINAL LENGTH
-        $nominalLengthInt = $this->findNominal($productConfig,$text,"nominalLengthRegex");
+            //NOMINAL WIDTH
+            $nominalWidthInt = $this->findNominal($productConfig,$text,"nominalWidthRegex");
 
-        //NOMINAL WIDTH
-        $nominalWidthInt = $this->findNominal($productConfig,$text,"nominalWidthRegex");
+            //NOMINAL HEIGHT
+            $nominalHeightInt = $this->findNominal($productConfig,$text,"nominalHeightRegex");
 
-        //NOMINAL HEIGHT
-        $nominalHeightInt = $this->findNominal($productConfig,$text,"nominalHeightRegex");
+            $generalProductMatches = $this->findGeneralProductMatches(
+                $user,
+                $productConfig["productCategory"],
+                $materialEnum,
+                $gradesEnums,
+                $surfaceEnum,
+                $measurementUnitEnum,
+                $nominalLengthInt,
+                $nominalWidthInt,
+                $nominalHeightInt
+            );
 
-        return $this->findGeneralProductMatches(
-            $user,
-            $productConfig["productCategory"],
-            $materialEnum,
-            $gradesEnums,
-            $surfaceEnum,
-            $measurementUnitEnum,
-            $nominalLengthInt,
-            $nominalWidthInt,
-            $nominalHeightInt
-        );
+            dd(
+                $text,
+                $productConfig["productCategory"],
+                $materialEnum,
+                $gradesEnums,
+                $surfaceEnum,
+                $measurementUnitEnum,
+                $nominalLengthInt,
+                $nominalWidthInt,
+                $nominalHeightInt
+            );
+        }
+
+        return $generalProductMatches;
     }
 
     public function findProductConfigFromText(?string $text): ?array
@@ -175,47 +192,160 @@ class DataClassificationService
         /**
          * Single purpose: extract a 'product_category' from text. e.g "PFC"
          */
-
+        $productService = new ProductService();
         $resultProductConfigs = [];
 
-        $productConfigs = (new ProductService())->getProductConfigs();
-
-        foreach($productConfigs as $productConfig){
-            //negative keywords
-            $containsNegativeKeywords = false;
-            foreach($productConfig["negativeKeywords"] as $negativeKeyword){
-                if($this->containsSubstring($text, $negativeKeyword)){
-                    $containsNegativeKeywords = true;
+        /**
+         * Fasteners advanced classification
+         * 1) Find one of: MX, bolt, csk, hd bolt, etc...
+         * 2) Then do further classification based on keywords and lengths
+         */
+        $fastenersConfig = $this->findFastenersConfigFromText($text);
+        if($fastenersConfig){
+            $resultProductConfigs[] = $fastenersConfig;
+        }
+        /**
+         * Standard classification
+         * 1) Positive keywords (one mandatory?)
+         * 2) Regex match (one mandatory?)
+         */
+        if(!$resultProductConfigs){
+            $regularConfigs = $productService->getProductConfigs(false);
+            foreach($regularConfigs as $regularConfig){
+                //negative keywords
+                $containsNegativeKeywords = false;
+                foreach($regularConfig["negativeKeywords"] as $negativeKeyword){
+                    if($this->containsSubstring($text, $negativeKeyword)){
+                        $containsNegativeKeywords = true;
+                    }
                 }
-            }
 
-            //regex check
-            if(!$containsNegativeKeywords){
-                foreach($productConfig["productRegex"] as $pattern){
-                    $regex = "/".$pattern."/i";
-                    if(preg_match($regex, $text)){
-                        if(!in_array($productConfig,$resultProductConfigs)){
-                            $resultProductConfigs[] = $productConfig;
+                //regex check
+                if(!$containsNegativeKeywords){
+                    foreach($regularConfig["productRegex"] as $pattern){
+                        $regex = "/".$pattern."/i";
+                        if(preg_match($regex, $text)){
+                            if(!in_array($regularConfig,$resultProductConfigs)){
+                                $resultProductConfigs[] = $regularConfig;
+                            }
                         }
                     }
                 }
             }
         }
 
-
         /**
-         * If multiple results, do priority ranking to take best result.
+         * Take just 1 result
          */
         $resultProductConfig = null;
-        if(count($resultProductConfigs) === 1){
-            $resultProductConfig = $resultProductConfigs[0];
-        }
-        if(count($resultProductConfigs) > 1){
-            //Default take first result
+        if(count($resultProductConfigs) > 0){
             $resultProductConfig = $resultProductConfigs[0];
         }
 
         return $resultProductConfig;
+    }
+
+    public function findFastenersConfigFromText(?string $text): ?array
+    {
+        $resultFastenerConfig = null;
+
+        //Services
+        $productService = new ProductService();
+
+        //First pass: any of "MX, Hex, bolt" etc
+        $fastenersFound = $this->fastenersFoundInText($text);
+
+        //Second pass
+        if($fastenersFound){
+            $resultFastenerConfigs = [];
+            $fastenerConfigs = $productService->getProductConfigs(true);
+            foreach($fastenerConfigs as $fastenerConfig){
+                //negative keywords
+                $containsNegativeKeywords = false;
+                foreach($fastenerConfig["negativeKeywords"] as $negativeKeyword){
+                    if($this->containsSubstring($text, $negativeKeyword)){
+                        $containsNegativeKeywords = true;
+                    }
+                }
+
+                //regex check
+                if(!$containsNegativeKeywords){
+                    foreach($fastenerConfig["productRegex"] as $pattern){
+                        $regex = "/".$pattern."/i";
+                        if(preg_match($regex, $text)){
+                            $inArray = collect($resultFastenerConfigs)->where("productCategory",$fastenerConfig["productCategory"])->count() > 0;
+                            if(!$inArray){
+                                $resultFastenerConfigs[] = $fastenerConfig;
+                            }
+                        }
+                    }
+                }
+            }
+
+            //If no results, it means HEX_BOLT is default
+            if(count($resultFastenerConfigs) === 0){
+                $resultFastenerConfig = collect($fastenerConfigs)->where("productCategory",ProductEnums::HEX_BOLT->value)->first();
+            }
+            //If just one result
+            if(count($resultFastenerConfigs) === 1){
+                $resultFastenerConfig = $resultFastenerConfigs[0];
+            }
+            //If multiple results
+            if(count($resultFastenerConfigs) > 1){
+                //All fastener categories take priority over HEX_BOLT
+                $removeHexBolt = [];
+                foreach($resultFastenerConfigs as $config){
+                    if($config["productCategory"] !== ProductEnums::HEX_BOLT->value){
+                        $removeHexBolt[] = $config;
+                    }
+                }
+
+                if(count($removeHexBolt) > 0){
+                    $resultFastenerConfig = $removeHexBolt[0];
+                }
+                else{
+                    $resultFastenerConfig = $resultFastenerConfigs[0];
+                }
+            }
+        }
+
+        return $resultFastenerConfig;
+    }
+
+    private function fastenersFoundInText(string $text): bool
+    {
+        /**
+         * 1) Mx or bolt or chemset etc
+         * 2) [Xmm or X mm] AND [bolt or chemset etc]
+         */
+
+        $fastenerTerms = [
+            "hex","bolt","eye bolt", "u bolt",
+            "CSK", "countersink", "countersunk",
+            "anchor", "stud", "chemset", "chemical anchor", "hd bolt", "anchor rod",
+            "allthread", "threaded rod",
+            "nut",
+            "washer",
+            "screw",
+            "rivets",
+            "circlip",
+        ];
+
+        $resultMx = preg_match("/M\d+/i", $text) === 1;
+        $resultXmm = preg_match("/\d+mm|\d+\s+mm/i", $text) === 1;
+
+        //Pattern like  '/M\d+|\d+mm|mark|john|david/i'
+        $regexTerms = '/'; // Use 'i' flag for case-insensitivity
+        foreach($fastenerTerms as $term){
+            $regexTerms = $regexTerms."|".$term;
+        }
+        $regexTerms = $regexTerms."/i";
+        $resultTerms = preg_match($regexTerms, $text) === 1;
+
+        $cond1 = $resultMx || $resultTerms;
+        $cond2 = $resultXmm && $resultTerms;
+
+        return $cond1 || $cond2;
     }
 
     private function containsSubstring(string $haystack, string $needle): bool {
@@ -352,6 +482,13 @@ class DataClassificationService
                     "8.8",
                 ],
             ],
+            //GR 12.9
+            [
+                "gradeEnum" => GradeEnums::GR_12_9,
+                "regex" => [
+                    "12.9",
+                ],
+            ],
             //todo more
         ];
 
@@ -479,8 +616,10 @@ class DataClassificationService
 
         foreach($regexPatterns as $pattern){
             $regex = "/".$pattern."/i";
+
             preg_match_all($regex, $text, $matches);
             if (!empty($matches[1])) {
+
                 foreach ($matches[1] as $number) {
                     $resultInt = (int) $number;
                 }

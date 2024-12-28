@@ -6,7 +6,7 @@ use App\Enums\MaterialEnums;
 use App\Enums\MeasurementUnitEnums;
 use App\Enums\ProductEnums;
 
-class BOLT_Implementation extends ProductBaseImplementation
+class NUT_Implementation extends ProductBaseImplementation
 {
     public function __construct()
     {
@@ -15,48 +15,44 @@ class BOLT_Implementation extends ProductBaseImplementation
 
     public function productEnum(): ProductEnums
     {
-        return ProductEnums::BOLT;
+        return ProductEnums::NUT;
     }
 
     public function config(): array
     {
         return [
             "productCategory" => $this->productEnum()->value,
+            "isFastener" => true,
+//            "positiveKeyword" => [
+//                //todo
+//            ],
+            "negativeKeywords" => [
+
+            ],
             "productRegex" => [
-                "M+(\d+)",
-                "bolt",
+                "nut",
             ],
             "nominalLengthRegex" => [
-                "x+(1?[0-9]?[0-9]|200)",      //x100  (200 or under)
-                "x+\s+(1?[0-9]?[0-9]|200)",   //x 100 (200 or under)
+                //
             ],
             "nominalWidthRegex" => [
                 "M+(\d+)", //M16
             ],
             "nominalHeightRegex" => [
-
+                //
             ],
             "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
             "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
-            "negativeKeywords" => [
-                "csk",
-                "chemset",
-                "allthread",
-                "chemical anchor",
-                "anchor rod",
-                "threaded rod",
-                "hd bolt",
-            ],
         ];
     }
 
     public function getNominalSizeData(): array
     {
         return [
-            "length" => true,
+            "length" => false,
             "width" => true,
             "height" => false,
-            "length_placeholder" => "Length (mm)",
+            "length_placeholder" => "",
             "width_placeholder" => "Diameter (mm)",
             "height_placeholder" => "",
         ];
@@ -72,6 +68,6 @@ class BOLT_Implementation extends ProductBaseImplementation
             $actualSize = "M".$nominal_width;
         }
 
-        return $actualSize." ".$actualGrade.$actualSurface;
+        return $actualSize." NUT. ".$actualGrade.$actualSurface;
     }
 }

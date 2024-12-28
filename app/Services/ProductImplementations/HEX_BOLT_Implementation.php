@@ -6,7 +6,7 @@ use App\Enums\MaterialEnums;
 use App\Enums\MeasurementUnitEnums;
 use App\Enums\ProductEnums;
 
-class ALLTHREAD_Implementation extends ProductBaseImplementation
+class HEX_BOLT_Implementation extends ProductBaseImplementation
 {
     public function __construct()
     {
@@ -15,7 +15,7 @@ class ALLTHREAD_Implementation extends ProductBaseImplementation
 
     public function productEnum(): ProductEnums
     {
-        return ProductEnums::ALLTHREAD;
+        return ProductEnums::HEX_BOLT;
     }
 
     public function config(): array
@@ -28,19 +28,22 @@ class ALLTHREAD_Implementation extends ProductBaseImplementation
 //            ],
             "negativeKeywords" => [
 //                "csk",
-//                "countersink",
-//                "countersunk",
+//                "chemset",
+//                "allthread",
+//                "chemical anchor",
+//                "anchor rod",
+//                "threaded rod",
+//                "hd bolt",
             ],
             "productRegex" => [
-                "chemset",              //chemset
-                "allthread",            //allthread
-                "threaded+\s+rod",      //thread rod
+                "bolt",
+                "hex",
             ],
             "nominalLengthRegex" => [
-                "x+(20[1-9]|2[1-9][0-9]|[3-9][0-9]{2,}|\d{4,})",      //x100     (201+)
-                "x+\s+(20[1-9]|2[1-9][0-9]|[3-9][0-9]{2,}|\d{4,})",   //x 100    (201+)
-                "(20[1-9]|2[1-9][0-9]|[3-9][0-9]{2,}|\d{4,})+\s+mm",  //1000 mm  (201+)
-                "(20[1-9]|2[1-9][0-9]|[3-9][0-9]{2,}|\d{4,})+mm",     //1000mm   (201+)
+                "x+(1?[0-9]?[0-9]|200)",      //x100  (200 or under)
+                "x+\s+(1?[0-9]?[0-9]|200)",   //x 100 (200 or under)
+                "(\d+)mm",                    //20mm
+                "(\d+)\s+mm",                 //20 mm
             ],
             "nominalWidthRegex" => [
                 "M+(\d+)", //M16
@@ -52,7 +55,6 @@ class ALLTHREAD_Implementation extends ProductBaseImplementation
             "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
         ];
     }
-
 
     public function getNominalSizeData(): array
     {
@@ -76,6 +78,6 @@ class ALLTHREAD_Implementation extends ProductBaseImplementation
             $actualSize = "M".$nominal_width;
         }
 
-        return "x".$actualSize." ".$actualGrade.$actualSurface." Allthread";
+        return $actualSize." ".$actualGrade.$actualSurface;
     }
 }

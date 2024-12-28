@@ -5,9 +5,11 @@ namespace App\Enums;
 enum ProductEnums: string
 {
     //Fasteners
-    case BOLT = "BOLT";
+    case HEX_BOLT = "HEX_BOLT";
     case ALLTHREAD = "ALLTHREAD";
+    CASE ANCHOR_STUD = "ANCHOR_STUD";
     case CSK_BOLT = "CSK_BOLT";
+    case NUT = "NUT";
 
     //Sections
     case UB = "UB";

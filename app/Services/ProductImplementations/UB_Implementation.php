@@ -22,6 +22,13 @@ class UB_Implementation extends ProductBaseImplementation
     {
         return [
             "productCategory" => $this->productEnum()->value,
+            "isFastener" => false,
+//            "positiveKeyword" => [
+//                //todo
+//            ],
+            "negativeKeywords" => [
+                //
+            ],
             "productRegex" => [
                 "(\d+)+UB",           //300UB
                 "(\d+)+\s+UB",        //300 UB
@@ -44,9 +51,6 @@ class UB_Implementation extends ProductBaseImplementation
             ],
             "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
             "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
-            "negativeKeywords" => [
-                //todo
-            ],
         ];
     }
 

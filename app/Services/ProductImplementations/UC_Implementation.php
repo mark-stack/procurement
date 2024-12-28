@@ -22,6 +22,13 @@ class UC_Implementation extends ProductBaseImplementation
     {
         return [
             "productCategory" => $this->productEnum()->value,
+            "isFastener" => false,
+//            "positiveKeyword" => [
+//                //todo
+//            ],
+            "negativeKeywords" => [
+                //
+            ],
             "productRegex" => [
                 "(\d+)+UC",           //3000UC
                 "(\d+)+\s+UC",        //300 UC
@@ -44,9 +51,6 @@ class UC_Implementation extends ProductBaseImplementation
             ],
             "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
             "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
-            "negativeKeywords" => [
-                //todo
-            ],
         ];
     }
 

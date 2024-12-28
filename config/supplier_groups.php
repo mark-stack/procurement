@@ -16,7 +16,7 @@ return [
         //todo
     ],
     "Fasteners" => [
-        ProductEnums::BOLT->value,
+        ProductEnums::HEX_BOLT->value,
         //todo
     ],
     //todo
