@@ -32,13 +32,13 @@ class NestingService
     {
         $result = [];
 
-        $rawItems = Product::select("product")
+        $rawItems = Product::select("product_category")
             ->distinct()
             ->get()
             ->toArray();
 
         foreach($rawItems as $rawItem){
-            $result[] = $rawItem["product"];
+            $result[] = $rawItem["product_category"];
         }
 
         return $result;
@@ -68,10 +68,10 @@ class NestingService
 
         /**
          * Material spec
-         * 'product', 'material', 'grade', 'surface', 'nominal_units', 'size'
+         * 'product_category', 'material', 'grade', 'surface', 'nominal_units', 'size'
          */
         $materialSpec = new stdClass();
-        $materialSpec->product = $rawMaterialQuote->product_category;
+        $materialSpec->product_category = $rawMaterialQuote->product_category;
         $materialSpec->material = $rawMaterialQuote->material;
         $materialSpec->grade = 999; //todo
         $materialSpec->surface = 999; //todo
@@ -138,14 +138,14 @@ class NestingService
     {
         $result = [];
 
-        $rawItems = Product::select("product")
+        $rawItems = Product::select("product_category")
             ->distinct()
             ->where("certificates",true)
             ->get()
             ->toArray();
 
         foreach($rawItems as $rawItem){
-            $result[] = $rawItem["product"];
+            $result[] = $rawItem["product_category"];
         }
 
         return $result;
@@ -189,7 +189,7 @@ class NestingService
 
         $rawItems = Product::select("material")
             ->distinct()
-            ->where("product",$product)
+            ->where("product_category",$product)
             ->get()
             ->toArray();
 
@@ -208,7 +208,7 @@ class NestingService
         if($product){
             $rawItems = Product::select("grade")
                 ->distinct()
-                ->where("product",$product)
+                ->where("product_category",$product)
                 ->where("material",$material)
                 ->get()
                 ->toArray();
@@ -232,13 +232,13 @@ class NestingService
         return $result;
     }
 
-    public function getNestingLabelsFromProduct(string $product): array
+    public function getNestingLabelsFromProductCategory(string $productCategory): array
     {
         $result = [];
 
         $rawItems = Product::select("nesting_algo")
             ->distinct()
-            ->where("product",$product)
+            ->where("product_category",$productCategory)
             ->get()
             ->toArray();
 
@@ -289,7 +289,7 @@ class NestingService
                 foreach($gradeLabels as $gradeLabel){
                     //Nesting
                     if($gradeLabel !== ""){
-                        $nestingLabels = $this->getNestingLabelsFromProduct($productLabel);
+                        $nestingLabels = $this->getNestingLabelsFromProductCategory($productLabel);
                         foreach($nestingLabels as $nestingLabel){
                             $resultArray[$productLabel][$materialLabel][$gradeLabel][] = $nestingLabel;
                         }
@@ -363,14 +363,14 @@ class NestingService
         //METERAGE
         if($nestingAlgoLabel === NestingEnums::METERAGE->value){
             //$sizeInclude = ["nominal_height"];
-            $materialSpecs = Piece::select('product', 'material', 'grade', 'surface', 'nominal_units', "nominal_height")
+            $materialSpecs = Piece::select('product_category', 'material', 'grade', 'surface', 'nominal_units', "nominal_height")
                 ->whereIn("id",$allPieces->pluck("id")->toArray())
                 ->distinct()
                 ->get();
 
             foreach($materialSpecs as $materialSpec){
                 $pieces = $allPieces
-                    ->where('product',$materialSpec->product)
+                    ->where('product_category',$materialSpec->product_category)
                     ->where('material',$materialSpec->material)
                     ->where('grade',$materialSpec->grade)
                     ->where('surface',$materialSpec->surface)
@@ -418,14 +418,14 @@ class NestingService
         //AREA
         if($nestingAlgoLabel === NestingEnums::AREA->value){
             //$sizeInclude = ["nominal_height"];
-            $materialSpecs = Piece::select('product', 'material', 'grade', 'surface', 'nominal_units', "nominal_height")
+            $materialSpecs = Piece::select('product_category', 'material', 'grade', 'surface', 'nominal_units', "nominal_height")
                 ->whereIn("id",$allPieces->pluck("id")->toArray())
                 ->distinct()
                 ->get();
 
             foreach($materialSpecs as $materialSpec){
                 $pieces = $allPieces
-                    ->where('product',$materialSpec->product)
+                    ->where('product_category',$materialSpec->product_category)
                     ->where('material',$materialSpec->material)
                     ->where('grade',$materialSpec->grade)
                     ->where('surface',$materialSpec->surface)
@@ -457,14 +457,14 @@ class NestingService
         //BUNDLE
         if($nestingAlgoLabel === NestingEnums::BUNDLE->value){
             //$sizeInclude = ["nominal_length","nominal_width"];
-            $materialSpecs = Piece::select('product', 'material', 'grade', 'surface', 'nominal_units', "nominal_length","nominal_width")
+            $materialSpecs = Piece::select('product_category', 'material', 'grade', 'surface', 'nominal_units', "nominal_length","nominal_width")
                 ->whereIn("id",$allPieces->pluck("id")->toArray())
                 ->distinct()
                 ->get();
 
             foreach($materialSpecs as $materialSpec){
                 $pieces = $allPieces
-                    ->where('product',$materialSpec->product)
+                    ->where('product_category',$materialSpec->product_category)
                     ->where('material',$materialSpec->material)
                     ->where('grade',$materialSpec->grade)
                     ->where('surface',$materialSpec->surface)
@@ -505,7 +505,7 @@ class NestingService
         ////////////////////////
 //        $result = [];
 //
-//        $materialSpecs = Piece::select('product', 'material', 'grade', 'surface', 'nominal_units', 'size')
+//        $materialSpecs = Piece::select('product_category', 'material', 'grade', 'surface', 'nominal_units', 'size')
 //            ->whereIn("id",$allPieces->pluck("id")->toArray())
 //            ->distinct()
 //            ->get();
@@ -593,7 +593,7 @@ class NestingService
          * BUNDLE = pack size
          */
         return Product::query()
-            ->where("product",$materialSpec->product)
+            ->where("product_category",$materialSpec->product_category)
             ->where("material",$materialSpec->material)
             ->where("grade",$materialSpec->grade)
             ->where("surface",$materialSpec->surface)
@@ -829,7 +829,7 @@ class NestingService
         //Meterage
         $products = Product::query()
             ->where("nesting_algo",NestingEnums::METERAGE->value)
-            ->pluck("product")
+            ->pluck("product_category")
             ->unique()
             ->toArray();
         $nestingGroups[NestingEnums::METERAGE->value] = array_values($products);
@@ -838,7 +838,7 @@ class NestingService
         //Area
         $products = Product::query()
             ->where("nesting_algo",NestingEnums::AREA->value)
-            ->pluck("product")
+            ->pluck("product_category")
             ->unique()
             ->toArray();
         $nestingGroups[NestingEnums::AREA->value] = array_values($products);
@@ -847,7 +847,7 @@ class NestingService
         //Bundle
         $products = Product::query()
             ->where("nesting_algo",NestingEnums::BUNDLE->value)
-            ->pluck("product")
+            ->pluck("product_category")
             ->unique()
             ->toArray();
         $nestingGroups[NestingEnums::BUNDLE->value] = array_values($products);

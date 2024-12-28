@@ -58,7 +58,7 @@ class ProductController extends Controller
                 if($getProductMatchOptions["status"] === "CUSTOM"){
                     $requiresCustom[] = [
                         "selected" => [
-                            "product" => null,
+                            "product_category" => null,
                             "material" => null,
                             "grade" => null,
                             "nominal_length" => null,
@@ -124,8 +124,8 @@ class ProductController extends Controller
             }
 
             //Append Array
-            $nesting_algo = ($rawMaterialQuote->product_category && $nestingService->getNestingLabelsFromProduct($rawMaterialQuote->product_category))
-                ? $nestingService->getNestingLabelsFromProduct($rawMaterialQuote->product_category)[0]
+            $nesting_algo = ($rawMaterialQuote->product_category && $nestingService->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category))
+                ? $nestingService->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category)[0]
                 : null;
             $rawMaterialQuote->nesting_algo = $nesting_algo;
             $baseline_unit_rate = $productService->getBaseLineUnitRateFromGeneral($getProductMatchOptions["decodedOption"] ?? null);

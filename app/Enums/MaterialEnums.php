@@ -2,9 +2,6 @@
 
 namespace App\Enums;
 
-/**
- * @deprecated
- */
 enum MaterialEnums: string
 {
     case PLAIN_CARBON_STEEL = "PLAIN_CARBON_STEEL";

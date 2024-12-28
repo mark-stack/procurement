@@ -5,8 +5,6 @@ use App\Models\Project;
 use App\Models\User;
 use App\Services\DataClassificationService;
 use App\Services\NestingService;
-use App\Services\NotificationService;
-use App\Services\ProductService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -33,70 +31,12 @@ Route::get("stock-cutting",function(){
 });
 //todo temporary
 Route::get("test",function(){
+    $description = "75PFC 9m";
 
-    $description = "M12 PB1230 30";
-
-    $productService = new ProductService();
     $dataClassificationService = new DataClassificationService();
 
-    //PRODUCT
-    $product = $dataClassificationService->findProduct($description,null);
-
-    //Has product
-    if($product){
-        //MATERIAL
-        $materialEnum = $dataClassificationService->findMaterial($product,$description);
-
-        //GRADE
-        $gradesEnums = $dataClassificationService->findGrades($product,$description);
-
-        //SURFACE
-        $surfaceEnum = $dataClassificationService->findSurface($product,$description,$gradesEnums);
-
-        //NOMINAL UNITS
-        $measurementUnitEnum = $dataClassificationService->findMeasurementUnit($product);
-
-        //NOMINAL LENGTH
-        $nominalLengthInt = $dataClassificationService->findNominal($product,$description,"nominalLengthRegex");
-
-        //NOMINAL WIDTH
-        $nominalWidthInt = $dataClassificationService->findNominal($product,$description,"nominalWidthRegex");
-
-        //NOMINAL HEIGHT
-        $nominalHeightInt = $dataClassificationService->findNominal($product,$description,"nominalHeightRegex");
-
-
-        //Price book search
-        $user = auth()->user();
-        $generalProductMatches = $dataClassificationService->findGeneralProductMatches(
-            $user,
-            $product["productEnum"]->value,
-            $materialEnum,
-            $gradesEnums,
-            $surfaceEnum,
-            $measurementUnitEnum,
-            $nominalLengthInt,
-            $nominalWidthInt,
-            $nominalHeightInt
-        );
-
-        dd([
-            "description" => $description,
-            "product" => $product,
-            "material" => $materialEnum,
-            "grades" => $gradesEnums,
-            "surface" => $surfaceEnum,
-            "measurementUnit" => $measurementUnitEnum,
-            "nominalLengthInt " => $nominalLengthInt,
-            "nominalWidthInt" => $nominalWidthInt,
-            "nominalHeightInt" => $nominalHeightInt,
-            "generalProductMatches" => $generalProductMatches,
-        ]);
-    }
-    //NO product found
-    else{
-        dd("No product found",$product);
-    }
+    $generalProductMatches = $dataClassificationService->findGeneralProductMatchesFromText($description);
+    dd($generalProductMatches);
 });
 
 require __DIR__.'/auth.php';

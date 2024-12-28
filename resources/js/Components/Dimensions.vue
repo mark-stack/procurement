@@ -14,7 +14,7 @@
 
     //Variables
     let nominalSizeData = props.form[props.index]['nominalSizeData'];
-    let currentProductSelection = props.form[props.index]['selected']['product'];
+    let currentProductSelection = props.form[props.index]['selected']['product_category'];
 
     //Methods
     function getPlaceholder(field){

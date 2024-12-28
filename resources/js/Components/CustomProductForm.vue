@@ -35,7 +35,7 @@
     }
 
     function getMaterialOptions(index){
-        let productSelection = props.form[index]['selected']['product'];
+        let productSelection = props.form[index]['selected']['product_category'];
         let indexOfProductSelection = Object.keys(props.formDependentData).indexOf(productSelection);
         let materialsObject = Object.values(props.formDependentData)[indexOfProductSelection];
 
@@ -43,7 +43,7 @@
     }
 
     function getGradeOptions(index){
-        let productSelection = props.form[index]['selected']['product'];
+        let productSelection = props.form[index]['selected']['product_category'];
         let materialSelection = props.form[index]['selected']['material'];
         let indexOfProductSelection = Object.keys(props.formDependentData).indexOf(productSelection);
         let gradesObject = Object.values(props.formDependentData)[indexOfProductSelection][materialSelection];
@@ -64,7 +64,7 @@
         let meterage = "Meterage - Stock lengths (e.g 6 meters)";
         let area = "Area - Stock sizes (e.g 1000 x 4000)";
 
-        let productSelection = props.form[index]['selected']['product'];
+        let productSelection = props.form[index]['selected']['product_category'];
         let materialSelection = props.form[index]['selected']['material'];
         let indexOfProductSelection = Object.keys(props.formDependentData).indexOf(productSelection);
         let gradesObject = Object.values(props.formDependentData)[indexOfProductSelection][materialSelection];
@@ -117,7 +117,7 @@
         let anyProductIsSelected = false;
 
         if(props.form[index] !== undefined){
-            anyProductIsSelected = props.form[index]['selected']['product'];
+            anyProductIsSelected = props.form[index]['selected']['product_category'];
         }
 
         return anyProductIsSelected;
@@ -261,7 +261,7 @@
         /**
           Reset dependent fields below this
          */
-        if(field === 'product'){
+        if(field === 'product_category'){
             //Clear
             props.form[index]['selected']['material'] = null;
             props.form[index]['selected']['grade'] = null;
@@ -277,7 +277,7 @@
             props.form[index]['selected']['purchasable_width_3'] = null;
 
             //Set material
-            let currentProductSelection = props.form[index]['selected']['product'];
+            let currentProductSelection = props.form[index]['selected']['product_category'];
             if(currentProductSelection === "LVL"){
                 props.form[index]['selected']['material'] = "TIMBER";
             }
@@ -305,7 +305,7 @@
 
             //Set nesting type (NONE/BUNDLE/METERAGE/AREA)
             //BOLT/UB/UC/PFC/PLATE/LVL/SHS
-            let currentProductSelection = props.form[index]['selected']['product'];
+            let currentProductSelection = props.form[index]['selected']['product_category'];
             let meterageProducts = props.nestingGroups["METERAGE"]; //["UB","UC","PFC","LVL","RHS","SHS"];
             let areaProducts = props.nestingGroups["AREA"]; //["PLATE"];
             let bundleProducts = props.nestingGroups["BUNDLE"]; //["BOLT","ALLTHREAD"];
@@ -337,12 +337,12 @@
         <SelectOrType
             :id="item.data.id"
             label="Product Category"
-            reference="product"
+            reference="product_category"
             :index="index"
             :form="form[index]"
             :options="getProductOptions()"
             :errors="form.errors"
-            @change="onChangeActions('product',index)"
+            @change="onChangeActions('product_category',index)"
         />
         <!-- MATERIAL (customOptions['materials'][form[index]['subOption']['material']])-->
         <SelectOrType

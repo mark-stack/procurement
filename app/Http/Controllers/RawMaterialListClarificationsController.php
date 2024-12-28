@@ -9,8 +9,6 @@ use App\Enums\SurfaceEnums;
 use App\Models\Business;
 use App\Models\RawMaterialQuote;
 use App\Services\DataClassificationService;
-use App\Services\NotificationService;
-use App\Services\ProductService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -38,7 +36,7 @@ class RawMaterialListClarificationsController extends Controller
 
             $generalProductMatches = $dataClassificationService->findGeneralProductMatches(
                 $user,
-                $selectedProduct["product"],
+                $selectedProduct["product_category"],
                 MaterialEnums::from($selectedProduct["material"]),
                 [GradeEnums::from($selectedProduct["grade"])],
                 SurfaceEnums::from($selectedProduct["surface"]),

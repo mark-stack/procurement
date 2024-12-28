@@ -45,7 +45,7 @@ class DataClassificationService
          */
         $results = [];
 
-        $nestingArray = (new NestingService())->getNestingLabelsFromProduct($productString);
+        $nestingArray = (new NestingService())->getNestingLabelsFromProductCategory($productString);
 
         //"Product" is mandatory
         if($productString && count($nestingArray) > 0) {
@@ -57,28 +57,28 @@ class DataClassificationService
                 //METERAGE
                 if($algo === NestingEnums::METERAGE->value){
                     $sizeInclude = ["nominal_width","nominal_height"];
-                    $query = Product::select('product', 'material', 'grade', 'surface', 'nominal_units',"nominal_width",'nominal_height')
+                    $query = Product::select('product_category', 'material', 'grade', 'surface', 'nominal_units',"nominal_width",'nominal_height')
                         ->distinct()
                         ->availableFor($user)
-                        ->where("product", $productString)
+                        ->where("product_category", $productString)
                         ->where("nesting_algo",$algo);
                 }
                 //AREA
                 if($algo === NestingEnums::AREA->value){
                     $sizeInclude = ["nominal_height"];
-                    $query = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', 'nominal_height')
+                    $query = Product::select('product_category', 'material', 'grade', 'surface', 'nominal_units', 'nominal_height')
                         ->distinct()
                         ->availableFor($user)
-                        ->where("product", $productString)
+                        ->where("product_category", $productString)
                         ->where("nesting_algo",$algo);
                 }
                 //BUNDLE
                 if($algo === NestingEnums::BUNDLE->value){
                     $sizeInclude = ["nominal_length","nominal_width"];
-                    $query = Product::select('product', 'material', 'grade', 'surface', 'nominal_units', 'nominal_length','nominal_width')
+                    $query = Product::select('product_category', 'material', 'grade', 'surface', 'nominal_units', 'nominal_length','nominal_width')
                         ->distinct()
                         ->availableFor($user)
-                        ->where("product", $productString)
+                        ->where("product_category", $productString)
                         ->where("nesting_algo",$algo);
                 }
 
@@ -132,321 +132,72 @@ class DataClassificationService
         return collect($results);
     }
 
-
-    public function findProductsInRow(array $cleanCsvRow, User $user): array
+    public function findGeneralProductMatchesFromText(?string $text, User $user): Collection
     {
-        /**
-         * Single purpose:
-         */
+        $productConfig = $this->findProductConfigFromText($text);
 
-//        $cleanCsvRow
-//        "index" => 27
-//        "description" => "Steel Beams (I-Beams)"
-//        "material" => null
-//        "nominal_units" => null
-//        "length_required" => 12.0
-//        "sub_qty" => 2.0
-//        "unit_rate" => 50.0
+        //MATERIAL
+        $materialEnum = $this->findMaterial($productConfig,$text);
 
-        //Product (category like "PFC")
-        $productCategory = $this->findProduct($cleanCsvRow["description"]);
+        //GRADE
+        $gradesEnums = $this->findGrades($productConfig,$text);
 
-        //Has product
-        $generalProductMatches = collect([]);
-        $materialEnum = null;
-        $gradesEnums = null;
-        $surfaceEnum = null;
-        $measurementUnitEnum = null;
-        $nominalLengthInt = null;
-        $nominalWidthInt = null;
-        $nominalHeightInt = null;
+        //SURFACE
+        $surfaceEnum = $this->findSurface($productConfig,$text,$gradesEnums);
 
-        if($productCategory){
-            //MATERIAL
-            $materialEnum = $this->findMaterial($productCategory,$cleanCsvRow["description"]);
+        //NOMINAL UNITS
+        $measurementUnitEnum = $this->findMeasurementUnit($productConfig);
 
-            //GRADE
-            $searchGradeField = $cleanCsvRow["grade"] ?? $cleanCsvRow["description"];
-            $gradesEnums = $this->findGrades($productCategory,$searchGradeField);
+        //NOMINAL LENGTH
+        $nominalLengthInt = $this->findNominal($productConfig,$text,"nominalLengthRegex");
 
-            //SURFACE
-            $searchSurfaceField = $cleanCsvRow["surface"] ?? $cleanCsvRow["description"];
-            $surfaceEnum = $this->findSurface($productCategory,$searchSurfaceField,$gradesEnums);
+        //NOMINAL WIDTH
+        $nominalWidthInt = $this->findNominal($productConfig,$text,"nominalWidthRegex");
 
-            //NOMINAL UNITS
-            $measurementUnitEnum = $this->findMeasurementUnit($productCategory);
+        //NOMINAL HEIGHT
+        $nominalHeightInt = $this->findNominal($productConfig,$text,"nominalHeightRegex");
 
-            //NOMINAL LENGTH
-            $nominalLengthInt = $this->findNominal($productCategory,$cleanCsvRow["description"],"nominalLengthRegex");
-
-            //NOMINAL WIDTH
-            $nominalWidthInt = $this->findNominal($productCategory,$cleanCsvRow["description"],"nominalWidthRegex");
-
-            //NOMINAL HEIGHT
-            $nominalHeightInt = $this->findNominal($productCategory,$cleanCsvRow["description"],"nominalHeightRegex");
-
-            /**
-             * Price book search
-             */
-            $generalProductMatches = $this->findGeneralProductMatches(
-                $user,
-                $productCategory["productEnum"]->value,
-                $materialEnum,
-                $gradesEnums,
-                $surfaceEnum,
-                $measurementUnitEnum,
-                $nominalLengthInt,
-                $nominalWidthInt,
-                $nominalHeightInt
-            );
-
-            //todo debug
-//            if($cleanCsvRow["length_required"] == 250){
-//                dd(250,$generalProductMatches,$cleanCsvRow);
-//            }
-        }
-
-        return [
-            "cleanCsvRow" => $cleanCsvRow,
-            "generalProductMatches" => $generalProductMatches->toArray(),
-        ];
+        return $this->findGeneralProductMatches(
+            $user,
+            $productConfig["productCategory"],
+            $materialEnum,
+            $gradesEnums,
+            $surfaceEnum,
+            $measurementUnitEnum,
+            $nominalLengthInt,
+            $nominalWidthInt,
+            $nominalHeightInt
+        );
     }
 
-    public function findProductsFromCleanData(array $cleanCsvData, User $user): array
+    public function findProductConfigFromText(?string $text): ?array
     {
         /**
-         * Single purpose:
+         * Single purpose: extract a 'product_category' from text. e.g "PFC"
          */
 
-        $result = [];
+        $resultProductConfigs = [];
 
-        foreach($cleanCsvData as $cleanCsvRow){
-            $productsInRow = $this->findProductsInRow($cleanCsvRow,$user);
+        $productConfigs = (new ProductService())->getProductConfigs();
 
-            $append = $cleanCsvRow;
-            $append["generalProductMatches"] = $productsInRow["generalProductMatches"];
-            $result[] = $append;
-        }
+        foreach($productConfigs as $productConfig){
+            //negative keywords
+            $containsNegativeKeywords = false;
+            foreach($productConfig["negativeKeywords"] as $negativeKeyword){
+                if($this->containsSubstring($text, $negativeKeyword)){
+                    $containsNegativeKeywords = true;
+                }
+            }
 
-        return $result;
-    }
-
-    public function findProduct(?string $text): ?array
-    {
-        /**
-         * Single purpose: extract a 'product' from text. e.g "PFC"
-         */
-
-        $resultProducts = [];
-
-        $products = [
-
-
-//        "SHS", "square hollow section","square hollow sections",
-//        "RHS", "rectangular hollow section","rectangular hollow sections",
-//        "CHS", "circular hollow section","circular hollow sections",
-//        "UBS", "Universal Beam Section","Universal Beam Sections",
-//        "UCS", "Universal Column Section","Universal Column Sections",
-//        "HSS","Hollow Structural Section","Hollow Structural Sections",
-//        "EA", "equal angle","equal angles",
-//        "Steel Angles","Steel Angles",
-//        "UA", "unequal angle","unequal angles",
-//        "RSJ", "rolled steel joist","rolled steel joists",
-//        "Flat Bar","Flat Bars",
-//        "round bar","round bars",
-//        "Square Bar","Square Bars",
-//        "Rebar","Reinforcement Bar","Reinforcement Bars",
-//        "Threaded Rod","Threaded Rods","allthread",
-//        "I-Beam","I-Beams",
-//        "Steel Joist","Steel Joists",
-//        "Steel Tube","Steel Tubes",
-            //todo more
-
-
-            //PFC
-            [
-                "productEnum" => ProductEnums::PFC,
-                "productRegex" => [
-                    "PFC",
-                    "Parallel+\s+Flange+\s+Channel",
-                    "Parallel+\s+Flanged+\s+Channel",
-                    "steel+\s+channel",
-                ],
-                "nominalLengthRegex" => [
-
-                ],
-                "nominalWidthRegex" => [
-
-                ],
-                "nominalHeightRegex" => [
-                    "(\d+)+PFC",          //200PFC
-                    "(\d+)+\s+PFC",       //200 PFC
-                    "(\d+)+mm+\s+PFC",    //200mm PFC
-                    "(\d+)+\s+mm+\s+PFC", //200 mm PFC
-                    "(\d+)+\s+mm+\s+Parallel Flange Channel",    //200 mm Parallel Flange Channel
-                    "(\d+)+mm+\s+Parallel+\s+Flange+\s+Channel", //200 mm Parallel Flange Channel
-                    "PFC+\s+(\d+)",       //"PFC 200",
-                    "PFC+(\d+)",          //"PFC200",
-                ],
-                "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
-                "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
-            ],
-            //UB
-            [
-                "productEnum" => ProductEnums::UB,
-                "productRegex" => [
-                    "(\d+)+UB",         //300UB
-                    "(\d+)+\s+UB",      //300 UB
-                    "UB+(\d+)",         //UB300
-                    "UB+\s+(\d+)",      //UB 300
-                    "universal+\s+beam",
-                    "steel+\s+beam",
-                ],
-                "nominalLengthRegex" => [
-
-                ],
-                "nominalWidthRegex" => [
-
-                ],
-                "nominalHeightRegex" => [
-                    "(\d+)+UB",    //300UB
-                    "(\d+)+\s+UB", //300 UB
-                    "UB+(\d+)",    //UB300
-                    "UB+\s+(\d+)", //UB 300
-                ],
-                "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
-                "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
-            ],
-            //UC
-            [
-                "productEnum" => ProductEnums::UC,
-                "productRegex" => [
-                    "(\d+)+UC",         //3000UC
-                    "(\d+)+\s+UC",      //300 UC
-                    "UC+(\d+)",         //UC300
-                    "UC+\s+(\d+)",      //UC 300
-                    "universal+\s+column",
-                    "steel+\s+column",
-                ],
-                "nominalLengthRegex" => [
-
-                ],
-                "nominalWidthRegex" => [
-
-                ],
-                "nominalHeightRegex" => [
-                    "(\d+)+UC",    //300UC
-                    "(\d+)+\s+UC", //300 UC
-                    "UC+(\d+)",    //UC300
-                    "UC+\s+(\d+)", //UC 300
-                ],
-                "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
-                "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
-            ],
-            //PLATE
-            [
-                "productEnum" => ProductEnums::PLATE,
-                "productRegex" => [
-                    "Plate",                //plate
-                    "Plates",               //plates
-                    "(\d+)+PL",             //20PL
-                    "(\d+)+\s+PL",          //20 PL
-                    "(\d+)+mm+\s+PL",       //20mm PL
-                    "(\d+)+mm+\s+plate",    //20mm plate
-                    "PLT(\d+)",             //PLT8
-                    "Steel+\s+Plate",       //Steel plate
-                    "Steel+\s+Plates",      //steel plates
-                    "(\d+)+mm\b.*\b(1200|1220|2400|2440|3000|3100|3200)",    //20mm plus one of 1200|1220|2400|2440|3000|3100|3200
-                    "(\d+)+\s+mm\b.*\b(1200|1220|2400|2440|3000|3100|3200)", //20 mm plus one of 1200|1220|2400|2440|3000|3100|3200
-                ],
-                "nominalLengthRegex" => [
-
-                ],
-                "nominalWidthRegex" => [
-                    "(1200|1220|1800|2400|2440|3000|3200|1\.2|1\.8|1\.22|2\.4|2\.44|3\.0|3\.2)", //Find common plate widths in M or MM
-                ],
-                "nominalHeightRegex" => [
-                    "\b(0|[1-9][0-9]?|1[0-4][0-9]|150) ?PL", //16PL or 16 PL
-                    "\b(0|[1-9][0-9]?|1[0-4][0-9]|150) ?mm", //16mm or 16 mm
-                    "PLT(\d+)\*",                            //PLT10*234
-                ],
-                "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
-                "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
-            ],
-            //BOLT
-            [
-                "productEnum" => ProductEnums::BOLT,
-                "productRegex" => [
-                    "M+\d",
-                    "bolt",
-                ],
-                "nominalLengthRegex" => [
-                    "x+(1?[0-9]?[0-9]|200)",      //x100  (200 or under)
-                    "x+\s+(1?[0-9]?[0-9]|200)",   //x 100 (200 or under)
-                ],
-                "nominalWidthRegex" => [
-                    "M+(\d+)", //M16
-                ],
-                "nominalHeightRegex" => [
-
-                ],
-                "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
-                "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
-            ],
-            //ALLTHREAD
-            [
-                "productEnum" => ProductEnums::ALLTHREAD,
-                "productRegex" => [
-                    "M+\d",
-                    "chemset",
-                    "allthread",
-                    "chemical+\s+anchor",
-                    "anchor+\s+rod",
-                    "hd+\s+bolt",
-                ],
-                "nominalLengthRegex" => [
-                    "x+(20[1-9]|2[1-9][0-9]|[3-9][0-9]{2,}|\d{4,})",      //x100     (201+)
-                    "x+\s+(20[1-9]|2[1-9][0-9]|[3-9][0-9]{2,}|\d{4,})",   //x 100    (201+)
-                    "(20[1-9]|2[1-9][0-9]|[3-9][0-9]{2,}|\d{4,})+\s+mm",  //1000 mm  (201+)
-                    "(20[1-9]|2[1-9][0-9]|[3-9][0-9]{2,}|\d{4,})+mm",     //1000mm   (201+)
-                ],
-                "nominalWidthRegex" => [
-                    "M+(\d+)", //M16
-                ],
-                "nominalHeightRegex" => [
-
-                ],
-                "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
-                "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
-            ],
-            //LVL
-            [
-                "productEnum" => ProductEnums::LVL,
-                "productRegex" => [
-                    "LVL",
-                ],
-                "nominalLengthRegex" => [
-
-                ],
-                "nominalWidthRegex" => [
-                    "x+(\d+)",      //x100
-                    "X+\s+(\d+)",   //x 100
-                ],
-                "nominalHeightRegex" => [
-                    "(\d+)+x",      //100x
-                    "(\d+)+\s+X",   //100 x
-                ],
-                "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
-                "defaultMaterial" => MaterialEnums::TIMBER,
-            ],
-            //todo more
-        ];
-
-        foreach($products as $product){
-            foreach($product["productRegex"] as $pattern){
-                $regex = "/".$pattern."/i";
-                if(preg_match($regex, $text)){
-                    $resultProducts[] = $product;
+            //regex check
+            if(!$containsNegativeKeywords){
+                foreach($productConfig["productRegex"] as $pattern){
+                    $regex = "/".$pattern."/i";
+                    if(preg_match($regex, $text)){
+                        if(!in_array($productConfig,$resultProductConfigs)){
+                            $resultProductConfigs[] = $productConfig;
+                        }
+                    }
                 }
             }
         }
@@ -455,26 +206,23 @@ class DataClassificationService
         /**
          * If multiple results, do priority ranking to take best result.
          */
-        $resultProduct = null;
-        if(count($resultProducts) === 1){
-            $resultProduct = $resultProducts[0];
+        $resultProductConfig = null;
+        if(count($resultProductConfigs) === 1){
+            $resultProductConfig = $resultProductConfigs[0];
         }
-        if(count($resultProducts) > 1){
+        if(count($resultProductConfigs) > 1){
             //Default take first result
-            $resultProduct = $resultProducts[0];
-
-            //ALLTHREAD over BOLT
-            foreach($resultProducts as $product){
-                if($product["productEnum"] === ProductEnums::ALLTHREAD){
-                    $resultProduct = $product;
-                }
-            }
+            $resultProductConfig = $resultProductConfigs[0];
         }
 
-        return $resultProduct;
+        return $resultProductConfig;
     }
 
-    public function findMaterial($product,$text): MaterialEnums
+    private function containsSubstring(string $haystack, string $needle): bool {
+        return $needle !== '' && stripos($haystack, $needle) !== false;
+    }
+
+    public function findMaterial($productConfig,$text): MaterialEnums
     {
         /**
          * Single purpose: extract a 'material' from text. e.g "SS304"
@@ -518,13 +266,13 @@ class DataClassificationService
          * Default material
          */
         if(!$materialResult){
-            $materialResult = $product["defaultMaterial"];
+            $materialResult = $productConfig["defaultMaterial"];
         }
 
         return $materialResult;
     }
 
-    public function findGrades($product,$text): null|array
+    public function findGrades($productConfig,$text): null|array
     {
         /**
          * Single purpose: extract a 'grade' from text. e.g "GR 250"
@@ -628,7 +376,7 @@ class DataClassificationService
         return $gradeResults;
     }
 
-    public function findSurface($product,$text,$foundGrades): ?SurfaceEnums
+    public function findSurface($productConfig,$text,$foundGrades): ?SurfaceEnums
     {
         /**
          * Single purpose: extract a 'surface' from text. e.g "Painted"
@@ -711,15 +459,15 @@ class DataClassificationService
         return $surfaceResult;
     }
 
-    public function findMeasurementUnit($product): MeasurementUnitEnums
+    public function findMeasurementUnit($productConfig): MeasurementUnitEnums
     {
         /**
          * Single purpose: get the measurement units from the product
          */
 
-        return $product["measurementUnit"] ?? MeasurementUnitEnums::SINGLE;
+        return $productConfig["measurementUnit"] ?? MeasurementUnitEnums::SINGLE;
     }
-    public function findNominal($product,$text,$regexLabel): ?int
+    public function findNominal(array $productConfig, string $text, string $regexLabel): ?int
     {
         /**
          * Single purpose: extracts the number from string. e.g "200" from "200PFC"
@@ -727,7 +475,7 @@ class DataClassificationService
 
         $resultInt = null;
 
-        $regexPatterns = $product[$regexLabel];
+        $regexPatterns = $productConfig[$regexLabel];
 
         foreach($regexPatterns as $pattern){
             $regex = "/".$pattern."/i";

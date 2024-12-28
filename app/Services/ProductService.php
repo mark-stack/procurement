@@ -7,10 +7,29 @@ use App\Enums\ProductEnums;
 use App\Models\Business;
 use App\Models\Product;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Validator;
+use ReflectionClass;
 
 class ProductService
 {
+    public function getProductConfigs(): array
+    {
+        $productConfigs= [];
+
+        $implementations = (new ProductService())->getImplementations();
+
+        foreach($implementations as $implementation){
+            // Check if the class exists
+            if (class_exists($implementation)) {
+                $service = new $implementation();
+                $productConfigs[] = $service->config();
+            }
+        }
+
+        return $productConfigs;
+    }
+
     public function getCertificateFromProductCategory(?string $productCategory): bool
     {
         $certificate = false;
@@ -18,7 +37,7 @@ class ProductService
         //Has product category
         if($productCategory){
             $product = Product::query()
-                ->where("product",$productCategory)
+                ->where("product_category",$productCategory)
                 ->first();
 
             $certificate = $product
@@ -38,7 +57,7 @@ class ProductService
         if($product){
             $query = Product::query()
                 ->availableFor($user)
-                ->where("product", $product->value);
+                ->where("product_category", $product->value);
 
             if (!is_null($material)) {
                 $query->where("material", $material->value);
@@ -183,7 +202,7 @@ class ProductService
             $productSpec = $productSpec->toArray();
         }
 
-        $productCategory = $productSpec["product"];
+        $productCategory = $productSpec["product_category"];
         $nominal_length = isset($productSpec["nominal_length"])
             ? floatval($productSpec["nominal_length"])
             : null;
@@ -209,7 +228,7 @@ class ProductService
 
     public function getNominalSizeData(): array
     {
-        return [
+        $getNominalSizeData = [
             "general" => [
                 "length" => true,
                 "width" => true,
@@ -218,71 +237,40 @@ class ProductService
                 "width_placeholder" => "Width (mm)",
                 "height_placeholder" => "Height (mm)",
             ],
-            "BOLT" => [
-                "length" => true,
-                "width" => true,
-                "height" => false,
-                "length_placeholder" => "Length (mm)",
-                "width_placeholder" => "Diameter (mm)",
-                "height_placeholder" => "",
-            ],
-            "UB" => [
-                "length" => false,
-                "width" => false,
-                "height" => true,
-                "length_placeholder" => "",
-                "width_placeholder" => "",
-                "height_placeholder" => "Height (nominal)",
-            ],
-            "UC" => [
-                "length" => false,
-                "width" => false,
-                "height" => true,
-                "length_placeholder" => "",
-                "width_placeholder" => "",
-                "height_placeholder" => "Height (nominal)",
-            ],
-            "PFC" => [
-                "length" => false,
-                "width" => false,
-                "height" => true,
-                "length_placeholder" => "",
-                "width_placeholder" => "",
-                "height_placeholder" => "Height (nominal)",
-            ],
-            "PLATE" => [
-                "length" => false,
-                "width" => false,
-                "height" => true,
-                "length_placeholder" => "",
-                "width_placeholder" => "",
-                "height_placeholder" => "Thickness (mm)",
-            ],
-            "LVL" => [
-                "length" => false,
-                "width" => true,
-                "height" => true,
-                "length_placeholder" => "",
-                "width_placeholder" => "Width (mm)",
-                "height_placeholder" => "Height (mm)",
-            ],
-            "SHS" => [
-                "length" => false,
-                "width" => false,
-                "height" => true,
-                "length_placeholder" => "",
-                "width_placeholder" => "",
-                "height_placeholder" => "Height/Width (mm)",
-            ],
-            "RHS" => [
-                "length" => false,
-                "width" => true,
-                "height" => true,
-                "length_placeholder" => "x",
-                "width_placeholder" => "Width (mm)",
-                "height_placeholder" => "Height (mm)",
-            ],
         ];
+
+        $implementations = (new ProductService())->getImplementations();
+
+        foreach($implementations as $implementation){
+            // Check if the class exists
+            if (class_exists($implementation)) {
+                $service = new $implementation();
+                $productCategory = $service->config()["productCategory"];
+                $getNominalSizeData[$productCategory] = $service->getNominalSizeData();
+            }
+        }
+
+        return $getNominalSizeData;
+
+
+//        return [
+//            "SHS" => [
+//                "length" => false,
+//                "width" => false,
+//                "height" => true,
+//                "length_placeholder" => "",
+//                "width_placeholder" => "",
+//                "height_placeholder" => "Height/Width (mm)",
+//            ],
+//            "RHS" => [
+//                "length" => false,
+//                "width" => true,
+//                "height" => true,
+//                "length_placeholder" => "x",
+//                "width_placeholder" => "Width (mm)",
+//                "height_placeholder" => "Height (mm)",
+//            ],
+//        ];
     }
 
 //    public function senseChecks(): void
@@ -607,7 +595,7 @@ class ProductService
             $id = isset($row["data"]) ? $row["data"]["id"] : null;
 
             if($id && !in_array($id,$deletedIds)){
-                $product = $row["selected"]["product"];
+                $product_category = $row["selected"]["product_category"];
                 $material = $row["selected"]["material"];
                 $grade = $row["selected"]["grade"];
                 $nominalLength = $row["selected"]["nominal_length"];
@@ -623,15 +611,15 @@ class ProductService
                 $purchasable_width_3 = $row["selected"]["purchasable_width_3"];
 
                 //Product
-                if($product){
-                    if($product === "Other" && !$row['selected_other']['product']){
+                if($product_category){
+                    if($product_category === "Other" && !$row['selected_other']['product_category']){
                         $validationErrors++;
-                        $validator->errors()->add($id."-product", 'product');
+                        $validator->errors()->add($id."-product", 'product_category');
                     }
                 }
                 else{
                     $validationErrors++;
-                    $validator->errors()->add($id."-product", 'product');
+                    $validator->errors()->add($id."-product", 'product_category');
                 }
 
                 //Material
@@ -661,22 +649,22 @@ class ProductService
                 /*
                  * Size
                  */
-                if(isset($row["nominalSizeData"][$product])){
-                    $shouldHaveLength = $row["nominalSizeData"][$product]["length"];
+                if(isset($row["nominalSizeData"][$product_category])){
+                    $shouldHaveLength = $row["nominalSizeData"][$product_category]["length"];
                     if($shouldHaveLength){
                         if(!$nominalLength){
                             $validationErrors++;
                             $validator->errors()->add($id."-nominal_length", 'nominal_length');
                         }
                     }
-                    $shouldHaveWidth = $row["nominalSizeData"][$product]["width"];
+                    $shouldHaveWidth = $row["nominalSizeData"][$product_category]["width"];
                     if($shouldHaveWidth){
                         if(!$nominalWidth){
                             $validationErrors++;
                             $validator->errors()->add($id."-nominal_width", 'nominal_width');
                         }
                     }
-                    $shouldHaveHeight = $row["nominalSizeData"][$product]["height"];
+                    $shouldHaveHeight = $row["nominalSizeData"][$product_category]["height"];
                     if($shouldHaveHeight){
                         if(!$nominalHeight){
                             $validationErrors++;
@@ -861,8 +849,27 @@ class ProductService
         ];
     }
 
+    public function getImplementationFromProductCategory(string $productCategory)
+    {
+        $implementationMatch = null;
+
+        $implementations = (new ProductService())->getImplementations();
+        foreach($implementations as $implementation){
+            // Check if the class exists
+            if (class_exists($implementation)) {
+                $service = new $implementation();
+
+                if(strtoupper($productCategory) === strtoupper($service->config()["productCategory"])){
+                    $implementationMatch = $service;
+                }
+            }
+        }
+
+        return $implementationMatch;
+    }
+
     public function generateProductLabel(
-        string $product,
+        string $productCategory,
         ?float $nominal_length,
         ?float $nominal_width,
         ?float $nominal_height,
@@ -897,114 +904,22 @@ class ProductService
             $actualSurface = " H2";
         }
 
-        $result = "";
 
-        if($product === ProductEnums::BOLT->value){
-            $result = $this->formatBOLT($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
-        }
-        if($product === ProductEnums::ALLTHREAD->value){
-            $result = $this->formatALLTHREAD($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
-        }
-        else if($product === ProductEnums::UB->value){
-            $result = $this->formatUB($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
-        }
-        else if($product === ProductEnums::UC->value){
-            $result = $this->formatUC($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
-        }
-        else if($product === ProductEnums::PFC->value){
-            $result = $this->formatPFC($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
-        }
-        else if($product === ProductEnums::PLATE->value){
-            $result = $this->formatPLATE($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
-        }
-        else if($product === ProductEnums::LVL->value){
-            $result = $this->formatLVL($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
-        }
-        else if($product === ProductEnums::SHS->value){
-            $result = $this->formatSHS($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
-        }
-        else if($product === ProductEnums::RHS->value){
-            $result = $this->formatRHS($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
+        //Loop all Product Implementations
+        $implementation = $this->getImplementationFromProductCategory($productCategory);
+        if($implementation){
+            $result = $implementation->formatLabel($productCategory, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
         }
         else{
-            $result = $this->formatDefault($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
+            $result = $this->formatDefault($productCategory, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
         }
-        //todo can it be made SOLID with a loop
 
         return $result;
     }
 
-    private function formatDefault($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface): string
+    private function formatDefault($productCategory, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface): string
     {
-        return "Nominal ".$product." ".$actualGrade.$actualSurface;
-    }
-
-    private function formatBOLT($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface): string
-    {
-        //Size
-        $actualSize = "";
-        if ($nominal_length) {
-            $actualSize = "M".$nominal_width."x".$nominal_length;
-        } else {
-            $actualSize = "M".$nominal_width;
-        }
-
-        return $actualSize." ".$actualGrade.$actualSurface;
-    }
-
-    private function formatALLTHREAD($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface): string
-    {
-        //Size
-        $actualSize = "";
-        if ($nominal_length) {
-            $actualSize = "M".$nominal_width."x".$nominal_length;
-        } else {
-            $actualSize = "M".$nominal_width;
-        }
-
-        return $actualSize." ".$actualGrade.$actualSurface." Allthread";
-    }
-
-    private function formatUB($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface): string
-    {
-        $actualSize = $nominal_height;
-        return $actualSize." ".$actualGrade.$actualSurface;
-    }
-
-    private function formatUC($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface): string
-    {
-        $actualSize = $nominal_height;
-        return $actualSize." ".$actualGrade.$actualSurface;
-    }
-
-    private function formatPFC($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface): string
-    {
-        $actualSize = $nominal_height;
-        return $actualSize.$product." ".$actualGrade.$actualSurface;
-    }
-
-    private function formatPLATE($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface): string
-    {
-        $actualSize = $nominal_height."PL";
-        return $actualSize." ".$actualGrade.$actualSurface;
-    }
-
-    private function formatLVL($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface): string
-    {
-        $actualSize = $nominal_height."x".$nominal_width;
-        return $actualSize." ".$actualGrade.$actualSurface;
-    }
-
-    private function formatSHS($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface): string
-    {
-        $actualSize = $nominal_height."x".$nominal_width;
-        return $actualSize." ".$actualGrade.$actualSurface;
-    }
-
-    private function formatRHS($product, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface): string
-    {
-        $actualSize = $nominal_height."x".$nominal_width;
-        return $actualSize." ".$actualGrade.$actualSurface;
+        return $productCategory." ".$actualGrade.$actualSurface;
     }
 
     public function getBaseLineUnitRateFromGeneral(Product|array|null $productSpec): ?float
@@ -1066,6 +981,40 @@ class ProductService
             return (float)$matches[0];
         }
         return null; // Return null if no float found
+    }
+
+    function getImplementations(): array
+    {
+        $namespace = 'App\Services\ProductImplementations\\';
+        $path = app_path('Services/ProductImplementations');
+        $exclude = 'ProductBaseImplementation';
+
+        // Get all PHP files in the directory
+        $files = File::files($path);
+
+        $implementations = collect($files)
+            ->map(function ($file) use ($namespace) {
+                // Extract the class name
+                $className = $namespace . pathinfo($file->getFilename(), PATHINFO_FILENAME);
+
+                // Ensure the class exists and is not abstract
+                if (class_exists($className)) {
+                    $reflection = new ReflectionClass($className);
+
+                    // Return the class name if it's not abstract
+                    return !$reflection->isAbstract() ? $className : null;
+                }
+
+                return null;
+            })
+            ->filter(function ($className) use ($exclude, $namespace) {
+                // Exclude the specified class
+                return $className !== $namespace . $exclude;
+            })
+            ->values()
+            ->all();
+
+        return array_filter($implementations);
     }
 }
 

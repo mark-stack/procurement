@@ -139,7 +139,7 @@
                                         <h2 class="font-bold">Material Spec</h2>
                                         {{item.product_derived_label}}
                                         <p class="text-xs">
-                                            <span class="block">Product: {{item.product}}</span>
+                                            <span class="block">Product: {{item.product_category}}</span>
                                             <span class="block">Material: {{item.material}}</span>
                                             <span class="block">Grade: {{item.grade}}</span>
                                             <span class="block">Surface: {{item.surface}}</span>

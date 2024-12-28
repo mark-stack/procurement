@@ -72,7 +72,7 @@ class Product extends Model
     public function pieces(): Collection
     {
         return Piece::query()
-            ->where("product",$this->product)
+            ->where("product_category",$this->product_category)
             ->where("material",$this->material)
             ->where("grade",$this->grade)
             ->where("surface",$this->surface)

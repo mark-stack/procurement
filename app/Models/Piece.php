@@ -33,7 +33,7 @@ class Piece extends Model
     public function product(): ?Product
     {
         return Product::query()
-            ->where("product",$this->product)
+            ->where("product_category",$this->product_category)
             ->where("material",$this->material)
             ->where("grade",$this->grade)
             ->where("surface",$this->surface)

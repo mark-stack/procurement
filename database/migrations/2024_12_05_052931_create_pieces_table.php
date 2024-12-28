@@ -19,7 +19,7 @@ return new class extends Migration
             $table->foreignId('raw_material_quote_id')->constrained();
             $table->foreignId('quote_id')->nullable()->constrained();
 
-            $table->text("product");                        //PFC
+            $table->text("product_category");               //PFC
             $table->text("material");                       //STEEL
             $table->text("grade");                          //GR250
             $table->text("surface");                        //NONE

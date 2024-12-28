@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->timestamps();
             $table->text("description");                    //200PFC
-            $table->text("product");                        //PFC
+            $table->text("product_category");               //PFC
             $table->text("material");                       //PLAIN CARBON STEEL
             $table->text("grade");                          //GR250
             $table->text("surface");                        //NONE

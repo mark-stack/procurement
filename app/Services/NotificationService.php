@@ -88,6 +88,8 @@ class NotificationService
 
     public function getImplementations(): array
     {
+        $exclude = 'ProductBaseImplementation';
+
         $directory = app_path('Services/NotificationImplementations');
         return collect(File::files($directory))
             ->map(function ($file) {
@@ -95,6 +97,10 @@ class NotificationService
             })
             ->map(function ($filename) {
                 return pathinfo($filename, PATHINFO_FILENAME);
+            })
+            ->filter(function ($className) use ($exclude) {
+                // Exclude the specified class
+                return $className !== $exclude;
             })
             ->values()
             ->toArray();

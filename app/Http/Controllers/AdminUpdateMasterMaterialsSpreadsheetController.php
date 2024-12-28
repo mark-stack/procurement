@@ -26,7 +26,7 @@ class AdminUpdateMasterMaterialsSpreadsheetController extends Controller
                 if($row[0] !== ""){
                     $data[] = [
                         "description" => $row[0],
-                        "product" => $row[1],
+                        "product_category" => $row[1],
                         "material" => $row[2],
                         "grade" => $row[3],
                         "surface" => $row[4],
@@ -77,7 +77,7 @@ class AdminUpdateMasterMaterialsSpreadsheetController extends Controller
                 //Create
                 Product::create([
                     "description" => $row["description"],
-                    "product" => $row["product"],
+                    "product_category" => $row["product_category"],
                     "material" => $row["material"],
                     "grade" => $row["grade"],
                     "surface" => $row["surface"],
@@ -116,10 +116,10 @@ class AdminUpdateMasterMaterialsSpreadsheetController extends Controller
             }
         }
 
-        dd([
+        return [
             "added" => $added,
             "deprecated" => $deprecated,
-        ]);
+        ];
     }
 
     public function findSpreadsheetRowToMatchDatabaseRow(Product $productObject, object $dataCollection): ?int
@@ -166,7 +166,7 @@ class AdminUpdateMasterMaterialsSpreadsheetController extends Controller
     {
         $record = $allCurrentMasterProductRecords
             ->where("description",$row["description"])
-            ->where("product",$row["product"])
+            ->where("product_category",$row["product_category"])
             ->where("material",$row["material"])
             ->where("grade",$row["grade"])
             ->where("surface",$row["surface"])
