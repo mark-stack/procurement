@@ -29,10 +29,12 @@
 
     //Methods
     function calculate(){
-        let spend = props.formCalculator.spend * 1000000;
-        let wasteFraction = (100 - props.formCalculator.waste)/100; //e.g 3% = 0.97
+        let annualSpend = props.formCalculator.annualSpendMillions * 1000000;
+        let wasteFraction = props.formCalculator.wastePct/100; //e.g 5% = 0.05
+        let annualWaste = annualSpend * wasteFraction;
+        let annualScrapRefund = annualWaste * (props.formCalculator.scrapRefundPct/100)
 
-        return props.years * (spend - (spend * wasteFraction));
+        return props.years * (annualWaste - annualScrapRefund);
     }
 
     function beforeFees(){
@@ -112,7 +114,7 @@
         <div class="flex flex-col items-center p-4">
             <!-- Slider -->
             <input
-                v-model="formCalculator.spend"
+                v-model="formCalculator.annualSpendMillions"
                 type="range"
                 min="1"
                 max="8"
@@ -122,7 +124,7 @@
 
             <!-- Value Display -->
             <div class="mt-2 text-gray-800 font-semibold">
-                Material Spend: ${{formCalculator.spend}}m/year
+                Material Spend: ${{formCalculator.annualSpendMillions}}m/year
             </div>
         </div>
 
@@ -130,37 +132,37 @@
         <div class="flex flex-col items-center p-4">
             <!-- Slider -->
             <input
-                v-model="formCalculator.waste"
+                v-model="formCalculator.wastePct"
                 type="range"
-                min="2"
-                max="6"
+                min="3"
+                max="7"
                 step="1"
                 class="w-full max-w-sm appearance-none bg-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
 
             <!-- Value Display -->
             <div class="mt-2 text-gray-800 font-semibold">
-                Waste reduction: {{formCalculator.waste}}%
+                Waste reduction: {{formCalculator.wastePct}}%
             </div>
         </div>
 
-<!--        &lt;!&ndash; discounts &ndash;&gt;-->
-<!--        <div class="flex flex-col items-center p-4">-->
-<!--            &lt;!&ndash; Slider &ndash;&gt;-->
-<!--            <input-->
-<!--                v-model="formCalculator.discounts"-->
-<!--                type="range"-->
-<!--                min="1"-->
-<!--                max="4"-->
-<!--                step="1"-->
-<!--                class="w-full max-w-sm appearance-none bg-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"-->
-<!--            />-->
+        <!-- scrap rate -->
+        <div class="flex flex-col items-center p-4">
+            <!-- Slider -->
+            <input
+                v-model="formCalculator.scrapRefundPct"
+                type="range"
+                min="10"
+                max="16"
+                step="1"
+                class="w-full max-w-sm appearance-none bg-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
 
-<!--            &lt;!&ndash; Value Display &ndash;&gt;-->
-<!--            <div class="mt-2 text-gray-800 font-semibold">-->
-<!--                Discounts: {{formCalculator.discounts}}%-->
-<!--            </div>-->
-<!--        </div>-->
+            <!-- Value Display -->
+            <div class="mt-2 text-gray-800 font-semibold">
+                Scrap refund rate: {{formCalculator.scrapRefundPct}}%
+            </div>
+        </div>
         <div class="flex flex-col items-center p-4 ">
 <!--            <span class="block"><b>${{ beforeFees() }}</b> - <b>${{(price/1000).toFixed(1)}}K</b> for {{years}} year software term</span>-->
             <span class="block mt-3 text-4xl text-deep-purple-accent-400">Save <b>${{ beforeFees() }}</b> {{ displayTerm() }}</span>

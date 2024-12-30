@@ -13,16 +13,16 @@
 
     //Form
     const formCalculator = useForm({
-        spend:2.5,
-        waste:4,
-        discounts:0,
+        annualSpendMillions:2.5,
+        wastePct:5,
+        scrapRefundPct:13,
     });
 
     //Shared data
     const user = usePage().props.auth.user;
 
     //Variables
-    const trial_months = 2;
+    const trial_months = 3;
     const savings_period_years = 5;
     const fullPriceAnnual = 10000;
     const fullPriceMonthly = 850;
@@ -34,12 +34,12 @@
 
     //Methods
     function calculate(){
-        let spend = formCalculator.spend * 1000000;
-        let wasteFraction = (100 - formCalculator.waste)/100; //e.g 3% = 0.97
-        let discountFraction = (100 - formCalculator.discounts)/100; //e.g 3% = 0.97
-        let savingsOverPeriod = savings_period_years * (spend - (spend * wasteFraction * discountFraction));
+        let annualSpend = formCalculator.annualSpendMillions * 1000000;
+        let wasteFraction = formCalculator.wastePct/100; //e.g 5% = 0.05
+        let annualWaste = annualSpend * wasteFraction;
+        let annualScrapRefund = annualWaste * (formCalculator.scrapRefundPct/100)
 
-        return savingsOverPeriod;
+        return savings_period_years * (annualWaste - annualScrapRefund);
     }
 
     function beforeFees(){

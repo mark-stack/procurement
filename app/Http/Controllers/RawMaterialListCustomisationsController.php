@@ -10,12 +10,10 @@ use App\Models\Piece;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
-use App\Services\NotificationService;
 use App\Services\ProductService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Support\Facades\Validator;
 
 class RawMaterialListCustomisationsController extends Controller
 {

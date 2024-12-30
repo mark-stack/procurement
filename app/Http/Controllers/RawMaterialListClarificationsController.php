@@ -29,26 +29,46 @@ class RawMaterialListClarificationsController extends Controller
         //Services
         $dataClassificationService = new DataClassificationService();
 
-        foreach($request->all() as $item){
-            $selectedProduct = $item["options"][$item["selected"]];
+        foreach($request->all() as $index => $formData){
+            //Delete items
+            if($index === "deletedIds"){
+                //Delete the "promised to delete" items
+                RawMaterialQuote::query()->whereIn("id",$formData)->delete();
+            }
+            //Clarification items
+            else{
+                $id = isset($formData["data"]) ? $formData["data"]["id"] : null;
 
-            $rawMaterialQuote = RawMaterialQuote::findOrFail($item["data"]["id"]);
+                if($id && !in_array($id,$request->deletedIds)){
+                    $rawMaterialQuote = RawMaterialQuote::findOrFail($formData["data"]["id"]);
 
-            $generalProductMatches = $dataClassificationService->findGeneralProductMatches(
-                $user,
-                $selectedProduct["product_category"],
-                MaterialEnums::from($selectedProduct["material"]),
-                [GradeEnums::from($selectedProduct["grade"])],
-                SurfaceEnums::from($selectedProduct["surface"]),
-                isset($selectedProduct["nominal_units"]) ? MeasurementUnitEnums::from($selectedProduct["nominal_units"]) : null,
-                $selectedProduct["nominal_length"] ?? null,
-                $selectedProduct["nominal_width"] ?? null,
-                $selectedProduct["nominal_height"] ?? null,
-            );
+                    //Customise option (selected "other")
+                    if($formData["selected"] === "customise"){
+                        $rawMaterialQuote->general_product_matches = serialize([]);
+                        $rawMaterialQuote->save();
+                    }
+                    //Selected a product
+                    else{
+                        $selectedProduct = $formData["options"][$formData["selected"]];
 
-            if($generalProductMatches->count() === 1){
-                $rawMaterialQuote->general_product_matches = serialize($generalProductMatches);
-                $rawMaterialQuote->save();
+                        $generalProductMatches = $dataClassificationService->findGeneralProductMatches(
+                            $user,
+                            $selectedProduct["product_category"],
+                            MaterialEnums::from($selectedProduct["material"]),
+                            [GradeEnums::from($selectedProduct["grade"])],
+                            SurfaceEnums::from($selectedProduct["surface"]),
+                            isset($selectedProduct["nominal_units"]) ? MeasurementUnitEnums::from($selectedProduct["nominal_units"]) : null,
+                            $selectedProduct["nominal_length"] ?? null,
+                            $selectedProduct["nominal_width"] ?? null,
+                            $selectedProduct["nominal_height"] ?? null,
+                        );
+
+                        if($generalProductMatches->count() === 1){
+                            $rawMaterialQuote->general_product_matches = serialize($generalProductMatches);
+                            $rawMaterialQuote->save();
+                        }
+                    }
+                }
             }
         }
 

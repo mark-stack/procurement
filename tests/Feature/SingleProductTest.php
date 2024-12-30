@@ -289,10 +289,22 @@ test('that "M20 12.9_CSK 45mm" finds exact product', function () {
     $this->get(route('admin.update.master.materials.spreadsheet'));
 
     //Find product
-    //todo
+    $products = findProducts("M20 12.9_CSK 45mm");
+
+    //1 result
+    expect($products->count())->toBe(1);
+
+    //Product specs
+    $product = $products[0];
+    expect($product["product_category"])->toBe("CSK_BOLT")
+        ->and($product["material"])->toBe("PLAIN_CARBON_STEEL")
+        ->and($product["grade"])->toBe("GR_12_9")
+        ->and($product["surface"])->toBe("ZINC")
+        ->and($product["nominal_width"])->toBe("20")
+        ->and($product["nominal_length"])->toBe("45");
 });
 
-test('that "M20 D20 ANCHOR ROD" finds exact product', function () {
+test('that "M20x500 D20 ANCHOR ROD" finds exact product', function () {
     //Create admin
     $adminUser = createAdmin();
 
@@ -303,21 +315,19 @@ test('that "M20 D20 ANCHOR ROD" finds exact product', function () {
     $this->get(route('admin.update.master.materials.spreadsheet'));
 
     //Find product
-    //todo
-});
+    $products = findProducts("M20x500 D20 ANCHOR ROD");
 
-test('that "M20 D20 HD BOLT" finds exact product', function () {
-    //Create admin
-    $adminUser = createAdmin();
+    //1 result
+    expect($products->count())->toBe(1);
 
-    //Authorised
-    $this->actingAs($adminUser);
-
-    //Seed master_product.csv to create products
-    $this->get(route('admin.update.master.materials.spreadsheet'));
-
-    //Find product
-    //todo
+    //Product specs
+    $product = $products[0];
+    expect($product["product_category"])->toBe("ANCHOR_STUD")
+        ->and($product["material"])->toBe("PLAIN_CARBON_STEEL")
+        ->and($product["grade"])->toBe("GR_5_8")
+        ->and($product["surface"])->toBe("GALVANISED")
+        ->and($product["nominal_width"])->toBe("20")
+        ->and($product["nominal_length"])->toBe("500");
 });
 
 test('that "M20 M20_NUT NUT" finds exact product', function () {
@@ -331,10 +341,73 @@ test('that "M20 M20_NUT NUT" finds exact product', function () {
     $this->get(route('admin.update.master.materials.spreadsheet'));
 
     //Find product
-    //todo
+    $products = findProducts("M20 M20_NUT NUT");
+
+    //1 result
+    expect($products->count())->toBe(1);
+
+    //Product specs
+    $product = $products[0];
+    expect($product["product_category"])->toBe("NUT")
+        ->and($product["material"])->toBe("PLAIN_CARBON_STEEL")
+        ->and($product["nominal_width"])->toBe("20");
 });
 
 test('that "M20 x 65" finds exact product', function () {
+    //Create admin
+    $adminUser = createAdmin();
+
+    //Authorised
+    $this->actingAs($adminUser);
+
+    //Seed master_product.csv to create products
+    $this->get(route('admin.update.master.materials.spreadsheet'));
+
+    //Find product
+    //todo
+});
+
+test('that pipe is recognised in 3 formats', function () {
+    /**
+     * 300nb vs 324 (rounded) vs 323.9 actual
+     */
+    //Create admin
+    $adminUser = createAdmin();
+
+    //Authorised
+    $this->actingAs($adminUser);
+
+    //Seed master_product.csv to create products
+    $this->get(route('admin.update.master.materials.spreadsheet'));
+
+    //Find product
+    //todo
+});
+
+test('that different UB weights are identified', function () {
+    /**
+     * 360 UB 56.7 and 360 UB 57
+     * 360 UB 50.7 and 360 UB 51
+     * 360 UB 44.7 and 360 UB 45
+     */
+    //Create admin
+    $adminUser = createAdmin();
+
+    //Authorised
+    $this->actingAs($adminUser);
+
+    //Seed master_product.csv to create products
+    $this->get(route('admin.update.master.materials.spreadsheet'));
+
+    //Find product
+    //todo
+});
+
+test('that different UC weights are identified', function () {
+    /**
+     * 250 UC 89.5 and 250 UC 90
+     * 250 UC 72.9 and 250 UC 73
+     */
     //Create admin
     $adminUser = createAdmin();
 

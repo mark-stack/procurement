@@ -37,7 +37,7 @@
         bolt_qty: false,
         pre_nested_check: false,
     });
-    let formClarifications = useForm(props.partialProductMatches);
+    let formClarifications = useForm(Object.assign({}, props.partialProductMatches, {deletedIds:[]}));
     let formCustomisations = useForm(Object.assign({}, props.requiresCustom, {deletedIds:[]}));
 
     //Variables
@@ -134,7 +134,8 @@
                 clearFileInput();
 
                 //Clarifications
-                formClarifications = useForm(props.partialProductMatches);
+                formClarifications = useForm(Object.assign({}, props.partialProductMatches, {deletedIds:[]}));
+                console.log("after store",formClarifications.deletedIds);
                 if(props.partialProductMatches.length > 0){
                     showClarifications.value = true;
                 }
@@ -287,8 +288,8 @@
         }
     }
 
-    function deleteOne(rawMaterialQuoteId){
-        let message = "Are you sure you want delete this row item";
+    function deleteOneCustomisation(rawMaterialQuoteId){
+        let message = "Are you sure you want delete this item?";
         const userConfirmed = confirm(message);
         if (userConfirmed) {
             //Add to list of "promise to delete" to actually delete after submitting form
@@ -301,15 +302,39 @@
         }
     }
 
+    function deleteOneClarification(rawMaterialQuoteId){
+        let message = "Are you sure you want delete this item?";
+        const userConfirmed = confirm(message);
+        if (userConfirmed) {
+            //Add to list of "promise to delete" to actually delete after submitting form
+            formClarifications.deletedIds.push(rawMaterialQuoteId);
+
+            //If delete all the items, then auto submit the form
+            if(props.partialProductMatches.length === formClarifications.deletedIds.length){
+                submitClarifications();
+            }
+        }
+    }
+
     function isNumeric(value) {
         return !isNaN(value) && !isNaN(parseFloat(value));
     }
 
-    function isDeleted(id){
+    function isDeletedCustomisation(id){
         let isDeleted = false;
 
         if(formCustomisations.deletedIds !== undefined){
             isDeleted = formCustomisations.deletedIds.includes(id);
+        }
+
+        return isDeleted;
+    }
+
+    function isDeletedClarification(id){
+        let isDeleted = false;
+
+        if(formClarifications.deletedIds !== undefined){
+            isDeleted = formClarifications.deletedIds.includes(id);
         }
 
         return isDeleted;
@@ -517,23 +542,35 @@
             <section v-if="showClarifications && hasClarifications()" class="container max-w-5xl mx-auto mt-5">
                 <h2 class="font-bold text-lg">Exact product clarifications</h2>
                 <form @submit.prevent="submitClarifications()">
-                    <div v-for="(item,index) in partialProductMatches" class="mt-5">
-                        <p class="italic font-bold">"{{item.data.description}}" <span class="text-red-500 ml-2" style="cursor: pointer;" @click="deleteOne(item.data.id)"><i class="fa-solid fa-xmark"></i></span></p>
-                        <div class="grid grid-cols-4">
-                            <div v-for="(option,option_index) in item.options">
+                    <template v-for="(item,index) in formClarifications">
+                        <div v-if="isNumeric(index) && !isDeletedClarification(item.data.id)" class="mt-5">
+                            <p class="italic font-bold">"{{item.data.description}}" <span class="text-red-500 ml-2" style="cursor: pointer;" @click="deleteOneClarification(item.data.id)"><i class="fa-solid fa-xmark"></i></span></p>
+                            <div class="grid grid-cols-4">
+                                <div v-for="(option,option_index) in item.options">
+                                    <label>
+                                        <input
+                                            v-model="formClarifications[index]['selected']"
+                                            type="radio"
+                                            :name="index"
+                                            :value="option_index"
+                                            required
+                                        >
+                                        {{ option.product_derived_label }}
+                                    </label>
+                                </div>
                                 <label>
                                     <input
                                         v-model="formClarifications[index]['selected']"
                                         type="radio"
                                         :name="index"
-                                        :value="option_index"
+                                        value="customise"
                                         required
                                     >
-                                    {{ option.product_derived_label }}
+                                    Custom (next step)
                                 </label>
                             </div>
                         </div>
-                    </div>
+                    </template>
 
                     <button
                         type="submit"
@@ -556,7 +593,7 @@
                     <div class="grid grid-cols-3 gap-6">
                         <template v-for="(item,index) in formCustomisations">
                             <CustomProductForm
-                                v-if="isNumeric(index) && !isDeleted(item.data.id)"
+                                v-if="isNumeric(index) && !isDeletedCustomisation(item.data.id)"
                                 class="mt-3"
                                 :item="item"
                                 :index="index"
@@ -565,7 +602,7 @@
                                 :formDependentData="formDependentData"
                                 :allGrades="allGrades"
                                 :nestingGroups="nestingGroups"
-                                @deleteOne="id => deleteOne(id)"
+                                @deleteOneCustomisation="id => deleteOneCustomisation(id)"
                                 :key="'custom-product-form-'+index"
                             />
                         </template>

@@ -41,8 +41,17 @@
         if(option === 'GR_8_8'){
             display = "GR 8.8";
         }
+        if(option === 'GR_12_9'){
+            display = "GR 12.9";
+        }
         if(option === 'PLAIN_CARBON_STEEL'){
             display = "PLAIN CARBON STEEL";
+        }
+        if(option === 'HEX_BOLT'){
+            display = "HEX BOLT";
+        }
+        if(option === 'CSK_BOLT'){
+            display = "CSK BOLT";
         }
 
         return display;

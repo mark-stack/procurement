@@ -17,12 +17,12 @@ enum ProductEnums: string
     case PFC = "PFC";
     case PLATE = "PLATE";
     case LVL = "LVL";
-    case SHS = "SHS"; //"square hollow section","square hollow sections",
-    case RHS = "RHS"; //"rectangular hollow section","rectangular hollow sections",
+    case SHS = "SHS";
+    case RHS = "RHS";
+    case CHS = "CHS";
 
     //todo more
 
-//        "CHS", "circular hollow section","circular hollow sections",
 //        "UBS", "Universal Beam Section","Universal Beam Sections",
 //        "UCS", "Universal Column Section","Universal Column Sections",
 //        "HSS","Hollow Structural Section","Hollow Structural Sections",

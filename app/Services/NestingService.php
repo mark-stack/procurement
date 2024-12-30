@@ -17,6 +17,7 @@ class NestingService
         $result = [];
 
         $rawItems = Product::select("nesting_algo")
+            ->active()
             ->distinct()
             ->get()
             ->toArray();
@@ -28,11 +29,12 @@ class NestingService
         return $result;
     }
 
-    public function allProductLabels(): array
+    public function allProductCategories(): array
     {
         $result = [];
 
         $rawItems = Product::select("product_category")
+            ->active()
             ->distinct()
             ->get()
             ->toArray();
@@ -123,6 +125,7 @@ class NestingService
         $result = [];
 
         $rawItems = Product::select("material")
+            ->active()
             ->distinct()
             ->get()
             ->toArray();
@@ -139,6 +142,7 @@ class NestingService
         $result = [];
 
         $rawItems = Product::select("product_category")
+            ->active()
             ->distinct()
             ->where("certificates",true)
             ->get()
@@ -156,6 +160,7 @@ class NestingService
         $result = [];
 
         $rawItems = Product::select("grade")
+            ->active()
             ->distinct()
             ->get()
             ->toArray();
@@ -172,6 +177,7 @@ class NestingService
         $result = [];
 
         $rawItems = Product::select("nominal_units")
+            ->active()
             ->distinct()
             ->get()
             ->toArray();
@@ -188,6 +194,7 @@ class NestingService
         $result = [];
 
         $rawItems = Product::select("material")
+            ->active()
             ->distinct()
             ->where("product_category",$product)
             ->get()
@@ -207,6 +214,7 @@ class NestingService
         //Product provides
         if($product){
             $rawItems = Product::select("grade")
+                ->active()
                 ->distinct()
                 ->where("product_category",$product)
                 ->where("material",$material)
@@ -219,6 +227,7 @@ class NestingService
         }
         else{
             $rawItems = Product::select("grade")
+                ->active()
                 ->distinct()
                 ->where("material",$material)
                 ->get()
@@ -237,6 +246,7 @@ class NestingService
         $result = [];
 
         $rawItems = Product::select("nesting_algo")
+            ->active()
             ->distinct()
             ->where("product_category",$productCategory)
             ->get()
@@ -279,19 +289,19 @@ class NestingService
         }
 
         //Products
-        $allProductLabels = $this->allProductLabels();
-        foreach($allProductLabels as $productLabel){
+        $allProductCategories = $this->allProductCategories();
+        foreach($allProductCategories as $productCategory){
             //Materials
-            $materialLabels = $this->getMaterialLabelsFromProduct($productLabel);
+            $materialLabels = $this->getMaterialLabelsFromProduct($productCategory);
             foreach($materialLabels as $materialLabel){
                 //Grades
-                $gradeLabels = $this->getGradeLabelsFromMaterial($productLabel,$materialLabel);
+                $gradeLabels = $this->getGradeLabelsFromMaterial($productCategory,$materialLabel);
                 foreach($gradeLabels as $gradeLabel){
                     //Nesting
                     if($gradeLabel !== ""){
-                        $nestingLabels = $this->getNestingLabelsFromProductCategory($productLabel);
+                        $nestingLabels = $this->getNestingLabelsFromProductCategory($productCategory);
                         foreach($nestingLabels as $nestingLabel){
-                            $resultArray[$productLabel][$materialLabel][$gradeLabel][] = $nestingLabel;
+                            $resultArray[$productCategory][$materialLabel][$gradeLabel][] = $nestingLabel;
                         }
                     }
                 }

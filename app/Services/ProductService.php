@@ -573,12 +573,12 @@ class ProductService
                 if($product_category){
                     if($product_category === "Other" && !$row['selected_other']['product_category']){
                         $validationErrors++;
-                        $validator->errors()->add($id."-product", 'product_category');
+                        $validator->errors()->add($id."-product_category", 'product_category');
                     }
                 }
                 else{
                     $validationErrors++;
-                    $validator->errors()->add($id."-product", 'product_category');
+                    $validator->errors()->add($id."-product_category", 'product_category');
                 }
 
                 //Material
@@ -849,6 +849,9 @@ class ProductService
         }
         if ($grade === "GR_8_8" || $grade === "8.8S") {
             $actualGrade = "GR8.8";
+        }
+        if ($grade === "GR_12_9" || $grade === "12.9S") {
+            $actualGrade = "GR12.9";
         }
 
         //Surface

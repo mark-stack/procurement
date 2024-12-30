@@ -51,6 +51,7 @@ class ProductController extends Controller
         //Loop user's material rows
         foreach($project->rawMaterialQuotes as $rawMaterialQuote){
             $getProductMatchOptions = $productService->getProductMatchOptions($business,$rawMaterialQuote);
+
             if($getProductMatchOptions){
                 /**
                  * 1) Non-price book (will be user custom product)

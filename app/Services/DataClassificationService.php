@@ -137,6 +137,7 @@ class DataClassificationService
         $generalProductMatches = collect([]);
 
         $productConfig = $this->findProductConfigFromText($text);
+
         if($productConfig){
             //MATERIAL
             $materialEnum = $this->findMaterial($productConfig,$text);
@@ -171,17 +172,17 @@ class DataClassificationService
                 $nominalHeightInt
             );
 
-            dd(
-                $text,
-                $productConfig["productCategory"],
-                $materialEnum,
-                $gradesEnums,
-                $surfaceEnum,
-                $measurementUnitEnum,
-                $nominalLengthInt,
-                $nominalWidthInt,
-                $nominalHeightInt
-            );
+//            dd(
+//                $text,
+//                $productConfig["productCategory"],
+//                $materialEnum,
+//                $gradesEnums,
+//                $surfaceEnum,
+//                $measurementUnitEnum,
+//                $nominalLengthInt,
+//                $nominalWidthInt,
+//                $nominalHeightInt
+//            );
         }
 
         return $generalProductMatches;
@@ -204,6 +205,7 @@ class DataClassificationService
         if($fastenersConfig){
             $resultProductConfigs[] = $fastenersConfig;
         }
+
         /**
          * Standard classification
          * 1) Positive keywords (one mandatory?)
@@ -336,8 +338,8 @@ class DataClassificationService
 
         //Pattern like  '/M\d+|\d+mm|mark|john|david/i'
         $regexTerms = '/'; // Use 'i' flag for case-insensitivity
-        foreach($fastenerTerms as $term){
-            $regexTerms = $regexTerms."|".$term;
+        foreach($fastenerTerms as $index => $term){
+            $regexTerms = $regexTerms.($index > 0 ? "|" : "").$term;
         }
         $regexTerms = $regexTerms."/i";
         $resultTerms = preg_match($regexTerms, $text) === 1;
@@ -625,6 +627,8 @@ class DataClassificationService
                 }
             }
         }
+
+        //todo this might be a place to find nominal vs actual equivalents. e.g 300nb vs 324 (rounded) vs 323.9 actua
 
         return $resultInt;
     }

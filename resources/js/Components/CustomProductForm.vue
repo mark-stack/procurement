@@ -24,7 +24,7 @@
     //...
 
     //Variables
-    const emit = defineEmits(['deleteOne']);
+    const emit = defineEmits(['deleteOneCustomisation']);
 
     //Shared Methods
     //...
@@ -329,7 +329,7 @@
             <h3 class="font-bold italic">
                 "{{item.data.description}}"
             </h3>
-            <span class="text-red-500" @click="$emit('deleteOne',item.data.id)" style="cursor: pointer;"><i class="fa-solid fa-xmark"></i></span>
+            <span class="text-red-500" @click="$emit('deleteOneCustomisation',item.data.id)" style="cursor: pointer;"><i class="fa-solid fa-xmark"></i></span>
         </div>
 
         Spreadsheet row #{{item.data.csv_index + 1}}
