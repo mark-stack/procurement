@@ -79,13 +79,15 @@ class CHS_Implementation extends ProductBaseImplementation
     public function formatLabel(
         string $productCategory,
         ?float $nominal_length,
-        ?float $actual_length,
+        ?float $precise_length,
         ?float $nominal_width,
-        ?float $actual_width,
+        ?float $precise_width,
         ?float $nominal_height,
-        ?float $actual_height,
+        ?float $precise_height,
         ?string $actualGrade,
-        ?string $actualSurface
+        ?string $actualSurface,
+        ?float $wall,
+        ?float $kg_per_m,
     ): string
     {
         /*
@@ -93,11 +95,10 @@ class CHS_Implementation extends ProductBaseImplementation
          */
 
         $nominalDiameter = $nominal_width;
-        $actualDiameter = $actual_width;
-        $thickness = 777777; //todo
+        $actualDiameter = $precise_width;
         $blackSurface = ["NONE",""," "];
         $surface = in_array($actualSurface,$blackSurface) ? ' BLACK' : $actualSurface;
 
-        return "CHS ".$nominalDiameter."nb (Ø".$actualDiameter."x".$thickness.") ".$actualGrade.$surface;
+        return "CHS ".$nominalDiameter."nb (Ø".$actualDiameter."x".$wall.") ".$actualGrade.$surface;
     }
 }

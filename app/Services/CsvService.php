@@ -454,14 +454,17 @@ class CsvService
                 "description" => $row["description"] ?? $productService->generateProductLabel(
                         $productCategoryDisplay,
                         $row["length_required"],
-                        555, //actual_length todo
+                        null, //precise_length todo
                         $row["width_required"],
-                        555, //actual_width todo
+                        null, //precise_width todo
                         null,
-                        555, //actual_height todo
+                        null, //precise_height todo
                         $row["grade"],
-                        $row["surface"]
+                        $row["surface"],
+                        null, //wall todo
+                        null //kg_per_m todo
                     ),
+
                 "product_category" => $productCategoryDisplay,
                 "material" => $row["material"] ?? null,
                 "grade" => $row["grade"] ?? null,
@@ -494,10 +497,15 @@ class CsvService
                     "nominal_units" => $item["nominal_units"],
                     "nesting_algo" => (new NestingService())->getNestingLabelsFromProductCategory($item["product_category"])[0],
                     "nominal_length" => $item["nominal_length"] ?? null,
+                    "precise_length" => $item["precise_length"] ?? null,
                     "nominal_width" => $item["nominal_width"] ?? null,
+                    "precise_width" => $item["precise_width"] ?? null,
                     "nominal_height" => $item["nominal_height"] ?? null,
+                    "precise_height" => $item["precise_height"] ?? null,
                     "actual_length" => $row["length_required"], //For singular items like bolts, this is "QTY" that's divisible.
                     "actual_width" => $row["width_required"] ?? null,
+                    "wall" => $item["wall"] ?? null,
+                    "kg_per_m" => $item["kg_per_m"] ?? null,
                     "actual_qty" => $row["sub_qty"],
                 ]);
             }

@@ -184,7 +184,7 @@
         let unitDisplay = "";
 
         if(row.nesting_algo === "METERAGE"){
-            unitDisplay =  slash ? "/m" : "m";
+            unitDisplay =  slash ? "/mm" : "mm";
         }
         if(row.nesting_algo === "AREA"){
             unitDisplay =  slash ? "/m2" : "m2";
@@ -732,7 +732,7 @@
                                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="m0 0h512v512h-512z"/><path d="m39.557 19 283.883 254h149.003l-283.883-254h-149.002zm-14.557 11.13v25.847l286 255.893v-25.846zm64 107.263v34.584l286 255.893v-84.843l-64-13.002zm-11.445 48.497-42.9 10.723 287.79 257.498 42.9-10.723-287.789-257.498zm-52.555 26.24v23.847l286 255.893v-23.847zm304 78.87v21.973l64 16v126.054l-64 16v21.973h158v-21.973l-64-16v-126.054l64-16v-21.973zm112 135.865v14.108l21.88 5.47z" fill="#fff"/></svg>
                                                         <div>
                                                             <h2 class="font-medium text-gray-800 dark:text-white ">
-                                                                {{ parseFloat(row.length_required).toFixed(3) }}<span class="text-xs">{{getUnitDisplay(row,false)}}</span>
+                                                                {{ parseFloat(row.length_required).toLocaleString() }}<span class="text-xs">{{getUnitDisplay(row,false)}}</span>
                                                             </h2>
                                                         </div>
                                                     </div>
@@ -745,7 +745,7 @@
                                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="m0 0h512v512h-512z"/><path d="m39.557 19 283.883 254h149.003l-283.883-254h-149.002zm-14.557 11.13v25.847l286 255.893v-25.846zm64 107.263v34.584l286 255.893v-84.843l-64-13.002zm-11.445 48.497-42.9 10.723 287.79 257.498 42.9-10.723-287.789-257.498zm-52.555 26.24v23.847l286 255.893v-23.847zm304 78.87v21.973l64 16v126.054l-64 16v21.973h158v-21.973l-64-16v-126.054l64-16v-21.973zm112 135.865v14.108l21.88 5.47z" fill="#fff"/></svg>
                                                         <div>
                                                             <h2 v-if="row.nesting_algo === 'AREA'" class="font-medium text-gray-800 dark:text-white ">
-                                                                {{ parseFloat(row.width_required).toFixed(3) }}<span class="text-xs">{{getUnitDisplay(row,false)}}</span>
+                                                                {{ parseFloat(row.width_required).toLocaleString() }}<span class="text-xs">{{getUnitDisplay(row,false)}}</span>
                                                             </h2>
                                                         </div>
                                                     </div>

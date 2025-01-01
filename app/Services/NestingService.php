@@ -333,7 +333,7 @@ class NestingService
         foreach($piecesNested as $algoGroup){
             foreach($algoGroup as $piece){
                 //Check if product is in batch group
-                $product = $piece["product"];
+                $product = $piece["product_category"];
                 $productIsAssignedToBatch = false;
                 foreach($supplierGroups as $batchLabel => $products){
                     if(in_array($product,$products)){
@@ -372,8 +372,7 @@ class NestingService
 
         //METERAGE
         if($nestingAlgoLabel === NestingEnums::METERAGE->value){
-            //$sizeInclude = ["nominal_height"];
-            $materialSpecs = Piece::select('product_category', 'material', 'grade', 'surface', 'nominal_units', "nominal_height")
+            $materialSpecs = Piece::select('product_category', 'material', 'grade', 'surface', 'nominal_units', "nominal_height", "wall","kg_per_m")
                 ->whereIn("id",$allPieces->pluck("id")->toArray())
                 ->distinct()
                 ->get();
@@ -385,8 +384,8 @@ class NestingService
                     ->where('grade',$materialSpec->grade)
                     ->where('surface',$materialSpec->surface)
                     ->where('nominal_units',$materialSpec->nominal_units)
-                    ->where('size',$materialSpec->size)
-                    ->sortBy("size");
+                    ->where('wall',$materialSpec->wall)
+                    ->sortBy("actual_length");
 
                 //Material spec
                 $appended = $materialSpec;
@@ -493,6 +492,7 @@ class NestingService
 
                 $piecesArray = [];
                 $boxSizes = $this->getPurchasableVariations($materialSpec); //todo: "lengths" is substitute for qty?
+
                 $totalQty = 0;
                 foreach($pieces as $piece){
                     $piecesArray[] = [
@@ -602,17 +602,58 @@ class NestingService
          * AREA = nominal_length & nominal_width
          * BUNDLE = pack size
          */
-        return Product::query()
-            ->where("product_category",$materialSpec->product_category)
-            ->where("material",$materialSpec->material)
-            ->where("grade",$materialSpec->grade)
-            ->where("surface",$materialSpec->surface)
-            ->where("nominal_units",$materialSpec->nominal_units)
-            ->where("nominal_length",$materialSpec->nominal_length)
-            ->where("nominal_width",$materialSpec->nominal_width)
-            ->where("nominal_height",$materialSpec->nominal_height)
-            ->pluck("nominal_length") //todo
-            ->toArray();
+
+        $result = [];
+
+        //METERAGE = nominal_length
+        if($materialSpec->algo === NestingEnums::METERAGE->value){
+            $result = Product::query()
+                ->where("product_category",$materialSpec->product_category)
+                ->where("material",$materialSpec->material)
+                ->where("grade",$materialSpec->grade)
+                ->where("surface",$materialSpec->surface)
+                ->where("nominal_units",$materialSpec->nominal_units)
+                ->where("nominal_height",$materialSpec->nominal_height)
+                ->where("wall",$materialSpec->wall)
+                ->pluck("nominal_length")
+                ->unique()
+                ->toArray();
+        }
+        //AREA = nominal_length & nominal_width
+        if($materialSpec->algo === NestingEnums::AREA->value){
+            //todo 2D no area nesting yet
+
+        }
+        //BUNDLE = pack size
+        if($materialSpec->algo === NestingEnums::BUNDLE->value){
+
+            $query = Product::query()
+                ->where("product_category",$materialSpec->product_category)
+                ->where("material",$materialSpec->material)
+                ->where("grade",$materialSpec->grade)
+                ->where("surface",$materialSpec->surface)
+                ->where("nominal_units",$materialSpec->nominal_units);
+
+            if($materialSpec->nominal_length){
+                $query->where("nominal_length",$materialSpec->nominal_length);
+            }
+
+            if($materialSpec->nominal_width){
+                $query->where("nominal_width",$materialSpec->nominal_width);
+            }
+
+            if($materialSpec->nominal_height){
+                $query->where("nominal_height",$materialSpec->nominal_height);
+            }
+
+            $allPacks = $query->get(["pack_size_1","pack_size_2","pack_size_3"])->toArray();
+
+            $result = isset($allPacks[0])
+                ? array_unique(array_values($allPacks[0]))
+                : null;
+        }
+
+        return $result;
     }
 
     function meterageAlgorithm(array $cutLengths, array $stockLengths): array
@@ -701,6 +742,11 @@ class NestingService
 
         // If there are leftover bolts, we need one extra smallest box
         if ($totalQty > 0) {
+//            //todo debug
+//            if((count($boxSizes) - 1) === -1){
+//                dd(1,$totalQty,$boxSizes);
+//            }
+
             $boxCounts[$boxSizes[count($boxSizes) - 1]] += 1;
         }
 

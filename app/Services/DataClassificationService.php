@@ -59,7 +59,7 @@ class DataClassificationService
                 //METERAGE
                 if($algo === NestingEnums::METERAGE->value){
                     $sizeInclude = ["nominal_width","nominal_height","wall","kg_per_m"];
-                    $query = Product::select('product_category', 'material', 'grade', 'surface', 'nominal_units',"nominal_width","actual_width",'nominal_height',"actual_height","wall","kg_per_m")
+                    $query = Product::select('product_category', 'material', 'grade', 'surface', 'nominal_units',"nominal_width","precise_width",'nominal_height',"precise_height","wall","kg_per_m")
                         ->distinct()
                         ->availableFor($user)
                         ->where("product_category", $productString)
@@ -68,7 +68,7 @@ class DataClassificationService
                 //AREA
                 if($algo === NestingEnums::AREA->value){
                     $sizeInclude = ["nominal_height"];
-                    $query = Product::select('product_category', 'material', 'grade', 'surface', 'nominal_units', 'nominal_height',"actual_height")
+                    $query = Product::select('product_category', 'material', 'grade', 'surface', 'nominal_units', 'nominal_height',"precise_height")
                         ->distinct()
                         ->availableFor($user)
                         ->where("product_category", $productString)
@@ -77,7 +77,7 @@ class DataClassificationService
                 //BUNDLE
                 if($algo === NestingEnums::BUNDLE->value){
                     $sizeInclude = ["nominal_length","nominal_width"];
-                    $query = Product::select('product_category', 'material', 'grade', 'surface', 'nominal_units', 'nominal_length',"actual_length",'nominal_width',"actual_width")
+                    $query = Product::select('product_category', 'material', 'grade', 'surface', 'nominal_units', 'nominal_length',"precise_length",'nominal_width',"precise_width")
                         ->distinct()
                         ->availableFor($user)
                         ->where("product_category", $productString)
@@ -118,8 +118,8 @@ class DataClassificationService
                         foreach($possibleEquivalentsCHS as $equivalent){
                             $query->where(function($q) use($equivalent){
                                 $q->where("nominal_length", $equivalent["nominal"])
-                                  ->orWhere("actual_length", $equivalent["actual"])
-                                  ->orWhere("actual_length", $equivalent["rounded"]);
+                                  ->orWhere("precise_length", $equivalent["precise"])
+                                  ->orWhere("precise_length", $equivalent["rounded"]);
                             });
                         }
                     }
@@ -140,8 +140,8 @@ class DataClassificationService
                         foreach($possibleEquivalentsCHS as $equivalent){
                             $query->where(function($q) use($equivalent){
                                 $q->where("nominal_width", $equivalent["nominal"])
-                                    ->orWhere("actual_width", $equivalent["actual"])
-                                    ->orWhere("actual_width", $equivalent["rounded"]);
+                                    ->orWhere("precise_width", $equivalent["precise"])
+                                    ->orWhere("precise_width", $equivalent["rounded"]);
                             });
                         }
                     }
@@ -162,8 +162,8 @@ class DataClassificationService
                         foreach($possibleEquivalentsCHS as $equivalent){
                             $query->where(function($q) use($equivalent){
                                 $q->where("nominal_height", $equivalent["nominal"])
-                                    ->orWhere("actual_height", $equivalent["actual"])
-                                    ->orWhere("actual_height", $equivalent["rounded"]);
+                                    ->orWhere("precise_height", $equivalent["precise"])
+                                    ->orWhere("precise_height", $equivalent["rounded"]);
                             });
                         }
                     }
@@ -197,7 +197,7 @@ class DataClassificationService
                         foreach($possibleEquivalents as $equivalent){
                             $query->where(function($q) use($equivalent){
                                 $q->where("kg_per_m", $equivalent["nominal"])
-                                  ->orWhere("kg_per_m", $equivalent["actual"])
+                                  ->orWhere("kg_per_m", $equivalent["precise"])
                                   ->orWhere("kg_per_m", $equivalent["rounded"]);
                             });
                         }
@@ -310,7 +310,7 @@ class DataClassificationService
             if(in_array($possibleFloat,$alternativeArray)){
                 $possibleEquivalentsCHS[] = [
                     "nominal" => $alternativeArray[0],
-                    "actual" => $alternativeArray[1],
+                    "precise" => $alternativeArray[1],
                     "rounded" => $alternativeArray[2],
                 ];
             }
@@ -361,7 +361,7 @@ class DataClassificationService
             if(in_array($possibleFloat,$alternativeArray)){
                 $possibleEquivalents[] = [
                     "nominal" => $alternativeArray[0],
-                    "actual" => $alternativeArray[1],
+                    "precise" => $alternativeArray[1],
                     "rounded" => $alternativeArray[2],
                 ];
             }
@@ -398,7 +398,7 @@ class DataClassificationService
             if(in_array($possibleFloat,$alternativeArray)){
                 $possibleEquivalents[] = [
                     "nominal" => $alternativeArray[0],
-                    "actual" => $alternativeArray[1],
+                    "precise" => $alternativeArray[1],
                     "rounded" => $alternativeArray[2],
                 ];
             }

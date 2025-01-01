@@ -125,10 +125,15 @@ class RawMaterialListCustomisationsController extends Controller
                         "nominal_units" => MeasurementUnitEnums::MILLIMETERS->value,
                         "nesting_algo" => $preparedFormData['nesting_algo'],
                         "nominal_length" => $preparedFormData['nominal_length'],
+                        "precise_length" => $preparedFormData['precise_length'],
                         "nominal_width" => $preparedFormData['nominal_width'],
+                        "precise_width" => $preparedFormData['precise_width'],
                         "nominal_height" => $preparedFormData['nominal_height'],
+                        "precise_height" => $preparedFormData['precise_height'],
                         "actual_length" => $formData["data"]["length_required"],
                         "actual_width" => $formData["data"]["width_required"],
+                        "wall" => $formData["data"]["Wall"],
+                        "kg_per_m" => $formData["kg_per_m"] ?? null, //todo this is not retrieving data
                         "actual_qty" => $formData["data"]["sub_qty"]
                     ]);
                 }

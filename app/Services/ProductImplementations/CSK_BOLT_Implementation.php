@@ -75,13 +75,15 @@ class CSK_BOLT_Implementation extends ProductBaseImplementation
     public function formatLabel(
         string $productCategory,
         ?float $nominal_length,
-        ?float $actual_length,
+        ?float $precise_length,
         ?float $nominal_width,
-        ?float $actual_width,
+        ?float $precise_width,
         ?float $nominal_height,
-        ?float $actual_height,
+        ?float $precise_height,
         ?string $actualGrade,
-        ?string $actualSurface
+        ?string $actualSurface,
+        ?float $wall,
+        ?float $kg_per_m,
     ): string
     {
         //Size

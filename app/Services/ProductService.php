@@ -165,35 +165,39 @@ class ProductService
         $nominal_length = isset($productSpec["nominal_length"])
             ? floatval($productSpec["nominal_length"])
             : null;
-        $actual_length = isset($productSpec["actual_length"])
-            ? floatval($productSpec["actual_length"])
+        $precise_length = isset($productSpec["precise_length"])
+            ? floatval($productSpec["precise_length"])
             : null;
         $nominal_width = isset($productSpec["nominal_width"])
             ? floatval($productSpec["nominal_width"])
             : null;
-        $actual_width = isset($productSpec["actual_width"])
-            ? floatval($productSpec["actual_width"])
+        $precise_width = isset($productSpec["precise_width"])
+            ? floatval($productSpec["precise_width"])
             : null;
         $nominal_height = isset($productSpec["nominal_height"])
             ? floatval($productSpec["nominal_height"])
             : null;
-        $actual_height = isset($productSpec["actual_height"])
-            ? floatval($productSpec["actual_height"])
+        $precise_height = isset($productSpec["precise_height"])
+            ? floatval($productSpec["precise_height"])
             : null;
         $grade = $productSpec["grade"];
         $surface = $productSpec["surface"];
+        $wall = $productSpec["wall"] ?? null;
+        $kg_per_m = $productSpec["kg_per_m"] ?? null;
 
         //Derived label. e.g "200PFC SS316"
         return $this->generateProductLabel(
             $productCategory,
             $nominal_length,
-            $actual_length,
+            $precise_length,
             $nominal_width,
-            $actual_width,
+            $precise_width,
             $nominal_height,
-            $actual_height,
+            $precise_height,
             $grade,
             $surface,
+            $wall,
+            $kg_per_m,
         );
     }
 
@@ -842,13 +846,15 @@ class ProductService
     public function generateProductLabel(
         string $productCategory,
         ?float $nominal_length,
-        ?float $actual_length,
+        ?float $precise_length,
         ?float $nominal_width,
-        ?float $actual_width,
+        ?float $precise_width,
         ?float $nominal_height,
-        ?float $actual_height,
+        ?float $precise_height,
         ?string $grade,
-        ?string $surface
+        ?string $surface,
+        ?float $wall,
+        ?float $kg_per_m,
     ): string
     {
         //Grade
@@ -864,6 +870,9 @@ class ProductService
         }
         if ($grade === "GR_8_8" || $grade === "8.8S") {
             $actualGrade = "GR8.8";
+        }
+        if ($grade === "GR_10_9" || $grade === "10.9S") {
+            $actualGrade = "GR10.9";
         }
         if ($grade === "GR_12_9" || $grade === "12.9S") {
             $actualGrade = "GR12.9";
@@ -888,13 +897,15 @@ class ProductService
             $result = $implementation->formatLabel(
                 $productCategory,
                 $nominal_length,
-                $actual_length,
+                $precise_length,
                 $nominal_width,
-                $actual_width,
+                $precise_width,
                 $nominal_height,
-                $actual_height,
+                $precise_height,
                 $actualGrade,
-                $actualSurface
+                $actualSurface,
+                $wall,
+                $kg_per_m,
             );
         }
         else{
@@ -932,7 +943,7 @@ class ProductService
             $productMatch = $query->first();
 
             //Get baseline unit rate if product found
-            if($productMatch){
+            if($productMatch && $productMatch->baseline_unit_rate){
                 //Extract float from "$40.54"
                 $baselineUnitRate = $this->extractFloat($productMatch->baseline_unit_rate);
             }
