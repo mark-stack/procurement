@@ -41,6 +41,9 @@
         if(option === 'GR_8_8'){
             display = "GR 8.8";
         }
+        if(option === 'GR_10_9'){
+            display = "GR 10.9";
+        }
         if(option === 'GR_12_9'){
             display = "GR 12.9";
         }

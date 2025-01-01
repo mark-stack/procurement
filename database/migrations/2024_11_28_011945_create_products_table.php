@@ -23,8 +23,12 @@ return new class extends Migration
             $table->string("certificates")->nullable();     //TRUE
             $table->string("nominal_units")->nullable();    //MILLIMETERS
             $table->string("nominal_length")->nullable();   //9000
+            $table->string("actual_length")->nullable();    //
             $table->string("nominal_width")->nullable();    //
+            $table->string("actual_width")->nullable();     //
             $table->string("nominal_height")->nullable();   //200
+            $table->string("actual_height")->nullable();    //
+            $table->float("wall")->nullable();              //
             $table->string("pack_size_1")->nullable();      //1
             $table->string("pack_size_2")->nullable();
             $table->string("pack_size_3")->nullable();

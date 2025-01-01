@@ -108,6 +108,16 @@
 
         return showRow;
     }
+
+    function checkBoxActions(){
+        /**
+            If awarded = false, clear "reference" and "date_materials_required"
+         */
+        let awardedToggledTo = !formProjectCreate.awarded;
+        if(awardedToggledTo === false){
+            formProjectCreate.reset("reference","date_materials_required");
+        }
+    }
 </script>
 
 <template>
@@ -158,6 +168,7 @@
                                             v-model="formProjectCreate.awarded"
                                             type="checkbox"
                                             class="ml-2"
+                                            @click="checkBoxActions()"
                                         >
                                     </div>
 

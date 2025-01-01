@@ -21,15 +21,16 @@ use Illuminate\Support\Facades\Validator;
 class DataClassificationService
 {
     public function findGeneralProductMatches(
-        $user,
-        $productString,
-        $materialEnum,
-        $gradesEnums,
-        $surfaceEnum,
-        $measurementUnitEnum,
-        $nominalLengthInt,
-        $nominalWidthInt,
-        $nominalHeightInt,
+        object $user,
+        string $productString,
+        ?object $materialEnum,
+        ?array $gradesEnums,
+        ?object $surfaceEnum,
+        ?object $measurementUnitEnum,
+        ?float $uncertainLengthFloat,
+        ?float $uncertainWidthFloat,
+        ?float $uncertainHeightFloat,
+        ?float $wall,
     ): Collection
     {
         /**
@@ -56,8 +57,8 @@ class DataClassificationService
 
                 //METERAGE
                 if($algo === NestingEnums::METERAGE->value){
-                    $sizeInclude = ["nominal_width","nominal_height"];
-                    $query = Product::select('product_category', 'material', 'grade', 'surface', 'nominal_units',"nominal_width",'nominal_height')
+                    $sizeInclude = ["nominal_width","nominal_height","wall"];
+                    $query = Product::select('product_category', 'material', 'grade', 'surface', 'nominal_units',"nominal_width","actual_width",'nominal_height',"actual_height","wall")
                         ->distinct()
                         ->availableFor($user)
                         ->where("product_category", $productString)
@@ -66,7 +67,7 @@ class DataClassificationService
                 //AREA
                 if($algo === NestingEnums::AREA->value){
                     $sizeInclude = ["nominal_height"];
-                    $query = Product::select('product_category', 'material', 'grade', 'surface', 'nominal_units', 'nominal_height')
+                    $query = Product::select('product_category', 'material', 'grade', 'surface', 'nominal_units', 'nominal_height',"actual_height")
                         ->distinct()
                         ->availableFor($user)
                         ->where("product_category", $productString)
@@ -75,7 +76,7 @@ class DataClassificationService
                 //BUNDLE
                 if($algo === NestingEnums::BUNDLE->value){
                     $sizeInclude = ["nominal_length","nominal_width"];
-                    $query = Product::select('product_category', 'material', 'grade', 'surface', 'nominal_units', 'nominal_length','nominal_width')
+                    $query = Product::select('product_category', 'material', 'grade', 'surface', 'nominal_units', 'nominal_length',"actual_length",'nominal_width',"actual_width")
                         ->distinct()
                         ->availableFor($user)
                         ->where("product_category", $productString)
@@ -106,19 +107,75 @@ class DataClassificationService
                     $query->where("nominal_units", $measurementUnitEnum->value);
                 }
 
-                //Nominal length
-                if (!is_null($nominalLengthInt) && in_array("nominal_length",$sizeInclude)) {
-                    $query->where("nominal_length", $nominalLengthInt);
+                //Length
+                if (!is_null($uncertainLengthFloat) && in_array("nominal_length",$sizeInclude)) {
+                    //It may not find possible equivalents. It's mainly for CHS and pipe
+                    $possibleEquivalents = $productString === ProductEnums::CHS->value
+                        ? $this->possibleEquivalents($uncertainLengthFloat)
+                        : null;
+                    if($possibleEquivalents){
+                        foreach($possibleEquivalents as $equivalent){
+                            $query->where(function($q) use($equivalent){
+                                $q->where("nominal_length", $equivalent["nominal"])
+                                  ->orWhere("actual_length", $equivalent["actual"])
+                                  ->orWhere("actual_length", $equivalent["rounded"]);
+                            });
+                        }
+                    }
+                    //Otherwise assume it's nominal
+                    else{
+                        $query->where("nominal_length", $uncertainLengthFloat);
+                    }
                 }
 
-                //Nominal width
-                if (!is_null($nominalWidthInt) && in_array("nominal_width",$sizeInclude)) {
-                    $query->where("nominal_width", $nominalWidthInt);
+                //Width
+                if (!is_null($uncertainWidthFloat) && in_array("nominal_width",$sizeInclude)) {
+                    //It may not find possible equivalents. It's mainly for CHS and pipe
+                    $possibleEquivalents = $productString === ProductEnums::CHS->value
+                        ? $this->possibleEquivalents($uncertainWidthFloat)
+                        : null;
+
+                    if($possibleEquivalents){
+                        foreach($possibleEquivalents as $equivalent){
+                            $query->where(function($q) use($equivalent){
+                                $q->where("nominal_width", $equivalent["nominal"])
+                                    ->orWhere("actual_width", $equivalent["actual"])
+                                    ->orWhere("actual_width", $equivalent["rounded"]);
+                            });
+                        }
+                        //dd(1,$query->get(),$possibleEquivalents);
+                    }
+                    //Otherwise assume it's nominal
+                    else{
+                        $query->where("nominal_width", $uncertainWidthFloat);
+                    }
                 }
 
-                //Nominal height
-                if (!is_null($nominalHeightInt) && in_array("nominal_height",$sizeInclude)) {
-                    $query->where("nominal_height", $nominalHeightInt);
+                //Height
+                if (!is_null($uncertainHeightFloat) && in_array("nominal_height",$sizeInclude)) {
+                    //It may not find possible equivalents. It's mainly for CHS and pipe
+                    $possibleEquivalents = $productString === ProductEnums::CHS->value
+                        ? $this->possibleEquivalents($uncertainHeightFloat)
+                        : null;
+
+                    if($possibleEquivalents){
+                        foreach($possibleEquivalents as $equivalent){
+                            $query->where(function($q) use($equivalent){
+                                $q->where("nominal_height", $equivalent["nominal"])
+                                    ->orWhere("actual_height", $equivalent["actual"])
+                                    ->orWhere("actual_height", $equivalent["rounded"]);
+                            });
+                        }
+                    }
+                    //Otherwise assume it's nominal
+                    else{
+                        $query->where("nominal_height", $uncertainHeightFloat);
+                    }
+                }
+
+                //Wall
+                if (!is_null($wall) && in_array("wall",$sizeInclude)) {
+                    $query->where("wall", $wall);
                 }
 
                 if($query->count() > 0){
@@ -130,6 +187,106 @@ class DataClassificationService
         }
 
         return collect($results);
+    }
+
+    private function possibleEquivalents(float $possibleFloat): array
+    {
+        /*
+         * Is whole number
+         * Might be nominal, so check for actual equivalent
+         * e.g 300.0 might be 324.0 or 323.9
+         *
+         * Might be rounded actual, so check for nominal or actual
+         * e.g 324.0 might be 300.0 or 323.9
+         */
+
+        /*
+         * Is decimal number
+         * Might be actual, so check for nominal
+         * e.g 323.9 might be 300.0 or 324.0
+         */
+        $possibleEquivalents = [];
+
+        $matrixOfEquivalents = [
+            //format = nominal,actual,rounded
+            [14,14.0,14],
+            [15,14.8,15],
+            [18,18.0,18],
+            [18,18.1,18],
+            [18,18.2,18],
+            [20,26.9,27],
+            [22,22.2,22],
+            [22,22.3,22],
+            [23,23.4,23],
+            [25,33.7,34],
+            [25,25.4,25],
+            [26,25.7,26],
+            [30,29.8,30],
+            [31,31.4,31],
+            [32,42.4,42],
+            [32,32.0,32],
+            [37,37.2,37],
+            [37,37.3,37],
+            [40,48.3,48],
+            [40,40.4,40],
+            [46,46.2,46],
+            [45,44.7,45],
+            [50,60.3,60],
+            [51,50.7,51],
+            [52,52.2,52],
+            [57,56.7,57],
+            [54,53.7,54],
+            [60,59.7,60],
+            [60,59.5,60],
+            [65,76.1,76],
+            [67,67.1,67],
+            [73,72.9,73],
+            [75,74.6,75],
+            [80,88.9,89],
+            [82,82.1,82],
+            [82,82.0,82],
+            [90,89.5,90],
+            [90,101.6,102],
+            [92,92.4,92],
+            [97,96.8,97],
+            [100,114.3,114],
+            [101,101.0,101],
+            [113,113.0,113],
+            [118,118.0,118],
+            [125,139.7,140],
+            [125,125.0,125],
+            [137,137.0,137],
+            [150,168.3,168],
+            [165,165.1,165],
+            [158,158.0,158],
+            [200,219.1,219],
+            [200,193.7,194],
+            [250,273.1,273],
+            [300,323.9,324],
+            [350,355.6,356],
+            [400,406.4,406],
+            [450,457.0,457],
+            [500,508.0,508],
+            [600,610.0,610],
+            [650,660.0,660],
+            [700,711.0,711],
+            [750,762.0,762],
+            [800,813.0,813],
+            [900,914.0,914],
+            [1050,1067.0,1067],
+        ];
+
+        foreach($matrixOfEquivalents as $alternativeArray){
+            if(in_array($possibleFloat,$alternativeArray)){
+                $possibleEquivalents[] = [
+                    "nominal" => $alternativeArray[0],
+                    "actual" => $alternativeArray[1],
+                    "rounded" => $alternativeArray[2],
+                ];
+            }
+        }
+
+        return $possibleEquivalents;
     }
 
     public function findGeneralProductMatchesFromText(?string $text, object $user): Collection
@@ -151,14 +308,27 @@ class DataClassificationService
             //NOMINAL UNITS
             $measurementUnitEnum = $this->findMeasurementUnit($productConfig);
 
-            //NOMINAL LENGTH
-            $nominalLengthInt = $this->findNominal($productConfig,$text,"nominalLengthRegex");
+            //LENGTH
+            $uncertainLengthFloat = $this->findNominal($productConfig,$text,"nominalLengthRegex");
 
-            //NOMINAL WIDTH
-            $nominalWidthInt = $this->findNominal($productConfig,$text,"nominalWidthRegex");
+            //WIDTH
+            $uncertainWidthFloat = $this->findNominal($productConfig,$text,"nominalWidthRegex");
 
-            //NOMINAL HEIGHT
-            $nominalHeightInt = $this->findNominal($productConfig,$text,"nominalHeightRegex");
+            //HEIGHT
+            $uncertainHeightFloat = $this->findNominal($productConfig,$text,"nominalHeightRegex");
+
+            //WALL
+            $wall = $this->findNominal($productConfig,$text,"wallRegex");
+
+//            dd([
+//                "text" => $text,
+//                "uncertainLengthFloat" => $uncertainLengthFloat,
+//                "uncertainWidthFloat" => $uncertainWidthFloat,
+//                "uncertainHeightFloat" => $uncertainHeightFloat,
+//                "wall" => $wall,
+//                "gradesEnums" => $gradesEnums,
+//                "productConfig" => $productConfig,
+//            ]);
 
             $generalProductMatches = $this->findGeneralProductMatches(
                 $user,
@@ -167,22 +337,11 @@ class DataClassificationService
                 $gradesEnums,
                 $surfaceEnum,
                 $measurementUnitEnum,
-                $nominalLengthInt,
-                $nominalWidthInt,
-                $nominalHeightInt
+                $uncertainLengthFloat,
+                $uncertainWidthFloat,
+                $uncertainHeightFloat,
+                $wall,
             );
-
-//            dd(
-//                $text,
-//                $productConfig["productCategory"],
-//                $materialEnum,
-//                $gradesEnums,
-//                $surfaceEnum,
-//                $measurementUnitEnum,
-//                $nominalLengthInt,
-//                $nominalWidthInt,
-//                $nominalHeightInt
-//            );
         }
 
         return $generalProductMatches;
@@ -474,21 +633,21 @@ class DataClassificationService
             [
                 "gradeEnum" => GradeEnums::GR_4_6,
                 "regex" => [
-                    "4.6",
+                    "4\.6",
                 ],
             ],
             //GR 8.8
             [
                 "gradeEnum" => GradeEnums::GR_8_8,
                 "regex" => [
-                    "8.8",
+                    "8\.8",
                 ],
             ],
             //GR 12.9
             [
                 "gradeEnum" => GradeEnums::GR_12_9,
                 "regex" => [
-                    "12.9",
+                    "12\.9",
                 ],
             ],
             //todo more
@@ -606,13 +765,13 @@ class DataClassificationService
 
         return $productConfig["measurementUnit"] ?? MeasurementUnitEnums::SINGLE;
     }
-    public function findNominal(array $productConfig, string $text, string $regexLabel): ?int
+    public function findNominal(array $productConfig, string $text, string $regexLabel): ?float
     {
         /**
          * Single purpose: extracts the number from string. e.g "200" from "200PFC"
          */
 
-        $resultInt = null;
+        $resultFloat = null;
 
         $regexPatterns = $productConfig[$regexLabel];
 
@@ -620,17 +779,16 @@ class DataClassificationService
             $regex = "/".$pattern."/i";
 
             preg_match_all($regex, $text, $matches);
-            if (!empty($matches[1])) {
 
-                foreach ($matches[1] as $number) {
-                    $resultInt = (int) $number;
+            if(!empty($matches[0][0])){
+                preg_match_all('/-?\d+(\.\d+)?/i', $matches[0][0], $matches);
+                if(!empty($matches[0][0])){
+                    $resultFloat = (float) $matches[0][0];
                 }
             }
         }
 
-        //todo this might be a place to find nominal vs actual equivalents. e.g 300nb vs 324 (rounded) vs 323.9 actua
-
-        return $resultInt;
+        return $resultFloat;
     }
 }
 

@@ -27,28 +27,33 @@ class CHS_Implementation extends ProductBaseImplementation
                 //
             ],
             "productRegex" => [
-                "(\d+)CHS",      //200CHS
-                "CHS(\d+)",      //CHS200
-                "(\d+)+\s+CHS",  //200 CHS
-                "CHS+\s+(\d+)",  //CHS 200
-                "(\d+)nb",       //200nb
-                "(\d+)n.b",      //200n.b
-                "(\d+)+\s+n.b",  //200 n.b
+                "(\d+(\.\d+)?)CHS",         //38CHS or 37.6CHS
+                "CHS+\d+(\.\d+)?",          //CHS38 or CSH37.6
+                "(\d+(\.\d+)?)+\s+CHS",     //38 CHS or 37.6 CHS
+                "CHS+\s+(\d+(\.\d+)?)",     //CHS 38 or CHS 37.6
+                "(\d+(\.\d+)?)nb",          //38nb  or 37.6nb
+                "(\d+(\.\d+)?)n.b",         //38n.b or 37.6n.b
+                "(\d+(\.\d+)?)+\s+n.b",     //38 n.b or 37.6 n.b
             ],
             "nominalLengthRegex" => [
 
             ],
             "nominalWidthRegex" => [
-                "(\d+)CHS",      //200CHS
-                "CHS(\d+)",      //CHS200
-                "(\d+)+\s+CHS",  //200 CHS
-                "CHS+\s+(\d+)",  //CHS 200
-                "(\d+)nb",       //200nb
-                "(\d+)n.b",      //200n.b
-                "(\d+)+\s+n.b",  //200 n.b
+                "(\d+(\.\d+)?)CHS",         //38CHS or 37.6CHS
+                "CHS+\d+(\.\d+)?",          //CHS38 or CSH37.6
+                "(\d+(\.\d+)?)+\s+CHS",     //38 CHS or 37.6 CHS
+                "CHS+\s+(\d+(\.\d+)?)",     //CHS 38 or CHS 37.6
+                "(\d+(\.\d+)?)nb",          //38nb  or 37.6nb
+                "(\d+(\.\d+)?)n.b",         //38n.b or 37.6n.b
+                "(\d+(\.\d+)?)+\s+n.b",     //38 n.b or 37.6 n.b
             ],
             "nominalHeightRegex" => [
 
+            ],
+            "wallRegex" => [
+                "\*(\d+(\.\d+)?)",  //*6.0     CHS193.7*6.0
+                "(\d+(\.\d+)?)THK", //6.0THK   CHS193 x 6.0THK
+                "x(\d+(\.\d+)?)",  //x6.4     CHS 200nb (Ø219.1x6.4) 12m
             ],
             "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
             "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
@@ -68,10 +73,28 @@ class CHS_Implementation extends ProductBaseImplementation
         ];
     }
 
-    public function formatLabel(string $productCategory, ?float $nominal_length, ?float $nominal_width, ?float $nominal_height, ?string $actualGrade, ?string $actualSurface): string
+    public function formatLabel(
+        string $productCategory,
+        ?float $nominal_length,
+        ?float $actual_length,
+        ?float $nominal_width,
+        ?float $actual_width,
+        ?float $nominal_height,
+        ?float $actual_height,
+        ?string $actualGrade,
+        ?string $actualSurface
+    ): string
     {
-        $actualSize = $nominal_height;
+        /*
+         * 20nb (Ø33.7x3.2)
+         */
 
-        return $actualSize." CHS ".$actualGrade.$actualSurface;
+        $nominalDiameter = $nominal_width;
+        $actualDiameter = $actual_width;
+        $thickness = 777777; //todo
+        $blackSurface = ["NONE",""," "];
+        $surface = in_array($actualSurface,$blackSurface) ? ' BLACK' : $actualSurface;
+
+        return "CHS ".$nominalDiameter."nb (Ø".$actualDiameter."x".$thickness.") ".$actualGrade.$surface;
     }
 }

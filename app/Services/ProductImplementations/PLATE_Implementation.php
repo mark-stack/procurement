@@ -53,6 +53,9 @@ class PLATE_Implementation extends ProductBaseImplementation
                 "\b(0|[1-9][0-9]?|1[0-4][0-9]|150) ?mm", //16mm or 16 mm
                 "PLT(\d+)\*",                            //PLT10*234
             ],
+            "wallRegex" => [
+
+            ],
             "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
             "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
         ];
@@ -71,7 +74,17 @@ class PLATE_Implementation extends ProductBaseImplementation
         ];
     }
 
-    public function formatLabel(string $productCategory, ?float $nominal_length, ?float $nominal_width, ?float $nominal_height, ?string $actualGrade, ?string $actualSurface): string
+    public function formatLabel(
+        string $productCategory,
+        ?float $nominal_length,
+        ?float $actual_length,
+        ?float $nominal_width,
+        ?float $actual_width,
+        ?float $nominal_height,
+        ?float $actual_height,
+        ?string $actualGrade,
+        ?string $actualSurface
+    ): string
     {
         $actualSize = $nominal_height."PL";
         return $actualSize." ".$actualGrade.$actualSurface;

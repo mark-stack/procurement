@@ -20,5 +20,15 @@ interface ProductInterface
 
     public function getNominalSizeData(): array;
 
-    public function formatLabel(string $productCategory, ?float $nominal_length, ?float $nominal_width, ?float $nominal_height, ?string $actualGrade, ?string $actualSurface): string;
+    public function formatLabel(
+        string $productCategory,
+        ?float $nominal_length,
+        ?float $actual_length,
+        ?float $nominal_width,
+        ?float $actual_width,
+        ?float $nominal_height,
+        ?float $actual_height,
+        ?string $actualGrade,
+        ?string $actualSurface
+    ): string;
 }

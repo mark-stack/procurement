@@ -10,6 +10,7 @@ enum GradeEnums: string
     case GR300 = "GR300";
     case GR350 = "GR350";
     case GR_12_9 = "GR_12_9";
+    case GR_10_9 = "GR_10_9";
     case GR_8_8 = "GR_8_8";
     case GR_5_8 = "GR_5_8";
     case GR_4_6 = "GR_4_6";

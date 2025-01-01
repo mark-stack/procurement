@@ -545,7 +545,7 @@
                     <template v-for="(item,index) in formClarifications">
                         <div v-if="isNumeric(index) && !isDeletedClarification(item.data.id)" class="mt-5">
                             <p class="italic font-bold">"{{item.data.description}}" <span class="text-red-500 ml-2" style="cursor: pointer;" @click="deleteOneClarification(item.data.id)"><i class="fa-solid fa-xmark"></i></span></p>
-                            <div class="grid grid-cols-4">
+                            <div class="grid grid-cols-3">
                                 <div v-for="(option,option_index) in item.options">
                                     <label>
                                         <input

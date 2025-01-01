@@ -441,6 +441,7 @@ class CsvService
         $productService = new ProductService();
 
         $materialList = [];
+
         foreach($rows as $row){
             $productCategory = $dataClassificationService->findProductConfigFromText($row["description"]);
             $productCategoryDisplay = $productCategory ? $productCategory["productCategory"] : null;
@@ -453,8 +454,11 @@ class CsvService
                 "description" => $row["description"] ?? $productService->generateProductLabel(
                         $productCategoryDisplay,
                         $row["length_required"],
+                        555, //actual_length todo
                         $row["width_required"],
+                        555, //actual_width todo
                         null,
+                        555, //actual_height todo
                         $row["grade"],
                         $row["surface"]
                     ),

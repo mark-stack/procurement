@@ -41,6 +41,9 @@ class NUT_Implementation extends ProductBaseImplementation
             "nominalHeightRegex" => [
                 //
             ],
+            "wallRegex" => [
+
+            ],
             "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
             "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
         ];
@@ -58,7 +61,17 @@ class NUT_Implementation extends ProductBaseImplementation
         ];
     }
 
-    public function formatLabel(string $productCategory, ?float $nominal_length, ?float $nominal_width, ?float $nominal_height, ?string $actualGrade, ?string $actualSurface): string
+    public function formatLabel(
+        string $productCategory,
+        ?float $nominal_length,
+        ?float $actual_length,
+        ?float $nominal_width,
+        ?float $actual_width,
+        ?float $nominal_height,
+        ?float $actual_height,
+        ?string $actualGrade,
+        ?string $actualSurface
+    ): string
     {
         //Size
         $actualSize = "";

@@ -31,7 +31,7 @@ Route::get("stock-cutting",function(){
 });
 //todo temporary
 Route::get("test",function(){
-    $description = "CHS219*8";
+    $description = "CHS193.7*6.0";
 
     $dataClassificationService = new DataClassificationService();
 

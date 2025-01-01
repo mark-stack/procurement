@@ -46,6 +46,9 @@ class ANCHOR_STUD_Implementation extends ProductBaseImplementation
                 "M+(\d+)", //M16
             ],
             "nominalHeightRegex" => [
+                //
+            ],
+            "wallRegex" => [
 
             ],
             "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
@@ -65,7 +68,17 @@ class ANCHOR_STUD_Implementation extends ProductBaseImplementation
         ];
     }
 
-    public function formatLabel(string $productCategory, ?float $nominal_length, ?float $nominal_width, ?float $nominal_height, ?string $actualGrade, ?string $actualSurface): string
+    public function formatLabel(
+        string $productCategory,
+        ?float $nominal_length,
+        ?float $actual_length,
+        ?float $nominal_width,
+        ?float $actual_width,
+        ?float $nominal_height,
+        ?float $actual_height,
+        ?string $actualGrade,
+        ?string $actualSurface
+    ): string
     {
         //Size
         $actualSize = "";

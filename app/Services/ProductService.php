@@ -165,11 +165,20 @@ class ProductService
         $nominal_length = isset($productSpec["nominal_length"])
             ? floatval($productSpec["nominal_length"])
             : null;
+        $actual_length = isset($productSpec["actual_length"])
+            ? floatval($productSpec["actual_length"])
+            : null;
         $nominal_width = isset($productSpec["nominal_width"])
             ? floatval($productSpec["nominal_width"])
             : null;
+        $actual_width = isset($productSpec["actual_width"])
+            ? floatval($productSpec["actual_width"])
+            : null;
         $nominal_height = isset($productSpec["nominal_height"])
             ? floatval($productSpec["nominal_height"])
+            : null;
+        $actual_height = isset($productSpec["actual_height"])
+            ? floatval($productSpec["actual_height"])
             : null;
         $grade = $productSpec["grade"];
         $surface = $productSpec["surface"];
@@ -178,8 +187,11 @@ class ProductService
         return $this->generateProductLabel(
             $productCategory,
             $nominal_length,
+            $actual_length,
             $nominal_width,
+            $actual_width,
             $nominal_height,
+            $actual_height,
             $grade,
             $surface,
         );
@@ -830,8 +842,11 @@ class ProductService
     public function generateProductLabel(
         string $productCategory,
         ?float $nominal_length,
+        ?float $actual_length,
         ?float $nominal_width,
+        ?float $actual_width,
         ?float $nominal_height,
+        ?float $actual_height,
         ?string $grade,
         ?string $surface
     ): string
@@ -870,7 +885,17 @@ class ProductService
         //Loop all Product Implementations
         $implementation = $this->getImplementationFromProductCategory($productCategory);
         if($implementation){
-            $result = $implementation->formatLabel($productCategory, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);
+            $result = $implementation->formatLabel(
+                $productCategory,
+                $nominal_length,
+                $actual_length,
+                $nominal_width,
+                $actual_width,
+                $nominal_height,
+                $actual_height,
+                $actualGrade,
+                $actualSurface
+            );
         }
         else{
             $result = $this->formatDefault($productCategory, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface);

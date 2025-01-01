@@ -1,5 +1,9 @@
 <?php
 
+use App\Enums\GradeEnums;
+use App\Enums\MaterialEnums;
+use App\Enums\ProductEnums;
+use App\Enums\SurfaceEnums;
 use App\Models\Business;
 use App\Models\Product;
 use App\Models\User;
@@ -58,6 +62,9 @@ function findProducts(string $description): Collection
         //NOMINAL HEIGHT
         $nominalHeightInt = $dataClassificationService->findNominal($product, $description, "nominalHeightRegex");
 
+        //WALL
+        $wall = $dataClassificationService->findNominal($product, $description, "wallRegex");
+
         //Price book search
         $user = auth()->user();
         $generalProductMatches = $dataClassificationService->findGeneralProductMatches(
@@ -69,7 +76,8 @@ function findProducts(string $description): Collection
             $measurementUnitEnum,
             $nominalLengthInt,
             $nominalWidthInt,
-            $nominalHeightInt
+            $nominalHeightInt,
+            $wall,
         );
     }
 
@@ -103,15 +111,11 @@ test('that "75PFC 9m" finds exact product', function () {
     //Find product
     $products = findProducts("75PFC 9m");
 
-    //1 result
-    expect($products->count())->toBe(1);
-
-    //Product specs
-    $product = $products[0];
-    expect($product["product_category"])->toBe("PFC")
-        ->and($product["material"])->toBe("PLAIN_CARBON_STEEL")
-        ->and($product["grade"])->toBe("GR300")
-        ->and($product["nominal_height"])->toBe("75");
+    //Test
+    expect($products[0]["product_category"])->toBe(ProductEnums::PFC->value)
+        ->and($products[0]["material"])->toBe(MaterialEnums::PLAIN_CARBON_STEEL->value)
+        ->and($products[0]["grade"])->toBe(GradeEnums::GR300->value)
+        ->and($products[0]["nominal_height"])->toBe("75");
 });
 
 test('that "PLT10(asterix)160" finds GR250 and GR350', function () {
@@ -128,9 +132,10 @@ test('that "PLT10(asterix)160" finds GR250 and GR350', function () {
     $products = findProducts("PLT10*160");
 
     //2 results in 2 grades
-    expect($products->count())->toBe(2)
-        ->and($products[0]["grade"])->toBe("GR250")
-        ->and($products[1]["grade"])->toBe("GR350");
+    expect($products[0]["product_category"])->toBe(ProductEnums::PLATE->value)
+        ->and($products[0]["nominal_height"])->toBe("10")
+        ->and($products[0]["grade"])->toBe(GradeEnums::GR250->value)
+        ->and($products[1]["grade"])->toBe(GradeEnums::GR350->value);
 });
 
 test('that "150PFC 9000mm" finds exact product', function () {
@@ -144,7 +149,14 @@ test('that "150PFC 9000mm" finds exact product', function () {
     $this->get(route('admin.update.master.materials.spreadsheet'));
 
     //Find product
-    //todo
+    $products = findProducts("150PFC 9000mm");
+
+    //Test
+    expect($products[0]["product_category"])->toBe(ProductEnums::PFC->value)
+        ->and($products[0]["material"])->toBe(MaterialEnums::PLAIN_CARBON_STEEL->value)
+        ->and($products[0]["grade"])->toBe(GradeEnums::GR300->value)
+        ->and($products[0]["surface"])->toBe(SurfaceEnums::NONE->value)
+        ->and($products[0]["nominal_height"])->toBe("150");
 });
 
 test('that "UB460(asterix)67" finds exact product', function () {
@@ -193,10 +205,10 @@ test('that "M12 Allthread" finds exact product', function () {
 
     //Product specs
     $product = $products[0];
-    expect($product["product_category"])->toBe("ALLTHREAD")
-        ->and($product["material"])->toBe("PLAIN_CARBON_STEEL")
-        ->and($product["grade"])->toBe("GR_4_6")
-        ->and($product["surface"])->toBe("GALVANISED")
+    expect($product["product_category"])->toBe(ProductEnums::ALLTHREAD->value)
+        ->and($product["material"])->toBe(MaterialEnums::PLAIN_CARBON_STEEL->value)
+        ->and($product["grade"])->toBe(GradeEnums::GR_4_6->value)
+        ->and($product["surface"])->toBe(SurfaceEnums::GALVANISED->value)
         ->and($product["nominal_width"])->toBe("12");
 });
 
@@ -213,17 +225,13 @@ test('that "M12 CHEMICAL ANCHOR 180mm" finds exact product', function () {
     //Find product
     $products = findProducts("M12 CHEMICAL ANCHOR 180mm");
 
-    //1 result
-    expect($products->count())->toBe(1);
-
-    //Product specs
-    $product = $products[0];
-    expect($product["product_category"])->toBe("ANCHOR_STUD")
-        ->and($product["material"])->toBe("PLAIN_CARBON_STEEL")
-        ->and($product["grade"])->toBe("GR_5_8")
-        ->and($product["surface"])->toBe("ZINC")
-        ->and($product["nominal_width"])->toBe("12")
-        ->and($product["nominal_length"])->toBe("180");
+    //Test
+    expect($products[0]["product_category"])->toBe("ANCHOR_STUD")
+        ->and($products[0]["material"])->toBe(MaterialEnums::PLAIN_CARBON_STEEL->value)
+        ->and($products[0]["grade"])->toBe(GradeEnums::GR_5_8->value)
+        ->and($products[0]["surface"])->toBe("ZINC")
+        ->and($products[0]["nominal_width"])->toBe("12")
+        ->and($products[0]["nominal_length"])->toBe("180");
 });
 
 test('that "M12 8.8S 30mm" finds exact product', function () {
@@ -239,17 +247,20 @@ test('that "M12 8.8S 30mm" finds exact product', function () {
     //Find product
     $products = findProducts("M12 8.8S 30mm");
 
-    //1 result
-    expect($products->count())->toBe(1);
-
-    //Product specs
-    $product = $products[0];
-    expect($product["product_category"])->toBe("HEX_BOLT")
-        ->and($product["material"])->toBe("PLAIN_CARBON_STEEL")
-        ->and($product["grade"])->toBe("GR_8_8")
-        ->and($product["surface"])->toBe("ZINC")
-        ->and($product["nominal_width"])->toBe("12")
-        ->and($product["nominal_length"])->toBe("30");
+    //Test
+    expect($products[0]["product_category"])->toBe("HEX_BOLT")
+        //1st result
+        ->and($products[0]["material"])->toBe(MaterialEnums::PLAIN_CARBON_STEEL->value)
+        ->and($products[0]["grade"])->toBe(GradeEnums::GR_8_8->value)
+        ->and($products[0]["nominal_width"])->toBe("12")
+        ->and($products[0]["nominal_length"])->toBe("30")
+        ->and($products[0]["surface"])->toBe("ZINC")
+        //2nd result
+        ->and($products[1]["material"])->toBe(MaterialEnums::PLAIN_CARBON_STEEL->value)
+        ->and($products[1]["grade"])->toBe(GradeEnums::GR_8_8->value)
+        ->and($products[1]["nominal_width"])->toBe("12")
+        ->and($products[1]["nominal_length"])->toBe("30")
+        ->and($products[1]["surface"])->toBe(SurfaceEnums::GALVANISED->value);
 });
 
 test('that "M16 4.6S 45mm" finds exact product', function () {
@@ -271,9 +282,9 @@ test('that "M16 4.6S 45mm" finds exact product', function () {
     //Product specs
     $product = $products[0];
     expect($product["product_category"])->toBe("HEX_BOLT")
-        ->and($product["material"])->toBe("PLAIN_CARBON_STEEL")
-        ->and($product["grade"])->toBe("GR_4_6")
-        ->and($product["surface"])->toBe("ZINC")
+        ->and($product["material"])->toBe(MaterialEnums::PLAIN_CARBON_STEEL->value)
+        ->and($product["grade"])->toBe(GradeEnums::GR_4_6->value)
+        ->and($product["surface"])->toBe(SurfaceEnums::ZINC->value)
         ->and($product["nominal_width"])->toBe("16")
         ->and($product["nominal_length"])->toBe("45");
 });
@@ -297,9 +308,9 @@ test('that "M20 12.9_CSK 45mm" finds exact product', function () {
     //Product specs
     $product = $products[0];
     expect($product["product_category"])->toBe("CSK_BOLT")
-        ->and($product["material"])->toBe("PLAIN_CARBON_STEEL")
-        ->and($product["grade"])->toBe("GR_12_9")
-        ->and($product["surface"])->toBe("ZINC")
+        ->and($product["material"])->toBe(MaterialEnums::PLAIN_CARBON_STEEL->value)
+        ->and($product["grade"])->toBe(GradeEnums::GR_12_9->value)
+        ->and($product["surface"])->toBe(SurfaceEnums::ZINC->value)
         ->and($product["nominal_width"])->toBe("20")
         ->and($product["nominal_length"])->toBe("45");
 });
@@ -323,9 +334,9 @@ test('that "M20x500 D20 ANCHOR ROD" finds exact product', function () {
     //Product specs
     $product = $products[0];
     expect($product["product_category"])->toBe("ANCHOR_STUD")
-        ->and($product["material"])->toBe("PLAIN_CARBON_STEEL")
-        ->and($product["grade"])->toBe("GR_5_8")
-        ->and($product["surface"])->toBe("GALVANISED")
+        ->and($product["material"])->toBe(MaterialEnums::PLAIN_CARBON_STEEL->value)
+        ->and($product["grade"])->toBe(GradeEnums::GR_5_8->value)
+        ->and($product["surface"])->toBe(SurfaceEnums::GALVANISED->value)
         ->and($product["nominal_width"])->toBe("20")
         ->and($product["nominal_length"])->toBe("500");
 });
@@ -348,12 +359,12 @@ test('that "M20 M20_NUT NUT" finds exact product', function () {
 
     //Product specs
     $product = $products[0];
-    expect($product["product_category"])->toBe("NUT")
-        ->and($product["material"])->toBe("PLAIN_CARBON_STEEL")
+    expect($product["product_category"])->toBe(ProductEnums::NUT->value)
+        ->and($product["material"])->toBe(MaterialEnums::PLAIN_CARBON_STEEL->value)
         ->and($product["nominal_width"])->toBe("20");
 });
 
-test('that "M20 x 65" finds exact product', function () {
+test('that "M20 x 65" finds exact products', function () {
     //Create admin
     $adminUser = createAdmin();
 
@@ -364,12 +375,28 @@ test('that "M20 x 65" finds exact product', function () {
     $this->get(route('admin.update.master.materials.spreadsheet'));
 
     //Find product
-    //todo
+    $products = findProducts("M20 x 65");
+
+    //2 results (HDG and Zinc)
+    expect($products[0]["product_category"])->toBe(ProductEnums::HEX_BOLT->value)
+        ->and($products[0]["nominal_width"])->toBe("20")
+        ->and($products[0]["nominal_length"])->toBe("65")
+        ->and($products[0]["grade"])->toBe(GradeEnums::GR_8_8->value)
+        ->and($products[0]["surface"])->toBe(SurfaceEnums::GALVANISED->value)
+        ->and($products[1]["surface"])->toBe(SurfaceEnums::ZINC->value);
 });
 
-test('that pipe is recognised in 3 formats', function () {
+test('that CHS distinguishes nominal & actual diameter, and wall thickness variations', function () {
     /**
-     * 300nb vs 324 (rounded) vs 323.9 actual
+     * CHS is recognised in 3 formats (nominal, actual, actual rounded)
+     * "25nb" vs "33.7OD" vs 34OD"
+     * Thickness variations also identified. e.g 3.2mm wall.
+     * Output like: "20nb (Ø33.7x3.2)”
+     *
+     * Formats to pass:
+     * - CHS 200nb (Ø219.1x6.4) 12m
+     * - CHS193.7*6.0
+     * - 150nb (Ø168.3)
      */
     //Create admin
     $adminUser = createAdmin();
@@ -381,7 +408,33 @@ test('that pipe is recognised in 3 formats', function () {
     $this->get(route('admin.update.master.materials.spreadsheet'));
 
     //Find product
-    //todo
+    $products1 = findProducts("CHS 200nb (Ø219.1x6.4) 12m");
+    $products2 = findProducts("CHS193.7*6.0");
+    $products3 = findProducts("150nb (Ø168.3)");
+
+    //#1 "CHS 200nb (Ø219.1x6.4) 12m"
+    expect($products1->count())->toBe(1)
+        ->and($products1[0]["nominal_width"])->toBe("200")
+        ->and($products1[0]["actual_width"])->toBe("219.1")
+        ->and($products1[0]["wall"])->toBe(6.4);
+
+    //#2 "CHS193.7*6.0"
+    expect($products2->count())->toBe(1)
+        ->and($products2[0]["nominal_width"])->toBe("200")
+        ->and($products2[0]["actual_width"])->toBe("193.7")
+        ->and($products2[0]["wall"])->toBe(6.0);
+
+    //#3 "150nb (Ø168.3)"
+    expect($products3->count())->toBe(8)
+        //1st result
+        ->and($products3[0]["nominal_width"])->toBe("150")
+        ->and($products3[0]["actual_width"])->toBe("165.1")
+        ->and($products3[0]["wall"])->toBe(3.0)
+
+        //2nd result
+        ->and($products3[1]["nominal_width"])->toBe("150")
+        ->and($products3[1]["actual_width"])->toBe("165.1")
+        ->and($products3[1]["wall"])->toBe(3.5);
 });
 
 test('that different UB weights are identified', function () {

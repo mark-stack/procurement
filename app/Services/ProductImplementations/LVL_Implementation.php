@@ -43,6 +43,9 @@ class LVL_Implementation extends ProductBaseImplementation
                 "(\d+)+x",      //100x
                 "(\d+)+\s+X",   //100 x
             ],
+            "wallRegex" => [
+
+            ],
             "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
             "defaultMaterial" => MaterialEnums::TIMBER,
         ];
@@ -61,7 +64,17 @@ class LVL_Implementation extends ProductBaseImplementation
         ];
     }
 
-    public function formatLabel(string $productCategory, ?float $nominal_length, ?float $nominal_width, ?float $nominal_height, ?string $actualGrade, ?string $actualSurface): string
+    public function formatLabel(
+        string $productCategory,
+        ?float $nominal_length,
+        ?float $actual_length,
+        ?float $nominal_width,
+        ?float $actual_width,
+        ?float $nominal_height,
+        ?float $actual_height,
+        ?string $actualGrade,
+        ?string $actualSurface
+    ): string
     {
         $actualSize = $nominal_height."x".$nominal_width;
 
