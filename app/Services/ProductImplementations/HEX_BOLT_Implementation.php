@@ -23,9 +23,6 @@ class HEX_BOLT_Implementation extends ProductBaseImplementation
         return [
             "productCategory" => $this->productEnum()->value,
             "isFastener" => true,
-//            "positiveKeyword" => [
-//                //todo
-//            ],
             "negativeKeywords" => [
 //                "csk",
 //                "chemset",
@@ -52,6 +49,9 @@ class HEX_BOLT_Implementation extends ProductBaseImplementation
 
             ],
             "wallRegex" => [
+
+            ],
+            "weightRegex" => [
 
             ],
             "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,

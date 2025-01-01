@@ -23,17 +23,13 @@ class UC_Implementation extends ProductBaseImplementation
         return [
             "productCategory" => $this->productEnum()->value,
             "isFastener" => false,
-//            "positiveKeyword" => [
-//                //todo
-//            ],
             "negativeKeywords" => [
                 //
             ],
             "productRegex" => [
                 "(\d+)+UC",           //3000UC
                 "(\d+)+\s+UC",        //300 UC
-                "UC+(\d+)\b",         //UC300
-                "UC+\s+(\d+)\b",      //UC 300
+                "UC(\d+)\*",          //UC360*57
                 "universal+\s+column",
                 "steel+\s+column",
             ],
@@ -46,11 +42,15 @@ class UC_Implementation extends ProductBaseImplementation
             "nominalHeightRegex" => [
                 "(\d+)+UC",      //300UC
                 "(\d+)+\s+UC",   //300 UC
-                "UC+(\d+)\b",    //UC300
-                "UC+\s+(\d+)\b", //UC 300
+                "UC(\d+)\*",     //UB360*      UB360*57
             ],
             "wallRegex" => [
 
+            ],
+            "weightRegex" => [
+                "UC\s+(\d+(?:\.\d+)?)", //UC 57 or 56.7   300 UC 57
+                "UC(\d+(?:\.\d+)?)",    //UC57 or 56.7    300UC57
+                "\*(\d+(?:\.\d+)?)",    //*57             UC360*57
             ],
             "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
             "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,

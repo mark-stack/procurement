@@ -23,9 +23,6 @@ class ANCHOR_STUD_Implementation extends ProductBaseImplementation
         return [
             "productCategory" => $this->productEnum()->value,
             "isFastener" => true,
-//            "positiveKeyword" => [
-//                //todo
-//            ],
             "negativeKeywords" => [
 //                "csk",
 //                "countersink",
@@ -49,6 +46,9 @@ class ANCHOR_STUD_Implementation extends ProductBaseImplementation
                 //
             ],
             "wallRegex" => [
+
+            ],
+            "weightRegex" => [
 
             ],
             "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,

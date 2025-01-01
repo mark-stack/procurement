@@ -55,6 +55,9 @@ class CHS_Implementation extends ProductBaseImplementation
                 "(\d+(\.\d+)?)THK", //6.0THK   CHS193 x 6.0THK
                 "x(\d+(\.\d+)?)",  //x6.4     CHS 200nb (Ø219.1x6.4) 12m
             ],
+            "weightRegex" => [
+
+            ],
             "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
             "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
         ];

@@ -23,9 +23,6 @@ class PFC_Implementation extends ProductBaseImplementation
         return [
             "productCategory" => $this->productEnum()->value,
             "isFastener" => false,
-//            "positiveKeyword" => [
-//                //todo
-//            ],
             "negativeKeywords" => [
                 //
             ],
@@ -52,6 +49,9 @@ class PFC_Implementation extends ProductBaseImplementation
                 "PFC+(\d+)\b",          //"PFC200",
             ],
             "wallRegex" => [
+
+            ],
+            "weightRegex" => [
 
             ],
             "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,

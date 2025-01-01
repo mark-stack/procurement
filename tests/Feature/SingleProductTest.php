@@ -65,6 +65,19 @@ function findProducts(string $description): Collection
         //WALL
         $wall = $dataClassificationService->findNominal($product, $description, "wallRegex");
 
+        //WEIGHT
+        $kg_per_m = $dataClassificationService->findNominal($product, $description, "weightRegex");
+
+//        dd([
+//            "text" => $description,
+//            "uncertainLengthFloat" => $nominalLengthInt,
+//            "uncertainWidthFloat" => $nominalWidthInt,
+//            "uncertainHeightFloat" => $nominalHeightInt,
+//            "wall" => $wall,
+//            "kg_per_m" => $kg_per_m,
+//            "gradesEnums" => $gradesEnums,
+//        ]);
+
         //Price book search
         $user = auth()->user();
         $generalProductMatches = $dataClassificationService->findGeneralProductMatches(
@@ -78,6 +91,7 @@ function findProducts(string $description): Collection
             $nominalWidthInt,
             $nominalHeightInt,
             $wall,
+            $kg_per_m,
         );
     }
 
@@ -170,7 +184,13 @@ test('that "UB460(asterix)67" finds exact product', function () {
     $this->get(route('admin.update.master.materials.spreadsheet'));
 
     //Find product
-    //todo
+    $products = findProducts("UB460*67");
+
+    //Test
+    expect($products[0]["product_category"])->toBe(ProductEnums::UB->value)
+        ->and($products[0]["material"])->toBe(MaterialEnums::PLAIN_CARBON_STEEL->value)
+        ->and($products[0]["grade"])->toBe(GradeEnums::GR300->value)
+        ->and($products[0]["nominal_height"])->toBe("460");
 });
 
 test('that "90X63 LVL 7 meters" finds exact product', function () {
@@ -184,7 +204,14 @@ test('that "90X63 LVL 7 meters" finds exact product', function () {
     $this->get(route('admin.update.master.materials.spreadsheet'));
 
     //Find product
-    //todo
+    $products = findProducts("90X63 LVL 7 meters");
+
+    //Test
+    expect($products[0]["product_category"])->toBe(ProductEnums::LVL->value)
+        ->and($products[0]["material"])->toBe(MaterialEnums::TIMBER->value)
+        ->and($products[0]["grade"])->toBe(GradeEnums::E13->value)
+        ->and($products[0]["nominal_height"])->toBe("90")
+        ->and($products[0]["nominal_width"])->toBe("63");
 });
 
 test('that "M12 Allthread" finds exact product', function () {
@@ -413,19 +440,19 @@ test('that CHS distinguishes nominal & actual diameter, and wall thickness varia
     $products3 = findProducts("150nb (Ø168.3)");
 
     //#1 "CHS 200nb (Ø219.1x6.4) 12m"
-    expect($products1->count())->toBe(1)
+    expect($products1[0]["product_category"])->toBe(ProductEnums::CHS->value)
         ->and($products1[0]["nominal_width"])->toBe("200")
         ->and($products1[0]["actual_width"])->toBe("219.1")
         ->and($products1[0]["wall"])->toBe(6.4);
 
     //#2 "CHS193.7*6.0"
-    expect($products2->count())->toBe(1)
+    expect($products2[0]["product_category"])->toBe(ProductEnums::CHS->value)
         ->and($products2[0]["nominal_width"])->toBe("200")
         ->and($products2[0]["actual_width"])->toBe("193.7")
         ->and($products2[0]["wall"])->toBe(6.0);
 
     //#3 "150nb (Ø168.3)"
-    expect($products3->count())->toBe(8)
+    expect($products3[0]["product_category"])->toBe(ProductEnums::CHS->value)
         //1st result
         ->and($products3[0]["nominal_width"])->toBe("150")
         ->and($products3[0]["actual_width"])->toBe("165.1")
@@ -442,6 +469,7 @@ test('that different UB weights are identified', function () {
      * 360 UB 56.7 and 360 UB 57
      * 360 UB 50.7 and 360 UB 51
      * 360 UB 44.7 and 360 UB 45
+     * UB360*57
      */
     //Create admin
     $adminUser = createAdmin();
@@ -453,13 +481,66 @@ test('that different UB weights are identified', function () {
     $this->get(route('admin.update.master.materials.spreadsheet'));
 
     //Find product
-    //todo
+    $products1A = findProducts("360 UB 56.7");
+    $products1B = findProducts("360 UB 57");
+    $products1C = findProducts("UB360*57");
+
+    $products2A = findProducts("360 UB 50.7");
+    $products2B = findProducts("360 UB 51");
+
+    $products3A = findProducts("360 UB 44.7");
+    $products3B = findProducts("360 UB 45");
+
+    //#1A "360 UB 56.7"
+    expect($products1A[0]["product_category"])->toBe(ProductEnums::UB->value)
+        ->and($products1A[0]["grade"])->toBe(GradeEnums::GR300->value)
+        ->and($products1A[0]["nominal_height"])->toBe("360")
+        ->and($products1A[0]["kg_per_m"])->toBe(56.7);
+
+    //#1B "360 UB 57"
+    expect($products1B[0]["product_category"])->toBe(ProductEnums::UB->value)
+        ->and($products1B[0]["grade"])->toBe(GradeEnums::GR300->value)
+        ->and($products1B[0]["nominal_height"])->toBe("360")
+        ->and($products1B[0]["kg_per_m"])->toBe(56.7);
+
+    //#1C "UB360*5"
+    expect($products1C[0]["product_category"])->toBe(ProductEnums::UB->value)
+        ->and($products1C[0]["grade"])->toBe(GradeEnums::GR300->value)
+        ->and($products1C[0]["nominal_height"])->toBe("360")
+        ->and($products1C[0]["kg_per_m"])->toBe(56.7);
+
+    //#2A "360 UB 50.7"
+    expect($products2A[0]["product_category"])->toBe(ProductEnums::UB->value)
+        ->and($products2A[0]["grade"])->toBe(GradeEnums::GR300->value)
+        ->and($products2A[0]["nominal_height"])->toBe("360")
+        ->and($products2A[0]["kg_per_m"])->toBe(50.7);
+
+    //#2B "360 UB 51"
+    expect($products2B[0]["product_category"])->toBe(ProductEnums::UB->value)
+        ->and($products2B[0]["grade"])->toBe(GradeEnums::GR300->value)
+        ->and($products2B[0]["nominal_height"])->toBe("360")
+        ->and($products2B[0]["kg_per_m"])->toBe(50.7);
+
+    //#3A "360 UB 44.7"
+    expect($products3A[0]["product_category"])->toBe(ProductEnums::UB->value)
+        ->and($products3A[0]["grade"])->toBe(GradeEnums::GR300->value)
+        ->and($products3A[0]["nominal_height"])->toBe("360")
+        ->and($products3A[0]["kg_per_m"])->toBe(44.7);
+
+    //#3B "360 UB 45"
+    expect($products3B[0]["product_category"])->toBe(ProductEnums::UB->value)
+        ->and($products3B[0]["grade"])->toBe(GradeEnums::GR300->value)
+        ->and($products3B[0]["nominal_height"])->toBe("360")
+        ->and($products3B[0]["kg_per_m"])->toBe(44.7);
 });
 
 test('that different UC weights are identified', function () {
     /**
-     * 250 UC 89.5 and 250 UC 90
-     * 250 UC 72.9 and 250 UC 73
+     * 250 UC 89.5
+     * 250 UC 90
+     * 250 UC 72.9
+     * 250 UC 73
+     * UC310*118
      */
     //Create admin
     $adminUser = createAdmin();
@@ -471,7 +552,46 @@ test('that different UC weights are identified', function () {
     $this->get(route('admin.update.master.materials.spreadsheet'));
 
     //Find product
-    //todo
+    $products1 = findProducts("250 UC 89.5");
+    $products2 = findProducts("250 UC 90");
+    $products3 = findProducts("250 UC 72.9");
+    $products4 = findProducts("250 UC 73");
+    $products5 = findProducts("UC310*118");
+
+    //#1 "250 UC 89.5"
+    expect($products1[0]["product_category"])->toBe(ProductEnums::UC->value)
+        ->and($products1[0]["material"])->toBe(MaterialEnums::PLAIN_CARBON_STEEL->value)
+        ->and($products1[0]["grade"])->toBe(GradeEnums::GR300->value)
+        ->and($products1[0]["nominal_height"])->toBe("250")
+        ->and($products1[0]["kg_per_m"])->toBe(89.5);
+
+    //#2 "250 UC 90"
+    expect($products2[0]["product_category"])->toBe(ProductEnums::UC->value)
+        ->and($products2[0]["material"])->toBe(MaterialEnums::PLAIN_CARBON_STEEL->value)
+        ->and($products2[0]["grade"])->toBe(GradeEnums::GR300->value)
+        ->and($products2[0]["nominal_height"])->toBe("250")
+        ->and($products2[0]["kg_per_m"])->toBe(89.5);
+
+    //#3 "250 UC 72.9"
+    expect($products3[0]["product_category"])->toBe(ProductEnums::UC->value)
+        ->and($products3[0]["material"])->toBe(MaterialEnums::PLAIN_CARBON_STEEL->value)
+        ->and($products3[0]["grade"])->toBe(GradeEnums::GR300->value)
+        ->and($products3[0]["nominal_height"])->toBe("250")
+        ->and($products3[0]["kg_per_m"])->toBe(72.9);
+
+    //#4 "250 UC 73"
+    expect($products4[0]["product_category"])->toBe(ProductEnums::UC->value)
+        ->and($products4[0]["material"])->toBe(MaterialEnums::PLAIN_CARBON_STEEL->value)
+        ->and($products4[0]["grade"])->toBe(GradeEnums::GR300->value)
+        ->and($products4[0]["nominal_height"])->toBe("250")
+        ->and($products4[0]["kg_per_m"])->toBe(72.9);
+
+    //#5 "UC310*118"
+    expect($products5[0]["product_category"])->toBe(ProductEnums::UC->value)
+        ->and($products5[0]["material"])->toBe(MaterialEnums::PLAIN_CARBON_STEEL->value)
+        ->and($products5[0]["grade"])->toBe(GradeEnums::GR300->value)
+        ->and($products5[0]["nominal_height"])->toBe("310")
+        ->and($products5[0]["kg_per_m"])->toBe(118.0);
 });
 //todo more
 

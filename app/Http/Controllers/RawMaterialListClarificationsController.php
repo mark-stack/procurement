@@ -61,6 +61,8 @@ class RawMaterialListClarificationsController extends Controller
                             $selectedProduct["nominal_length"] ?? null,
                             $selectedProduct["nominal_width"] ?? null,
                             $selectedProduct["nominal_height"] ?? null,
+                            $selectedProduct["wall"] ?? null,
+                            $selectedProduct["kg_per_m"] ?? null,
                         );
 
                         if($generalProductMatches->count() === 1){

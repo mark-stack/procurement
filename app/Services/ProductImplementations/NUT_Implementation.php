@@ -23,9 +23,6 @@ class NUT_Implementation extends ProductBaseImplementation
         return [
             "productCategory" => $this->productEnum()->value,
             "isFastener" => true,
-//            "positiveKeyword" => [
-//                //todo
-//            ],
             "negativeKeywords" => [
 
             ],
@@ -42,6 +39,9 @@ class NUT_Implementation extends ProductBaseImplementation
                 //
             ],
             "wallRegex" => [
+
+            ],
+            "weightRegex" => [
 
             ],
             "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,

@@ -23,9 +23,6 @@ class PLATE_Implementation extends ProductBaseImplementation
         return [
             "productCategory" => $this->productEnum()->value,
             "isFastener" => false,
-//            "positiveKeyword" => [
-//                //todo
-//            ],
             "negativeKeywords" => [
                 //
             ],
@@ -54,6 +51,9 @@ class PLATE_Implementation extends ProductBaseImplementation
                 "PLT(\d+)\*",                            //PLT10*234
             ],
             "wallRegex" => [
+
+            ],
+            "weightRegex" => [
 
             ],
             "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,

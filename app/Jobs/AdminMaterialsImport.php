@@ -56,7 +56,7 @@ class AdminMaterialsImport implements ShouldQueue
                 "nominal_height" => $row["nominal_height"],
                 "actual_height" => $row["actual_height"],
                 "wall" => $row["wall"] === "" ? null : (float) $row["wall"],
-                "kg_per_m" => $row["kg_per_m"],
+                "kg_per_m" => $row["kg_per_m"] === "" ? null : (float) $row["kg_per_m"],
                 "baseline_unit_rate" => $row["baseline_unit_rate"],
                 "pack_size_1" => $row["pack_size_1"],
                 "pack_size_2" => $row["pack_size_2"],

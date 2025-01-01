@@ -31,6 +31,7 @@ class DataClassificationService
         ?float $uncertainWidthFloat,
         ?float $uncertainHeightFloat,
         ?float $wall,
+        ?float $kg_per_m,
     ): Collection
     {
         /**
@@ -57,8 +58,8 @@ class DataClassificationService
 
                 //METERAGE
                 if($algo === NestingEnums::METERAGE->value){
-                    $sizeInclude = ["nominal_width","nominal_height","wall"];
-                    $query = Product::select('product_category', 'material', 'grade', 'surface', 'nominal_units',"nominal_width","actual_width",'nominal_height',"actual_height","wall")
+                    $sizeInclude = ["nominal_width","nominal_height","wall","kg_per_m"];
+                    $query = Product::select('product_category', 'material', 'grade', 'surface', 'nominal_units',"nominal_width","actual_width",'nominal_height',"actual_height","wall","kg_per_m")
                         ->distinct()
                         ->availableFor($user)
                         ->where("product_category", $productString)
@@ -110,11 +111,11 @@ class DataClassificationService
                 //Length
                 if (!is_null($uncertainLengthFloat) && in_array("nominal_length",$sizeInclude)) {
                     //It may not find possible equivalents. It's mainly for CHS and pipe
-                    $possibleEquivalents = $productString === ProductEnums::CHS->value
-                        ? $this->possibleEquivalents($uncertainLengthFloat)
+                    $possibleEquivalentsCHS = $productString === ProductEnums::CHS->value
+                        ? $this->possibleEquivalentsCHS($uncertainLengthFloat)
                         : null;
-                    if($possibleEquivalents){
-                        foreach($possibleEquivalents as $equivalent){
+                    if($possibleEquivalentsCHS){
+                        foreach($possibleEquivalentsCHS as $equivalent){
                             $query->where(function($q) use($equivalent){
                                 $q->where("nominal_length", $equivalent["nominal"])
                                   ->orWhere("actual_length", $equivalent["actual"])
@@ -131,19 +132,18 @@ class DataClassificationService
                 //Width
                 if (!is_null($uncertainWidthFloat) && in_array("nominal_width",$sizeInclude)) {
                     //It may not find possible equivalents. It's mainly for CHS and pipe
-                    $possibleEquivalents = $productString === ProductEnums::CHS->value
-                        ? $this->possibleEquivalents($uncertainWidthFloat)
+                    $possibleEquivalentsCHS = $productString === ProductEnums::CHS->value
+                        ? $this->possibleEquivalentsCHS($uncertainWidthFloat)
                         : null;
 
-                    if($possibleEquivalents){
-                        foreach($possibleEquivalents as $equivalent){
+                    if($possibleEquivalentsCHS){
+                        foreach($possibleEquivalentsCHS as $equivalent){
                             $query->where(function($q) use($equivalent){
                                 $q->where("nominal_width", $equivalent["nominal"])
                                     ->orWhere("actual_width", $equivalent["actual"])
                                     ->orWhere("actual_width", $equivalent["rounded"]);
                             });
                         }
-                        //dd(1,$query->get(),$possibleEquivalents);
                     }
                     //Otherwise assume it's nominal
                     else{
@@ -154,12 +154,12 @@ class DataClassificationService
                 //Height
                 if (!is_null($uncertainHeightFloat) && in_array("nominal_height",$sizeInclude)) {
                     //It may not find possible equivalents. It's mainly for CHS and pipe
-                    $possibleEquivalents = $productString === ProductEnums::CHS->value
-                        ? $this->possibleEquivalents($uncertainHeightFloat)
+                    $possibleEquivalentsCHS = $productString === ProductEnums::CHS->value
+                        ? $this->possibleEquivalentsCHS($uncertainHeightFloat)
                         : null;
 
-                    if($possibleEquivalents){
-                        foreach($possibleEquivalents as $equivalent){
+                    if($possibleEquivalentsCHS){
+                        foreach($possibleEquivalentsCHS as $equivalent){
                             $query->where(function($q) use($equivalent){
                                 $q->where("nominal_height", $equivalent["nominal"])
                                     ->orWhere("actual_height", $equivalent["actual"])
@@ -169,13 +169,43 @@ class DataClassificationService
                     }
                     //Otherwise assume it's nominal
                     else{
-                        $query->where("nominal_height", $uncertainHeightFloat);
+                        $query->where(function($q) use($uncertainHeightFloat){
+                            $q->where("nominal_height", $uncertainHeightFloat)
+                              ->orWhere("nominal_height", round($uncertainHeightFloat));
+                        });
                     }
                 }
 
                 //Wall
                 if (!is_null($wall) && in_array("wall",$sizeInclude)) {
                     $query->where("wall", $wall);
+                }
+
+                //Weight
+                if (!is_null($kg_per_m) && in_array("kg_per_m",$sizeInclude)) {
+                    $possibleEquivalentsUB = $productString === ProductEnums::UB->value
+                        ? $this->possibleEquivalentsUB($kg_per_m)
+                        : null;
+
+                    $possibleEquivalentsUC = $productString === ProductEnums::UC->value
+                        ? $this->possibleEquivalentsUC($kg_per_m)
+                        : null;
+
+                    $possibleEquivalents = $possibleEquivalentsUB ?? $possibleEquivalentsUC;
+
+                    if(count($possibleEquivalents) > 0){
+                        foreach($possibleEquivalents as $equivalent){
+                            $query->where(function($q) use($equivalent){
+                                $q->where("kg_per_m", $equivalent["nominal"])
+                                  ->orWhere("kg_per_m", $equivalent["actual"])
+                                  ->orWhere("kg_per_m", $equivalent["rounded"]);
+                            });
+                        }
+                    }
+                    //Otherwise assume it's nominal
+                    else{
+                        $query->where("kg_per_m", $uncertainHeightFloat);
+                    }
                 }
 
                 if($query->count() > 0){
@@ -189,7 +219,7 @@ class DataClassificationService
         return collect($results);
     }
 
-    private function possibleEquivalents(float $possibleFloat): array
+    private function possibleEquivalentsCHS(float $possibleFloat): array
     {
         /*
          * Is whole number
@@ -205,7 +235,7 @@ class DataClassificationService
          * Might be actual, so check for nominal
          * e.g 323.9 might be 300.0 or 324.0
          */
-        $possibleEquivalents = [];
+        $possibleEquivalentsCHS = [];
 
         $matrixOfEquivalents = [
             //format = nominal,actual,rounded
@@ -278,6 +308,94 @@ class DataClassificationService
 
         foreach($matrixOfEquivalents as $alternativeArray){
             if(in_array($possibleFloat,$alternativeArray)){
+                $possibleEquivalentsCHS[] = [
+                    "nominal" => $alternativeArray[0],
+                    "actual" => $alternativeArray[1],
+                    "rounded" => $alternativeArray[2],
+                ];
+            }
+        }
+
+        return $possibleEquivalentsCHS;
+    }
+
+    private function possibleEquivalentsUB(float $possibleFloat): array
+    {
+        /**
+            360 UB 56.7 vs 360 UB 57
+         */
+        $possibleEquivalents = [];
+
+        $matrixOfEquivalents = [
+            //format = nominal,actual,rounded
+            [14, 14.0, 14],
+            [18, 18.0, 18],
+            [18, 18.1, 18],
+            [22, 22.2, 22],
+            [18, 18.2, 18],
+            [22, 22.3, 22],
+            [25, 25.4, 25],
+            [30, 29.8, 30],
+            [26, 25.7, 26],
+            [31, 31.4, 31],
+            [37, 37.3, 37],
+            [32, 32.0, 32],
+            [40, 40.4, 40],
+            [46, 46.2, 46],
+            [45, 44.7, 45],
+            [51, 50.7, 51],
+            [57, 56.7, 57],
+            [54, 53.7, 54],
+            [60, 59.7, 60],
+            [67, 67.1, 67],
+            [75, 74.6, 75],
+            [82, 82.1, 82],
+            [82, 82.0, 82],
+            [92, 92.4, 92],
+            [101, 101.0, 101],
+            [113, 113.0, 113],
+            [125, 125.0, 125],
+        ];
+
+        foreach($matrixOfEquivalents as $alternativeArray){
+            if(in_array($possibleFloat,$alternativeArray)){
+                $possibleEquivalents[] = [
+                    "nominal" => $alternativeArray[0],
+                    "actual" => $alternativeArray[1],
+                    "rounded" => $alternativeArray[2],
+                ];
+            }
+        }
+
+        return $possibleEquivalents;
+    }
+
+    private function possibleEquivalentsUC(float $possibleFloat): array
+    {
+        /**
+        360 UB 56.7 vs 360 UB 57
+         */
+        $possibleEquivalents = [];
+
+        $matrixOfEquivalents = [
+            //format = nominal,actual,rounded
+            [158, 158.0, 158],
+            [137, 137.0, 137],
+            [118, 118.0, 118],
+            [97, 96.8, 97],
+            [90, 89.5, 90],
+            [73, 72.9, 73],
+            [60, 59.5, 60],
+            [52, 52.2, 52],
+            [46, 46.2, 46],
+            [37, 37.2, 37],
+            [30, 30.0, 30],
+            [23, 23.4, 23],
+            [15, 14.8, 15],
+        ];
+
+        foreach($matrixOfEquivalents as $alternativeArray){
+            if(in_array($possibleFloat,$alternativeArray)){
                 $possibleEquivalents[] = [
                     "nominal" => $alternativeArray[0],
                     "actual" => $alternativeArray[1],
@@ -320,12 +438,16 @@ class DataClassificationService
             //WALL
             $wall = $this->findNominal($productConfig,$text,"wallRegex");
 
+            //Weight
+            $kg_per_m = $this->findNominal($productConfig,$text,"weightRegex");
+
 //            dd([
 //                "text" => $text,
 //                "uncertainLengthFloat" => $uncertainLengthFloat,
 //                "uncertainWidthFloat" => $uncertainWidthFloat,
 //                "uncertainHeightFloat" => $uncertainHeightFloat,
 //                "wall" => $wall,
+//                "kg_per_m" => $kg_per_m,
 //                "gradesEnums" => $gradesEnums,
 //                "productConfig" => $productConfig,
 //            ]);
@@ -341,6 +463,7 @@ class DataClassificationService
                 $uncertainWidthFloat,
                 $uncertainHeightFloat,
                 $wall,
+                $kg_per_m,
             );
         }
 
