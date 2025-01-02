@@ -135,7 +135,7 @@ class RawMaterialListCustomisationsController extends Controller
                         "precise_height" => $preparedFormData['precise_height'],
                         "actual_length" => $lengthRequired < 20 ? ($lengthRequired*1000) : $lengthRequired,
                         "actual_width" => $widthRequired < 20 ? ($widthRequired*1000) : $widthRequired,
-                        "wall" => $formData["data"]["Wall"],
+                        "wall" => $formData["data"]["wall"],
                         "kg_per_m" => $formData["kg_per_m"] ?? null, //todo this is not retrieving data
                         "actual_qty" => $formData["data"]["sub_qty"]
                     ]);
