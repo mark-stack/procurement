@@ -415,11 +415,11 @@ class NestingService
                 }
 
                 //Purchasables
-                $purchasableLengths = $this->getPurchasableVariations($materialSpec);
+                $purchasableVariations = $this->getPurchasableVariations($materialSpec);
 
                 $appended->pieces = $piecesArray;
-                $appended->purchasable = $purchasableLengths;
-                $appended->nested = $this->meterageAlgorithm($cutLengths,$purchasableLengths);
+                $appended->purchasable = $purchasableVariations;
+                $appended->nested = $this->meterageAlgorithm($cutLengths,$purchasableVariations);
 
                 $result[] = $appended;
             }
@@ -693,7 +693,7 @@ class NestingService
                         $cutLength = (int) $cut["length"];
 
                         $usedStockBars[] = [
-                            'stock length' => $stockLength,
+                            'stock_length' => $stockLength,
                             'waste' => $stockLength - $cutLength,
                             'pieces' => [array($cutLength,$cut["project"])],
                         ];
@@ -789,7 +789,7 @@ class NestingService
 //                foreach ($stockLengths as $stockLength) {
 //                    if ($stockLength >= $cut) {
 //                        $usedStockBars[] = [
-//                            'stock length' => $stockLength,
+//                            'stock_length' => $stockLength,
 //                            'waste' => $stockLength - $cut,
 //                            'pieces' => [$cut],
 //                        ];
@@ -851,7 +851,7 @@ class NestingService
         foreach($usedStockBars as $bar){
             unset($bar["waste"]);
             unset($bar["pieces"][0][1]);
-            $newResult[] = $bar["stock length"];
+            $newResult[] = $bar["stock_length"];
         }
 
         //dd($newResult);

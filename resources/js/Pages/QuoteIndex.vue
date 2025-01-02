@@ -183,7 +183,7 @@
                                         <div v-if="item.algo === 'METERAGE'">
                                             <p v-for="bar in item.nested.usedStockBars" class="mt-3">
                                                 <VisualNestingWithText
-                                                    :stockLength="bar.result['stock length']"
+                                                    :stockLength="bar.result['stock_length']"
                                                     :pieces="bar.result.pieces"
                                                     :measurementUnit="item.nominal_units"
                                                     :waste="bar.result.waste"

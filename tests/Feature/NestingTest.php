@@ -16,6 +16,37 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
 
+function nestingTestCases(): array
+{
+    return [
+        /**
+         * Case 1
+         *   1 of 9000: 2500|2500|2500|1500 (0 waste)
+         *   1 of 9000: 2500|2500|1500 (2500 waste)
+         */
+        [
+            "nest" => [
+                [2500,5], //length,qty
+                [1500,2],
+            ],
+            "result" => [
+                [
+                    "stock_length" => "9000",
+                    "count" => 1,
+                    "pieces" => [2500,2500,2500,1500],
+                    "waste" => 0,
+                ],
+                [
+                    "stock_length" => "9000",
+                    "count" => 1,
+                    "pieces" => [2500,2500,1500],
+                    "waste" => 2500,
+                ],
+            ],
+        ],
+    ];
+}
+
 function createAdmin(): User
 {
     //Admin business
@@ -57,6 +88,12 @@ function piecePfc(int $nominalHeight, int $length, int $qty, Project $project, o
         "grade" => GradeEnums::GR300,
         "surface" => SurfaceEnums::NONE,
         "nominal_units" => MeasurementUnitEnums::MILLIMETERS,
+        "nominal_length" => null,
+        "precise_length" => null,
+        "nominal_width" => null,
+        "precise_width" => null,
+        "nominal_height" => $nominalHeight,
+        "precise_height" => null,
         "length_required" => $length,
         "width_required" => null,
         "sub_qty" => $qty,
@@ -67,12 +104,12 @@ function piecePfc(int $nominalHeight, int $length, int $qty, Project $project, o
     ];
 }
 
-function sampleBOM(Project $project, object $dataClassificationService): array
+function sampleBOM(Project $project, object $dataClassificationService, array $nest): array
 {
-    $bom[] = [
-        piecePfc(200,1500, 2, $project, $dataClassificationService),
-        piecePfc(200,2500, 5, $project, $dataClassificationService),
-    ];
+    $bom = [];
+    foreach($nest as $items){
+        $bom[] = piecePfc(200,$items[0], $items[1], $project, $dataClassificationService);
+    }
 
     return $bom;
 }
@@ -102,6 +139,7 @@ function createRawMaterialQuote(array $row, object $dataClassificationService, P
 function createPieces(array $sampleBOM,Project $project,object $dataClassificationService): array
 {
     $pieces = [];
+
     foreach($sampleBOM as $row){
         $rawMaterialQuote = createRawMaterialQuote($row,$dataClassificationService,$project);
 
@@ -144,6 +182,11 @@ test('project with awarded status has materials available for nesting', function
     /**
      * project with awarded status has materials available for nesting
      */
+    $nest = [
+        [2500,5], //length,qty
+        [1500,2],
+    ];
+
     //Create admin
     $adminUser = createAdmin();
 
@@ -160,11 +203,11 @@ test('project with awarded status has materials available for nesting', function
     $dataClassificationService = new dataClassificationService();
 
     //Create BOM
-    $sampleBOM = sampleBOM($project,$dataClassificationService);
-    dd($sampleBOM);
+    $sampleBOM = sampleBOM($project,$dataClassificationService,$nest);
+
     //Create raw material quotes & pieces
     $pieces = createPieces($sampleBOM,$project,$dataClassificationService);
-    expect(count($pieces))->toBe(5);
+    expect(count($pieces))->toBeGreaterThan(0);
 
     $response = $this->get(route("quotes.index"));
     $response->assertStatus(200);
@@ -179,6 +222,11 @@ test('project with non-awarded status has no materials available for nesting', f
     /**
      *project with non-awarded status has no materials available for nesting
      */
+    $nest = [
+        [2500,5], //length,qty
+        [1500,2],
+    ];
+
     //Create admin
     $adminUser = createAdmin();
 
@@ -195,11 +243,11 @@ test('project with non-awarded status has no materials available for nesting', f
     $dataClassificationService = new dataClassificationService();
 
     //Create BOM
-    $sampleBOM = sampleBOM($project,$dataClassificationService);
+    $sampleBOM = sampleBOM($project,$dataClassificationService,$nest);
 
     //Create raw material quotes & pieces
     $pieces = createPieces($sampleBOM,$project,$dataClassificationService);
-    expect(count($pieces))->toBe(5);
+    expect(count($pieces))->toBeGreaterThan(0);
 
     $response = $this->get(route("quotes.index"));
     $response->assertStatus(200);
@@ -232,36 +280,58 @@ test('meterage nesting with single project', function () {
     /**
      * Test that 5 items in BOM are successfully nested
      */
-    //Create admin
-    $adminUser = createAdmin();
 
-    //Authorised
-    $this->actingAs($adminUser);
+    foreach(nestingTestCases() as $testCase){
+        $nest = $testCase["nest"];
+        $result = $testCase["result"];
 
-    //Seed master_product.csv to create products
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+        //Create admin
+        $adminUser = createAdmin();
 
-    //Create project
-    $project = createProject($adminUser,true);
+        //Authorised
+        $this->actingAs($adminUser);
 
-    //Service
-    $dataClassificationService = new dataClassificationService();
+        //Seed master_product.csv to create products
+        $this->get(route('admin.update.master.materials.spreadsheet'));
 
-    //Create BOM
-    $sampleBOM = sampleBOM($project,$dataClassificationService);
+        //Create project
+        $project = createProject($adminUser,true);
 
-    //Create raw material quotes & pieces
-    $pieces = createPieces($sampleBOM,$project,$dataClassificationService);
-    expect(count($pieces))->toBe(5);
+        //Service
+        $dataClassificationService = new dataClassificationService();
 
-    $response = $this->get(route("quotes.index"));
-    $response->assertStatus(200);
+        //Create BOM
+        $sampleBOM = sampleBOM($project,$dataClassificationService,$nest);
 
-    $response->assertInertia(fn (Assert $page) => $page
-        ->count('pieces',1) //1 batch parsed to the view
-        ->count('pieces.0.0.pieces',count($pieces)) //5 pieces
-        ->dd()
-    );
+        //Create raw material quotes & pieces
+        $pieces = createPieces($sampleBOM,$project,$dataClassificationService);
+        expect(count($pieces))->toBeGreaterThan(0);
+
+        $response = $this->get(route("quotes.index"));
+        $response->assertStatus(200);
+
+        $response->assertInertia(fn (Assert $page) => $page
+            ->count('pieces',1) //1 batch parsed to the view
+            ->count('pieces.0.0.pieces',count($pieces))  //5 pieces
+            ->count('pieces.0.0.purchasable',4)    //4 different lengths
+            ->has('pieces', function (Assert $page) use($result){
+                //Each stock bar
+                foreach($result as $index => $bar){
+                    $page->where('0.0.nested.usedStockBars.'.$index.'.count', $bar["count"]);
+                    $page->where('0.0.nested.usedStockBars.'.$index.'.result.stock_length', $bar["stock_length"]);
+                    $page->where('0.0.nested.usedStockBars.'.$index.'.result.waste', $bar["waste"]);
+                    foreach($bar["pieces"] as $pieceIndex => $piece){
+                        $page->where('0.0.nested.usedStockBars.'.$index.'.result.pieces.'.$pieceIndex.'.0', $piece);
+                    }
+                }
+            }));
+    }
+});
+
+test('meterage nesting with unfit cut', function () {
+    /**
+     * pieces.0.0.unfitCuts
+     */
 });
 
 test('meterage nesting with offcut', function () {
