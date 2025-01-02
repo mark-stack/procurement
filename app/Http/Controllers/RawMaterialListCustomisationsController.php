@@ -115,6 +115,9 @@ class RawMaterialListCustomisationsController extends Controller
                      * Create 'Pieces'
                      */
                     $project = Project::findOrFail($formData["data"]["project_id"]);
+                    $lengthRequired = $formData["data"]["length_required"];
+                    $widthRequired = $formData["data"]["width_required"];
+
                     Piece::create([
                         'project_id' => $project->id,
                         "raw_material_quote_id" => $rawMaterialQuote->id,
@@ -130,8 +133,8 @@ class RawMaterialListCustomisationsController extends Controller
                         "precise_width" => $preparedFormData['precise_width'],
                         "nominal_height" => $preparedFormData['nominal_height'],
                         "precise_height" => $preparedFormData['precise_height'],
-                        "actual_length" => $formData["data"]["length_required"],
-                        "actual_width" => $formData["data"]["width_required"],
+                        "actual_length" => $lengthRequired < 20 ? ($lengthRequired*1000) : $lengthRequired,
+                        "actual_width" => $widthRequired < 20 ? ($widthRequired*1000) : $widthRequired,
                         "wall" => $formData["data"]["Wall"],
                         "kg_per_m" => $formData["kg_per_m"] ?? null, //todo this is not retrieving data
                         "actual_qty" => $formData["data"]["sub_qty"]

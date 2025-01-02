@@ -442,25 +442,25 @@ test('that CHS distinguishes nominal & actual diameter, and wall thickness varia
     //#1 "CHS 200nb (Ø219.1x6.4) 12m"
     expect($products1[0]["product_category"])->toBe(ProductEnums::CHS->value)
         ->and($products1[0]["nominal_width"])->toBe("200")
-        ->and($products1[0]["actual_width"])->toBe("219.1")
+        ->and($products1[0]["precise_width"])->toBe("219.1")
         ->and($products1[0]["wall"])->toBe(6.4);
 
     //#2 "CHS193.7*6.0"
     expect($products2[0]["product_category"])->toBe(ProductEnums::CHS->value)
         ->and($products2[0]["nominal_width"])->toBe("200")
-        ->and($products2[0]["actual_width"])->toBe("193.7")
+        ->and($products2[0]["precise_width"])->toBe("193.7")
         ->and($products2[0]["wall"])->toBe(6.0);
 
     //#3 "150nb (Ø168.3)"
     expect($products3[0]["product_category"])->toBe(ProductEnums::CHS->value)
         //1st result
         ->and($products3[0]["nominal_width"])->toBe("150")
-        ->and($products3[0]["actual_width"])->toBe("165.1")
+        ->and($products3[0]["precise_width"])->toBe("165.1")
         ->and($products3[0]["wall"])->toBe(3.0)
 
         //2nd result
         ->and($products3[1]["nominal_width"])->toBe("150")
-        ->and($products3[1]["actual_width"])->toBe("165.1")
+        ->and($products3[1]["precise_width"])->toBe("165.1")
         ->and($products3[1]["wall"])->toBe(3.5);
 });
 

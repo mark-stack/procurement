@@ -41,7 +41,7 @@
                 let description = item.product_derived_label;
 
                 item.nested.orderList.forEach(bar => {
-                    let text = " - " + description + ": " + bar.count + " off " + bar.result + " " + item.nominal_units.toLowerCase();
+                    let text = " - " + description + ": " + bar.count + " off " + parseFloat(bar.result).toLocaleString() + "mm"; // + item.nominal_units.toLowerCase();
                     materialList += text + "\n"; // Rows
                 });
             }
@@ -143,8 +143,6 @@
                                             <span class="block">Material: {{item.material}}</span>
                                             <span class="block">Grade: {{item.grade}}</span>
                                             <span class="block">Surface: {{item.surface}}</span>
-                                            <span class="block" v-if="item.nominal_units">Unit: {{item.measurement_unit}}</span>
-                                            <span class="block">Size: {{item.size}}</span>
                                         </p>
                                     </div>
                                     <!-- Pieces -->
@@ -194,9 +192,9 @@
                                             </p>
                                             <p
                                                 v-if="item.nested.unfitCuts.length > 0"
-                                                class="text-red-500 font-bold"
+                                                class="text-red-500 font-bold mt-2"
                                             >
-                                                Unused: <span v-for="unfit in item.nested.unfitCuts">{{unfit.length}} (p{{unfit.project}}), </span>
+                                                Unused: <span v-for="unfit in item.nested.unfitCuts">{{ parseFloat(unfit.length).toLocaleString()}} mm (p{{unfit.project}}), </span>
                                             </p>
                                         </div>
                                         <!-- Nesting algorithm: bundle -->

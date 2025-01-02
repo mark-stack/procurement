@@ -86,6 +86,6 @@ class UB_Implementation extends ProductBaseImplementation
     {
         $actualSize = $nominal_height;
 
-        return $actualSize." UB ".round($kg_per_m)." ".$actualGrade.$actualSurface;
+        return $actualSize."UB".round($kg_per_m);
     }
 }

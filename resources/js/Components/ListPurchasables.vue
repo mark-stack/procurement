@@ -47,11 +47,11 @@
         let suffix = "";
 
         if(props.nestingAlgo === "METERAGE"){
-            suffix = " "+props.measurementUnit.toLowerCase();
+            suffix = " mm";
         }
 
         if(props.nestingAlgo === "AREA"){
-            suffix = "LxW";
+            suffix = " LxW";
         }
 
         if(props.nestingAlgo === "BUNDLE"){
@@ -65,6 +65,6 @@
 <template>
     <h2 class="font-semibold">{{ getHeading() }}</h2>
     <ul class="text-sm">
-        <li v-for="item in list">{{item}}{{ suffix() }}</li>
+        <li v-for="item in list">{{parseInt(item).toLocaleString()}}{{ suffix() }}</li>
     </ul>
 </template>

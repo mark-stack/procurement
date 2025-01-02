@@ -88,6 +88,6 @@ class PFC_Implementation extends ProductBaseImplementation
     {
         $actualSize = $nominal_height;
 
-        return $actualSize.$productCategory." ".$actualGrade.$actualSurface;
+        return $actualSize.$productCategory;
     }
 }

@@ -444,7 +444,7 @@ class CsvService
 
         foreach($rows as $row){
             $productCategory = $dataClassificationService->findProductConfigFromText($row["description"]);
-            $productCategoryDisplay = $productCategory ? $productCategory["productCategory"] : null;
+            $productCategory = $productCategory ? $productCategory["productCategory"] : null;
 
             /**
              * Create 'RawMaterialQuote' item
@@ -452,7 +452,7 @@ class CsvService
             $rawMaterialQuote = RawMaterialQuote::create([
                 "csv_index" => $row["index"],
                 "description" => $row["description"] ?? $productService->generateProductLabel(
-                        $productCategoryDisplay,
+                        $productCategory,
                         $row["length_required"],
                         null, //precise_length todo
                         $row["width_required"],
@@ -464,8 +464,7 @@ class CsvService
                         null, //wall todo
                         null //kg_per_m todo
                     ),
-
-                "product_category" => $productCategoryDisplay,
+                "product_category" => $productCategory,
                 "material" => $row["material"] ?? null,
                 "grade" => $row["grade"] ?? null,
                 "surface" => $row["surface"] ?? null,
@@ -486,7 +485,8 @@ class CsvService
              */
             if(count($row["generalProductMatches"]) === 1){
                 $item = $row["generalProductMatches"][0];
-
+                $lengthRequired = $row["length_required"] ?? null;
+                $widthRequired = $row["width_required"] ?? null;
                 $piece = Piece::create([
                     'project_id' => $project->id,
                     "raw_material_quote_id" => $rawMaterialQuote->id,
@@ -502,8 +502,8 @@ class CsvService
                     "precise_width" => $item["precise_width"] ?? null,
                     "nominal_height" => $item["nominal_height"] ?? null,
                     "precise_height" => $item["precise_height"] ?? null,
-                    "actual_length" => $row["length_required"], //For singular items like bolts, this is "QTY" that's divisible.
-                    "actual_width" => $row["width_required"] ?? null,
+                    "actual_length" => ($lengthRequired && $lengthRequired < 20) ? ($lengthRequired*1000) : $lengthRequired,
+                    "actual_width" => ($widthRequired && $widthRequired < 20) ? ($widthRequired*1000) : $widthRequired,
                     "wall" => $item["wall"] ?? null,
                     "kg_per_m" => $item["kg_per_m"] ?? null,
                     "actual_qty" => $row["sub_qty"],

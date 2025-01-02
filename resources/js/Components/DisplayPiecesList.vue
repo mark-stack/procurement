@@ -27,7 +27,7 @@
     //Methods
     function displayMeterage(piece){
         //"1 off 9 METERS"
-        return piece.quantity + " off " + piece.length + " " + props.measurementUnit.toLowerCase();
+        return piece.quantity + " off " + parseInt(piece.length).toLocaleString() + " mm";
     }
 
     function displayArea(piece){

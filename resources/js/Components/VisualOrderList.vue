@@ -31,10 +31,10 @@
         let displayUnits = props.measurementUnit;
 
         if(props.measurementUnit === "METERS"){
-            displayUnits = "m";
+            displayUnits = " m";
         }
         if(props.measurementUnit === "MILLIMETERS"){
-            displayUnits = "mm";
+            displayUnits = " mm";
         }
 
         return displayUnits;
@@ -44,6 +44,6 @@
 
 <template>
     <div class="text=sm">
-        {{qty}} off {{ stockLength }}{{ displayUnits() }}
+        {{qty}} off {{ parseInt(stockLength).toLocaleString() }}{{ displayUnits() }}
     </div>
 </template>

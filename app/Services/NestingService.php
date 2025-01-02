@@ -372,7 +372,7 @@ class NestingService
 
         //METERAGE
         if($nestingAlgoLabel === NestingEnums::METERAGE->value){
-            $materialSpecs = Piece::select('product_category', 'material', 'grade', 'surface', 'nominal_units', "nominal_height", "wall","kg_per_m")
+            $materialSpecs = Piece::select('product_category', 'material', 'grade', 'surface', 'nominal_units', "nominal_height", "nominal_width","wall","kg_per_m")
                 ->whereIn("id",$allPieces->pluck("id")->toArray())
                 ->distinct()
                 ->get();
@@ -742,11 +742,6 @@ class NestingService
 
         // If there are leftover bolts, we need one extra smallest box
         if ($totalQty > 0) {
-//            //todo debug
-//            if((count($boxSizes) - 1) === -1){
-//                dd(1,$totalQty,$boxSizes);
-//            }
-
             $boxCounts[$boxSizes[count($boxSizes) - 1]] += 1;
         }
 

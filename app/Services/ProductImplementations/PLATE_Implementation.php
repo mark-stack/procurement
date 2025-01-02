@@ -89,6 +89,6 @@ class PLATE_Implementation extends ProductBaseImplementation
     ): string
     {
         $actualSize = $nominal_height."PL";
-        return $actualSize." ".$actualGrade.$actualSurface;
+        return $actualSize." ".$actualGrade;
     }
 }
