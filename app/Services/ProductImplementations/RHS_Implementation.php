@@ -1,0 +1,85 @@
+<?php
+
+namespace App\Services\ProductImplementations;
+
+use App\Enums\MaterialEnums;
+use App\Enums\MeasurementUnitEnums;
+use App\Enums\ProductEnums;
+
+class RHS_Implementation extends ProductBaseImplementation
+{
+    public function __construct()
+    {
+
+    }
+
+    public function productEnum(): ProductEnums
+    {
+        return ProductEnums::RHS;
+    }
+
+    public function config(): array
+    {
+        return [
+            "productCategory" => $this->productEnum()->value,
+            "isFastener" => false,
+            "negativeKeywords" => [
+                //
+            ],
+            "productRegex" => [
+                "\bRHS",    //75x50x2.5 RHS
+                "(\d+)RHS", //75x50x2.5RHS
+                "\s+RHS",   //75 x 50 x 2.5 RHS   75 x 50 x 2.5mm RHS
+                "RHS(\d+)", //RHS75*50*2.5
+                "RHS\b",    //RHS 75*50*2.5
+            ],
+            "nominalLengthRegex" => [
+
+            ],
+            "nominalWidthRegex" => [
+                //special formula
+            ],
+            "nominalHeightRegex" => [
+                //special formula
+            ],
+            "wallRegex" => [
+                //special formula
+            ],
+            "weightRegex" => [
+
+            ],
+            "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
+            "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
+        ];
+    }
+
+
+    public function getNominalSizeData(): array
+    {
+        return [
+            "length" => false,
+            "width" => true,
+            "height" => true,
+            "length_placeholder" => "",
+            "width_placeholder" => "Width (mm)",
+            "height_placeholder" => "Height (mm)",
+        ];
+    }
+
+    public function formatLabel(
+        string $productCategory,
+        ?float $nominal_length,
+        ?float $precise_length,
+        ?float $nominal_width,
+        ?float $precise_width,
+        ?float $nominal_height,
+        ?float $precise_height,
+        ?string $actualGrade,
+        ?string $actualSurface,
+        ?float $wall,
+        ?float $kg_per_m,
+    ): string
+    {
+        return $nominal_height."x".$nominal_width."x".$wall." RHS";
+    }
+}

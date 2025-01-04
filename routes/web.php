@@ -31,7 +31,7 @@ Route::get("stock-cutting",function(){
 });
 //todo temporary
 Route::get("test",function(){
-    $description = "UC310*118";
+    $description = "75 x 50 x 2.5 RHS";
 
     $dataClassificationService = new DataClassificationService();
 

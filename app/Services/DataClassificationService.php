@@ -111,11 +111,13 @@ class DataClassificationService
                 //Length
                 if (!is_null($uncertainLengthFloat) && in_array("nominal_length",$sizeInclude)) {
                     //It may not find possible equivalents. It's mainly for CHS and pipe
-                    $possibleEquivalentsCHS = $productString === ProductEnums::CHS->value
-                        ? $this->possibleEquivalentsCHS($uncertainLengthFloat)
-                        : null;
-                    if($possibleEquivalentsCHS){
-                        foreach($possibleEquivalentsCHS as $equivalent){
+                    $possibleEquivalents = match ($productString) {
+                        ProductEnums::CHS->value => $this->possibleEquivalentsCHS($uncertainLengthFloat),
+                        default => null,
+                    };
+
+                    if($possibleEquivalents){
+                        foreach($possibleEquivalents as $equivalent){
                             $query->where(function($q) use($equivalent){
                                 $q->where("nominal_length", $equivalent["nominal"])
                                   ->orWhere("precise_length", $equivalent["precise"])
@@ -132,12 +134,13 @@ class DataClassificationService
                 //Width
                 if (!is_null($uncertainWidthFloat) && in_array("nominal_width",$sizeInclude)) {
                     //It may not find possible equivalents. It's mainly for CHS and pipe
-                    $possibleEquivalentsCHS = $productString === ProductEnums::CHS->value
-                        ? $this->possibleEquivalentsCHS($uncertainWidthFloat)
-                        : null;
+                    $possibleEquivalents = match ($productString) {
+                        ProductEnums::CHS->value => $this->possibleEquivalentsCHS($uncertainWidthFloat),
+                        default => null,
+                    };
 
-                    if($possibleEquivalentsCHS){
-                        foreach($possibleEquivalentsCHS as $equivalent){
+                    if($possibleEquivalents){
+                        foreach($possibleEquivalents as $equivalent){
                             $query->where(function($q) use($equivalent){
                                 $q->where("nominal_width", $equivalent["nominal"])
                                     ->orWhere("precise_width", $equivalent["precise"])
@@ -154,12 +157,13 @@ class DataClassificationService
                 //Height
                 if (!is_null($uncertainHeightFloat) && in_array("nominal_height",$sizeInclude)) {
                     //It may not find possible equivalents. It's mainly for CHS and pipe
-                    $possibleEquivalentsCHS = $productString === ProductEnums::CHS->value
-                        ? $this->possibleEquivalentsCHS($uncertainHeightFloat)
-                        : null;
+                    $possibleEquivalents = match ($productString) {
+                        ProductEnums::CHS->value => $this->possibleEquivalentsCHS($uncertainHeightFloat),
+                        default => null,
+                    };
 
-                    if($possibleEquivalentsCHS){
-                        foreach($possibleEquivalentsCHS as $equivalent){
+                    if($possibleEquivalents){
+                        foreach($possibleEquivalents as $equivalent){
                             $query->where(function($q) use($equivalent){
                                 $q->where("nominal_height", $equivalent["nominal"])
                                     ->orWhere("precise_height", $equivalent["precise"])
@@ -183,15 +187,11 @@ class DataClassificationService
 
                 //Weight
                 if (!is_null($kg_per_m) && in_array("kg_per_m",$sizeInclude)) {
-                    $possibleEquivalentsUB = $productString === ProductEnums::UB->value
-                        ? $this->possibleEquivalentsUB($kg_per_m)
-                        : null;
-
-                    $possibleEquivalentsUC = $productString === ProductEnums::UC->value
-                        ? $this->possibleEquivalentsUC($kg_per_m)
-                        : null;
-
-                    $possibleEquivalents = $possibleEquivalentsUB ?? $possibleEquivalentsUC;
+                    $possibleEquivalents = match ($productString) {
+                        ProductEnums::UB->value => $this->possibleEquivalentsUB($kg_per_m),
+                        ProductEnums::UC->value => $this->possibleEquivalentsUC($kg_per_m),
+                        default => null,
+                    };
 
                     if(count($possibleEquivalents) > 0){
                         foreach($possibleEquivalents as $equivalent){
@@ -424,7 +424,7 @@ class DataClassificationService
             $surfaceEnum = $this->findSurface($productConfig,$text,$gradesEnums);
 
             //NOMINAL UNITS
-            $measurementUnitEnum = $this->findMeasurementUnit($productConfig);
+            $measurementUnitEnum = MeasurementUnitEnums::MILLIMETERS; //$this->findMeasurementUnit($productConfig);
 
             //LENGTH
             $uncertainLengthFloat = $this->findNominal($productConfig,$text,"nominalLengthRegex");
@@ -880,6 +880,9 @@ class DataClassificationService
         return $surfaceResult;
     }
 
+    /**
+     * @deprecated
+     */
     public function findMeasurementUnit($productConfig): MeasurementUnitEnums
     {
         /**
@@ -896,22 +899,217 @@ class DataClassificationService
 
         $resultFloat = null;
 
-        $regexPatterns = $productConfig[$regexLabel];
+        //Special condition for EA
+        if($productConfig["productCategory"] === ProductEnums::EA->value){
+            if($regexLabel === "nominalWidthRegex"){
+                $resultFloat = $this->findEaWidth($text);
+            }
+            if($regexLabel === "nominalHeightRegex"){
+                $resultFloat = $this->findEaHeight($text);
+            }
+            if($regexLabel === "wallRegex"){
+                $resultFloat = $this->findEaThickness($text);
+            }
+        }
+        //Special condition for UA
+        elseif($productConfig["productCategory"] === ProductEnums::UA->value){
+            if($regexLabel === "nominalWidthRegex"){
+                $resultFloat = $this->findUaWidth($text);
+            }
+            if($regexLabel === "nominalHeightRegex"){
+                $resultFloat = $this->findUaHeight($text);
+            }
+            if($regexLabel === "wallRegex"){
+                $resultFloat = $this->findUaThickness($text);
+            }
+        }
+        //Special condition for RHS
+        elseif($productConfig["productCategory"] === ProductEnums::RHS->value){
+            if($regexLabel === "nominalWidthRegex"){
+                $resultFloat = $this->findRhsWidth($text);
+            }
+            if($regexLabel === "nominalHeightRegex"){
+                $resultFloat = $this->findRhsHeight($text);
+            }
+            if($regexLabel === "wallRegex"){
+                $resultFloat = $this->findRhsThickness($text);
+            }
+        }
+        //All other products
+        else{
+            $regexPatterns = $productConfig[$regexLabel];
 
-        foreach($regexPatterns as $pattern){
-            $regex = "/".$pattern."/i";
+            foreach($regexPatterns as $pattern){
+                $regex = "/".$pattern."/i";
 
-            preg_match_all($regex, $text, $matches);
+                preg_match_all($regex, $text, $matches);
 
-            if(!empty($matches[0][0])){
-                preg_match_all('/-?\d+(\.\d+)?/i', $matches[0][0], $matches);
                 if(!empty($matches[0][0])){
-                    $resultFloat = (float) $matches[0][0];
+                    preg_match_all('/-?\d+(\.\d+)?/i', $matches[0][0], $matches);
+                    if(!empty($matches[0][0])){
+                        $resultFloat = (float) $matches[0][0];
+                    }
                 }
             }
         }
 
         return $resultFloat;
+    }
+
+    private function extractNumbersInAscendingOrder(string $text): array
+    {
+        // Extract all numbers
+        preg_match_all('/\d+(\.\d+)?/', $text, $matches);
+
+        // Convert to integers and sort numerically
+        $numbersArray = array_map('floatval', $matches[0]);
+        sort($numbersArray);
+
+        return $numbersArray;
+    }
+    private function findEaWidth(string $text): ? float
+    {
+        /**
+         * Width is the biggest number
+         */
+        $width = null;
+
+        $numbersInAscendingOrder = $this->extractNumbersInAscendingOrder($text);
+        if(count($numbersInAscendingOrder) >= 2){
+            $width = (float) max($numbersInAscendingOrder);
+        }
+
+        return $width;
+    }
+
+    private function findEaHeight(string $text): ? float
+    {
+        /**
+         * Height is the biggest number
+         */
+        $height = null;
+
+        $numbersInAscendingOrder = $this->extractNumbersInAscendingOrder($text);
+        if(count($numbersInAscendingOrder) >= 2){
+            $height = (float) max($numbersInAscendingOrder);
+        }
+
+        return $height;
+    }
+
+    private function findEaThickness(string $text): ? float
+    {
+        /**
+         * Thickness is the smallest number <= 26
+         */
+        $thickness = null;
+
+        $numbersInAscendingOrder = $this->extractNumbersInAscendingOrder($text);
+        if(count($numbersInAscendingOrder) >= 2){
+            $smallest = min($numbersInAscendingOrder);
+            if($smallest <= 26){
+                $thickness = (float) $smallest;
+            }
+        }
+
+        return $thickness;
+    }
+
+    private function findUaWidth(string $text): ? float
+    {
+        /**
+         * Width is the middle number
+         */
+        $width = null;
+
+        $numbersInAscendingOrder = $this->extractNumbersInAscendingOrder($text);
+        if(count($numbersInAscendingOrder) === 3){
+            $width = (float) $numbersInAscendingOrder[1];
+        }
+
+        return $width;
+    }
+
+    private function findUaHeight(string $text): ? float
+    {
+        /**
+         * Height is the biggest number
+         */
+        $height = null;
+
+        $numbersInAscendingOrder = $this->extractNumbersInAscendingOrder($text);
+        if(count($numbersInAscendingOrder) >= 2){
+            $height = (float) max($numbersInAscendingOrder);
+        }
+
+        return $height;
+    }
+
+    private function findUaThickness(string $text): ? float
+    {
+        /**
+         * Thickness is the smallest number <= 26
+         */
+        $thickness = null;
+
+        $numbersInAscendingOrder = $this->extractNumbersInAscendingOrder($text);
+        if(count($numbersInAscendingOrder) >= 2){
+            $smallest = min($numbersInAscendingOrder);
+            if($smallest <= 26){
+                $thickness = (float) $smallest;
+            }
+        }
+
+        return $thickness;
+    }
+
+    private function findRhsWidth(string $text): ? float
+    {
+        /**
+         * Width is the middle number
+         */
+        $width = null;
+
+        $numbersInAscendingOrder = $this->extractNumbersInAscendingOrder($text);
+
+        if(count($numbersInAscendingOrder) === 3){
+            $width = (float) $numbersInAscendingOrder[1];
+        }
+
+        return $width;
+    }
+
+    private function findRhsHeight(string $text): ? float
+    {
+        /**
+         * Height is the biggest number
+         */
+        $height = null;
+
+        $numbersInAscendingOrder = $this->extractNumbersInAscendingOrder($text);
+        if(count($numbersInAscendingOrder) >= 2){
+            $height = (float) max($numbersInAscendingOrder);
+        }
+
+        return $height;
+    }
+
+    private function findRhsThickness(string $text): ? float
+    {
+        /**
+         * Thickness is the smallest number <= 16
+         */
+        $thickness = null;
+
+        $numbersInAscendingOrder = $this->extractNumbersInAscendingOrder($text);
+        if(count($numbersInAscendingOrder) >= 2){
+            $smallest = min($numbersInAscendingOrder);
+            if($smallest <= 16){
+                $thickness = (float) $smallest;
+            }
+        }
+
+        return $thickness;
     }
 }
 

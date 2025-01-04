@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\MeasurementUnitEnums;
+use App\Enums\NestingEnums;
 use App\Models\Piece;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
@@ -439,16 +441,25 @@ class CsvService
         //Services
         $dataClassificationService = new DataClassificationService();
         $productService = new ProductService();
+        $nestingService = new NestingService();
 
         $materialList = [];
 
         foreach($rows as $row){
-            $productCategory = $dataClassificationService->findProductConfigFromText($row["description"]);
-            $productCategory = $productCategory ? $productCategory["productCategory"] : null;
+            $productConfig = $dataClassificationService->findProductConfigFromText($row["description"]);
+            $productCategory = $productConfig ? $productConfig["productCategory"] : null;
+
+            $algo = $nestingService->getNestingLabelsFromProductCategory($productCategory)[0] ?? null;
+            if(!$algo){
+                break;
+            }
 
             /**
              * Create 'RawMaterialQuote' item
              */
+            $lengthRequired = $row["length_required"] ?? null;
+            $widthRequired = $row["width_required"] ?? null;
+
             $rawMaterialQuote = RawMaterialQuote::create([
                 "csv_index" => $row["index"],
                 "description" => $row["description"] ?? $productService->generateProductLabel(
@@ -468,9 +479,9 @@ class CsvService
                 "material" => $row["material"] ?? null,
                 "grade" => $row["grade"] ?? null,
                 "surface" => $row["surface"] ?? null,
-                "nominal_units" => $dataClassificationService->findMeasurementUnit($productCategory),
-                "length_required" => $row["length_required"],
-                "width_required" => $row["width_required"] ?? null,
+                "nominal_units" => MeasurementUnitEnums::MILLIMETERS, //$dataClassificationService->findMeasurementUnit($productCategory),
+                "length_required" => $this->normalisedLength($algo,$lengthRequired),
+                "width_required" => $this->normalisedWidth($algo,$widthRequired),
                 "sub_qty" => $row["sub_qty"],
                 "unit_rate" => $row["unit_rate"] ?? null,
                 'project_id' => $project->id,
@@ -495,15 +506,15 @@ class CsvService
                     "grade" => $item["grade"],
                     "surface" => $item["surface"],
                     "nominal_units" => $item["nominal_units"],
-                    "nesting_algo" => (new NestingService())->getNestingLabelsFromProductCategory($item["product_category"])[0],
+                    "nesting_algo" => $algo,
                     "nominal_length" => $item["nominal_length"] ?? null,
                     "precise_length" => $item["precise_length"] ?? null,
                     "nominal_width" => $item["nominal_width"] ?? null,
                     "precise_width" => $item["precise_width"] ?? null,
                     "nominal_height" => $item["nominal_height"] ?? null,
                     "precise_height" => $item["precise_height"] ?? null,
-                    "actual_length" => ($lengthRequired && $lengthRequired < 20) ? ($lengthRequired*1000) : $lengthRequired,
-                    "actual_width" => ($widthRequired && $widthRequired < 20) ? ($widthRequired*1000) : $widthRequired,
+                    "actual_length" => $this->normalisedLength($algo,$lengthRequired), //todo should this convert length into qty for BUNDLE?
+                    "actual_width" => $this->normalisedWidth($algo,$widthRequired),    //todo should this convert length into qty for BUNDLE?
                     "wall" => $item["wall"] ?? null,
                     "kg_per_m" => $item["kg_per_m"] ?? null,
                     "actual_qty" => $row["sub_qty"],
@@ -512,6 +523,49 @@ class CsvService
         }
 
         return $materialList;
+    }
+
+    public function normalisedLength(string $algo, float $lengthRequired): ?float
+    {
+        /**
+         * Single purpose: convert M to MM, or keep MM as MM depending on how it looks.
+         * "length" for Bundle items like bolts is more likely a QTY multiplier, so leave it as null since sub qty will capture it
+         */
+
+        $normalisedLength = null;
+
+        //Bundle
+        if($algo === NestingEnums::BUNDLE->value){
+            //more likely a QTY multiplier, so leave it as null since sub qty will capture it
+            $normalisedLength = 1; //default. Will be ignored in the tables
+        }
+        //Other algos
+        else{
+            $normalisedLength = ($lengthRequired && $lengthRequired < 20) ? ($lengthRequired*1000) : $lengthRequired;
+        }
+
+        return $normalisedLength;
+    }
+
+    public function normalisedWidth(string $algo, float $widthRequired): ?float
+    {
+        /**
+         * Single purpose: convert M to MM, or keep MM as MM depending on how it looks.
+         * "length" for Bundle items like bolts is more likely a QTY multiplier
+         */
+
+        $normalisedWidth = null;
+
+        //Bundle
+        if($algo === NestingEnums::BUNDLE->value){
+            //more likely a QTY multiplier, so leave it as null since sub qty will capture it
+        }
+        //Other algos
+        else{
+            $normalisedWidth = ($widthRequired && $widthRequired < 20) ? ($widthRequired*1000) : $widthRequired;
+        }
+
+        return $normalisedWidth;
     }
 
     public function shouldFinish(string|null $text, array $csvArray, array $csvRow, int $index, int $skipOrFinishCheckColumnIndex): bool

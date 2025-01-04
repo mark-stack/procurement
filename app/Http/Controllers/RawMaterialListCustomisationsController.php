@@ -10,6 +10,7 @@ use App\Models\Piece;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
+use App\Services\CsvService;
 use App\Services\ProductService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,6 +27,8 @@ class RawMaterialListCustomisationsController extends Controller
          * Single purpose: save the non-price book product as user-custom product
          */
         $productService = new ProductService();
+        $csvService = new CsvService();
+
         $rows = $request->all();
 
         $validation = $productService->validationUserCustom($rows,$request->deletedIds);
@@ -117,6 +120,7 @@ class RawMaterialListCustomisationsController extends Controller
                     $project = Project::findOrFail($formData["data"]["project_id"]);
                     $lengthRequired = $formData["data"]["length_required"];
                     $widthRequired = $formData["data"]["width_required"];
+                    $algo = $preparedFormData['nesting_algo'];
 
                     Piece::create([
                         'project_id' => $project->id,
@@ -126,15 +130,15 @@ class RawMaterialListCustomisationsController extends Controller
                         "grade" => $preparedFormData["grade"],
                         "surface" => SurfaceEnums::NONE->value,
                         "nominal_units" => MeasurementUnitEnums::MILLIMETERS->value,
-                        "nesting_algo" => $preparedFormData['nesting_algo'],
+                        "nesting_algo" => $algo,
                         "nominal_length" => $preparedFormData['nominal_length'],
                         "precise_length" => $preparedFormData['precise_length'],
                         "nominal_width" => $preparedFormData['nominal_width'],
                         "precise_width" => $preparedFormData['precise_width'],
                         "nominal_height" => $preparedFormData['nominal_height'],
                         "precise_height" => $preparedFormData['precise_height'],
-                        "actual_length" => $lengthRequired < 20 ? ($lengthRequired*1000) : $lengthRequired,
-                        "actual_width" => $widthRequired < 20 ? ($widthRequired*1000) : $widthRequired,
+                        "actual_length" => $csvService->normalisedLength($algo,$lengthRequired),
+                        "actual_width" => $csvService->normalisedWidth($algo,$widthRequired),
                         "wall" => $formData["data"]["wall"],
                         "kg_per_m" => $formData["kg_per_m"] ?? null, //todo this is not retrieving data
                         "actual_qty" => $formData["data"]["sub_qty"]

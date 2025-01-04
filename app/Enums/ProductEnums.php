@@ -20,18 +20,19 @@ enum ProductEnums: string
     case SHS = "SHS";
     case RHS = "RHS";
     case CHS = "CHS";
+    case ROUND = "ROUND";
+    case FLAT = "FLAT";
+    case EA = "EA";
+    case UA = "UA";
 
     //todo more
 
 //        "UBS", "Universal Beam Section","Universal Beam Sections",
 //        "UCS", "Universal Column Section","Universal Column Sections",
 //        "HSS","Hollow Structural Section","Hollow Structural Sections",
-//        "EA", "equal angle","equal angles",
 //        "Steel Angles","Steel Angles",
 //        "UA", "unequal angle","unequal angles",
 //        "RSJ", "rolled steel joist","rolled steel joists",
-//        "Flat Bar","Flat Bars",
-//        "round bar","round bars",
 //        "Square Bar","Square Bars",
 //        "Rebar","Reinforcement Bar","Reinforcement Bars",
 //        "Threaded Rod","Threaded Rods","allthread",

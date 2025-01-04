@@ -1,0 +1,91 @@
+<?php
+
+namespace App\Services\ProductImplementations;
+
+use App\Enums\MaterialEnums;
+use App\Enums\MeasurementUnitEnums;
+use App\Enums\ProductEnums;
+
+class ROUND_Implementation extends ProductBaseImplementation
+{
+    public function __construct()
+    {
+
+    }
+
+    public function productEnum(): ProductEnums
+    {
+        return ProductEnums::ROUND;
+    }
+
+    public function config(): array
+    {
+        return [
+            "productCategory" => $this->productEnum()->value,
+            "isFastener" => false,
+            "negativeKeywords" => [
+                //
+            ],
+            "productRegex" => [
+                "D(\d+)\b",         //"D20"
+                "round\b",          //"20mm round", "20mm round bar"
+                "Ø(\d+)+\s+bar",    //"Ø20 bar"
+                "Ø(\d+)+\s+round",  //"Ø20 round"
+                "Ø(\d+)mm+\s+bar",  //"Ø20mm bar"
+                "Ø(\d+)mm+\s+round",  //"Ø20mm bar"
+            ],
+            "nominalLengthRegex" => [
+
+            ],
+            "nominalWidthRegex" => [
+                "D(\d+)\b",         //"D20"
+                "round\b",          //"20mm round", "20mm round bar"
+                "Ø(\d+)+\s+bar",    //"Ø20 bar"
+                "Ø(\d+)+\s+round",  //"Ø20 round"
+            ],
+            "nominalHeightRegex" => [
+
+            ],
+            "wallRegex" => [
+
+            ],
+            "weightRegex" => [
+
+            ],
+            "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
+            "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
+        ];
+    }
+
+
+    public function getNominalSizeData(): array
+    {
+        return [
+            "length" => false,
+            "width" => true,
+            "height" => false,
+            "length_placeholder" => "",
+            "width_placeholder" => "Diameter (mm)",
+            "height_placeholder" => "",
+        ];
+    }
+
+    public function formatLabel(
+        string $productCategory,
+        ?float $nominal_length,
+        ?float $precise_length,
+        ?float $nominal_width,
+        ?float $precise_width,
+        ?float $nominal_height,
+        ?float $precise_height,
+        ?string $actualGrade,
+        ?string $actualSurface,
+        ?float $wall,
+        ?float $kg_per_m,
+    ): string
+    {
+        $actualSize = $nominal_width;
+
+        return $actualSize." ROUND BAR";
+    }
+}

@@ -62,7 +62,6 @@ $lvl = [
 $fasteners = [
     "M16x100",
     "SS316 M16 x 150",
-    "D20",
     "M12 Allthread",
     "M12 Chemset",
     "20mm x 1000mm threaded rod",
@@ -82,16 +81,54 @@ $purlin = [
     "Z20019",
 ];
 
-$eaUa = [
+$ea = [
     "EA100*100*10",
     "EA75*75*6",
     "EA75*75*6",
     "EA75*75*6",
     "EA100*100*10",
+    "100x100x10 EA",
+    "100x100x10EA",
+    "100 x 100 x 10 EA",
+    "100 x 100mm EA",
+];
+
+$ua = [
+    "UA100*75*10",
+    "UA75*75*6",
+    "UA75*75*6",
+    "UA75*75*6",
+    "UA100*100*10",
+    "100x75x8UA",
+    "100x75x8 UA",
 ];
 
 $flat = [
     "FL8*75",
+    "100x10mm flatbar",
+    "100x10mm flat bar",
+    "10FL x 75mm",
+    "10FLx75",
+    "10x75FL",
+    "10mm flatbar x 75mm",
+    "10x75mm flatbar",
+    "FLAT10x75",
+    "FLAT 10x75",
+];
+
+$round = [
+    "D20",
+    "20mm round",
+    "20mm round bar",
+    "Ø20 bar",
+    "Ø20mm bar",
+];
+
+$square = [
+    "10x10 Square bar",
+    "10x10 bar",
+    "10x10mm bar",
+    "10mm x 10mm Square bar",
 ];
 
 it('finds product category for PLATE', function (string $description) {
@@ -122,13 +159,21 @@ it('finds product PURLINS', function (string $description) {
     testProductCategories($description);
 })->with($purlin);
 
-it('finds product for EA and UA', function (string $description) {
+it('finds product for EA', function (string $description) {
     testProductCategories($description);
-})->with($eaUa);
+})->with($ea);
+
+it('finds product for UA', function (string $description) {
+    testProductCategories($description);
+})->with($ua);
 
 it('finds product for FLAT', function (string $description) {
     testProductCategories($description);
 })->with($flat);
+
+it('finds product for ROUND', function (string $description) {
+    testProductCategories($description);
+})->with($round);
 
 function testProductCategories(?string $description): void
 {
