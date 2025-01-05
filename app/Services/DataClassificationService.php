@@ -427,19 +427,19 @@ class DataClassificationService
             $measurementUnitEnum = MeasurementUnitEnums::MILLIMETERS; //$this->findMeasurementUnit($productConfig);
 
             //LENGTH
-            $uncertainLengthFloat = $this->findNominal($productConfig,$text,"nominalLengthRegex");
+            $uncertainLengthFloat = $this->findNumberByRegex($productConfig,$text,"nominalLengthRegex");
 
             //WIDTH
-            $uncertainWidthFloat = $this->findNominal($productConfig,$text,"nominalWidthRegex");
+            $uncertainWidthFloat = $this->findNumberByRegex($productConfig,$text,"nominalWidthRegex");
 
             //HEIGHT
-            $uncertainHeightFloat = $this->findNominal($productConfig,$text,"nominalHeightRegex");
+            $uncertainHeightFloat = $this->findNumberByRegex($productConfig,$text,"nominalHeightRegex");
 
             //WALL
-            $wall = $this->findNominal($productConfig,$text,"wallRegex");
+            $wall = $this->findNumberByRegex($productConfig,$text,"wallRegex");
 
             //Weight
-            $kg_per_m = $this->findNominal($productConfig,$text,"weightRegex");
+            $kg_per_m = $this->findNumberByRegex($productConfig,$text,"weightRegex");
 
 //            dd([
 //                "text" => $text,
@@ -649,20 +649,61 @@ class DataClassificationService
             [
                 "materialEnum" => MaterialEnums::SS304,
                 "regex" => [
-                    "SS304",
-                    "SS+\s+304",
-                    "304SS",
-                    "304+\s+SS",
+                    "SS304",        //SS304
+                    "SS+\s+304",    //SS 304
+                    "304SS",        //304SS
+                    "304+\s+SS",    //304 SS
+                    "304+\s+Stainless+\s+steel" //304 stainless steel
                 ],
             ],
             //SS316
             [
                 "materialEnum" => MaterialEnums::SS316,
                 "regex" => [
-                    "SS316",
-                    "SS+\s+316",
-                    "316SS",
-                    "316+\s+SS",
+                    "SS316",        //SS316
+                    "SS+\s+316",    //SS 316
+                    "316SS",        //316SS
+                    "316+\s+SS",    //316 SS
+                    "316+\s+Stainless+\s+steel" //316 stainless steel
+                ],
+            ],
+            //HARDOX
+            [
+                "materialEnum" => MaterialEnums::HARDOX,
+                "regex" => [
+                    "hardox",
+                    //todo more
+                ],
+            ],
+            //ALLOY
+            [
+                "materialEnum" => MaterialEnums::ALLOY,
+                "regex" => [
+                    "Chromium",
+                    "Manganese",
+                    "Nickel",
+                    "Molybdenum",
+                    "Duplex",
+                    "Tool Steel",
+                    "Tungsten",
+                    "Spring Steel",
+                    //todo more
+                ],
+            ],
+            //Aluminium
+            [
+                "materialEnum" => MaterialEnums::ALUMINIUM,
+                "regex" => [
+                    "aluminium",
+                    //todo more
+                ],
+            ],
+            //Plastic
+            [
+                "materialEnum" => MaterialEnums::PLASTIC,
+                "regex" => [
+                    "plastic",
+                    //todo more
                 ],
             ],
         ];
@@ -891,7 +932,7 @@ class DataClassificationService
 
         return $productConfig["measurementUnit"] ?? MeasurementUnitEnums::SINGLE;
     }
-    public function findNominal(array $productConfig, string $text, string $regexLabel): ?float
+    public function findNumberByRegex(array $productConfig, string $text, string $regexLabel): ?float
     {
         /**
          * Single purpose: extracts the number from string. e.g "200" from "200PFC"

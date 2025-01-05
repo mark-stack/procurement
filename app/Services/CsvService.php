@@ -22,6 +22,7 @@ class CsvService
 
         //Detected Tables
         $detectedTables = $this->detectedTables($csvArray,$eligibleTables);
+        dd(1,"detectedTables",$detectedTables,$eligibleTables);
 
         //Should have at least 1 result
         if(count($detectedTables) > 0){
@@ -124,6 +125,7 @@ class CsvService
             $blankRow = count(array_filter($csvRow, function ($value) { return $value !== null; })) === 0;
             if(!$blankRow){
                 $detectTableInstances = $this->detectTable($csvArray, $csvRow, $index, $eligibleTables);
+                //dd(2,$detectTableInstances);
                 if(count($detectTableInstances) > 0){
                     foreach($detectTableInstances as $table){
                         $tables[] = $table;
@@ -525,7 +527,7 @@ class CsvService
         return $materialList;
     }
 
-    public function normalisedLength(string $algo, float $lengthRequired): ?float
+    public function normalisedLength(string $algo, ?float $lengthRequired): ?float
     {
         /**
          * Single purpose: convert M to MM, or keep MM as MM depending on how it looks.
@@ -534,20 +536,22 @@ class CsvService
 
         $normalisedLength = null;
 
-        //Bundle
-        if($algo === NestingEnums::BUNDLE->value){
-            //more likely a QTY multiplier, so leave it as null since sub qty will capture it
-            $normalisedLength = 1; //default. Will be ignored in the tables
-        }
-        //Other algos
-        else{
-            $normalisedLength = ($lengthRequired && $lengthRequired < 20) ? ($lengthRequired*1000) : $lengthRequired;
+        if($lengthRequired){
+            //Bundle
+            if($algo === NestingEnums::BUNDLE->value){
+                //more likely a QTY multiplier, so leave it as null since sub qty will capture it
+                $normalisedLength = 1; //default. Will be ignored in the tables
+            }
+            //Other algos
+            else{
+                $normalisedLength = ($lengthRequired && $lengthRequired < 20) ? ($lengthRequired*1000) : $lengthRequired;
+            }
         }
 
         return $normalisedLength;
     }
 
-    public function normalisedWidth(string $algo, float $widthRequired): ?float
+    public function normalisedWidth(string $algo, ?float $widthRequired): ?float
     {
         /**
          * Single purpose: convert M to MM, or keep MM as MM depending on how it looks.
@@ -556,13 +560,15 @@ class CsvService
 
         $normalisedWidth = null;
 
-        //Bundle
-        if($algo === NestingEnums::BUNDLE->value){
-            //more likely a QTY multiplier, so leave it as null since sub qty will capture it
-        }
-        //Other algos
-        else{
-            $normalisedWidth = ($widthRequired && $widthRequired < 20) ? ($widthRequired*1000) : $widthRequired;
+        if($widthRequired){
+            //Bundle
+            if($algo === NestingEnums::BUNDLE->value){
+                //more likely a QTY multiplier, so leave it as null since sub qty will capture it
+            }
+            //Other algos
+            else{
+                $normalisedWidth = ($widthRequired < 20) ? ($widthRequired*1000) : $widthRequired;
+            }
         }
 
         return $normalisedWidth;

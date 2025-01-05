@@ -29,11 +29,11 @@ class PLATE_Implementation extends ProductBaseImplementation
             "productRegex" => [
                 "Plate",                //plate
                 "Plates",               //plates
-                "(\d+)+PL",             //20PL
-                "(\d+)+\s+PL",          //20 PL
-                "(\d+)+mm+\s+PL",       //20mm PL
-                "(\d+)+mm+\s+plate",    //20mm plate
-                "PLT(\d+)\b",           //PLT8
+                "\b(\d+)+PL",             //20PL
+                "\b(\d+)+\s+PL",          //20 PL
+                "\b(\d+)+mm+\s+PL",       //20mm PL
+                "\b(\d+)+mm+\s+plate",    //20mm plate
+                "\bPLT(\d+)\b",           //PLT8
                 "Steel+\s+Plate",       //Steel plate
                 "Steel+\s+Plates",      //steel plates
                 "(\d+)+mm\b.*\b(1200|1220|2400|2440|3000|3100|3200)",    //20mm plus one of 1200|1220|2400|2440|3000|3100|3200

@@ -45,8 +45,8 @@ class PFC_Implementation extends ProductBaseImplementation
                 "(\d+)+\s+mm+\s+PFC", //200 mm PFC
                 "(\d+)+\s+mm+\s+Parallel Flange Channel",    //200 mm Parallel Flange Channel
                 "(\d+)+mm+\s+Parallel+\s+Flange+\s+Channel", //200 mm Parallel Flange Channel
-                "PFC+\s+(\d+)\b",       //"PFC 200",
-                "PFC+(\d+)\b",          //"PFC200",
+                "PFC+\s(50|[5-9][0-9]|[1-9][0-9]{2,})\b",       //"PFC 200" (50 or above)
+                "PFC(50|[5-9][0-9]|[1-9][0-9]{2,})",          //"PFC200",
             ],
             "wallRegex" => [
 

@@ -31,7 +31,7 @@ Route::get("stock-cutting",function(){
 });
 //todo temporary
 Route::get("test",function(){
-    $description = "75 x 50 x 2.5 RHS";
+    $description = "LYS-HOOK-LOK-II H2C20PL20";
 
     $dataClassificationService = new DataClassificationService();
 

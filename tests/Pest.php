@@ -16,11 +16,15 @@ use App\Enums\MaterialEnums;
 use App\Enums\MeasurementUnitEnums;
 use App\Enums\NestingEnums;
 use App\Enums\SurfaceEnums;
+use App\Imports\ExcelImport;
 use App\Models\Business;
 use App\Models\Piece;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
 use App\Models\User;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\File\File;
+use Maatwebsite\Excel\Facades\Excel;
 
 pest()->extend(Tests\TestCase::class)
     ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
@@ -112,7 +116,7 @@ function createBusiness(string $name, bool $adminSetupComplete): Business
 {
     return Business::create([
         "name" => $name,
-        "domain" => str_replace(" ","-",$name).".com.au",
+        "domain" => str_replace(" ","-",$name).".com",
         "admin_setup_complete" => $adminSetupComplete,
     ]);
 }
@@ -241,4 +245,17 @@ function createPiece(Project $project, RawMaterialQuote $rawMaterialQuote, array
         "kg_per_m" => $row["kg_per_m"] ?? null,
         "actual_qty" => $row["sub_qty"]
     ]);
+}
+
+function csvArray(): ?array
+{
+    $filePath = "templatesForTesting/Monthly budget excel.xlsx";
+    $csvArray = null;
+
+    if (Storage::disk("local")->exists($filePath)) {
+        $file = new File(Storage::path($filePath));
+        $csvArray = Excel::toArray(new ExcelImport(), $file)[0];
+    }
+
+    return $csvArray;
 }

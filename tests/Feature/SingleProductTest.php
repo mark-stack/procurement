@@ -54,19 +54,19 @@ function findProducts(string $description): Collection
         $measurementUnitEnum = $dataClassificationService->findMeasurementUnit($product);
 
         //NOMINAL LENGTH
-        $nominalLengthInt = $dataClassificationService->findNominal($product, $description, "nominalLengthRegex");
+        $nominalLengthInt = $dataClassificationService->findNumberByRegex($product, $description, "nominalLengthRegex");
 
         //NOMINAL WIDTH
-        $nominalWidthInt = $dataClassificationService->findNominal($product, $description, "nominalWidthRegex");
+        $nominalWidthInt = $dataClassificationService->findNumberByRegex($product, $description, "nominalWidthRegex");
 
         //NOMINAL HEIGHT
-        $nominalHeightInt = $dataClassificationService->findNominal($product, $description, "nominalHeightRegex");
+        $nominalHeightInt = $dataClassificationService->findNumberByRegex($product, $description, "nominalHeightRegex");
 
         //WALL
-        $wall = $dataClassificationService->findNominal($product, $description, "wallRegex");
+        $wall = $dataClassificationService->findNumberByRegex($product, $description, "wallRegex");
 
         //WEIGHT
-        $kg_per_m = $dataClassificationService->findNominal($product, $description, "weightRegex");
+        $kg_per_m = $dataClassificationService->findNumberByRegex($product, $description, "weightRegex");
 
 //        dd([
 //            "text" => $description,

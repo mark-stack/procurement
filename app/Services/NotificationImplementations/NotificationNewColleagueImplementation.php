@@ -134,14 +134,16 @@ class NotificationNewColleagueImplementation implements NotificationInterface
 
         if($this->isCorrectClass($notification)){
             $userName = $notification->data["new_user_name"] ?? null;
-            $message = $this->message($userName,"");
+            if($userName){
+                $message = $this->message($userName,"");
 
-            $notificationData = [
-                "id" => $notification->id,
-                "message" => $message,
-                "timestamp" => $notification->created_at->diffForHumans(),
-                "trafficLights" => null,
-            ];
+                $notificationData = [
+                    "id" => $notification->id,
+                    "message" => $message,
+                    "timestamp" => $notification->created_at->diffForHumans(),
+                    "trafficLights" => null,
+                ];
+            }
         }
 
         return $notificationData;

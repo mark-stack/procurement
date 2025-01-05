@@ -376,6 +376,7 @@ class NestingService
                 ->whereIn("id",$allPieces->pluck("id")->toArray())
                 ->distinct()
                 ->get();
+            //dd(2,$materialSpecs);
 
             foreach($materialSpecs as $materialSpec){
                 $pieces = $allPieces
@@ -384,8 +385,15 @@ class NestingService
                     ->where('grade',$materialSpec->grade)
                     ->where('surface',$materialSpec->surface)
                     ->where('nominal_units',$materialSpec->nominal_units)
+                    ->where("nominal_height",$materialSpec->nominal_height)
+                    ->where("nominal_width",$materialSpec->nominal_width)
                     ->where('wall',$materialSpec->wall)
                     ->sortBy("actual_length");
+//                dd([
+//                    "debug" => 1,
+//                    "materialSpec" => $materialSpec->toArray(),
+//                    "pieces" => $pieces->toArray(),
+//                ]);
 
                 //Material spec
                 $appended = $materialSpec;

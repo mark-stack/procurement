@@ -42,16 +42,19 @@ class QuoteController extends Controller
         $nestingService = new NestingService();
 
         $piecesClassifiedByNestingAlgorithm = $nestingService->piecesClassifiedByNestingAlgorithm($pieces);
+        //dd(1,$piecesClassifiedByNestingAlgorithm);
 
         $piecesNested = [];
         foreach($piecesClassifiedByNestingAlgorithm as $nestingAlgoLabel => $pieces){
             $piecesNested[] = $nestingService->nesting($nestingAlgoLabel,$pieces);
         }
+        //dd(2,$piecesNested);
 
         /**
          * Batch groups
          */
         $batchGroups = $nestingService->batchGroups($piecesNested);
+        //dd(3,$batchGroups);
 
         return Inertia::render('QuoteIndex',[
             "pieces" => $piecesNested,
