@@ -78,6 +78,7 @@ class EA_Implementation extends ProductBaseImplementation
         ?string $actualSurface,
         ?float $wall,
         ?float $kg_per_m,
+        ?string $material,
     ): string
     {
         return $nominal_height."x".$nominal_width."x".$wall." EA";

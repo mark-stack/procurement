@@ -113,10 +113,10 @@ class DataClassificationService
                     //It may not find possible equivalents. It's mainly for CHS and pipe
                     $possibleEquivalents = match ($productString) {
                         ProductEnums::CHS->value => $this->possibleEquivalentsCHS($uncertainLengthFloat),
-                        default => null,
+                        default => [],
                     };
 
-                    if($possibleEquivalents){
+                    if(count($possibleEquivalents) > 0){
                         foreach($possibleEquivalents as $equivalent){
                             $query->where(function($q) use($equivalent){
                                 $q->where("nominal_length", $equivalent["nominal"])
@@ -136,10 +136,10 @@ class DataClassificationService
                     //It may not find possible equivalents. It's mainly for CHS and pipe
                     $possibleEquivalents = match ($productString) {
                         ProductEnums::CHS->value => $this->possibleEquivalentsCHS($uncertainWidthFloat),
-                        default => null,
+                        default => [],
                     };
 
-                    if($possibleEquivalents){
+                    if(count($possibleEquivalents) > 0){
                         foreach($possibleEquivalents as $equivalent){
                             $query->where(function($q) use($equivalent){
                                 $q->where("nominal_width", $equivalent["nominal"])
@@ -159,10 +159,10 @@ class DataClassificationService
                     //It may not find possible equivalents. It's mainly for CHS and pipe
                     $possibleEquivalents = match ($productString) {
                         ProductEnums::CHS->value => $this->possibleEquivalentsCHS($uncertainHeightFloat),
-                        default => null,
+                        default => [],
                     };
 
-                    if($possibleEquivalents){
+                    if(count($possibleEquivalents) > 0){
                         foreach($possibleEquivalents as $equivalent){
                             $query->where(function($q) use($equivalent){
                                 $q->where("nominal_height", $equivalent["nominal"])
@@ -190,7 +190,7 @@ class DataClassificationService
                     $possibleEquivalents = match ($productString) {
                         ProductEnums::UB->value => $this->possibleEquivalentsUB($kg_per_m),
                         ProductEnums::UC->value => $this->possibleEquivalentsUC($kg_per_m),
-                        default => null,
+                        default => [],
                     };
 
                     if(count($possibleEquivalents) > 0){
@@ -217,6 +217,83 @@ class DataClassificationService
         }
 
         return collect($results);
+    }
+
+    public function findCustomProductMatches(
+        string $description,
+        object $user,
+    ): array
+    {
+        /**
+         * Single purpose: find custom matches independent of the length variations. e.g 200PFC
+         */
+
+        /**
+         * Compare the limited attributes provided (grade, size, etc) against the master price book.
+         *
+         * NOTE: for METERAGE items, disregard length. e.g "150PFC STEEL GR300" disregards 9m,12m,etc.
+         * NOTE: for AREA items, disregard length & width
+         * NOTE: for BUNDLE items, disregard none
+         */
+        $results = [];
+
+        $customProductMatchesAllVariations = $user->business->products()
+            ->where("description",$description)
+            ->get()
+            ->groupBy("nesting_algo")
+            ->toArray();
+
+        if(count($customProductMatchesAllVariations) > 0){
+            foreach($customProductMatchesAllVariations as $algo => $products){
+                //Get IDs
+                $ids = collect($products)->pluck("id")->toArray();
+
+                //METERAGE
+                if($algo === NestingEnums::METERAGE->value){
+                    $meterageResults = Product::select('product_category', 'material', 'grade', 'surface', 'nominal_units',"nominal_width","precise_width",'nominal_height',"precise_height","wall","kg_per_m")
+                        ->whereIn("id",$ids)
+                        ->distinct()
+                        ->availableFor($user)
+                        ->where("nesting_algo",$algo)
+                        ->get()
+                        ->toArray();
+
+                    foreach($meterageResults as $result){
+                        $results[] = $result;
+                    }
+                }
+                //AREA
+                if($algo === NestingEnums::AREA->value){
+                    $areaResults = Product::select('product_category', 'material', 'grade', 'surface', 'nominal_units', 'nominal_height',"precise_height")
+                        ->whereIn("id",$ids)
+                        ->distinct()
+                        ->availableFor($user)
+                        ->where("nesting_algo",$algo)
+                        ->get()
+                        ->toArray();
+
+                    foreach($areaResults as $result){
+                        $results[] = $result;
+                    }
+                }
+                //BUNDLE
+                if($algo === NestingEnums::BUNDLE->value){
+                    $bundleResults = Product::select('product_category', 'material', 'grade', 'surface', 'nominal_units', 'nominal_length',"precise_length",'nominal_width',"precise_width")
+                        ->whereIn("id",$ids)
+                        ->distinct()
+                        ->availableFor($user)
+                        ->where("nesting_algo",$algo)
+                        ->get()
+                        ->toArray();
+
+                    foreach($bundleResults as $result){
+                        $results[] = $result;
+                    }
+                }
+            }
+        }
+
+        return $results;
     }
 
     private function possibleEquivalentsCHS(float $possibleFloat): array

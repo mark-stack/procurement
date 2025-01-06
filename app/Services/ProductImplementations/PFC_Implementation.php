@@ -2,6 +2,7 @@
 
 namespace App\Services\ProductImplementations;
 
+use App\Enums\GradeEnums;
 use App\Enums\MaterialEnums;
 use App\Enums\MeasurementUnitEnums;
 use App\Enums\ProductEnums;
@@ -84,10 +85,23 @@ class PFC_Implementation extends ProductBaseImplementation
         ?string $actualSurface,
         ?float $wall,
         ?float $kg_per_m,
+        ?string $material,
     ): string
     {
-        $actualSize = $nominal_height;
+        /*
+         * 1) If plain carbon steel, just display "200PFC"
+         * 2) Any other grades, display "200PFC SS316"
+         */
+        $surface = $actualSurface ? (" ".$actualSurface) : '';
 
-        return $actualSize.$productCategory;
+        $display = "";
+        if($material === MaterialEnums::PLAIN_CARBON_STEEL->value){
+            $display = $nominal_height.$productCategory.$surface;
+        }
+        else{
+            $display = $nominal_height.$productCategory." ".$material.$surface;
+        }
+
+        return $display;
     }
 }

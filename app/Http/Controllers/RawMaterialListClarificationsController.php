@@ -44,30 +44,61 @@ class RawMaterialListClarificationsController extends Controller
 
                     //Customise option (selected "other")
                     if($formData["selected"] === "customise"){
-                        $rawMaterialQuote->general_product_matches = serialize([]);
-                        $rawMaterialQuote->save();
+                        /**
+                         * Custom product
+                         */
+                        $custom = $formData["custom"];
+                        if($custom){
+                            $rawMaterialQuote->custom_product_matches = serialize([]);
+                            $rawMaterialQuote->save();
+                        }
+                        /**
+                         * Regular product
+                         */
+                        else{
+                            $rawMaterialQuote->general_product_matches = serialize([]);
+                            $rawMaterialQuote->save();
+                        }
                     }
                     //Selected a product
                     else{
                         $selectedProduct = $formData["options"][$formData["selected"]];
 
-                        $generalProductMatches = $dataClassificationService->findGeneralProductMatches(
-                            $user,
-                            $selectedProduct["product_category"],
-                            MaterialEnums::from($selectedProduct["material"]),
-                            [GradeEnums::from($selectedProduct["grade"])],
-                            SurfaceEnums::from($selectedProduct["surface"]),
-                            isset($selectedProduct["nominal_units"]) ? MeasurementUnitEnums::from($selectedProduct["nominal_units"]) : null,
-                            $selectedProduct["nominal_length"] ?? null,
-                            $selectedProduct["nominal_width"] ?? null,
-                            $selectedProduct["nominal_height"] ?? null,
-                            $selectedProduct["wall"] ?? null,
-                            $selectedProduct["kg_per_m"] ?? null,
-                        );
+                        /**
+                         * Custom product (won't have a general match)
+                         */
+                        $custom = $formData["custom"];
+                        if($custom){
+                            unset($selectedProduct["product_derived_label"]);
+                            $customProductMatches = [$selectedProduct];
 
-                        if($generalProductMatches->count() === 1){
-                            $rawMaterialQuote->general_product_matches = serialize($generalProductMatches);
+                            $rawMaterialQuote->custom_product_matches = serialize($customProductMatches);
+                            $rawMaterialQuote->custom_confirmed = true;
                             $rawMaterialQuote->save();
+                        }
+
+                        /**
+                         * Regular product (must have a single general match)
+                         */
+                        else{
+                            $generalProductMatches = $dataClassificationService->findGeneralProductMatches(
+                                $user,
+                                $selectedProduct["product_category"],
+                                MaterialEnums::from($selectedProduct["material"]),
+                                [GradeEnums::from($selectedProduct["grade"])],
+                                SurfaceEnums::from($selectedProduct["surface"]),
+                                isset($selectedProduct["nominal_units"]) ? MeasurementUnitEnums::from($selectedProduct["nominal_units"]) : null,
+                                $selectedProduct["nominal_length"] ?? null,
+                                $selectedProduct["nominal_width"] ?? null,
+                                $selectedProduct["nominal_height"] ?? null,
+                                $selectedProduct["wall"] ?? null,
+                                $selectedProduct["kg_per_m"] ?? null,
+                            );
+
+                            if($generalProductMatches->count() === 1){
+                                $rawMaterialQuote->general_product_matches = serialize($generalProductMatches->toArray());
+                                $rawMaterialQuote->save();
+                            }
                         }
                     }
                 }

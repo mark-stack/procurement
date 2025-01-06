@@ -84,6 +84,7 @@ class CSK_BOLT_Implementation extends ProductBaseImplementation
         ?string $actualSurface,
         ?float $wall,
         ?float $kg_per_m,
+        ?string $material,
     ): string
     {
         //Size

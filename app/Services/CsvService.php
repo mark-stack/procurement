@@ -22,7 +22,6 @@ class CsvService
 
         //Detected Tables
         $detectedTables = $this->detectedTables($csvArray,$eligibleTables);
-        dd(1,"detectedTables",$detectedTables,$eligibleTables);
 
         //Should have at least 1 result
         if(count($detectedTables) > 0){
@@ -82,6 +81,7 @@ class CsvService
 
         //Services
         $dataClassificationService = new DataClassificationService();
+        $productService = new ProductService();
 
         foreach($detectedTables as $tableInstance){
             $type = $tableInstance["type"];
@@ -93,23 +93,59 @@ class CsvService
             //Add general product matches to row data
             $rowDataWithGeneralProductMatches = [];
             foreach($rows as $row){
-                $generalProductMatches = $dataClassificationService->findGeneralProductMatchesFromText($row["description"],$project->user);
+                /*
+                 * Description (Use derived if no description column provided)
+                 */
+                if(!$row["description"]){
+                    $productConfig = $dataClassificationService->findProductConfigFromText($row["description"]);
+                    $productCategory = $productConfig ? $productConfig["productCategory"] : null;
 
+                    $row["description"] = $productService->generateProductLabel(
+                        $productCategory,
+                        $row["length_required"],
+                        null, //precise_length todo
+                        $row["width_required"],
+                        null, //precise_width todo
+                        null,
+                        null, //precise_height todo
+                        $row["grade"],
+                        $row["surface"],
+                        null, //wall todo
+                        null, //kg_per_m todo
+                        $row["material"] ?? null,
+                    );
+                }
+
+                /*
+                 * Find general product matches
+                 */
+                $generalProductMatches = $dataClassificationService->findGeneralProductMatchesFromText(
+                    $row["description"],
+                    $project->user
+                );
+
+                /*
+                 * Check for user-custom products.
+                 */
+                $customProductMatches = $dataClassificationService->findCustomProductMatches(
+                    $row["description"],
+                    $project->user,
+                );
+
+                /*
+                 * Append to row
+                 */
                 $append = $row;
                 $append["generalProductMatches"] = $generalProductMatches;
+                $append["customProductMatches"] = $customProductMatches;
                 $rowDataWithGeneralProductMatches[] = $append;
             }
-
 
             //Save user material list
             $this->saveRawMaterialQuoteData(
                 $rowDataWithGeneralProductMatches,
                 $project,
             );
-
-            //Create new user-custom products
-            //todo is incomplete
-            $this->createUserCustomProducts($rowDataWithGeneralProductMatches,$project);
         }
     }
 
@@ -393,47 +429,6 @@ class CsvService
         return (float) $result;
     }
 
-    public function createUserCustomProducts(array $dataWithProducts, object $project): void
-    {
-        /**
-         * Single purpose: create custom products not found in general price book
-         * todo: incomplete
-         */
-
-        $user = $project->user;
-        $business = $user->business;
-        $domain = $user->getDomainFromEmail();
-
-//        foreach($dataWithProducts as $row){
-//            $userProductData = $row["product_custom_for_user"];//todo
-//            if($userProductData !== null){
-//
-////                $userProductData
-////                "index" => 27
-////                "description" => "Steel Beams (I-Beams)"
-////                "material" => null
-////                "length_required" => 12.0
-////                "sub_qty" => 2.0
-////                "unit_rate" => 50.0
-//
-//                Product::create([
-//                    "description" => $userProductData["description"],
-//                    "product" => ProductEnums::PFC, //todo: let the user customise
-//                    "material" => $userProductData["material"] ?? MaterialEnums::STEEL->value, //todo: let the user customise
-//                    "grade" => GradeEnums::NONE->value, //todo: let the user customise
-//                    "surface" => SurfaceEnums::NONE->value, //todo: let the user customise
-//                    "nominal_units" => MeasurementUnitEnums::SINGLE->value, //todo: let the user customise
-//                    "size" => 1, //todo: let the user customise
-//                    "length" => $userProductData["length_required"], //todo: let the user customise
-//                    "width" => $userProductData["width_required"], //todo: let the user customise
-//                    "kg_per_m" => 1, //todo: let the user customise
-//                    "baseline_unit_rate" => 1, //todo: let the user customise
-//                    'domain' => $domain,
-//                ]);
-//            }
-//        }
-    }
-
     public function saveRawMaterialQuoteData($rows,$project): array
     {
         /**
@@ -464,19 +459,7 @@ class CsvService
 
             $rawMaterialQuote = RawMaterialQuote::create([
                 "csv_index" => $row["index"],
-                "description" => $row["description"] ?? $productService->generateProductLabel(
-                        $productCategory,
-                        $row["length_required"],
-                        null, //precise_length todo
-                        $row["width_required"],
-                        null, //precise_width todo
-                        null,
-                        null, //precise_height todo
-                        $row["grade"],
-                        $row["surface"],
-                        null, //wall todo
-                        null //kg_per_m todo
-                    ),
+                "description" => $row["description"],
                 "product_category" => $productCategory,
                 "material" => $row["material"] ?? null,
                 "grade" => $row["grade"] ?? null,
@@ -487,7 +470,8 @@ class CsvService
                 "sub_qty" => $row["sub_qty"],
                 "unit_rate" => $row["unit_rate"] ?? null,
                 'project_id' => $project->id,
-                "general_product_matches" => serialize($row["generalProductMatches"]),
+                "general_product_matches" => serialize($row["generalProductMatches"]->toArray()),
+                "custom_product_matches" => serialize($row["customProductMatches"]),
                 "assembly_mark" => $row["assembly_mark"] ?? "",
             ]);
 
@@ -515,8 +499,8 @@ class CsvService
                     "precise_width" => $item["precise_width"] ?? null,
                     "nominal_height" => $item["nominal_height"] ?? null,
                     "precise_height" => $item["precise_height"] ?? null,
-                    "actual_length" => $this->normalisedLength($algo,$lengthRequired), //todo should this convert length into qty for BUNDLE?
-                    "actual_width" => $this->normalisedWidth($algo,$widthRequired),    //todo should this convert length into qty for BUNDLE?
+                    "actual_length" => $this->normalisedLength($algo,$lengthRequired),
+                    "actual_width" => $this->normalisedWidth($algo,$widthRequired),
                     "wall" => $item["wall"] ?? null,
                     "kg_per_m" => $item["kg_per_m"] ?? null,
                     "actual_qty" => $row["sub_qty"],

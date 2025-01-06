@@ -42,7 +42,6 @@ class QuoteController extends Controller
         $nestingService = new NestingService();
 
         $piecesClassifiedByNestingAlgorithm = $nestingService->piecesClassifiedByNestingAlgorithm($pieces);
-        //dd(1,$piecesClassifiedByNestingAlgorithm);
 
         $piecesNested = [];
         foreach($piecesClassifiedByNestingAlgorithm as $nestingAlgoLabel => $pieces){

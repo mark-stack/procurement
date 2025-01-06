@@ -23,7 +23,7 @@ class ProductController extends Controller
     public function index(Project $project): Response
     {
         /**
-         * Single purpose: xxx
+         * Single purpose: upload, clarify, and display consolidated BOM for a project
          */
         Gate::authorize('owned', $project);
 
@@ -65,7 +65,6 @@ class ProductController extends Controller
                             "nominal_length" => null,
                             "nominal_width" => null,
                             "nominal_height" => null,
-                            //"quantify" => null,
                             "nesting_algo" => null,
                             "purchasable_length_1" => null,
                             "purchasable_length_2" => null,
@@ -80,7 +79,6 @@ class ProductController extends Controller
                             "material" => null,
                             "grade" => null,
                             "surface" => null,
-                            //"quantify" => null,
                             "suppliers" => [],
                         ],
                         "data" => $rawMaterialQuote,
@@ -103,6 +101,7 @@ class ProductController extends Controller
                         "selected" => null,
                         "data" => $rawMaterialQuote,
                         "options" => $getProductMatchOptions['decodedOptions'],
+                        "custom" => $getProductMatchOptions['custom'],
                     ];
                 }
             }

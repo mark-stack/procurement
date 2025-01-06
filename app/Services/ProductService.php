@@ -94,52 +94,63 @@ class ProductService
          */
         $result = null;
 
-        //Prerequisite variables
-        $userCustomOptions = $business->products()
-            ->where("description",$rawMaterialQuote->description)
-            ->get()
-            ->toArray();
+        /**
+         * Decoded general products
+         * Add derived product label to every option. e.g "200PFC SS316"
+         */
+        $decodedGeneralProductsRaw = unserialize($rawMaterialQuote->general_product_matches);
+        $decodedGeneralProducts = [];
+        foreach($decodedGeneralProductsRaw as $option){
+            $option["product_derived_label"] = $this->getDerivedProductLabel($option);
+            $decodedGeneralProducts[] = $option;
+        }
+
+        /**
+         * Decoded custom products
+         * Add derived product label to every option. e.g "200PFC SS316"
+         */
+        $decodedCustomProductsRaw = unserialize($rawMaterialQuote->custom_product_matches);
+        $decodedCustomProducts = [];
+        foreach($decodedCustomProductsRaw as $option){
+            $option["product_derived_label"] = $this->getDerivedProductLabel($option);
+            $decodedCustomProducts[] = $option;
+        }
 
         /**
          * 1) Non-price book (will be user custom product)
          */
-        if(count($userCustomOptions) > 0){
-            //No action
+
+        if(count($decodedCustomProducts) > 0 && !$rawMaterialQuote->custom_confirmed){
+            $result = [
+                "status" => "PARTIAL",
+                "decodedOptions" => $decodedCustomProducts,
+                "custom" => true,
+            ];
         }
         //Price book candidate
         else{
-            $decodedOptionsRaw = unserialize($rawMaterialQuote->general_product_matches);
-
-            /*
-             * Add derived product label to every option. e.g "200PFC SS316"
-             */
-            $decodedOptions = [];
-            foreach($decodedOptionsRaw as $option){
-                $option["product_derived_label"] = $this->getDerivedProductLabel($option);
-                $decodedOptions[] = $option;
-            }
-
             /**
              * 2) Price book exact match
              */
-            if(count($decodedOptions) === 1){
+            if(count($decodedGeneralProducts) === 1){
                 $result = [
                     "status" => "EXACT",
-                    "decodedOption" => $decodedOptions[0],
+                    "decodedOption" => $decodedGeneralProducts[0],
                 ];
             }
 
             /**
              * 3) Price book partial match (requires confirmation)
              */
-            if(count($decodedOptions) > 1){
+            if(count($decodedGeneralProducts) > 1){
                 $result = [
                     "status" => "PARTIAL",
-                    "decodedOptions" => $decodedOptions,
+                    "decodedOptions" => $decodedGeneralProducts,
+                    "custom" => false,
                 ];
             }
             //If no results, it's user-custom
-            if(count($decodedOptions) === 0){
+            if(count($decodedGeneralProducts) === 0 && count($decodedCustomProducts) === 0){
                 $result = [
                     "status" => "CUSTOM",
                     "decodedOptions" => null,
@@ -184,6 +195,7 @@ class ProductService
         $surface = $productSpec["surface"];
         $wall = $productSpec["wall"] ?? null;
         $kg_per_m = $productSpec["kg_per_m"] ?? null;
+        $material = $productSpec["material"] ?? null;
 
         //Derived label. e.g "200PFC SS316"
         return $this->generateProductLabel(
@@ -198,6 +210,7 @@ class ProductService
             $surface,
             $wall,
             $kg_per_m,
+            $material,
         );
     }
 
@@ -855,6 +868,7 @@ class ProductService
         ?string $surface,
         ?float $wall,
         ?float $kg_per_m,
+        ?string $material,
     ): string
     {
         //Grade
@@ -906,6 +920,7 @@ class ProductService
                 $actualSurface,
                 $wall,
                 $kg_per_m,
+                $material,
             );
         }
         else{

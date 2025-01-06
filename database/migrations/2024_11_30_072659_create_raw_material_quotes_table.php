@@ -27,6 +27,8 @@ return new class extends Migration
             $table->string("unit_rate")->nullable();
             $table->foreignId('project_id')->constrained();
             $table->text("general_product_matches")->nullable();
+            $table->text("custom_product_matches")->nullable();
+            $table->boolean("custom_confirmed")->default(false);
             $table->text("assembly_mark");
         });
     }
