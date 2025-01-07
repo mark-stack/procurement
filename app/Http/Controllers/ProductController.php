@@ -75,7 +75,7 @@ class ProductController extends Controller
                             "suppliers" => [],
                         ],
                         "selected_other" => [
-                            "product" => null,
+                            "product_category" => null,
                             "material" => null,
                             "grade" => null,
                             "surface" => null,
@@ -145,7 +145,8 @@ class ProductController extends Controller
          */
         $allGrades = $nestingService->allGradeLabels();
         $allMeasurements = $nestingService->allMeasurementUnitLabels();
-        $formDependentData = $nestingService->buildDependencyArray();
+        $formDependentData = $nestingService->buildDependencyArray2();
+        //dd(1,$formDependentData);
 
         /**
          * Nesting groups

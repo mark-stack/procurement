@@ -60,27 +60,6 @@
         return display;
     }
 
-    function changeActions(){
-        // //Reset "other"
-        // props.form['selected_other'][props.reference] = null;
-        //
-        // //Materials: if select "PLAIN_CARBON_STEEL"
-        // if(props.form['selected'][props.reference] === "PLAIN_CARBON_STEEL"){
-        //     props.form['subOption']['grade'] = "PLAIN_CARBON_STEEL";
-        // }
-        // //Materials: if select "TIMBER"
-        // else if(props.form['selected'][props.reference] === "TIMBER"){
-        //     props.form['subOption']['grade'] = "TIMBER";
-        // }
-        // //Materials: if select "PLASTIC"
-        // else if(props.form['selected'][props.reference] === "PLASTIC"){
-        //     props.form['subOption']['grade'] = "PLASTIC";
-        // }
-        // else{
-        //     props.form['subOption']['grade'] = "all";
-        // }
-    }
-
     function clearSingleForm(){
         props.form['selected_other'][props.reference] = null;
         props.form['selected'][props.reference] = null;
@@ -96,7 +75,6 @@
             v-model="form['selected'][reference]"
             class="w-full rounded"
             :class="errors[id+'-'+reference] ? 'border-2 border-red-500' : ''"
-            @change="changeActions()"
         >
             <option :value="null" disabled>Select</option>
             <option
@@ -108,7 +86,7 @@
         </select>
 
         <div
-            v-if="form['selected'][reference] === 'Other'"
+            v-if="form['selected'][reference] === 'Other' || 1==1"
             class="relative w-full max-w-sm"
         >
             <!-- Input field -->

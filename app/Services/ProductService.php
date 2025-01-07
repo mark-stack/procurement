@@ -589,7 +589,6 @@ class ProductService
                 $nominalLength = $row["selected"]["nominal_length"];
                 $nominalWidth = $row["selected"]["nominal_width"];
                 $nominalHeight = $row["selected"]["nominal_height"];
-                //$measurementUnit = $row["selected"]["quantify"];
                 $nestingType = $row["selected"]["nesting_algo"];
                 $purchasable_length_1 = $row["selected"]["purchasable_length_1"];
                 $purchasable_length_2 = $row["selected"]["purchasable_length_2"];

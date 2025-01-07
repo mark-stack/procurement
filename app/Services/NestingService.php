@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\GradeEnums;
+use App\Enums\MaterialEnums;
 use App\Enums\MeasurementUnitEnums;
 use App\Enums\NestingEnums;
 use App\Enums\ProductEnums;
@@ -259,11 +261,259 @@ class NestingService
         return $result;
     }
 
-    public function buildDependencyArray(): array
+    private function buildDependencyComponent(object $material, array $gradesGroups, array $nestingAlgos): array
+    {
+        $fastenerGrades = [
+            GradeEnums::GR_4_6,
+            GradeEnums::GR_5_8,
+            GradeEnums::GR_8_8,
+            GradeEnums::GR_10_9,
+            GradeEnums::GR_12_9,
+        ];
+
+        $sectionGrades = [
+            GradeEnums::GR250,
+            GradeEnums::GR300,
+            GradeEnums::GR350,
+        ];
+
+        $timberGrades = [
+            GradeEnums::E13,
+        ];
+
+        $plasticGrades = [
+            GradeEnums::HDPE,
+        ];
+
+        $alloyGrades = [
+            GradeEnums::GR_6060,
+            GradeEnums::GR_6061,
+        ];
+
+        $hardoxGrades = [
+            GradeEnums::HARDOX_400,
+            GradeEnums::HARDOX_450,
+            GradeEnums::HARDOX_500,
+            GradeEnums::HARDOX_500_TUF,
+            GradeEnums::HARDOX_550,
+            GradeEnums::HARDOX_600,
+            GradeEnums::HARDOX_HI_TUF,
+            GradeEnums::HARDOX_EXTREME,
+            GradeEnums::HARDOX_HI_TEMP,
+        ];
+
+        $gradesArray = [];
+
+        $algoValues = [];
+        foreach($nestingAlgos as $algo){
+            $algoValues[] = $algo->value;
+        }
+
+        foreach($gradesGroups as $group){
+            //Fasteners
+            if($group === "FASTENERS"){
+                foreach($fastenerGrades as $grade){
+                    $gradesArray[$grade->value] = $algoValues;
+                }
+            }
+
+            //Sections & plate
+            if($group === "SECTIONS"){
+                foreach($sectionGrades as $grade){
+                    $gradesArray[$grade->value] = $algoValues;
+                }
+            }
+
+            //Timber
+            if($group === "TIMBER"){
+                foreach($timberGrades as $grade){
+                    $gradesArray[$grade->value] = $algoValues;
+                }
+            }
+
+            //Plastic
+            if($group === "PLASTIC"){
+                foreach($plasticGrades as $grade){
+                    $gradesArray[$grade->value] = $algoValues;
+                }
+            }
+
+            //Alloys & aluminium
+            if($group === "ALLOY"){
+                foreach($alloyGrades as $grade){
+                    $gradesArray[$grade->value] = $algoValues;
+                }
+            }
+
+            //Hardox
+            if($group === "HARDOX"){
+                foreach($hardoxGrades as $grade){
+                    $gradesArray[$grade->value] = $algoValues;
+                }
+            }
+        }
+
+        return [
+            $material->value => $gradesArray,
+        ];
+    }
+
+    public function buildDependencyArray2(): array
     {
         /**
          * Dependency Array:
-         *   - Product (single)
+         *   - Product category (single)
+         *     - Materials (multiple)
+         *       - Grades (multiple)
+         *          - Nesting Algo (single)
+         */
+
+        $all = array_merge(
+            $this->buildDependencyComponent(
+                MaterialEnums::PLAIN_CARBON_STEEL,
+                ["FASTENERS","SECTIONS"],
+                [NestingEnums::METERAGE,NestingEnums::BUNDLE,NestingEnums::AREA]
+            ),
+            $this->buildDependencyComponent(
+                MaterialEnums::SS316,
+                ["FASTENERS","SECTIONS"],
+                [NestingEnums::METERAGE,NestingEnums::BUNDLE,NestingEnums::AREA]
+            ),
+            $this->buildDependencyComponent(
+                MaterialEnums::SS304,
+                ["FASTENERS","SECTIONS"],
+                [NestingEnums::METERAGE,NestingEnums::BUNDLE,NestingEnums::AREA]
+            ),
+            $this->buildDependencyComponent(
+                MaterialEnums::ALUMINIUM,
+                ["ALLOY"],
+                [NestingEnums::METERAGE,NestingEnums::BUNDLE,NestingEnums::AREA]
+            ),
+            $this->buildDependencyComponent(
+                MaterialEnums::PLASTIC,
+                ["PLASTIC"],
+                [NestingEnums::METERAGE,NestingEnums::BUNDLE,NestingEnums::AREA]
+            ),
+            $this->buildDependencyComponent(
+                MaterialEnums::TIMBER,
+                ["TIMBER"],
+                [NestingEnums::METERAGE,NestingEnums::BUNDLE,NestingEnums::AREA]
+            ),
+            $this->buildDependencyComponent(
+                MaterialEnums::HARDOX,
+                ["HARDOX"],
+                [NestingEnums::METERAGE,NestingEnums::BUNDLE,NestingEnums::AREA]
+            ),
+        );
+
+        //dd("all",$all);
+
+        $sections = array_merge(
+            $this->buildDependencyComponent(
+                MaterialEnums::PLAIN_CARBON_STEEL,
+                ["SECTIONS"],
+                [NestingEnums::METERAGE]
+            ),
+            $this->buildDependencyComponent(
+                MaterialEnums::SS316,
+                ["SECTIONS"],
+                [NestingEnums::METERAGE]
+            ),
+            $this->buildDependencyComponent(
+                MaterialEnums::SS304,
+                ["SECTIONS"],
+                [NestingEnums::METERAGE]
+            ),
+            $this->buildDependencyComponent(
+                MaterialEnums::ALUMINIUM,
+                ["ALLOY"],
+                [NestingEnums::METERAGE]
+            ),
+        );
+
+        $plates = array_merge(
+            $this->buildDependencyComponent(
+                MaterialEnums::PLAIN_CARBON_STEEL,
+                ["SECTIONS"],
+                [NestingEnums::AREA]
+            ),
+            $this->buildDependencyComponent(
+                MaterialEnums::SS316,
+                ["SECTIONS"],
+                [NestingEnums::AREA]
+            ),
+            $this->buildDependencyComponent(
+                MaterialEnums::SS304,
+                ["SECTIONS"],
+                [NestingEnums::AREA]
+            ),
+            $this->buildDependencyComponent(
+                MaterialEnums::ALUMINIUM,
+                ["ALLOY"],
+                [NestingEnums::AREA]
+            ),
+        );
+
+        $fasteners = array_merge(
+            $this->buildDependencyComponent(
+                MaterialEnums::PLAIN_CARBON_STEEL,
+                ["FASTENERS"],
+                [NestingEnums::BUNDLE]
+            ),
+            $this->buildDependencyComponent(
+                MaterialEnums::SS316,
+                ["FASTENERS"],
+                [NestingEnums::BUNDLE]
+            ),
+            $this->buildDependencyComponent(
+                MaterialEnums::SS304,
+                ["FASTENERS"],
+                [NestingEnums::BUNDLE]
+            ),
+            $this->buildDependencyComponent(
+                MaterialEnums::ALUMINIUM,
+                ["FASTENERS"],
+                [NestingEnums::BUNDLE]
+            ),
+        );
+
+        $timber = array_merge(
+            $this->buildDependencyComponent(
+                MaterialEnums::TIMBER,
+                ["TIMBER"],
+                [NestingEnums::METERAGE]
+            )
+        );
+
+        return [
+            "Other" => $all,
+            ProductEnums::PFC->value => $sections,          //Meterage
+            ProductEnums::UB->value => $sections,           //Meterage
+            ProductEnums::UC->value => $sections,           //Meterage
+            ProductEnums::CHS->value => $sections,          //Meterage
+            ProductEnums::LVL->value => $timber,            //Meterage
+            ProductEnums::PLATE->value => $plates,          //Area
+            ProductEnums::ANCHOR_STUD->value => $fasteners, //Bundle
+            ProductEnums::ALLTHREAD->value => $fasteners,   //Bundle
+            ProductEnums::HEX_BOLT->value => $fasteners,    //Bundle
+            ProductEnums::NUT->value => $fasteners,         //Bundle
+            ProductEnums::CSK_BOLT->value => $fasteners,    //Bundle
+            ProductEnums::ROUND->value => $sections,        //Meterage
+            ProductEnums::EA->value => $sections,           //Meterage
+            ProductEnums::UA->value => $sections,           //Meterage
+            ProductEnums::RHS->value => $sections,          //Meterage
+        ];
+    }
+
+    /**
+     * @deprecated
+     */
+    public function buildDependencyArray(): array
+    {
+        //todo this is the dynamic version, but it's flawed. e.g the dependant data matches the database which defeats the point of creating new products
+        /**
+         * Dependency Array:
+         *   - Product category (single)
          *     - Materials (multiple)
          *       - Grades (multiple)
          *          - Nesting Algo (single)
@@ -273,6 +523,7 @@ class NestingService
 
         //All Materials
         $materialLabels = $this->allMaterialLabels();
+
         foreach($materialLabels as $materialLabel){
             //Grades
             $gradeLabels = $this->getGradeLabelsFromMaterial(null,$materialLabel);

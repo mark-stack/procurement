@@ -22,5 +22,18 @@ enum GradeEnums: string
     //PLASTIC
     case HDPE = "HDPE";
 
-    //todo more.
+    //ALLOY (aluminium)
+    case GR_6060 = "GR6060";
+    case GR_6061 = "GR6061";
+
+    //HARDOX
+    case HARDOX_400 = "HARDOX_400";
+    case HARDOX_450 = "HARDOX_450";
+    case HARDOX_500 = "HARDOX_500";
+    case HARDOX_500_TUF = "HARDOX_500_TUF";
+    case HARDOX_550 = "HARDOX_550";
+    case HARDOX_600 = "HARDOX_600";
+    case HARDOX_HI_TUF = "HARDOX_HI_TUF";
+    case HARDOX_EXTREME = "HARDOX_EXTREME";
+    case HARDOX_HI_TEMP = "HARDOX_HI_TEMP";
 }
