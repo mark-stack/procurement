@@ -639,21 +639,42 @@ class ProductService
                 if(isset($row["nominalSizeData"][$product_category])){
                     $shouldHaveLength = $row["nominalSizeData"][$product_category]["length"];
                     if($shouldHaveLength){
-                        if(!$nominalLength){
+                        if($nominalLength){
+                            //Over zero
+                            if($nominalLength <= 0){
+                                $validationErrors++;
+                                $validator->errors()->add($id."-nominal_length", 'nominal_length');
+                            }
+                        }
+                        else{
                             $validationErrors++;
                             $validator->errors()->add($id."-nominal_length", 'nominal_length');
                         }
                     }
                     $shouldHaveWidth = $row["nominalSizeData"][$product_category]["width"];
                     if($shouldHaveWidth){
-                        if(!$nominalWidth){
+                        if($nominalWidth){
+                            //Over zero
+                            if($nominalWidth <= 0){
+                                $validationErrors++;
+                                $validator->errors()->add($id."-nominal_width", 'nominal_width');
+                            }
+                        }
+                        else{
                             $validationErrors++;
                             $validator->errors()->add($id."-nominal_width", 'nominal_width');
                         }
                     }
                     $shouldHaveHeight = $row["nominalSizeData"][$product_category]["height"];
                     if($shouldHaveHeight){
-                        if(!$nominalHeight){
+                        if($nominalHeight){
+                            //Over zero
+                            if($nominalHeight <= 0){
+                                $validationErrors++;
+                                $validator->errors()->add($id."-nominal_height", 'nominal_height');
+                            }
+                        }
+                        else{
                             $validationErrors++;
                             $validator->errors()->add($id."-nominal_height", 'nominal_height');
                         }
@@ -684,12 +705,24 @@ class ProductService
                      */
                     if($nestingType === "BUNDLE"){
                         //purchasable_length_1: TRUE
-                        if(!$purchasable_length_1){
+                        if($purchasable_length_1){
+                            //Over zero
+                            if($purchasable_length_1 <= 0){
+                                $validationErrors++;
+                                $validator->errors()->add($id."-purchasable_length_1", 'purchasable_length_1');
+                            }
+                        }
+                        else{
                             $validationErrors++;
                             $validator->errors()->add($id."-purchasable_length_1", 'purchasable_length_1');
                         }
                         //$purchasable_length_2 must be unique
                         if($purchasable_length_2){
+                            //Over zero
+                            if($purchasable_length_2 <= 0){
+                                $validationErrors++;
+                                $validator->errors()->add($id."-purchasable_length_2", 'purchasable_length_2');
+                            }
                             //Compare to 1
                             if($purchasable_length_1){
                                 if($purchasable_length_2 == $purchasable_length_1){
@@ -707,6 +740,11 @@ class ProductService
                         }
                         //$purchasable_length_3 must be unique
                         if($purchasable_length_3){
+                            //Over zero
+                            if($purchasable_length_3 <= 0){
+                                $validationErrors++;
+                                $validator->errors()->add($id."-purchasable_length_3", 'purchasable_length_3');
+                            }
                             //Compare to 2
                             if($purchasable_length_2){
                                 if($purchasable_length_3 == $purchasable_length_2){

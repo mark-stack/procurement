@@ -432,24 +432,24 @@ class CsvService
     public function saveRawMaterialQuoteData($rows,$project): array
     {
         /**
-         * Single purpose:
+         * Single purpose: save BOM row
          */
 
         //Services
         $dataClassificationService = new DataClassificationService();
-        $productService = new ProductService();
         $nestingService = new NestingService();
 
         $materialList = [];
 
         foreach($rows as $row){
             $productConfig = $dataClassificationService->findProductConfigFromText($row["description"]);
-            $productCategory = $productConfig ? $productConfig["productCategory"] : null;
+            $productCategory = $productConfig
+                ? $productConfig["productCategory"]
+                : null;
 
-            $algo = $nestingService->getNestingLabelsFromProductCategory($productCategory)[0] ?? null;
-            if(!$algo){
-                break;
-            }
+            $algo = $productCategory
+                ? $nestingService->getNestingLabelsFromProductCategory($productCategory)[0] ?? null
+                : null;
 
             /**
              * Create 'RawMaterialQuote' item
@@ -464,7 +464,7 @@ class CsvService
                 "material" => $row["material"] ?? null,
                 "grade" => $row["grade"] ?? null,
                 "surface" => $row["surface"] ?? null,
-                "nominal_units" => MeasurementUnitEnums::MILLIMETERS, //$dataClassificationService->findMeasurementUnit($productCategory),
+                "nominal_units" => MeasurementUnitEnums::MILLIMETERS,
                 "length_required" => $this->normalisedLength($algo,$lengthRequired),
                 "width_required" => $this->normalisedWidth($algo,$widthRequired),
                 "sub_qty" => $row["sub_qty"],
@@ -511,7 +511,7 @@ class CsvService
         return $materialList;
     }
 
-    public function normalisedLength(string $algo, ?float $lengthRequired): ?float
+    public function normalisedLength(?string $algo, ?float $lengthRequired): ?float
     {
         /**
          * Single purpose: convert M to MM, or keep MM as MM depending on how it looks.
@@ -521,21 +521,28 @@ class CsvService
         $normalisedLength = null;
 
         if($lengthRequired){
-            //Bundle
-            if($algo === NestingEnums::BUNDLE->value){
-                //more likely a QTY multiplier, so leave it as null since sub qty will capture it
-                $normalisedLength = 1; //default. Will be ignored in the tables
+            //Algo
+            if($algo){
+                //Bundle
+                if($algo === NestingEnums::BUNDLE->value){
+                    //more likely a QTY multiplier, so leave it as null since sub qty will capture it
+                    $normalisedLength = 1; //default. Will be ignored in the tables
+                }
+                //Other algos
+                else{
+                    $normalisedLength = ($lengthRequired && $lengthRequired < 20) ? ($lengthRequired*1000) : $lengthRequired;
+                }
             }
-            //Other algos
             else{
-                $normalisedLength = ($lengthRequired && $lengthRequired < 20) ? ($lengthRequired*1000) : $lengthRequired;
+                //todo check this
+                $normalisedLength = $lengthRequired;
             }
         }
 
         return $normalisedLength;
     }
 
-    public function normalisedWidth(string $algo, ?float $widthRequired): ?float
+    public function normalisedWidth(?string $algo, ?float $widthRequired): ?float
     {
         /**
          * Single purpose: convert M to MM, or keep MM as MM depending on how it looks.
@@ -545,13 +552,19 @@ class CsvService
         $normalisedWidth = null;
 
         if($widthRequired){
-            //Bundle
-            if($algo === NestingEnums::BUNDLE->value){
-                //more likely a QTY multiplier, so leave it as null since sub qty will capture it
+            //Algo
+            if($algo){
+                //Bundle
+                if($algo === NestingEnums::BUNDLE->value){
+                    //more likely a QTY multiplier, so leave it as null since sub qty will capture it
+                }
+                //Other algos
+                else{
+                    $normalisedWidth = ($widthRequired < 20) ? ($widthRequired*1000) : $widthRequired;
+                }
             }
-            //Other algos
             else{
-                $normalisedWidth = ($widthRequired < 20) ? ($widthRequired*1000) : $widthRequired;
+                $normalisedWidth = $widthRequired;
             }
         }
 

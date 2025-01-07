@@ -86,7 +86,7 @@
         </select>
 
         <div
-            v-if="form['selected'][reference] === 'Other' || 1==1"
+            v-if="form['selected'][reference] === 'Other'"
             class="relative w-full max-w-sm"
         >
             <!-- Input field -->

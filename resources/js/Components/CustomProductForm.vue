@@ -133,25 +133,6 @@
         return anyMaterialIsSelected;
     }
 
-    // function showQuantify(index){
-    //     let showQuantify = false;
-    //
-    //     if(props.form[index] !== undefined){
-    //         //NONE/BUNDLE/METERAGE/AREA
-    //         let nesting_algo = props.form[index]['selected']['nesting_algo'];
-    //
-    //         //Dimensional
-    //         if(nesting_algo === "METERAGE" || nesting_algo === "AREA"){
-    //             showQuantify = true;
-    //         }
-    //         else{
-    //             showQuantify = false;
-    //         }
-    //     }
-    //
-    //     return showQuantify;
-    // }
-
     function showNesting(index){
         /**
             Any grade selected
@@ -275,15 +256,6 @@
             props.form[index]['selected']['purchasable_width_1'] = null;
             props.form[index]['selected']['purchasable_width_2'] = null;
             props.form[index]['selected']['purchasable_width_3'] = null;
-
-            //Set material
-            let currentProductSelection = props.form[index]['selected']['product_category'];
-            if(currentProductSelection === "LVL"){
-                props.form[index]['selected']['material'] = "TIMBER";
-            }
-            if(currentProductSelection === "PFC" || currentProductSelection === "RHS" || currentProductSelection === "SHS"){
-                props.form[index]['selected']['material'] = "PLAIN_CARBON_STEEL";
-            }
         }
         if(field === 'material'){
             //Clear
@@ -401,25 +373,7 @@
                 </option>
             </select>
         </div>
-<!--        &lt;!&ndash; Measurement Units &ndash;&gt;-->
-<!--        <div v-show="showQuantify(index)">-->
-<!--            <label class="block text-gray-500 text-sm">Measurement Units</label>-->
-<!--            <select-->
-<!--                class="w-full rounded"-->
-<!--                v-model="form[index]['selected']['quantify']"-->
-<!--                :class="form.errors[item.data.id+'-quantify'] ? 'border-2 border-red-500' : ''"-->
-<!--            >-->
-<!--                <option :value="null" disabled>Select</option>-->
-<!--                <template v-for="option in allMeasurements">-->
-<!--                    <option-->
-<!--                        v-if="option"-->
-<!--                        :value="option"-->
-<!--                    >-->
-<!--                        {{option}}-->
-<!--                    </option>-->
-<!--                </template>-->
-<!--            </select>-->
-<!--        </div>-->
+
         <!-- Purchasable (length & size) -->
         <div v-if="showPurchasables(index)">
             <label class="block text-gray-500 text-sm">{{purchasablesLabel(index)}}</label>

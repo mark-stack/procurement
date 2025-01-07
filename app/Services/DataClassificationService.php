@@ -722,26 +722,20 @@ class DataClassificationService
         $materialResult = null;
 
         $materials = [
-            //SS304
+            //STAINLESS_STEEL
             [
-                "materialEnum" => MaterialEnums::SS304,
+                "materialEnum" => MaterialEnums::STAINLESS_STEEL,
                 "regex" => [
                     "SS304",        //SS304
                     "SS+\s+304",    //SS 304
                     "304SS",        //304SS
                     "304+\s+SS",    //304 SS
-                    "304+\s+Stainless+\s+steel" //304 stainless steel
-                ],
-            ],
-            //SS316
-            [
-                "materialEnum" => MaterialEnums::SS316,
-                "regex" => [
+                    "304+\s+Stainless+\s+steel", //304 stainless steel
                     "SS316",        //SS316
                     "SS+\s+316",    //SS 316
                     "316SS",        //316SS
                     "316+\s+SS",    //316 SS
-                    "316+\s+Stainless+\s+steel" //316 stainless steel
+                    "316+\s+Stainless+\s+steel", //316 stainless steel
                 ],
             ],
             //HARDOX

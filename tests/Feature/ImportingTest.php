@@ -2,13 +2,10 @@
 
 use App\Enums\MaterialEnums;
 use App\Enums\NestingEnums;
-use App\Imports\ExcelImport;
 use App\Services\CsvService;
 use App\Services\DataClassificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
-use Maatwebsite\Excel\Facades\Excel;
 
 
 uses(RefreshDatabase::class);
@@ -107,19 +104,14 @@ it('would be a disaster if materials misidentified', function () {
             "RHS75*50*2.5",
         ],
         /**
-         * SS316
+         * Stainless
          */
-        MaterialEnums::SS316->value => [
+        MaterialEnums::STAINLESS_STEEL->value => [
             "200PFC 316SS",
             "200PFC 316 SS",
             "200PFC SS316",
             "200PFC SS 316",
             "200PFC 316 stainless steel",
-        ],
-        /**
-         * SS304
-         */
-        MaterialEnums::SS304->value => [
             "200PFC 304SS",
             "200PFC 304 SS",
             "200PFC SS304",

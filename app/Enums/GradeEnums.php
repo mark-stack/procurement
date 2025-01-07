@@ -15,6 +15,9 @@ enum GradeEnums: string
     case GR_5_8 = "GR_5_8";
     case GR_4_6 = "GR_4_6";
 
+    //STAINLESS
+    case SS304 = "SS304";
+    case SS316 = "SS316";
 
     //TIMBER
     case E13 = "E13";

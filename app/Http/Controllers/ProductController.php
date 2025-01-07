@@ -146,7 +146,6 @@ class ProductController extends Controller
         $allGrades = $nestingService->allGradeLabels();
         $allMeasurements = $nestingService->allMeasurementUnitLabels();
         $formDependentData = $nestingService->buildDependencyArray2();
-        //dd(1,$formDependentData);
 
         /**
          * Nesting groups
