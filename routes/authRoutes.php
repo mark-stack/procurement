@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BatchController;
 use App\Http\Controllers\MarkNotificationStatusController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PricebookController;
@@ -88,4 +89,7 @@ Route::middleware(['auth','verified'])->group(function () {
         //Quotes
         Route::resource('quotes', QuoteController::class);
     });
+
+    //Batches
+    Route::resource('batches', BatchController::class);
 });

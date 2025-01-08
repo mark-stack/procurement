@@ -7,7 +7,9 @@ use App\Enums\MaterialEnums;
 use App\Enums\MeasurementUnitEnums;
 use App\Enums\SurfaceEnums;
 use App\Models\Business;
+use App\Models\Piece;
 use App\Models\RawMaterialQuote;
+use App\Services\CsvService;
 use App\Services\DataClassificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,6 +30,7 @@ class RawMaterialListClarificationsController extends Controller
 
         //Services
         $dataClassificationService = new DataClassificationService();
+        $csvService = new CsvService();
 
         foreach($request->all() as $index => $formData){
             //Delete items
@@ -81,23 +84,74 @@ class RawMaterialListClarificationsController extends Controller
                          * Regular product (must have a single general match)
                          */
                         else{
+                            $productCategory = $selectedProduct["product_category"];
+                            $material = MaterialEnums::from($selectedProduct["material"]);
+                            $grade = [GradeEnums::from($selectedProduct["grade"])];
+                            $surface = SurfaceEnums::from($selectedProduct["surface"]);
+                            $nominalUnits = isset($selectedProduct["nominal_units"]) ? MeasurementUnitEnums::from($selectedProduct["nominal_units"]) : null;
+                            $uncertainLengthFloat = $selectedProduct["nominal_length"] ?? null;
+                            $uncertainWidthFloat = $selectedProduct["nominal_width"] ?? null;
+                            $uncertainHeightFloat = $selectedProduct["nominal_height"] ?? null;
+                            $wall = $selectedProduct["wall"] ?? null;
+                            $kg_per_m = $selectedProduct["kg_per_m"] ?? null;
+
                             $generalProductMatches = $dataClassificationService->findGeneralProductMatches(
                                 $user,
-                                $selectedProduct["product_category"],
-                                MaterialEnums::from($selectedProduct["material"]),
-                                [GradeEnums::from($selectedProduct["grade"])],
-                                SurfaceEnums::from($selectedProduct["surface"]),
-                                isset($selectedProduct["nominal_units"]) ? MeasurementUnitEnums::from($selectedProduct["nominal_units"]) : null,
-                                $selectedProduct["nominal_length"] ?? null,
-                                $selectedProduct["nominal_width"] ?? null,
-                                $selectedProduct["nominal_height"] ?? null,
-                                $selectedProduct["wall"] ?? null,
-                                $selectedProduct["kg_per_m"] ?? null,
+                                $productCategory,
+                                $material,
+                                $grade,
+                                $surface,
+                                $nominalUnits,
+                                $uncertainLengthFloat,
+                                $uncertainWidthFloat,
+                                $uncertainHeightFloat,
+                                $wall,
+                                $kg_per_m,
                             );
 
                             if($generalProductMatches->count() === 1){
                                 $rawMaterialQuote->general_product_matches = serialize($generalProductMatches->toArray());
                                 $rawMaterialQuote->save();
+
+                                $algo = $formData["data"]["nesting_algo"];
+
+                                dd(1,$rawMaterialQuote);
+//                                dd([
+//                                    $productCategory,
+//                                    $material,
+//                                    $grade,
+//                                    $surface,
+//                                    $nominalUnits,
+//                                    $uncertainLengthFloat,
+//                                    $uncertainWidthFloat,
+//                                    $uncertainHeightFloat,
+//                                    $wall,
+//                                    $kg_per_m,
+//                                    $algo
+//                                ]);
+
+                                //Create piece
+                                $piece = Piece::create([
+                                    'project_id' => $rawMaterialQuote->project_id,
+                                    "raw_material_quote_id" => $rawMaterialQuote->id,
+                                    "product_category" => $rawMaterialQuote->product_category,
+                                    "material" => $rawMaterialQuote->material,
+                                    "grade" => $rawMaterialQuote->grade,
+                                    "surface" => $rawMaterialQuote->surface,
+                                    "nominal_units" => $rawMaterialQuote->nominal_units,
+                                    "nesting_algo" => $algo,
+                                    "nominal_length" => $uncertainLengthFloat,
+                                    "precise_length" => null, //todo
+                                    "nominal_width" => $uncertainWidthFloat,
+                                    "precise_width" => null, //todo
+                                    "nominal_height" => $uncertainHeightFloat,
+                                    "precise_height" => null, //todo
+                                    "actual_length" => $rawMaterialQuote->length_required,
+                                    "actual_width" => $rawMaterialQuote->width_required,
+                                    "wall" => $wall,
+                                    "kg_per_m" => $kg_per_m,
+                                    "actual_qty" => $rawMaterialQuote->sub_qty,
+                                ]);
                             }
                         }
                     }

@@ -11,6 +11,7 @@
     import ListPurchasables from "@/Components/ListPurchasables.vue";
     import VisualBundleNest from "@/Components/VisualBundleNest.vue";
     import VisualOrderList from "@/Components/VisualOrderList.vue";
+    import {useForm} from "@inertiajs/vue3";
 
     //Props
     const props = defineProps({
@@ -21,6 +22,10 @@
     });
 
     //Form
+    const formConfirmBatch = useForm({
+        batchLabel: String,
+        batchGroup: Object,
+    });
 
     //Variables
     const currentBatch = ref(Object.keys(props.batchGroups.assigned)[0]);
@@ -66,6 +71,24 @@
 
         // Open the email client
         window.location.href = mailtoLink;
+    }
+
+    function confirmBatch(batchLabel,batchGroup){
+        let url = route("batches.store");
+
+        formConfirmBatch.batchLabel = batchLabel;
+        formConfirmBatch.batchGroup = batchGroup;
+
+        formConfirmBatch.post(url, {
+            preserveScroll: true,
+            onSuccess: () => {
+                console.log('success');
+                formConfirmBatch.reset();
+            },
+            onError: errors => {
+                console.log('errors',errors);
+            },
+        });
     }
 </script>
 
@@ -126,8 +149,25 @@
 
 
                     <template v-for="(batchGroup,batchLabel) in batchGroups.assigned">
-
                         <div v-if="batchLabel === currentBatch" class="pt-5">
+                            <!-- Confirm -->
+                            <div class="flex gap-x-2 mt-5 mb-5">
+                                <button
+                                    class="font-bold rounded bg-green-50 px-2 py-1"
+                                    type="button"
+                                    @click="confirmBatch(batchLabel,batchGroup)"
+                                >
+                                    Quote '{{batchLabel}}' batch
+                                </button>
+                                <button
+                                    class="font-bold rounded bg-green-50 px-2 py-1"
+                                    type="button"
+                                    @click="confirmBatch(batchLabel,batchGroup)"
+                                >
+                                    Quote '{{batchLabel}}' batch
+                                </button>
+                            </div>
+
                             <div>
                                 <b>Suppliers:</b>
                                 <ul>

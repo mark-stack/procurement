@@ -48,6 +48,6 @@
 
 <template>
     <div class="text=sm">
-        {{qty}} off {{ parseFloat(stockLength).toLocaleString() }}{{ displayUnits() }}: <span v-for="(piece,index) in pieces" class="text-green-500 border-2 border-green-300 px-1">{{parseFloat(piece[0]).toLocaleString()}}{{displayUnits()}} (p{{piece[1]}})</span><span v-if="waste > 0" class="text-red-500 border-2 border-red-300 px-1">{{parseFloat(waste).toLocaleString()}} mm</span> used {{getEfficiencyPct()}}%
+        {{qty}} off {{ parseFloat(stockLength).toLocaleString() }}{{ displayUnits() }}: <span v-for="(piece,index) in pieces" class="text-green-500 border-2 border-green-300 px-1">{{parseFloat(piece['cutLength']).toLocaleString()}}{{displayUnits()}} (p{{piece['projectId']}})</span><span v-if="waste > 0" class="text-red-500 border-2 border-red-300 px-1">{{parseFloat(waste).toLocaleString()}} mm</span> used {{getEfficiencyPct()}}%
     </div>
 </template>

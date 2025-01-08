@@ -966,7 +966,10 @@ class NestingService
                 $cutLength = (int) $cut["length"];
 
                 if ($stock['waste'] >= $cutLength) {
-                    $stock['pieces'][] = array($cutLength,$cut["project"]);
+                    $stock['pieces'][] = [
+                        "cutLength" => $cutLength,
+                        "projectId" => $cut["project"],
+                    ];
                     $stock['waste'] -= $cutLength;
                     $placed = true;
                     break;
@@ -983,7 +986,10 @@ class NestingService
                         $usedStockBars[] = [
                             'stock_length' => $stockLength,
                             'waste' => $stockLength - $cutLength,
-                            'pieces' => [array($cutLength,$cut["project"])],
+                            'pieces' => [[
+                                "cutLength" => $cutLength,
+                                "projectId" => $cut["project"],
+                            ]],
                         ];
 
                         //Totals

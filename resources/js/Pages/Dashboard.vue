@@ -5,7 +5,9 @@
 
     //Component Imports
     import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-    import ProjectCard from "@/Components/ProjectCard.vue";
+    import KanbanNeedsImportingCard from "@/Components/KanbanNeedsImportingCard.vue";
+    import KanbanReadyForNestingCard from "@/Components/KanbanReadyForNestingCard.vue";
+    import KanbanGeneralBatchCard from "@/Components/KanbanGeneralBatchCard.vue";
 
     //Props
     const props = defineProps({
@@ -251,7 +253,7 @@
                             <div class="grid grid-cols-1 gap-y-2 pt-3">
                                 <!-- card -->
                                 <template v-for="project in projects['BOM_REQUIRED'].data">
-                                    <ProjectCard
+                                    <KanbanNeedsImportingCard
                                         v-if="showRow(project)"
                                         :batch="999"
                                         :projects="[project]"
@@ -261,7 +263,7 @@
                                 </template>
                             </div>
                         </div>
-                        <!-- BOM Imported-->
+                        <!-- Ready for auto nesting -->
                         <div>
                             <!-- header -->
                             <div class="border-b-2 border-gray-500">
@@ -270,15 +272,12 @@
                             <!-- body -->
                             <div class="grid grid-cols-1 gap-y-2 pt-3">
                                 <!-- card -->
-                                <template v-for="project in projects['BOM_IMPORTED'].data">
-                                    <ProjectCard
-                                        v-if="showRow(project)"
-                                        :batch="999"
-                                        :projects="[project]"
-                                        @toggleArchive="p => toggleArchive(p)"
-                                        @editMode="p => editMode(p)"
-                                    />
-                                </template>
+                                <KanbanReadyForNestingCard
+                                    v-if="projects['BOM_IMPORTED'].data.length > 0"
+                                    :projects="projects['BOM_IMPORTED'].data"
+                                    @toggleArchive="p => toggleArchive(p)"
+                                    @editMode="p => editMode(p)"
+                                />
                             </div>
                         </div>
                         <!-- Quoted -->
@@ -290,7 +289,7 @@
                             <!-- body -->
                             <div class="grid grid-cols-1 gap-y-2 pt-3">
                                 <!-- card -->
-                                <ProjectCard
+                                <KanbanGeneralBatchCard
                                     v-for="batch in batches['QUOTED']"
                                     :batch="batch['batch']"
                                     :projects="batch['projects'].data"
@@ -308,7 +307,7 @@
                             <!-- body -->
                             <div class="grid grid-cols-1 gap-y-2 pt-3">
                                 <!-- card -->
-                                <ProjectCard
+                                <KanbanGeneralBatchCard
                                     v-for="batch in batches['ORDERED']"
                                     :batch="batch['batch']"
                                     :projects="batch['projects'].data"
@@ -326,7 +325,7 @@
                             <!-- body -->
                             <div class="grid grid-cols-1 gap-y-2 pt-3">
                                 <!-- card -->
-                                <ProjectCard
+                                <KanbanGeneralBatchCard
                                     v-for="batch in batches['RECEIVED']"
                                     :batch="batch['batch']"
                                     :projects="batch['projects'].data"
