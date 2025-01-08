@@ -17,6 +17,7 @@
         pieces: Object,
         projectsForQuoting: Object,
         batchGroups: Object,
+        usage: Object,
     });
 
     //Form
@@ -95,6 +96,21 @@
                 <p v-else>
                     There's no projects with materials ready to quote yet.
                 </p>
+
+                <!-- Usage stats-->
+                <div class="mt-5">
+                    <b>TOTALS</b>
+                    <br>
+                    Total Material = {{ (usage.totalMaterial/1000).toLocaleString() }} m
+                    <br>
+                    Total Used Material = {{ (usage.totalUsedMaterial/1000).toLocaleString() }} m
+                    <br>
+                    Total Waste = {{ (usage.totalWaste/1000).toLocaleString() }} m
+                    <br>
+                    Efficiency = {{(Math.round(usage.totalUsedMaterial/usage.totalMaterial*100)) }}%
+                </div>
+
+
                 <div class="mb-3 text-gray-600 mt-3">
 
                     <div class="flex gap-x-3">

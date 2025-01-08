@@ -47,18 +47,41 @@ class QuoteController extends Controller
         foreach($piecesClassifiedByNestingAlgorithm as $nestingAlgoLabel => $pieces){
             $piecesNested[] = $nestingService->nesting($nestingAlgoLabel,$pieces);
         }
-        //dd(2,$piecesNested);
+
+
+        /**
+         * Sums of material totals, usage, and waste
+         */
+        $totalMaterial = 0;
+        $totalUsedMaterial = 0;
+        $totalWaste = 0;
+        foreach($piecesNested as $items){
+            foreach($items as $item){
+                if(isset($item["nested"]["totals"])){
+                    $totals = $item["nested"]["totals"];
+
+                    $totalMaterial = $totalMaterial + $totals["totalMaterial"];
+                    $totalUsedMaterial = $totalUsedMaterial + $totals["totalUsedMaterial"];
+                    $totalWaste = $totalWaste + $totals["totalWaste"];
+                }
+            }
+        }
+        $usage = [
+            "totalMaterial" => $totalMaterial,
+            "totalUsedMaterial" => $totalUsedMaterial,
+            "totalWaste" => $totalWaste,
+        ];
 
         /**
          * Batch groups
          */
         $batchGroups = $nestingService->batchGroups($piecesNested);
-        //dd(3,$batchGroups);
 
         return Inertia::render('QuoteIndex',[
             "pieces" => $piecesNested,
             "projectsForQuoting" => ProjectResource::collection($projectsForQuoting),
             "batchGroups" => $batchGroups,
+            "usage" => $usage,
         ]);
     }
 

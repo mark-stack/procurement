@@ -17,16 +17,85 @@ class ProjectController extends Controller
     public function index(): Response
     {
         $user = auth()->user();
-        $projects = $user->projects()
-            ->latest()
-            ->get();
+        $business = $user->business;
+
+        $projects = [
+            "BOM_REQUIRED" => ProjectResource::collection(Project::query()
+                ->thisBusiness($business)
+                ->doesntHave('rawMaterialQuotes')
+                ->latest()
+                ->get()),
+            "BOM_IMPORTED" => ProjectResource::collection(Project::query()
+                ->thisBusiness($business)
+                ->has('rawMaterialQuotes')
+                ->latest()
+                ->get()),
+        ];
+
+        $batches = [
+            "QUOTED" => [
+                [
+                    "batch" => [
+                        "id" => 1,
+                        "totalMaterial" => 999,
+                        "totalUsage" => 999,
+                        "totalWaste" => 999,
+                    ],
+                    "projects" => ProjectResource::collection(Project::query()
+                        ->thisBusiness($business)
+                        ->latest()
+                        ->get())
+                ],
+            ],
+            "ORDERED" => [
+                [
+                    "batch" => [
+                        "id" => 1,
+                        "totalMaterial" => 999,
+                        "totalUsage" => 999,
+                        "totalWaste" => 999,
+                    ],
+                    "projects" => ProjectResource::collection(Project::query()
+                        ->thisBusiness($business)
+                        ->latest()
+                        ->get())
+                ],
+                [
+                    "batch" => [
+                        "id" => 2,
+                        "totalMaterial" => 999,
+                        "totalUsage" => 999,
+                        "totalWaste" => 999,
+                    ],
+                    "projects" => ProjectResource::collection(Project::query()
+                        ->thisBusiness($business)
+                        ->latest()
+                        ->get())
+                ],
+            ],
+            "RECEIVED" => [
+                [
+                    "batch" => [
+                        "id" => 1,
+                        "totalMaterial" => 999,
+                        "totalUsage" => 999,
+                        "totalWaste" => 999,
+                    ],
+                    "projects" => ProjectResource::collection(Project::query()
+                        ->thisBusiness($business)
+                        ->latest()
+                        ->get())
+                ],
+            ],
+        ];
 
         $countArchivedProjects = $user->projects()
             ->where('archive',true)
             ->count();
 
         return Inertia::render('Dashboard',[
-            "projects" => ProjectResource::collection($projects),
+            "projects" => $projects,
+            "batches" => $batches,
             "countArchivedProjects" => $countArchivedProjects,
         ]);
     }

@@ -658,7 +658,6 @@ class NestingService
                 ->whereIn("id",$allPieces->pluck("id")->toArray())
                 ->distinct()
                 ->get();
-            //dd(2,$materialSpecs);
 
             foreach($materialSpecs as $materialSpec){
                 $pieces = $allPieces
@@ -671,11 +670,6 @@ class NestingService
                     ->where("nominal_width",$materialSpec->nominal_width)
                     ->where('wall',$materialSpec->wall)
                     ->sortBy("actual_length");
-//                dd([
-//                    "debug" => 1,
-//                    "materialSpec" => $materialSpec->toArray(),
-//                    "pieces" => $pieces->toArray(),
-//                ]);
 
                 //Material spec
                 $appended = $materialSpec;
@@ -959,6 +953,10 @@ class NestingService
         $usedStockBars = [];
         $unfitCuts = []; // Cuts that cannot be placed in any stock bar
 
+        $totalMaterial = 0;
+        $totalUsedMaterial = 0;
+        $totalWaste = 0;
+
         // Process each cut length
         foreach ($cutLengths as $cut) {
             $placed = false;
@@ -987,6 +985,12 @@ class NestingService
                             'waste' => $stockLength - $cutLength,
                             'pieces' => [array($cutLength,$cut["project"])],
                         ];
+
+                        //Totals
+                        $totalMaterial = $totalMaterial + $stockLength;
+                        $totalUsedMaterial = $totalUsedMaterial + $cutLength;
+                        $totalWaste = $totalWaste + ($stockLength - $cutLength);
+
                         $newStockPlaced = true;
                         break;
                     }
@@ -1012,6 +1016,11 @@ class NestingService
             'usedStockBars' => $usedStockBars,
             'unfitCuts' => $unfitCuts,
             "orderList" => $orderList,
+            "totals" => [
+                "totalMaterial" => $totalMaterial,
+                "totalUsedMaterial" => $totalUsedMaterial,
+                "totalWaste" => $totalWaste,
+            ],
         ];
     }
 

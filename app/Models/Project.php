@@ -156,6 +156,13 @@ class Project extends Model
         ]);
     }
 
+    public function scopeThisBusiness(Builder $query, Business $business): void
+    {
+        $staffIds = $business->users()->get()->pluck("id")->toArray();
+
+        $query->whereIn("user_id",$staffIds);
+    }
+
     public function scopeActive(Builder $query): void
     {
         $query->where('archive',false);
