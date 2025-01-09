@@ -123,6 +123,7 @@ class CsvService
                     $row["description"],
                     $project->user
                 );
+                //todo pass through with "allFields" etc
 
                 /*
                  * Check for user-custom products.
@@ -131,12 +132,13 @@ class CsvService
                     $row["description"],
                     $project->user,
                 );
+                //todo make like "findGeneralProductMatchesFromText" above with "allFields" etc
 
                 /*
                  * Append to row
                  */
                 $append = $row;
-                $append["generalProductMatches"] = $generalProductMatches;
+                $append["generalProductMatches"] = $generalProductMatches["results"];
                 $append["customProductMatches"] = $customProductMatches;
                 $rowDataWithGeneralProductMatches[] = $append;
             }
@@ -480,7 +482,8 @@ class CsvService
             /**
              * Create 'Pieces'
              */
-            if(count($row["generalProductMatches"]) === 1){
+            $allFields = true; //todo complete this properly
+            if(count($row["generalProductMatches"]) === 1 && $allFields){
                 $item = $row["generalProductMatches"][0];
                 $lengthRequired = $row["length_required"] ?? null;
                 $widthRequired = $row["width_required"] ?? null;

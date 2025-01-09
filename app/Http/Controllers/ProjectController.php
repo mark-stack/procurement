@@ -22,11 +22,13 @@ class ProjectController extends Controller
         $projects = [
             "BOM_REQUIRED" => ProjectResource::collection(Project::query()
                 ->thisBusiness($business)
+                ->active()
                 ->doesntHave('rawMaterialQuotes')
                 ->latest()
                 ->get()),
             "BOM_IMPORTED" => ProjectResource::collection(Project::query()
                 ->thisBusiness($business)
+                ->active()
                 ->has('rawMaterialQuotes')
                 ->latest()
                 ->get()),
@@ -43,6 +45,7 @@ class ProjectController extends Controller
                     ],
                     "projects" => ProjectResource::collection(Project::query()
                         ->thisBusiness($business)
+                        ->active()
                         ->latest()
                         ->get())
                 ],
@@ -57,6 +60,7 @@ class ProjectController extends Controller
                     ],
                     "projects" => ProjectResource::collection(Project::query()
                         ->thisBusiness($business)
+                        ->active()
                         ->latest()
                         ->get())
                 ],
@@ -69,6 +73,7 @@ class ProjectController extends Controller
                     ],
                     "projects" => ProjectResource::collection(Project::query()
                         ->thisBusiness($business)
+                        ->active()
                         ->latest()
                         ->get())
                 ],
@@ -83,20 +88,23 @@ class ProjectController extends Controller
                     ],
                     "projects" => ProjectResource::collection(Project::query()
                         ->thisBusiness($business)
+                        ->active()
                         ->latest()
                         ->get())
                 ],
             ],
         ];
 
-        $countArchivedProjects = $user->projects()
+        $archivedProjects = ProjectResource::collection(Project::query()
+            ->thisBusiness($business)
             ->where('archive',true)
-            ->count();
+            ->latest()
+            ->get());
 
         return Inertia::render('Dashboard',[
             "projects" => $projects,
             "batches" => $batches,
-            "countArchivedProjects" => $countArchivedProjects,
+            "archivedProjects" => $archivedProjects,
         ]);
     }
 

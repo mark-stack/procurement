@@ -15,7 +15,7 @@ class ProductService
 {
     public function getProductConfigs(bool $fasteners): array
     {
-        $productConfigs= [];
+        $productConfigs = [];
 
         $implementations = (new ProductService())->getImplementations();
 
@@ -27,7 +27,10 @@ class ProductService
 
                 //Fasteners
                 if($config["isFastener"] === $fasteners){
-                    $productConfigs[] = $config;
+                    $productConfigs[] = [
+                        "config" => $config,
+                        "service" => $service,
+                    ];
                 }
             }
         }
@@ -132,7 +135,8 @@ class ProductService
             /**
              * 2) Price book exact match
              */
-            if(count($decodedGeneralProducts) === 1){
+            $allFields = true; //todo complete
+            if(count($decodedGeneralProducts) === 1 && $allFields){
                 $result = [
                     "status" => "EXACT",
                     "decodedOption" => $decodedGeneralProducts[0],

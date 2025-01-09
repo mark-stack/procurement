@@ -94,4 +94,45 @@ class ALLTHREAD_Implementation extends ProductBaseImplementation
 
         return "x".$actualSize." ".$actualGrade.$actualSurface." Allthread";
     }
+
+    public function generalProductDefinition(): array
+    {
+//        'product_category',
+//        'material',
+//        'grade',
+//        'surface',
+//        'nominal_units',
+//        "nominal_length",
+//        "precise_length",
+//        "nominal_width",
+//        "precise_width",
+//        'nominal_height',
+//        "precise_height",
+//        "wall",
+//        "kg_per_m"
+
+        //todo
+        return [
+            "mandatory" => [
+                'product_category',
+                'material',
+                'grade',
+                'surface',
+                'nominal_units',
+                "nominal_length",
+                "nominal_width",
+            ],
+            "exclude" => [
+                "precise_length",
+                "precise_height",
+                "precise_width",
+                'nominal_height',
+                "wall",
+                "kg_per_m"
+            ],
+            "purchasableVariations" => [
+
+            ],
+        ];
+    }
 }

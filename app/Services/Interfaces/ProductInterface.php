@@ -34,4 +34,6 @@ interface ProductInterface
         ?float $kg_per_m,
         ?string $material,
     ): string;
+
+    public function generalProductDefinition(): array;
 }

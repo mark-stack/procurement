@@ -92,4 +92,43 @@ class PLATE_Implementation extends ProductBaseImplementation
         $actualSize = $nominal_height."PL";
         return $actualSize." ".$actualGrade;
     }
+
+    public function generalProductDefinition(): array
+    {
+//        'product_category',
+//        'material',
+//        'grade',
+//        'surface',
+//        'nominal_units',
+//        "nominal_length",
+//        "precise_length",
+//        "nominal_width",
+//        "precise_width",
+//        'nominal_height',
+//        "precise_height",
+//        "wall",
+//        "kg_per_m"
+
+        return [
+            "mandatory" => [
+                'product_category',
+                'material',
+                'grade',
+                'surface',
+                'nominal_units',
+                'nominal_height',
+            ],
+            "exclude" => [
+                "precise_length",
+                "precise_height",
+                "precise_width",
+                "wall",
+                "kg_per_m",
+            ],
+            "purchasableVariations" => [
+                "nominal_width",
+                "nominal_length",
+            ],
+        ];
+    }
 }

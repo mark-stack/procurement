@@ -31,7 +31,7 @@ Route::get("stock-cutting",function(){
 });
 //todo temporary
 Route::get("test",function(){
-    $description = "200PFC 9 meters";
+    $description = "200PFC 9 meters black grade 300"; // galvanised grade 250
 
     $dataClassificationService = new DataClassificationService();
 

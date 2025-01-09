@@ -13,7 +13,7 @@
     const props = defineProps({
         projects: Object,
         batches: Object,
-        countArchivedProjects: Number,
+        archivedProjects: Object,
     });
 
     //Form
@@ -74,6 +74,11 @@
             preserveScroll: true,
             onSuccess: () => {
                 console.log('success');
+
+                //Hide archived projects if now zero items
+                if(props.archivedProjects.data.length === 0){
+                    showArchivedProjects.value = false;
+                }
             },
             onError: errors => {
                 console.log('errors',errors);
@@ -101,17 +106,6 @@
         formProjectCreate.tentative = project.tentative;
     }
 
-    function showRow(project){
-        let showRow = true;
-
-        if(showArchivedProjects.value === false){
-            showRow = !project.archive;
-        }
-
-
-        return showRow;
-    }
-
     function checkBoxActions(){
         /**
             If awarded = false, clear "reference" and "date_materials_required"
@@ -135,7 +129,7 @@
 
     <AuthenticatedLayout>
         <div class="py-3">
-            <div class="mx-auto max-w-5xl sm:px-6 lg:px-8">
+            <div class="mx-auto max-w-7xl">
                 <section
                     class="dark:bg-gray-900 rounded-xl"
                     :class="editProject ? 'bg-yellow-50' : 'bg-white'"
@@ -232,14 +226,6 @@
                 </section>
 
                 <section class="mt-5 mb-20">
-                    <!-- toggle archieved projects -->
-                    <button
-                        v-if="countArchivedProjects > 0"
-                        @click="showArchivedProjects = !showArchivedProjects"
-                        class="text-center text-blue-500 underline mt-3 mb-2"
-                    >
-                        {{showArchivedProjects ? 'Hide' : 'Show'}} {{countArchivedProjects}} Archived Project{{countArchivedProjects > 1 ? 's' : ''}}
-                    </button>
 
                     <!-- kanban -->
                     <div class="grid grid-cols-5 gap-x-3">
@@ -254,7 +240,6 @@
                                 <!-- card -->
                                 <template v-for="project in projects['BOM_REQUIRED'].data">
                                     <KanbanNeedsImportingCard
-                                        v-if="showRow(project)"
                                         :batch="999"
                                         :projects="[project]"
                                         @toggleArchive="p => toggleArchive(p)"
@@ -333,6 +318,31 @@
                                     @editMode="p => editMode(p)"
                                 />
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- toggle archived projects -->
+                    <div>
+                        <button
+                            v-if="archivedProjects.data.length > 0"
+                            @click="showArchivedProjects = !showArchivedProjects"
+                            class="text-center text-blue-500 underline mt-3 mb-2"
+                        >
+                            {{showArchivedProjects ? 'Hide' : 'Show'}} {{archivedProjects.data.length}} Archived Project{{archivedProjects.data.length > 1 ? 's' : ''}}
+                        </button>
+                        <div v-if="showArchivedProjects">
+                            <table>
+                                <tr>
+                                   <th class="p-1">Name</th>
+                                   <th class="p-1">Actions</th>
+                                </tr>
+                                <tr v-for="project in archivedProjects.data">
+                                    <td class="p-1">{{project.name}}</td>
+                                    <td class="p-1">
+                                        <span style="cursor: pointer; " class="underline text-blue-500" @click="toggleArchive(project)">restore</span>
+                                    </td>
+                                </tr>
+                            </table>
                         </div>
                     </div>
                 </section>

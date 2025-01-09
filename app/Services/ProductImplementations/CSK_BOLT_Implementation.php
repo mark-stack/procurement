@@ -97,4 +97,44 @@ class CSK_BOLT_Implementation extends ProductBaseImplementation
 
         return $actualSize." CSK ".$actualGrade.$actualSurface;
     }
+
+    public function generalProductDefinition(): array
+    {
+//        'product_category',
+//        'material',
+//        'grade',
+//        'surface',
+//        'nominal_units',
+//        "nominal_length",
+//        "precise_length",
+//        "nominal_width",
+//        "precise_width",
+//        'nominal_height',
+//        "precise_height",
+//        "wall",
+//        "kg_per_m"
+
+        return [
+            "mandatory" => [
+                'product_category',
+                'material',
+                'grade',
+                'surface',
+                'nominal_units',
+                "nominal_width",
+                "nominal_length",
+            ],
+            "exclude" => [
+                "precise_length",
+                "precise_height",
+                "precise_width",
+                "wall",
+                "kg_per_m",
+                'nominal_height',
+            ],
+            "purchasableVariations" => [
+
+            ],
+        ];
+    }
 }

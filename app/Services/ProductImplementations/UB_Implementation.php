@@ -89,4 +89,43 @@ class UB_Implementation extends ProductBaseImplementation
 
         return $actualSize."UB".round($kg_per_m);
     }
+
+    public function generalProductDefinition(): array
+    {
+//        'product_category',
+//        'material',
+//        'grade',
+//        'surface',
+//        'nominal_units',
+//        "nominal_length",
+//        "precise_length",
+//        "nominal_width",
+//        "precise_width",
+//        'nominal_height',
+//        "precise_height",
+//        "wall",
+//        "kg_per_m"
+
+        return [
+            "mandatory" => [
+                'product_category',
+                'material',
+                'grade',
+                'surface',
+                'nominal_units',
+                'nominal_height',
+                "kg_per_m",
+            ],
+            "exclude" => [
+                "nominal_width",
+                "precise_length",
+                "precise_height",
+                "precise_width",
+                "wall",
+            ],
+            "purchasableVariations" => [
+                "nominal_length",
+            ],
+        ];
+    }
 }

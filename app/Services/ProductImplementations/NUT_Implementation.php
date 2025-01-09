@@ -86,4 +86,44 @@ class NUT_Implementation extends ProductBaseImplementation
 
         return $actualSize." NUT. ".$actualGrade.$actualSurface;
     }
+
+    public function generalProductDefinition(): array
+    {
+//        'product_category',
+//        'material',
+//        'grade',
+//        'surface',
+//        'nominal_units',
+//        "nominal_length",
+//        "precise_length",
+//        "nominal_width",
+//        "precise_width",
+//        'nominal_height',
+//        "precise_height",
+//        "wall",
+//        "kg_per_m"
+
+        return [
+            "mandatory" => [
+                'product_category',
+                'material',
+                'grade',
+                'surface',
+                'nominal_units',
+                'nominal_height',
+                "nominal_width",
+            ],
+            "exclude" => [
+                "precise_length",
+                "precise_height",
+                "precise_width",
+                "wall",
+                "kg_per_m",
+                "nominal_length",
+            ],
+            "purchasableVariations" => [
+
+            ],
+        ];
+    }
 }

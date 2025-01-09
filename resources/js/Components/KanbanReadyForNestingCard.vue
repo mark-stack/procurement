@@ -31,16 +31,6 @@
         return text;
     }
 
-    function isArchived(){
-        let isArchived = false;
-
-        if(props.projects.length === 1 && props.projects[0].archive){
-            isArchived = true;
-        }
-
-        return isArchived;
-    }
-
     function isYourProject(project){
         return project.user_id == user.value.id;
     }
@@ -48,10 +38,7 @@
 
 <template>
     <!-- card -->
-    <div
-        :class="isArchived() ? 'border-gray-500' : 'border-blue-500'"
-        class="border-2 rounded-lg"
-    >
+    <div class="border-2 border-blue-500 rounded-lg">
         <!-- Body -->
         <div class="p-3">
             <span class="text-sm block text-gray-500">Auto Batched Nesting</span>
@@ -65,16 +52,7 @@
                     <h3>{{ cropText(project.name,16) }}</h3>
                     <h6 class="text-xs text-gray-500">Quote/order by [4/2/24]</h6>
                     <div class="text-xs">
-                        <div v-if="project.archive" class="text-center">
-                            <button
-                                @click="$emit('toggleArchive',projects[0])"
-                                class="text-gray-500 transition-colors duration-200 dark:hover:text-red-500 dark:text-gray-300 hover:text-red-500 focus:outline-none"
-                            >
-                                <span v-if="!project.archive">Archive</span>
-                                <span v-if="project.archive"><i class="fa-solid fa-arrow-rotate-left"></i> restore</span>
-                            </button>
-                        </div>
-                        <div v-else class="grid grid-cols-3 justify-between">
+                        <div class="grid grid-cols-3 justify-between">
                             <Link
                                 :href="route('products.index',projects[0].id)"
                             >
@@ -94,8 +72,6 @@
                                 Edit
                             </button>
                         </div>
-
-
                     </div>
                 </div>
             </div>
@@ -104,10 +80,7 @@
 
         </div>
         <!-- Footer -->
-        <div
-            :class="isArchived() ? 'border-gray-500 bg-gray-100' : 'border-blue-500 bg-blue-100'"
-            class="grid grid-cols-2 border-t-2 p-1 rounded-b-lg text-xs"
-        >
+        <div class="grid grid-cols-2 border-t-2 border-blue-500 bg-blue-100 p-1 rounded-b-lg text-xs">
             <button>
                 Quote now
             </button>

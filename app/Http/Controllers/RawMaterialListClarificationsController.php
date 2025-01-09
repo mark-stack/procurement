@@ -109,8 +109,8 @@ class RawMaterialListClarificationsController extends Controller
                                 $kg_per_m,
                             );
 
-                            if($generalProductMatches->count() === 1){
-                                $rawMaterialQuote->general_product_matches = serialize($generalProductMatches->toArray());
+                            if($generalProductMatches["results"]->count() === 1 && $generalProductMatches["allFields"]){
+                                $rawMaterialQuote->general_product_matches = serialize($generalProductMatches["results"]->toArray());
                                 $rawMaterialQuote->save();
 
                                 $algo = $formData["data"]["nesting_algo"];
