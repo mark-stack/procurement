@@ -168,7 +168,7 @@ function piecePfc(int $nominalHeight, int $length, int $qty, Project $project, o
         "sub_qty" => $qty,
         "unit_rate" => 100,
         'project_id' => $project->id,
-        "general_product_matches" => serialize($generalProductMatches->toArray()),
+        "general_product_matches" => serialize($generalProductMatches),
         "assembly_mark" => "on the thing",
     ];
 }

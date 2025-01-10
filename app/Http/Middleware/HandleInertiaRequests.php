@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Product;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -39,6 +40,7 @@ class HandleInertiaRequests extends Middleware
                 "onboarded" => $request->user() && $request->user()->business->admin_setup_complete,
                 "notifications" => (new NotificationService())->getNotifications($request->user()),
             ],
+            "hasSeedImport" => Product::count() > 0,
             'flash' => [
                 'warning' => fn () => $request->session()->get('warning')
             ],

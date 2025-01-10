@@ -31,12 +31,12 @@ Route::get("stock-cutting",function(){
 });
 //todo temporary
 Route::get("test",function(){
-    $description = "200PFC 9 meters black grade 300"; // galvanised grade 250
+    $description = "20mm plate GR350";
 
     $dataClassificationService = new DataClassificationService();
 
     $generalProductMatches = $dataClassificationService->findGeneralProductMatchesFromText($description,auth()->user());
-    dd($description,$generalProductMatches);
+    dd("web",$description,$generalProductMatches);
 });
 
 require __DIR__.'/auth.php';

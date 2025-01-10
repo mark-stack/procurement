@@ -11,6 +11,7 @@ use App\Models\Piece;
 use App\Models\RawMaterialQuote;
 use App\Services\CsvService;
 use App\Services\DataClassificationService;
+use App\Services\PieceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -30,7 +31,7 @@ class RawMaterialListClarificationsController extends Controller
 
         //Services
         $dataClassificationService = new DataClassificationService();
-        $csvService = new CsvService();
+        $pieceService = new PieceService();
 
         foreach($request->all() as $index => $formData){
             //Delete items
@@ -59,7 +60,13 @@ class RawMaterialListClarificationsController extends Controller
                          * Regular product
                          */
                         else{
-                            $rawMaterialQuote->general_product_matches = serialize([]);
+                            $empty = [
+                                "allFields" => false,
+                                "allFieldsIndividual" => [],
+                                "results" => [],
+                            ];
+
+                            $rawMaterialQuote->general_product_matches = serialize($empty);
                             $rawMaterialQuote->save();
                         }
                     }
@@ -109,13 +116,12 @@ class RawMaterialListClarificationsController extends Controller
                                 $kg_per_m,
                             );
 
-                            if($generalProductMatches["results"]->count() === 1 && $generalProductMatches["allFields"]){
-                                $rawMaterialQuote->general_product_matches = serialize($generalProductMatches["results"]->toArray());
+                            if(count($generalProductMatches["results"]) === 1 && $generalProductMatches["allFields"]){
+                                $rawMaterialQuote->general_product_matches = serialize($generalProductMatches);
                                 $rawMaterialQuote->save();
 
                                 $algo = $formData["data"]["nesting_algo"];
 
-                                dd(1,$rawMaterialQuote);
 //                                dd([
 //                                    $productCategory,
 //                                    $material,
@@ -130,28 +136,8 @@ class RawMaterialListClarificationsController extends Controller
 //                                    $algo
 //                                ]);
 
-                                //Create piece
-                                $piece = Piece::create([
-                                    'project_id' => $rawMaterialQuote->project_id,
-                                    "raw_material_quote_id" => $rawMaterialQuote->id,
-                                    "product_category" => $rawMaterialQuote->product_category,
-                                    "material" => $rawMaterialQuote->material,
-                                    "grade" => $rawMaterialQuote->grade,
-                                    "surface" => $rawMaterialQuote->surface,
-                                    "nominal_units" => $rawMaterialQuote->nominal_units,
-                                    "nesting_algo" => $algo,
-                                    "nominal_length" => $uncertainLengthFloat,
-                                    "precise_length" => null, //todo
-                                    "nominal_width" => $uncertainWidthFloat,
-                                    "precise_width" => null, //todo
-                                    "nominal_height" => $uncertainHeightFloat,
-                                    "precise_height" => null, //todo
-                                    "actual_length" => $rawMaterialQuote->length_required,
-                                    "actual_width" => $rawMaterialQuote->width_required,
-                                    "wall" => $wall,
-                                    "kg_per_m" => $kg_per_m,
-                                    "actual_qty" => $rawMaterialQuote->sub_qty,
-                                ]);
+                                $productSpec = $generalProductMatches["results"][0];
+                                $piece = $pieceService->createPieceFromProductSpec($productSpec,$rawMaterialQuote,$algo);
                             }
                         }
                     }

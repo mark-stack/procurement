@@ -123,7 +123,6 @@ class CsvService
                     $row["description"],
                     $project->user
                 );
-                //todo pass through with "allFields" etc
 
                 /*
                  * Check for user-custom products.
@@ -132,13 +131,12 @@ class CsvService
                     $row["description"],
                     $project->user,
                 );
-                //todo make like "findGeneralProductMatchesFromText" above with "allFields" etc
 
                 /*
                  * Append to row
                  */
                 $append = $row;
-                $append["generalProductMatches"] = $generalProductMatches["results"];
+                $append["generalProductMatches"] = $generalProductMatches;
                 $append["customProductMatches"] = $customProductMatches;
                 $rowDataWithGeneralProductMatches[] = $append;
             }
@@ -440,6 +438,7 @@ class CsvService
         //Services
         $dataClassificationService = new DataClassificationService();
         $nestingService = new NestingService();
+        $pieceService = new PieceService();
 
         $materialList = [];
 
@@ -472,7 +471,7 @@ class CsvService
                 "sub_qty" => $row["sub_qty"],
                 "unit_rate" => $row["unit_rate"] ?? null,
                 'project_id' => $project->id,
-                "general_product_matches" => serialize($row["generalProductMatches"]->toArray()),
+                "general_product_matches" => serialize($row["generalProductMatches"]),
                 "custom_product_matches" => serialize($row["customProductMatches"]),
                 "assembly_mark" => $row["assembly_mark"] ?? "",
             ]);
@@ -482,32 +481,9 @@ class CsvService
             /**
              * Create 'Pieces'
              */
-            $allFields = true; //todo complete this properly
-            if(count($row["generalProductMatches"]) === 1 && $allFields){
-                $item = $row["generalProductMatches"][0];
-                $lengthRequired = $row["length_required"] ?? null;
-                $widthRequired = $row["width_required"] ?? null;
-                $piece = Piece::create([
-                    'project_id' => $project->id,
-                    "raw_material_quote_id" => $rawMaterialQuote->id,
-                    "product_category" => $item["product_category"],
-                    "material" => $item["material"],
-                    "grade" => $item["grade"],
-                    "surface" => $item["surface"],
-                    "nominal_units" => $item["nominal_units"],
-                    "nesting_algo" => $algo,
-                    "nominal_length" => $item["nominal_length"] ?? null,
-                    "precise_length" => $item["precise_length"] ?? null,
-                    "nominal_width" => $item["nominal_width"] ?? null,
-                    "precise_width" => $item["precise_width"] ?? null,
-                    "nominal_height" => $item["nominal_height"] ?? null,
-                    "precise_height" => $item["precise_height"] ?? null,
-                    "actual_length" => $this->normalisedLength($algo,$lengthRequired),
-                    "actual_width" => $this->normalisedWidth($algo,$widthRequired),
-                    "wall" => $item["wall"] ?? null,
-                    "kg_per_m" => $item["kg_per_m"] ?? null,
-                    "actual_qty" => $row["sub_qty"],
-                ]);
+            if(count($row["generalProductMatches"]["results"]) === 1){
+                $productSpec = $row["generalProductMatches"]["results"][0];
+                $piece = $pieceService->createPieceFromProductSpec($productSpec,$rawMaterialQuote,$algo);
             }
         }
 

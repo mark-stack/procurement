@@ -10,6 +10,10 @@
         route: String,
         label: String,
         icon: String,
+        alert: {
+            type: Boolean,
+            default: false,
+        },
     });
 
     //Form
@@ -31,11 +35,12 @@
 
 <template>
     <Link
-        class="flex items-center px-3 py-2 text-gray-600 transition-colors duration-300 transform rounded-lg dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:hover:text-gray-200 hover:text-gray-700"
+        :class="alert ? 'font-extrabold text-red-500' : 'font-medium text-gray-600'"
+        class="flex items-center px-3 py-2 transition-colors duration-300 transform rounded-lg hover:bg-gray-100 hover:text-gray-700"
         :href="route"
     >
         <i :class="icon"></i>
-        <span class="mx-2 text-sm font-medium">{{label}}</span>
+        <span class="mx-2 text-sm">{{label}}</span>
     </Link>
 </template>
 

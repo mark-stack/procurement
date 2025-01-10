@@ -101,9 +101,11 @@ class ProductService
          * Decoded general products
          * Add derived product label to every option. e.g "200PFC SS316"
          */
+
         $decodedGeneralProductsRaw = unserialize($rawMaterialQuote->general_product_matches);
+
         $decodedGeneralProducts = [];
-        foreach($decodedGeneralProductsRaw as $option){
+        foreach($decodedGeneralProductsRaw["results"] as $option){
             $option["product_derived_label"] = $this->getDerivedProductLabel($option);
             $decodedGeneralProducts[] = $option;
         }
@@ -135,8 +137,7 @@ class ProductService
             /**
              * 2) Price book exact match
              */
-            $allFields = true; //todo complete
-            if(count($decodedGeneralProducts) === 1 && $allFields){
+            if(count($decodedGeneralProducts) === 1){
                 $result = [
                     "status" => "EXACT",
                     "decodedOption" => $decodedGeneralProducts[0],

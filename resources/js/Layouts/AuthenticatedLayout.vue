@@ -25,6 +25,7 @@
     const business = usePage().props.auth.business;
     const isAdmin = usePage().props.auth.isAdmin;
     const onboarded = usePage().props.auth.onboarded;
+    const hasSeedImport = usePage().props.hasSeedImport;
 
     //Variables
     //...
@@ -128,6 +129,7 @@
                         :route="route('admin.update.master.materials.spreadsheet')"
                         label="Update Materials (Admin)"
                         icon="fa-solid fa-file-excel"
+                        :alert="!hasSeedImport"
                     />
                 </nav>
 

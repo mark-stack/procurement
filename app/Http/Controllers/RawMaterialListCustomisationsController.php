@@ -64,53 +64,6 @@ class RawMaterialListCustomisationsController extends Controller
                     /**
                      * Custom product matches
                      */
-                    $generalProductMatches = [];
-                    $nestingAlgo = $formData["selected"]["nesting_algo"];
-
-//                    //METERAGE
-//                    if($nestingAlgo === NestingEnums::METERAGE->value) {
-//                        //$sizeInclude = ["nominal_height"];
-//                        $generalProductMatches = Product::select('product_category', 'material', 'grade', 'surface', 'nominal_units', "nominal_height")
-//                            ->distinct()
-//                            ->availableFor($user)
-//                            ->where("product_category", $preparedFormData["product_category"])
-//                            ->where("material", $preparedFormData["material"])
-//                            ->where("grade", $preparedFormData["grade"])
-//                            ->where("surface", SurfaceEnums::NONE->value)
-//                            ->where("nominal_units", MeasurementUnitEnums::MILLIMETERS->value)
-//                            ->where("nominal_height",$preparedFormData["nominal_height"])
-//                            ->get();
-//                    }
-//                    //AREA
-//                    if($nestingAlgo === NestingEnums::AREA->value) {
-//                        //$sizeInclude = ["nominal_height"];
-//                        $generalProductMatches = Product::select('product_category', 'material', 'grade', 'surface', 'nominal_units', "nominal_height")
-//                            ->distinct()
-//                            ->availableFor($user)
-//                            ->where("product_category", $preparedFormData["product_category"])
-//                            ->where("material", $preparedFormData["material"])
-//                            ->where("grade", $preparedFormData["grade"])
-//                            ->where("surface", SurfaceEnums::NONE->value)
-//                            ->where("nominal_units", MeasurementUnitEnums::MILLIMETERS->value)
-//                            ->where("nominal_height",$preparedFormData["nominal_height"])
-//                            ->get();
-//                    }
-//                    //BUNDLE
-//                    if($nestingAlgo === NestingEnums::BUNDLE->value) {
-//                        //$sizeInclude = ["nominal_length","nominal_width"];
-//                        $generalProductMatches = Product::select('product_category', 'material', 'grade', 'surface', 'nominal_units', "nominal_length", "nominal_width")
-//                            ->distinct()
-//                            ->availableFor($user)
-//                            ->where("product_category", $preparedFormData["product_category"])
-//                            ->where("material", $preparedFormData["material"])
-//                            ->where("grade", $preparedFormData["grade"])
-//                            ->where("surface", SurfaceEnums::NONE->value)
-//                            ->where("nominal_units", MeasurementUnitEnums::MILLIMETERS->value)
-//                            ->where("nominal_length",$preparedFormData["nominal_length"])
-//                            ->where("nominal_width",$preparedFormData["nominal_width"])
-//                            ->get();
-//                    }
-
                     $customProductMatches = $dataClassificationService->findCustomProductMatches(
                         $formData["data"]["description"],
                         $user,

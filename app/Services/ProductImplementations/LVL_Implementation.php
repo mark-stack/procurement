@@ -2,6 +2,7 @@
 
 namespace App\Services\ProductImplementations;
 
+use App\Enums\GradeEnums;
 use App\Enums\MaterialEnums;
 use App\Enums\MeasurementUnitEnums;
 use App\Enums\ProductEnums;
@@ -48,6 +49,7 @@ class LVL_Implementation extends ProductBaseImplementation
             ],
             "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
             "defaultMaterial" => MaterialEnums::TIMBER,
+            //"defaultGrade" => GradeEnums::NONE, //todo
         ];
     }
 

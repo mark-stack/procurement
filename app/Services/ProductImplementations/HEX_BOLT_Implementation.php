@@ -2,6 +2,7 @@
 
 namespace App\Services\ProductImplementations;
 
+use App\Enums\GradeEnums;
 use App\Enums\MaterialEnums;
 use App\Enums\MeasurementUnitEnums;
 use App\Enums\ProductEnums;
@@ -56,6 +57,7 @@ class HEX_BOLT_Implementation extends ProductBaseImplementation
             ],
             "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
             "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
+            //"defaultGrade" => GradeEnums::NONE, //todo
         ];
     }
 
@@ -113,7 +115,6 @@ class HEX_BOLT_Implementation extends ProductBaseImplementation
 //        "wall",
 //        "kg_per_m"
 
-        //todo
         return [
             "mandatory" => [
                 'product_category',
@@ -123,8 +124,6 @@ class HEX_BOLT_Implementation extends ProductBaseImplementation
                 'nominal_units',
                 "nominal_width",
                 "nominal_length",
-                "wall",
-                "kg_per_m",
             ],
             "exclude" => [
                 "wall",

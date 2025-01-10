@@ -64,7 +64,7 @@ it("would be a disaster if meterage nesting for a single project didn't work cor
                 $page->where('0.0.nested.usedStockBars.'.$index.'.result.stock_length', $bar["stock_length"]);
                 $page->where('0.0.nested.usedStockBars.'.$index.'.result.waste', $bar["waste"]);
                 foreach($bar["pieces"] as $pieceIndex => $piece){
-                    $page->where('0.0.nested.usedStockBars.'.$index.'.result.pieces.'.$pieceIndex.'.0', $piece);
+                    $page->where('0.0.nested.usedStockBars.'.$index.'.result.pieces.'.$pieceIndex.'.cutLength', $piece);
                 }
             }
         })

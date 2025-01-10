@@ -57,6 +57,7 @@ class PFC_Implementation extends ProductBaseImplementation
             ],
             "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
             "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
+            //"defaultGrade" => GradeEnums::GR300,
         ];
     }
 

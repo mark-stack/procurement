@@ -2,6 +2,7 @@
 
 namespace App\Services\ProductImplementations;
 
+use App\Enums\GradeEnums;
 use App\Enums\MaterialEnums;
 use App\Enums\MeasurementUnitEnums;
 use App\Enums\ProductEnums;
@@ -53,6 +54,7 @@ class ALLTHREAD_Implementation extends ProductBaseImplementation
             ],
             "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
             "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
+            //"defaultGrade" => GradeEnums::NONE, //todo
         ];
     }
 
