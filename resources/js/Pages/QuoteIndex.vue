@@ -114,7 +114,9 @@
                 <p v-if="projectsReadyForBatching.data.length > 0">
                     <h2 class="font-semibold">Included Projects:</h2>
                     <ul>
-                        <li v-for="(project,index) in projectsReadyForBatching.data"> - project #{{project.id}}: <i>'{{project.name}}'</i> ({{project.user.name}}'s project) - Quote request deadline: {{moment(project.quoteRequestDeadline).format("MMMM Do YYYY")}} ({{project.daysUntilQuoteRequestDeadline}}).</li>
+                        <li v-for="(project,index) in projectsReadyForBatching.data">
+                            - project #{{project.id}}: <i>'{{project.name}}'</i> ({{project.user.name}}'s project) - Quote request deadline: {{moment(project.quoteRequestDeadline).format("MMMM Do YYYY")}} ({{project.daysUntilQuoteRequestDeadline}}).
+                        </li>
                     </ul>
                 </p>
                 <p v-else>

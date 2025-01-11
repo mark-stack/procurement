@@ -39,6 +39,7 @@ class ProjectController extends Controller
         $quoted = [];
         $batchesForQuoting = $business->batches()
             ->has('quote')
+            ->doesntHave('order')
             //todo other criteria for being ready
             ->get();
         foreach($batchesForQuoting as $batch){
@@ -50,40 +51,45 @@ class ProjectController extends Controller
                     "totalWaste" => 999, //todo
                 ],
                 "projects" => ProjectResource::collection($batch->projects()),
+                "otherData" => [
+
+                ],
             ];
         }
 
+        /**
+         * Batches for ordering
+         */
+        $ordered = [];
+        $batchesForOrdering = $business->batches()
+            ->has('order')
+            //todo other criteria for being ready
+            ->get();
+        foreach($batchesForOrdering as $batch){
+            $ordered[] = [
+                "batch" => [
+                    "id" => $batch->id,
+                    "totalMaterial" => 999, //todo
+                    "totalUsage" => 999, //todo
+                    "totalWaste" => 999, //todo
+                ],
+                "projects" => ProjectResource::collection($batch->projects()),
+                "otherData" => [
+                    "order" => $batch->order,
+                    "allProjectManagerApprovals" => false, //todo actual
+                    "orderSent" => false, //todo actual  "order_sent"
+                    "orderConfirmation" => false, //todo actual "order_confirmation_received"
+                    "supplier" => null, //todo actual "supplier_id"
+                    "purchaseOrderNumber" => null, //todo actual  "purchase_order_number"
+                    "isDelivered" => false, //todo actual  "is_delivered"
+                    "approxDueDate" => null, //todo actual - derived from earliest project
+                ],
+            ];
+        }
 
         $batches = [
             "QUOTED" => $quoted,
-            "ORDERED" => [
-                [
-                    "batch" => [
-                        "id" => 1,
-                        "totalMaterial" => 999,
-                        "totalUsage" => 999,
-                        "totalWaste" => 999,
-                    ],
-                    "projects" => ProjectResource::collection(Project::query()
-                        ->thisBusiness($business)
-                        ->active()
-                        ->latest()
-                        ->get())
-                ],
-                [
-                    "batch" => [
-                        "id" => 2,
-                        "totalMaterial" => 999,
-                        "totalUsage" => 999,
-                        "totalWaste" => 999,
-                    ],
-                    "projects" => ProjectResource::collection(Project::query()
-                        ->thisBusiness($business)
-                        ->active()
-                        ->latest()
-                        ->get())
-                ],
-            ],
+            "ORDERED" => $ordered,
             "DELIVERED" => [
                 [
                     "batch" => [

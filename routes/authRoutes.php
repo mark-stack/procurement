@@ -4,6 +4,7 @@ use App\Http\Controllers\BatchController;
 use App\Http\Controllers\BatchNestingController;
 use App\Http\Controllers\MarkNotificationStatusController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PricebookController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
@@ -90,6 +91,9 @@ Route::middleware(['auth','verified'])->group(function () {
 
         //Quotes
         Route::resource('quotes', QuoteController::class);
+
+        //Orders
+        Route::resource('orders', OrderController::class);
 
         //Suggested Nesting
         Route::get("suggested-nesting", SuggestedNestingController::class)->name("suggested.nesting");

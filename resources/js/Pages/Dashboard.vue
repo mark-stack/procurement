@@ -16,7 +16,7 @@
         archivedProjects: Object,
     });
 
-    //Form
+    //Forms
     const formProjectCreate = useForm({
         name: null,
         awarded: true,
@@ -24,11 +24,10 @@
         reference: null,
         tentative: true,
     });
-
     const formProjectDelete = useForm({});
-
-    const formQuoteStore = useForm({
-        //
+    const formQuoteStore = useForm({});
+    const formOrdersStore = useForm({
+        batch_id: null,
     });
 
     //Shared data
@@ -132,6 +131,21 @@
         let url = route("quotes.store");
 
         formQuoteStore.post(url, {
+            preserveScroll: true,
+            onSuccess: () => {
+                console.log('success');
+            },
+            onError: errors => {
+                console.log('errors',errors);
+            },
+        });
+    }
+
+    function orderNow(batch){
+        let url = route("orders.store");
+
+        formOrdersStore.batch_id = null;
+        formOrdersStore.post(url, {
             preserveScroll: true,
             onSuccess: () => {
                 console.log('success');
@@ -282,6 +296,7 @@
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
                                     @quoteNow="quoteNow()"
+                                    @orderNow="orderNow()"
                                 />
                             </div>
                         </div>
@@ -298,6 +313,7 @@
                                     v-for="batch in batches['QUOTED']"
                                     :batch="batch['batch']"
                                     :projects="batch['projects'].data"
+                                    :otherData="batch['otherData']"
                                     type="QUOTES"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
@@ -317,6 +333,7 @@
                                     v-for="batch in batches['ORDERED']"
                                     :batch="batch['batch']"
                                     :projects="batch['projects'].data"
+                                    :otherData="batch['otherData']"
                                     type="ORDERS"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
@@ -336,6 +353,7 @@
                                     v-for="batch in batches['DELIVERED']"
                                     :batch="batch['batch']"
                                     :projects="batch['projects'].data"
+                                    :otherData="batch['otherData']"
                                     type="DELIVERED"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"

@@ -26,12 +26,6 @@ class Order extends Model
     }
 
     //Optional
-    public function project(): BelongsTo
-    {
-        return $this->belongsTo(Project::class);
-    }
-
-    //Optional
     public function quote(): BelongsTo
     {
         return $this->belongsTo(Quote::class);

@@ -20,7 +20,7 @@
     //...
 
     //Variables
-    const emit = defineEmits(['toggleArchive','editMode','quoteNow']);
+    const emit = defineEmits(['toggleArchive','editMode','quoteNow','orderNow']);
     const user = computed(() => usePage().props.auth.user);
 
     //Methods
@@ -81,7 +81,7 @@
             <button @click="$emit('quoteNow')">
                 Quote now
             </button>
-            <button>
+            <button @click="$emit('orderNow')">
                 Order now
             </button>
         </div>

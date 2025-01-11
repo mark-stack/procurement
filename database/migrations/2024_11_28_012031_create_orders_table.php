@@ -16,10 +16,15 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreignId('user_id')->constrained();
-            $table->foreignId('batch_id')->constrained();
-            $table->foreignId('supplier_id')->constrained();
-            $table->foreignId('project_id')->nullable()->constrained(); //optional
+            $table->foreignId('batch_id')->nullable()->constrained();
+            $table->foreignId('supplier_id')->nullable()->constrained();
             $table->foreignId('quote_id')->nullable()->constrained(); //optional
+
+            //Status
+            $table->boolean("order_sent")->default(false);
+            $table->boolean("order_confirmation_received")->default(false);
+            $table->string("purchase_order_number")->nullable();
+            $table->boolean("is_delivered")->default(false);
         });
     }
 
