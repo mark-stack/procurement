@@ -16,9 +16,10 @@
     //Props
     const props = defineProps({
         pieces: Object,
-        projectsForQuoting: Object,
+        projectsReadyForBatching: Object,
         batchGroups: Object,
         usage: Object,
+        type: String,
     });
 
     //Form
@@ -100,8 +101,8 @@
 
             <!-- Pieces -->
             <section class="container max-w-5xl mx-auto mt-5">
-                <h2 class="font-bold text-lg">Material nesting & batching</h2>
-                <p class="mb-3">
+                <h2 class="font-bold text-lg">NESTING</h2>
+                <p v-if="type === 'SUGGESTED'" class="mb-3">
                     Criteria of materials ready to batch:
                     <ul>
                         <li> - Project is awarded (not tender phase)</li>
@@ -110,10 +111,10 @@
                     </ul>
                 </p>
 
-                <p v-if="projectsForQuoting.data.length > 0">
-                    <h2 class="font-semibold">Projects with ready-to-quote materials:</h2>
+                <p v-if="projectsReadyForBatching.data.length > 0">
+                    <h2 class="font-semibold">Included Projects:</h2>
                     <ul>
-                        <li v-for="(project,index) in projectsForQuoting.data"> - project #{{project.id}}: <i>'{{project.name}}'</i> ({{project.user.name}}'s project) - Quote request deadline: {{moment(project.quoteRequestDeadline).format("MMMM Do YYYY")}} ({{project.daysUntilQuoteRequestDeadline}}).</li>
+                        <li v-for="(project,index) in projectsReadyForBatching.data"> - project #{{project.id}}: <i>'{{project.name}}'</i> ({{project.user.name}}'s project) - Quote request deadline: {{moment(project.quoteRequestDeadline).format("MMMM Do YYYY")}} ({{project.daysUntilQuoteRequestDeadline}}).</li>
                     </ul>
                 </p>
                 <p v-else>
@@ -122,8 +123,7 @@
 
                 <!-- Usage stats-->
                 <div class="mt-5">
-                    <b>TOTALS</b>
-                    <br>
+                    <h2 class="font-semibold">Usage stats:</h2>
                     Total Material = {{ (usage.totalMaterial/1000).toLocaleString() }} m
                     <br>
                     Total Used Material = {{ (usage.totalUsedMaterial/1000).toLocaleString() }} m
@@ -164,7 +164,7 @@
                                     type="button"
                                     @click="confirmBatch(batchLabel,batchGroup)"
                                 >
-                                    Quote '{{batchLabel}}' batch
+                                    Order '{{batchLabel}}' batch
                                 </button>
                             </div>
 

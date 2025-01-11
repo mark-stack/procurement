@@ -41,4 +41,10 @@ class Order extends Model
     {
         return $this->belongsToMany(Product::class);
     }
+
+    //Optional
+    public function batch(): BelongsTo
+    {
+        return $this->belongsTo(Batch::class);
+    }
 }

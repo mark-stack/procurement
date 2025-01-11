@@ -4,6 +4,10 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
+it('would be a disaster if materials for a project were imported after the order but included in the batch', function () {
+
+});
+
 it('would be a disaster if missed order deadline', function () {
 
 });

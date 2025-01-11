@@ -1,6 +1,6 @@
 <script setup>
     //General Imports
-    import {Link, usePage} from "@inertiajs/vue3";
+    import {Link, useForm, usePage} from "@inertiajs/vue3";
     import {computed} from "vue";
 
     //Component Imports
@@ -14,13 +14,13 @@
     });
 
     //Form
-    //...
+    //
 
     //Shared data
     //...
 
     //Variables
-    const emit = defineEmits(['toggleArchive','editMode']);
+    const emit = defineEmits(['toggleArchive','editMode','quoteNow']);
     const user = computed(() => usePage().props.auth.user);
 
     //Methods
@@ -42,9 +42,9 @@
         <!-- Body -->
         <div class="p-3">
             <span class="text-sm block text-gray-500">Auto Batched Nesting</span>
-            <span class="text-sm block text-green-500">13% less waste</span>
+            <span class="text-sm block text-green-500">Saves 13% waste</span>
             <span class="text-xs block text-orange-500">Suggest to wait [3 more days] to allow for more possible materials.</span>
-            <Link :href="route('quotes.index')" class="font-bold">Nesting details <i class="fa-solid fa-list"/></Link>
+            <Link :href="route('suggested.nesting')" class="font-bold">Nesting details <i class="fa-solid fa-list"/></Link>
 
             <div class="mt-3 grid grid-cols-1 gap-y-2">
                 <!-- project mini card -->
@@ -75,13 +75,10 @@
                     </div>
                 </div>
             </div>
-
-
-
         </div>
         <!-- Footer -->
         <div class="grid grid-cols-2 border-t-2 border-blue-500 bg-blue-100 p-1 rounded-b-lg text-xs">
-            <button>
+            <button @click="$emit('quoteNow')">
                 Quote now
             </button>
             <button>

@@ -79,13 +79,6 @@
                         <span class="mx-2 text-sm font-medium">Projects (Kanban)</span>
                     </Link>
 
-                    <!-- Quotes -->
-                    <NavButton
-                        v-if="onboarded"
-                        :route="route('quotes.index')"
-                        label="Nesting"
-                        icon="fa-solid fa-comments-dollar"
-                    />
                     <!-- Price Book -->
                     <NavButton
                         v-if="onboarded"

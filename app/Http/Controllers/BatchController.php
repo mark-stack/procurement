@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Batch;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class BatchController extends Controller
@@ -58,8 +59,26 @@ class BatchController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Batch $batch)
+    public function destroy(Batch $batch): RedirectResponse
     {
-        //
+        /**
+         * Break batch - not fully delete it
+         * 1) Not if used for order
+         */
+
+        //1) Not if used for order
+        if(!$batch->order){
+            //Detach quote
+            $quote = $batch->quote;
+            $quote->batch_id = null;
+            $quote->save();
+
+            //Detach batch reference from pieces
+            $batch->pieces()->update([
+                "batch_id" => null,
+            ]);
+        }
+
+        return back();
     }
 }

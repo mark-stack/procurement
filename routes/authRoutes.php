@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\BatchController;
+use App\Http\Controllers\BatchNestingController;
 use App\Http\Controllers\MarkNotificationStatusController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PricebookController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\RawMaterialListBulkDeleteController;
 use App\Http\Controllers\RawMaterialListClarificationsController;
 use App\Http\Controllers\RawMaterialListCustomisationsController;
 use App\Http\Controllers\RawMaterialQuoteController;
+use App\Http\Controllers\SuggestedNestingController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Middleware\BusinessReadyMiddleware;
 use App\Models\Project;
@@ -88,6 +90,12 @@ Route::middleware(['auth','verified'])->group(function () {
 
         //Quotes
         Route::resource('quotes', QuoteController::class);
+
+        //Suggested Nesting
+        Route::get("suggested-nesting", SuggestedNestingController::class)->name("suggested.nesting");
+
+        //Batch Nesting
+        Route::get("batch-nesting/{batch}", BatchNestingController::class)->name("batch.nesting");
     });
 
     //Batches

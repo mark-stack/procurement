@@ -16,8 +16,9 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreignId('user_id')->constrained();
-            $table->foreignId('supplier_id')->constrained();
-            $table->foreignId('project_id')->nullable()->constrained();  //optional
+            $table->foreignId('batch_id')->nullable()->constrained();
+            $table->json("quote_requests")->nullable();
+            $table->json("quote_responses")->nullable();
         });
     }
 

@@ -166,17 +166,11 @@ class ProductService
         return $result;
     }
 
-    public function getDerivedProductLabel(array|object $productSpec): string
+    public function getDerivedProductLabel(array $productSpec): string
     {
         /**
          * Convert product spec array to derived product label
          */
-
-        //convert object to array
-        if(gettype($productSpec) === "object"){
-            $productSpec = $productSpec->toArray();
-        }
-
         $productCategory = $productSpec["product_category"];
         $nominal_length = isset($productSpec["nominal_length"])
             ? floatval($productSpec["nominal_length"])
@@ -1070,6 +1064,19 @@ class ProductService
             ->all();
 
         return array_filter($implementations);
+    }
+
+    public function generalProductDefinition(string $productCategory): array
+    {
+        //Services
+        $dataClassificationService = new DataClassificationService();
+
+        //Implementation (service)
+        $implementation = $dataClassificationService->findImplementationFromProductCategory($productCategory);
+
+        return $implementation
+            ? $implementation->generalProductDefinition()
+            : $dataClassificationService->fallbackGeneralProductDefinition();
     }
 }
 

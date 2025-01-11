@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Collection;
 
 class Business extends Model
@@ -30,5 +32,31 @@ class Business extends Model
     public function templates(): HasMany
     {
         return $this->hasMany(Template::class);
+    }
+
+    public function quotes(): HasManyThrough
+    {
+        return $this->hasManyThrough(Quote::class, User::class);
+    }
+
+    public function projects(): HasManyThrough
+    {
+        return $this->hasManyThrough(Project::class, User::class);
+    }
+
+    public function batches(): HasManyThrough
+    {
+        return $this->hasManyThrough(Batch::class, User::class);
+    }
+
+    //Local scopes
+    public function projectsReadyForBatching(): Collection
+    {
+        //todo: timeline and status criteria needed
+        return $this->projects()
+            ->active()
+            ->awarded()
+            ->unBatchedPieces()
+            ->get();
     }
 }

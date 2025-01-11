@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\ProjectResource;
+use App\Models\Batch;
 use App\Models\Project;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,30 +27,35 @@ class ProjectController extends Controller
                 ->doesntHave('rawMaterialQuotes')
                 ->latest()
                 ->get()),
-            "BOM_IMPORTED" => ProjectResource::collection(Project::query()
-                ->thisBusiness($business)
-                ->active()
-                ->has('rawMaterialQuotes')
-                ->latest()
-                ->get()),
+            "BOM_IMPORTED" => ProjectResource::collection($business
+                ->projectsReadyForBatching()
+                ->sortBy("created_at")),
         ];
 
-        $batches = [
-            "QUOTED" => [
-                [
-                    "batch" => [
-                        "id" => 1,
-                        "totalMaterial" => 999,
-                        "totalUsage" => 999,
-                        "totalWaste" => 999,
-                    ],
-                    "projects" => ProjectResource::collection(Project::query()
-                        ->thisBusiness($business)
-                        ->active()
-                        ->latest()
-                        ->get())
+
+        /**
+         * Batches for quoting
+         */
+        $quoted = [];
+        $batchesForQuoting = $business->batches()
+            ->has('quote')
+            //todo other criteria for being ready
+            ->get();
+        foreach($batchesForQuoting as $batch){
+            $quoted[] = [
+                "batch" => [
+                    "id" => $batch->id,
+                    "totalMaterial" => 999, //todo
+                    "totalUsage" => 999, //todo
+                    "totalWaste" => 999, //todo
                 ],
-            ],
+                "projects" => ProjectResource::collection($batch->projects()),
+            ];
+        }
+
+
+        $batches = [
+            "QUOTED" => $quoted,
             "ORDERED" => [
                 [
                     "batch" => [
@@ -78,7 +84,7 @@ class ProjectController extends Controller
                         ->get())
                 ],
             ],
-            "RECEIVED" => [
+            "DELIVERED" => [
                 [
                     "batch" => [
                         "id" => 1,

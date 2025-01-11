@@ -68,17 +68,17 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Order::class);
     }
 
+    public function batches(): HasMany
+    {
+        return $this->hasMany(Batch::class);
+    }
+
     public function business(): BelongsTo
     {
         return $this->belongsTo(Business::class);
     }
 
     //Collections
-    public function allStaff(): Collection
-    {
-        return $this->business->users;
-    }
-
     public function productsOrdered(): Collection
     {
         $products = [];

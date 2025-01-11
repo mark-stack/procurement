@@ -6,6 +6,10 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
 
+it("would be a disaster if total nested length didn't equal total pieces length" , function () {
+
+});
+
 it('would be a disaster if unfit cuts for meterage nesting was not working correctly', function () {
     /**
      * pieces.0.0.unfitCuts

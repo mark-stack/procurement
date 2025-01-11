@@ -24,7 +24,12 @@
         reference: null,
         tentative: true,
     });
+
     const formProjectDelete = useForm({});
+
+    const formQuoteStore = useForm({
+        //
+    });
 
     //Shared data
     //...
@@ -106,21 +111,35 @@
         formProjectCreate.tentative = project.tentative;
     }
 
-    function checkBoxActions(){
-        /**
-            If awarded = false, clear "reference" and "date_materials_required"
-         */
-        let awardedToggledTo = !formProjectCreate.awarded;
-        if(awardedToggledTo === false){
-            formProjectCreate.reset("reference","date_materials_required");
-        }
-    }
+    // function checkBoxActions(){
+    //     /**
+    //         If awarded = false, clear "reference" and "date_materials_required"
+    //      */
+    //     let awardedToggledTo = !formProjectCreate.awarded;
+    //     if(awardedToggledTo === false){
+    //         formProjectCreate.reset("reference","date_materials_required");
+    //     }
+    // }
 
     function backToNewProject(){
         //Clear the form
         formProjectCreate.reset();
 
         editProject.value = null;
+    }
+
+    function quoteNow(){
+        let url = route("quotes.store");
+
+        formQuoteStore.post(url, {
+            preserveScroll: true,
+            onSuccess: () => {
+                console.log('success');
+            },
+            onError: errors => {
+                console.log('errors',errors);
+            },
+        });
     }
 </script>
 
@@ -252,7 +271,7 @@
                         <div>
                             <!-- header -->
                             <div class="border-b-2 border-gray-500">
-                                <h2>Ready for auto nesting</h2>
+                                <h2>Nesting</h2>
                             </div>
                             <!-- body -->
                             <div class="grid grid-cols-1 gap-y-2 pt-3">
@@ -262,6 +281,7 @@
                                     :projects="projects['BOM_IMPORTED'].data"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
+                                    @quoteNow="quoteNow()"
                                 />
                             </div>
                         </div>
@@ -269,7 +289,7 @@
                         <div>
                             <!-- header -->
                             <div class="border-b-2 border-gray-500">
-                                <h2>Quoted</h2>
+                                <h2>Quoting</h2>
                             </div>
                             <!-- body -->
                             <div class="grid grid-cols-1 gap-y-2 pt-3">
@@ -278,6 +298,7 @@
                                     v-for="batch in batches['QUOTED']"
                                     :batch="batch['batch']"
                                     :projects="batch['projects'].data"
+                                    type="QUOTES"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
                                 />
@@ -287,7 +308,7 @@
                         <div>
                             <!-- header -->
                             <div class="border-b-2 border-gray-500">
-                                <h2>Ordered</h2>
+                                <h2>Ordering</h2>
                             </div>
                             <!-- body -->
                             <div class="grid grid-cols-1 gap-y-2 pt-3">
@@ -296,6 +317,7 @@
                                     v-for="batch in batches['ORDERED']"
                                     :batch="batch['batch']"
                                     :projects="batch['projects'].data"
+                                    type="ORDERS"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
                                 />
@@ -305,15 +327,16 @@
                         <div>
                             <!-- header -->
                             <div class="border-b-2 border-gray-500">
-                                <h2>Materials Received</h2>
+                                <h2>Delivered</h2>
                             </div>
                             <!-- body -->
                             <div class="grid grid-cols-1 gap-y-2 pt-3">
                                 <!-- card -->
                                 <KanbanGeneralBatchCard
-                                    v-for="batch in batches['RECEIVED']"
+                                    v-for="batch in batches['DELIVERED']"
                                     :batch="batch['batch']"
                                     :projects="batch['projects'].data"
+                                    type="DELIVERED"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
                                 />

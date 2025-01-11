@@ -6,15 +6,18 @@
     //...
 
     //Props
-    import {Link} from "@inertiajs/vue3";
+    import {Link, useForm} from "@inertiajs/vue3";
 
     const props = defineProps({
         batch: Object,
         projects: Object,
+        type: String,
     });
 
     //Form
-    //...
+    const formBreakBatch = useForm({
+
+    });
 
     //Shared data
     //...
@@ -29,6 +32,19 @@
         }
         return text;
     }
+
+    function breakBatch(batch){
+        let url = route("batches.destroy",batch.id);
+        formBreakBatch.delete(url, {
+            preserveScroll: true,
+            onSuccess: () => {
+                console.log('success');
+            },
+            onError: errors => {
+                console.log('errors',errors);
+            },
+        });
+    }
 </script>
 
 <template>
@@ -36,39 +52,48 @@
     <div class="border-2 border-blue-500 rounded-lg">
         <!-- Body -->
         <div class="p-3">
-            <span v-if="projects.length > 1" class="text-sm block text-gray-500">Batch ID: {{batch.id}}</span>
+            <span class="text-sm block text-gray-500">Batch ID: {{batch.id}}</span>
+            <span v-if="type === 'QUOTES'" class="text-sm block text-gray-800">Quote deadline: [1/2/24]</span>
+            <span v-if="type === 'QUOTES'" class="text-sm block text-gray-800">[Steel merchant] quotes: [3]</span>
+            <span v-if="type === 'QUOTES'" class="text-sm block text-gray-800">[Fasteners] quotes: [0]</span>
+            <span v-if="type === 'QUOTES'" class="text-sm block text-gray-800">[Timber merchant] quotes: [1]</span>
+            <span v-if="type === 'ORDERS'" class="text-sm block text-gray-800">Order deadline: [1/2/24]</span>
+            <span v-if="type === 'ORDERS'" class="text-sm block text-gray-800">All PM approval: [No]</span>
+            <span v-if="type === 'ORDERS'" class="text-sm block text-gray-800">Order sent: [No]</span>
+            <span v-if="type === 'ORDERS'" class="text-sm block text-gray-800">Order confirmation: [No]</span>
+            <span v-if="type === 'ORDERS'" class="text-sm block text-gray-800">Supplier: [abc steel]</span>
+            <span v-if="type === 'ORDERS'" class="text-sm block text-gray-800">Purchase order: [18-asdd]</span>
+            <span v-if="type === 'ORDERS'" class="text-sm block text-gray-800">Due approx: [1/2/24]</span>
+            <Link :href="route('batch.nesting',batch.id)" class="font-bold">Nesting details <i class="fa-solid fa-list"/></Link>
+
             <span v-for="project in projects" class="block">{{ cropText(project.name) }}</span>
         </div>
         <!-- Footer -->
         <div class="border-t-2 border-blue-500 bg-blue-100 p-1 rounded-b-lg text-xs">
-            PM: [You]
-            <br>
-            Edit | Archive
-            <!-- Single project actions -->
-            <div v-if="projects.length === 1">
-                <!-- Import materials button -->
-                <div class="flex justify-center items-center gap-x-6 mt-2">
-                    <Link
-                        :href="route('products.store',projects[0].id)"
-                        :class="projects[0].hasRawMaterialQuotes ? 'text-emerald-500 bg-emerald-100 border-emerald-300 hover:bg-emerald-200' : 'text-orange-500 bg-orange-50 border-orange-300 hover:bg-orange-100'"
-                        class="px-2 py-1 rounded border-2 font-semibold"
-                    >
-                        {{projects[0].hasRawMaterialQuotes ? 'Imported Materials' : 'Import Materials'}}
-                    </Link>
-                </div>
-
-                <!-- actions -->
-                <div class="flex justify-center items-center gap-x-6 mt-1">
-                    <button
-                        @click="$emit('toggleArchive',projects[0])"
-                        class="text-gray-500 transition-colors duration-200 dark:hover:text-red-500 dark:text-gray-300 hover:text-red-500 focus:outline-none"
-                    >
-                        Archive
-                    </button>
-                    <button v-if="!projects[0].archive" @click="$emit('editMode',projects[0])">
-                        Edit
-                    </button>
-                </div>
+            <!-- actions -->
+            <div class="flex justify-center items-center gap-x-6 mt-1">
+                <button
+                    v-if="type === 'QUOTES'"
+                    @click="breakBatch(batch)"
+                    class="text-gray-500 transition-colors duration-200 dark:hover:text-red-500 dark:text-gray-300 hover:text-red-500 focus:outline-none"
+                >
+                    Break Batch (re-nest)
+                </button>
+                <button v-if="type === 'QUOTES'">
+                    Add quote request
+                </button>
+                <button v-if="type === 'QUOTES'">
+                    Order
+                </button>
+                <button v-if="type === 'ORDERS'">
+                    All PM's approved
+                </button>
+                <button v-if="type === 'ORDERS'">
+                    Is ordered (add PO)
+                </button>
+                <button v-if="type === 'ORDERS'">
+                    Is Delivered
+                </button>
             </div>
         </div>
     </div>

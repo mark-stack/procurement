@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Quote extends Model
 {
@@ -43,10 +44,13 @@ class Quote extends Model
     }
 
     //Optional
-    public function orders(): HasMany
+    public function order(): HasOne
     {
-        return $this->hasMany(Order::class);
+        return $this->hasOne(Order::class);
     }
-
-
+    //Optional
+    public function batch(): BelongsTo
+    {
+        return $this->belongsTo(Batch::class);
+    }
 }

@@ -172,4 +172,9 @@ class Project extends Model
     {
         $query->where('awarded',true);
     }
+
+    public function scopeUnBatchedPieces(Builder $query): void
+    {
+        $query->whereRelation("pieces","batch_id","=",null);
+    }
 }
