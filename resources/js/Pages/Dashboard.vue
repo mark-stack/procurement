@@ -266,7 +266,7 @@
                         <div>
                             <!-- header -->
                             <div class="border-b-2 border-gray-500">
-                                <h2>Need to import BOM</h2>
+                                <h2 class="font-bold text-center">Need to import BOM</h2>
                             </div>
                             <!-- body -->
                             <div class="grid grid-cols-1 gap-y-2 pt-3">
@@ -285,7 +285,7 @@
                         <div>
                             <!-- header -->
                             <div class="border-b-2 border-gray-500">
-                                <h2>Nesting</h2>
+                                <h2 class="font-bold text-center">Nesting</h2>
                             </div>
                             <!-- body -->
                             <div class="grid grid-cols-1 gap-y-2 pt-3">
@@ -304,7 +304,7 @@
                         <div>
                             <!-- header -->
                             <div class="border-b-2 border-gray-500">
-                                <h2>Quoting</h2>
+                                <h2 class="font-bold text-center">Quoting</h2>
                             </div>
                             <!-- body -->
                             <div class="grid grid-cols-1 gap-y-2 pt-3">
@@ -324,7 +324,7 @@
                         <div>
                             <!-- header -->
                             <div class="border-b-2 border-gray-500">
-                                <h2>Ordering</h2>
+                                <h2 class="font-bold text-center">Ordering</h2>
                             </div>
                             <!-- body -->
                             <div class="grid grid-cols-1 gap-y-2 pt-3">
@@ -344,7 +344,7 @@
                         <div>
                             <!-- header -->
                             <div class="border-b-2 border-gray-500">
-                                <h2>Delivered</h2>
+                                <h2 class="font-bold text-center">Delivered</h2>
                             </div>
                             <!-- body -->
                             <div class="grid grid-cols-1 gap-y-2 pt-3">

@@ -66,6 +66,8 @@ class ProjectController extends Controller
             //todo other criteria for being ready
             ->get();
         foreach($batchesForOrdering as $batch){
+            $order = $batch->order;
+
             $ordered[] = [
                 "batch" => [
                     "id" => $batch->id,
@@ -75,13 +77,8 @@ class ProjectController extends Controller
                 ],
                 "projects" => ProjectResource::collection($batch->projects()),
                 "otherData" => [
-                    "order" => $batch->order,
-                    "allProjectManagerApprovals" => false, //todo actual
-                    "orderSent" => false, //todo actual  "order_sent"
-                    "orderConfirmation" => false, //todo actual "order_confirmation_received"
-                    "supplier" => null, //todo actual "supplier_id"
-                    "purchaseOrderNumber" => null, //todo actual  "purchase_order_number"
-                    "isDelivered" => false, //todo actual  "is_delivered"
+                    "order" => $order,
+                    "supplier" => $order->supplier,
                     "approxDueDate" => null, //todo actual - derived from earliest project
                 ],
             ];

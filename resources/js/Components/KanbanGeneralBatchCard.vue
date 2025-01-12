@@ -21,6 +21,9 @@
         batch_id: props.batch.id,
     });
     const formCancelOrder = useForm({});
+    const formApproveAllProjectManagers = useForm({});
+    const formMarkAsOrdered = useForm({});
+    const formMarkOrderConfirmationReceived = useForm({});
 
     //Shared data
     //...
@@ -76,6 +79,48 @@
             },
         });
     }
+
+    function approveAllProjectManagers(order){
+        let url = route("approve.all.project.managers",order.id);
+
+        formApproveAllProjectManagers.post(url, {
+            preserveScroll: true,
+            onSuccess: () => {
+                console.log('success');
+            },
+            onError: errors => {
+                console.log('errors',errors);
+            },
+        });
+    }
+
+    function markAsOrdered(order){
+        let url = route("mark.as.ordered",order.id);
+
+        formMarkAsOrdered.post(url, {
+            preserveScroll: true,
+            onSuccess: () => {
+                console.log('success');
+            },
+            onError: errors => {
+                console.log('errors',errors);
+            },
+        });
+    }
+
+    function markOrderConfirmationReceived(order){
+        let url = route("mark.order.confirmation.received",order.id);
+
+        formMarkOrderConfirmationReceived.post(url, {
+            preserveScroll: true,
+            onSuccess: () => {
+                console.log('success');
+            },
+            onError: errors => {
+                console.log('errors',errors);
+            },
+        });
+    }
 </script>
 
 <template>
@@ -86,18 +131,57 @@
             <span class="text-sm block text-gray-500">Batch ID: {{batch.id}}</span>
             <!-- Quotes -->
             <span v-if="type === 'QUOTES'" class="text-sm block text-gray-800">Quote deadline: [1/2/24]</span>
+            <span v-if="type === 'QUOTES'" class="text-sm block text-gray-800">Quote coverage: [2/5]</span>
             <span v-if="type === 'QUOTES'" class="text-sm block text-gray-800">[Steel merchant] quotes: [3]</span>
             <span v-if="type === 'QUOTES'" class="text-sm block text-gray-800">[Fasteners] quotes: [0]</span>
             <span v-if="type === 'QUOTES'" class="text-sm block text-gray-800">[Timber merchant] quotes: [1]</span>
-            <span v-if="type === 'ORDERS'" class="text-sm block text-gray-800">Order deadline: [1/2/24]</span>
 
             <!-- Orders -->
-            <span v-if="type === 'ORDERS'" class="text-sm block text-gray-800">All PM approval: {{otherData.allProjectManagerApprovals ? 'Yes' : 'No'}}</span>
-            <span v-if="type === 'ORDERS'" class="text-sm block text-gray-800">Order sent: {{otherData.orderSent ? 'Yes' : 'No'}}</span>
-            <span v-if="type === 'ORDERS'" class="text-sm block text-gray-800">Order confirmation: {{otherData.orderConfirmation ? 'Yes' : 'No'}}</span>
-            <span v-if="type === 'ORDERS'" class="text-sm block text-gray-800">Supplier: {{otherData.supplier ? supplier.name : 'not yet'}}</span>
-            <span v-if="type === 'ORDERS'" class="text-sm block text-gray-800">Purchase Order #: {{otherData.purchaseOrderNumber ? otherData.purchaseOrderNumber : 'not yet'}}</span>
-            <span v-if="type === 'ORDERS'" class="text-sm block text-gray-800">Due approx: [1/2/24]</span>
+            <span v-if="type === 'ORDERS'" class="text-sm block text-gray-800">Order deadline: [1/2/24]</span>
+            <span v-if="type === 'ORDERS'" class="text-sm block text-gray-800">Order coverage: [2/5]</span>
+
+            <!-- Orders -->
+            <p
+                v-if="type === 'ORDERS'"
+                :class="otherData.order.all_project_manager_approvals ? 'text-green-600' : 'text-orange-800'"
+                class="text-sm block "
+            >
+                All PM approval: {{otherData.order.all_project_manager_approvals ? 'Yes' : 'No'}}
+            </p>
+            <p
+                v-if="type === 'ORDERS'"
+                :class="otherData.supplier ? 'text-green-600' : 'text-orange-800'"
+                class="text-sm block text-gray-800"
+            >
+                Supplier: {{otherData.supplier ? supplier.name : 'not yet'}}
+            </p>
+            <p
+                v-if="type === 'ORDERS'"
+                :class="otherData.order.order_sent ? 'text-green-600' : 'text-orange-800'"
+                class="text-sm block"
+            >
+                Order sent: {{otherData.order.order_sent ? 'Yes' : 'No'}}
+            </p>
+            <p
+                v-if="type === 'ORDERS'"
+                :class="otherData.order.order_confirmation_received ? 'text-green-600' : 'text-orange-800'"
+                class="text-sm block"
+            >
+                Order confirmation: {{otherData.order.order_confirmation_received ? 'Yes' : 'No'}}
+            </p>
+            <p
+                v-if="type === 'ORDERS'"
+                :class="otherData.order.purchase_order_number ? 'text-green-600' : 'text-orange-800'"
+                class="text-sm block"
+            >
+                Purchase Order #: {{otherData.order.purchase_order_number ?? 'not yet'}}
+            </p>
+            <p
+                v-if="type === 'ORDERS'"
+                class="text-sm block text-gray-800"
+            >
+                Delivery approx: [1/2/24]
+            </p>
             <Link :href="route('batch.nesting',batch.id)" class="font-bold">Nesting details <i class="fa-solid fa-list"/></Link>
 
             <span v-for="project in projects" class="block">{{ cropText(project.name) }}</span>
@@ -127,19 +211,34 @@
                 </button>
 
                 <!-- Order actions -->
-                <button v-if="type === 'ORDERS' && !otherData.allProjectManagerApprovals">
+                <button
+                    v-if="type === 'ORDERS' && !otherData.order.all_project_manager_approvals"
+                    @click="approveAllProjectManagers(otherData.order)"
+                >
                     All Project<br>Managers approved
                 </button>
                 <button
-                    v-if="type === 'ORDERS' && !otherData.allProjectManagerApprovals"
+                    v-if="type === 'ORDERS' && !otherData.order.all_project_manager_approvals"
                     @click="cancelOrder(otherData.order)"
                 >
                     Cancel<br><small>(Back to quoting)</small>
                 </button>
-                <button v-if="type === 'ORDERS' && otherData.allProjectManagerApprovals && !otherData.orderSent && !otherData.orderConfirmation">
+                <button v-if="type === 'ORDERS' && otherData.order.all_project_manager_approvals && !otherData.order.order_sent && !otherData.order.order_confirmation_received">
+                    Email tables
+                </button>
+                <button
+                    v-if="type === 'ORDERS' && otherData.order.all_project_manager_approvals && !otherData.order.order_sent && !otherData.order.order_confirmation_received"
+                    @click="markAsOrdered(otherData.order)"
+                >
                     Is ordered (add PO)
                 </button>
-                <button v-if="type === 'ORDERS' && otherData.orderConfirmation && !otherData.isDelivered">
+                <button
+                    v-if="type === 'ORDERS' && otherData.order.order_sent && !otherData.order.order_confirmation_received"
+                    @click="markOrderConfirmationReceived(otherData.order)"
+                >
+                    Received order confirmation
+                </button>
+                <button v-if="type === 'ORDERS' && otherData.order.order_confirmation_received && !otherData.order.is_delivered">
                     Is Delivered
                 </button>
 
