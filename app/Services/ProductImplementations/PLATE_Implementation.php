@@ -6,6 +6,7 @@ use App\Enums\GradeEnums;
 use App\Enums\MaterialEnums;
 use App\Enums\MeasurementUnitEnums;
 use App\Enums\ProductEnums;
+use App\Enums\SupplierGroupEnums;
 
 class PLATE_Implementation extends ProductBaseImplementation
 {
@@ -60,6 +61,7 @@ class PLATE_Implementation extends ProductBaseImplementation
             "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
             "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
             //"defaultGrade" => GradeEnums::NONE, //todo
+            "supplierGroup" => SupplierGroupEnums::STEEL_MERCHANT,
         ];
     }
 

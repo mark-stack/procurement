@@ -672,7 +672,7 @@ class NestingService
 
     public function batchGroups(array $piecesNested): array
     {
-        $supplierGroups = config('supplier_groups');
+        $supplierGroups = (new SupplierService())->supplierGroups();
 
         $resultAssigned = [];
         $resultUnassigned = [];

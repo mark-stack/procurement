@@ -16,7 +16,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->text("name");
-            $table->text("category");
+            $table->text("supplier_categories")->nullable();
         });
     }
 

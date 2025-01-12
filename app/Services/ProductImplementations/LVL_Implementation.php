@@ -6,6 +6,7 @@ use App\Enums\GradeEnums;
 use App\Enums\MaterialEnums;
 use App\Enums\MeasurementUnitEnums;
 use App\Enums\ProductEnums;
+use App\Enums\SupplierGroupEnums;
 
 class LVL_Implementation extends ProductBaseImplementation
 {
@@ -50,6 +51,7 @@ class LVL_Implementation extends ProductBaseImplementation
             "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
             "defaultMaterial" => MaterialEnums::TIMBER,
             //"defaultGrade" => GradeEnums::NONE, //todo
+            "supplierGroup" => SupplierGroupEnums::TIMBER_MERCHANT,
         ];
     }
 

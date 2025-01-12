@@ -10,14 +10,14 @@
     //Props
     const props = defineProps({
         suppliers: Object,
-        categories: Object,
+        byCategory: Object,
         business: Object,
     });
 
     //Form
     const formSupplierCreate = useForm({
         name: null,
-        category: null,
+        supplier_categories: setupCategoriesForm(),
     });
     const formSupplierDelete = useForm({});
 
@@ -30,6 +30,18 @@
     const autoSuggestionsExactMatch = ref(false);
 
     //Methods
+    function setupCategoriesForm(){
+        let keys = Object.keys(props.byCategory);
+        let array = {};
+
+        console.log(keys);
+        keys.forEach(key => {
+            array[key] = false;
+        });
+
+        return array;
+    }
+
     function submit(){
         //Edit mode
         if(editSupplier.value){
@@ -82,12 +94,12 @@
         }
     }
 
-    function editMode(project){
+    function editMode(supplier){
         editSupplier.value = supplier;
 
         //Populate form
         formSupplierCreate.name = supplier.name;
-        formSupplierCreate.category = supplier.category;
+        formSupplierCreate.supplier_categories = supplier.categoriesForm;
     }
 
     function autoComplete(){
@@ -115,17 +127,6 @@
         }
     }
 
-    function getProducts(supplier){
-        let products = [];
-
-        //Supplier category match
-        if(props.categories[supplier.category] !== undefined){
-            products = props.categories[supplier.category];
-        }
-
-        return products;
-    }
-
     function showDeleteButton(supplier){
         //Case #1 (admin and supplier is not used)
         let case1 = isAdmin && !supplier.isUsed;
@@ -149,11 +150,11 @@
                 >
                     <div class="px-6 pt-8 pb-8 mx-auto text-center">
                         <h1 class="text-3xl font-semibold text-gray-800 dark:text-gray-100">
-                            {{editSupplier ? 'Edit' : 'Add'}} Supplier <span v-if="isAdmin">for {{business.domain}}</span>
+                            {{editSupplier ? ('Edit ' + editSupplier.name) : 'Add Supplier'}} <span v-if="isAdmin">for {{business.domain}}</span>
                         </h1>
                         <p
                             v-if="editSupplier"
-                            @click="editSupplier = null"
+                            @click="editSupplier = null; formSupplierCreate.reset();"
                             class="text-blue-500 text-sm underline mt-2"
                             style="cursor: pointer;"
                         >
@@ -161,14 +162,14 @@
                         </p>
                         <div class="mt-8 space-y-2 sm:space-y-0 sm:flex-row sm:justify-center">
                             <form @submit.prevent="submit()">
-                                <div class="grid grid-cols-3 gap-x-2">
+                                <div class="grid grid-cols-6 gap-x-2">
                                     <!-- Name -->
-                                    <div>
+                                    <div class="col-span-2">
                                         <!-- input -->
                                         <input
                                             v-model="formSupplierCreate.name"
                                             type="text"
-                                            class="px-4 py-2 text-gray-700 bg-white border rounded-md dark:bg-gray-900 dark:text-gray-300 dark:border-gray-600 focus:border-blue-400 dark:focus:border-blue-300 focus:outline-none focus:ring focus:ring-blue-300 focus:ring-opacity-40"
+                                            class="w-full px-4 py-2 text-gray-700 bg-white border rounded-md dark:bg-gray-900 dark:text-gray-300 dark:border-gray-600 focus:border-blue-400 dark:focus:border-blue-300 focus:outline-none focus:ring focus:ring-blue-300 focus:ring-opacity-40"
                                             placeholder="Name"
                                             required
                                             @input="autoComplete()"
@@ -182,25 +183,23 @@
                                     </div>
 
                                     <!-- categories -->
-                                    <div>
-                                        <select
-                                            v-model="formSupplierCreate.category"
-                                            class="rounded"
-                                            required
-                                        >
-                                            <option :value="null" disabled>Select Category</option>
-                                            <option
-                                                v-for="(products,label) in categories"
-                                                :value="label"
-                                            >
-                                                {{label}}
-                                            </option>
-                                        </select>
+                                    <div class="col-span-3">
+                                        <div class="grid grid-cols-2">
+                                            <div v-for="(data,label) in byCategory" class="flex gap-x-2">
+                                                <input
+                                                    v-model="formSupplierCreate.supplier_categories[label]"
+                                                    :id="label"
+                                                    type="checkbox"
+                                                    class="mt-1"
+                                                />
+                                                <label :for="label">{{label}}</label>
+                                            </div>
+                                        </div>
                                         <div
-                                            v-if="formSupplierCreate.errors.category"
+                                            v-if="formSupplierCreate.errors.supplier_categories"
                                             class="text-red-500 text-sm"
                                         >
-                                            {{ formSupplierCreate.errors.category }}
+                                            {{ formSupplierCreate.errors.supplier_categories }}
                                         </div>
                                     </div>
 
@@ -241,33 +240,48 @@
 
                 <section class="bg-white dark:bg-gray-900 rounded-xl mt-5">
                     <div class="px-6 pt-8 pb-8 mx-auto">
-                        <h1 class="text-3xl font-semibold text-gray-800 dark:text-gray-100 mb-3">
-                            Suppliers
-                        </h1>
-                        <table class="w-full text-left">
-                            <tr>
-                                <th>Name</th>
-                                <th>Category</th>
-                                <th>Products</th>
-                                <th>Actions</th>
-                            </tr>
-                            <tr v-for="supplier in suppliers.data">
-                                <td>{{supplier.name}}</td>
-                                <td>{{supplier.category}}</td>
-                                <td class="text-xs">
-                                    <span v-for="(product,index) in getProducts(supplier)">{{product}}{{(index+1) < getProducts(supplier).length ? ', ' : '. '}}</span>
-                                </td>
-                                <td>
+                        <div class="grid grid-cols-2 gap-x-5">
+                            <!-- by category -->
+                            <div>
+                                <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">
+                                    By Category
+                                </h1>
+                                <div v-for="(data,label) in byCategory" class="mb-4">
+                                    <div>
+                                        <h3 class="font-semibold">{{label}}</h3>
+                                        <small class="text-gray-500">{{data.includedProductsString}}</small>
+                                    </div>
+                                    <div class="grid grid-cols-3">
+                                        <div v-for="supplier in data.suppliersArray">
+                                            {{supplier}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- by supplier -->
+                            <div>
+                                <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">
+                                    By Supplier
+                                </h1>
+                                <div v-for="supplier in suppliers.data" class="mb-3 flex gap-x-3">
                                     <button
                                         v-if="showDeleteButton(supplier)"
-                                        class="bg-yellow-100 rounded px-2 py-1"
+                                        class="text-red-500 font-extrabold"
                                         @click="deleteConfirmation(supplier.id)"
                                     >
-                                        Remove
+                                        <i class="fa-regular fa-circle-xmark"></i>
                                     </button>
-                                </td>
-                            </tr>
-                        </table>
+                                    <button @click="editMode(supplier)">
+                                        <i class="fa-regular fa-pen-to-square"></i>
+                                    </button>
+                                    <div>
+                                        <span class="block">{{supplier.name}}</span>
+                                        <span class="block text-xs">{{supplier.categoriesAsCommaString}}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </section>
             </div>
