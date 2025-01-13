@@ -8,6 +8,7 @@
     import KanbanNeedsImportingCard from "@/Components/KanbanNeedsImportingCard.vue";
     import KanbanReadyForNestingCard from "@/Components/KanbanReadyForNestingCard.vue";
     import KanbanGeneralBatchCard from "@/Components/KanbanGeneralBatchCard.vue";
+    import KanbanModal from "@/Components/KanbanModal.vue";
 
     //Props
     const props = defineProps({
@@ -36,6 +37,8 @@
     //Variables
     const editProject = ref(null);
     const showArchivedProjects = ref(false);
+    const showModal = ref(false);
+    const modalData = ref(null);
 
     //Shared Methods
     //...
@@ -273,7 +276,6 @@
                                 <!-- card -->
                                 <template v-for="project in projects['BOM_REQUIRED'].data">
                                     <KanbanNeedsImportingCard
-                                        :batch="999"
                                         :projects="[project]"
                                         @toggleArchive="p => toggleArchive(p)"
                                         @editMode="p => editMode(p)"
@@ -314,9 +316,11 @@
                                     :batch="batch['batch']"
                                     :projects="batch['projects'].data"
                                     :otherData="batch['otherData']"
+                                    :modalData="batch['modalData']"
                                     type="QUOTES"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
+                                    @showModal="data => {modalData = data; showModal = true;}"
                                 />
                             </div>
                         </div>
@@ -334,9 +338,11 @@
                                     :batch="batch['batch']"
                                     :projects="batch['projects'].data"
                                     :otherData="batch['otherData']"
+                                    :modalData="batch['modalData']"
                                     type="ORDERS"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
+                                    @showModal="data => {modalData = data; showModal = true;}"
                                 />
                             </div>
                         </div>
@@ -354,9 +360,11 @@
                                     :batch="batch['batch']"
                                     :projects="batch['projects'].data"
                                     :otherData="batch['otherData']"
+                                    :modalData="batch['modalData']"
                                     type="DELIVERED"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
+                                    @showModal="data => {modalData = data; showModal = true;}"
                                 />
                             </div>
                         </div>
@@ -521,4 +529,11 @@
             </div>
         </div>
     </AuthenticatedLayout>
+
+    <!-- Modal -->
+    <KanbanModal
+        :showModal="showModal"
+        :modalData="modalData"
+        @closeModal="showModal = false"
+    />
 </template>

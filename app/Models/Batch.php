@@ -25,9 +25,9 @@ class Batch extends Model
     }
 
     //optional
-    public function quote(): HasOne
+    public function quotes(): HasMany
     {
-        return $this->hasOne(Quote::class);
+        return $this->hasmany(Quote::class);
     }
 
     //optional

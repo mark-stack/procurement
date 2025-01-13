@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Resources\ProjectResource;
 use App\Models\Batch;
 use App\Models\Project;
+use App\Services\NestingService;
+use App\Services\SupplierService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -17,6 +19,10 @@ class ProjectController extends Controller
      */
     public function index(): Response
     {
+        //Services
+        $nestingService = new NestingService();
+
+        //Prerequisite variables
         $user = auth()->user();
         $business = $user->business;
 
@@ -32,17 +38,63 @@ class ProjectController extends Controller
                 ->sortBy("created_at")),
         ];
 
+        //Category and included products
+        $supplierCategoriesWithIncludedProducts = (new SupplierService())->supplierGroups();
+        $supplierCategoriesFormatted = [];
+        foreach($supplierCategoriesWithIncludedProducts as $supplierCategory => $includedProducts){
+            $supplierCategoriesFormatted[$supplierCategory] = [
+                "includedProducts" => [
+                    "array" => $includedProducts,
+                    "string" => implode(", ",$includedProducts),
+                ],
+            ];
+        }
 
         /**
          * Batches for quoting
          */
         $quoted = [];
         $batchesForQuoting = $business->batches()
-            ->has('quote')
+//            ->has('quote')
             ->doesntHave('order')
             //todo other criteria for being ready
             ->get();
         foreach($batchesForQuoting as $batch){
+            /**
+             * Modal: "add quote requests"
+             * table rows of each unique supplier-product_category.
+             * e.g "ABC Steel" who does 'fasteners' and 'steel merchant' is 2 rows
+             */
+
+            $addQuoteRequests = [];
+
+            //nesting
+            $piecesNested = $nestingService->piecesNested($batch->pieces);
+            $batchGroups = $nestingService->batchGroups($piecesNested);
+
+            foreach($business->suppliers as $supplier){
+                $supplierCategories = unserialize($supplier->supplier_categories);
+
+                foreach($supplierCategories as $supplierCategory => $isUsed){
+                    if($isUsed){
+                        $addQuoteRequests[] = [
+                            "supplierName" => $supplier->name,
+                            "supplierCategory" => $supplierCategory,
+                            "batchGroups" => $batchGroups,
+                        ];
+                    }
+                }
+            }
+
+            //Modal: "current quote coverage"
+            //Append quote quantities
+            $currentQuoteCoverage = [];
+            foreach($supplierCategoriesFormatted as $supplierCategory => $data){
+                $appended = $data;
+                $appended["qtyQuotes"] = $batch->quotes()->count(); //todo get just "fasteners" etc
+                $currentQuoteCoverage[$supplierCategory] = $appended;
+            }
+
             $quoted[] = [
                 "batch" => [
                     "id" => $batch->id,
@@ -52,7 +104,11 @@ class ProjectController extends Controller
                 ],
                 "projects" => ProjectResource::collection($batch->projects()),
                 "otherData" => [
-
+                    "quotes" => $batch->quotes,
+                ],
+                "modalData" => [
+                    "addQuoteRequests" => $addQuoteRequests,
+                    "currentQuoteCoverage" => $currentQuoteCoverage,
                 ],
             ];
         }
@@ -81,6 +137,9 @@ class ProjectController extends Controller
                     "supplier" => $order->supplier,
                     "approxDueDate" => null, //todo actual - derived from earliest project
                 ],
+                "modalData" => [
+
+                ],
             ];
         }
 
@@ -99,17 +158,29 @@ class ProjectController extends Controller
                         ->thisBusiness($business)
                         ->active()
                         ->latest()
-                        ->get())
+                        ->get()),
+                    "otherData" => [
+
+                    ],
+                    "modalData" => [
+
+                    ],
                 ],
             ],
         ];
 
+        /*
+         * Archived projects
+         */
         $archivedProjects = ProjectResource::collection(Project::query()
             ->thisBusiness($business)
             ->where('archive',true)
             ->latest()
             ->get());
 
+        /*
+         * Modal data
+         */
         return Inertia::render('Dashboard',[
             "projects" => $projects,
             "batches" => $batches,

@@ -13,6 +13,7 @@
         projects: Object,
         type: String,
         otherData: Object,
+        modalData: Object,
     });
 
     //Form
@@ -29,7 +30,7 @@
     //...
 
     //Variables
-    const emit = defineEmits(['toggleArchive','editMode']);
+    const emit = defineEmits(['toggleArchive','editMode','showModal']);
 
     //Methods
     function cropText(text, maxLength = 5) {
@@ -131,16 +132,12 @@
             <span class="text-sm block text-gray-500">Batch ID: {{batch.id}}</span>
             <!-- Quotes -->
             <span v-if="type === 'QUOTES'" class="text-sm block text-gray-800">Quote deadline: [1/2/24]</span>
+            <span v-if="type === 'QUOTES'" class="text-sm block text-gray-800">Quotes: {{otherData.quotes.length}}</span>
             <span v-if="type === 'QUOTES'" class="text-sm block text-gray-800">Quote coverage: [2/5]</span>
-            <span v-if="type === 'QUOTES'" class="text-sm block text-gray-800">[Steel merchant] quotes: [3]</span>
-            <span v-if="type === 'QUOTES'" class="text-sm block text-gray-800">[Fasteners] quotes: [0]</span>
-            <span v-if="type === 'QUOTES'" class="text-sm block text-gray-800">[Timber merchant] quotes: [1]</span>
 
             <!-- Orders -->
             <span v-if="type === 'ORDERS'" class="text-sm block text-gray-800">Order deadline: [1/2/24]</span>
             <span v-if="type === 'ORDERS'" class="text-sm block text-gray-800">Order coverage: [2/5]</span>
-
-            <!-- Orders -->
             <p
                 v-if="type === 'ORDERS'"
                 :class="otherData.order.all_project_manager_approvals ? 'text-green-600' : 'text-orange-800'"
@@ -160,15 +157,15 @@
                 :class="otherData.order.order_sent ? 'text-green-600' : 'text-orange-800'"
                 class="text-sm block"
             >
-                Order sent: {{otherData.order.order_sent ? 'Yes' : 'No'}}
+                Order coverage: [{{otherData.order.order_sent ? 'Yes' : 'No'}}]
             </p>
-            <p
-                v-if="type === 'ORDERS'"
-                :class="otherData.order.order_confirmation_received ? 'text-green-600' : 'text-orange-800'"
-                class="text-sm block"
-            >
-                Order confirmation: {{otherData.order.order_confirmation_received ? 'Yes' : 'No'}}
-            </p>
+<!--            <p-->
+<!--                v-if="type === 'ORDERS'"-->
+<!--                :class="otherData.order.order_confirmation_received ? 'text-green-600' : 'text-orange-800'"-->
+<!--                class="text-sm block"-->
+<!--            >-->
+<!--                Order confirmation: {{otherData.order.order_confirmation_received ? 'Yes' : 'No'}}-->
+<!--            </p>-->
             <p
                 v-if="type === 'ORDERS'"
                 :class="otherData.order.purchase_order_number ? 'text-green-600' : 'text-orange-800'"
@@ -188,6 +185,9 @@
         </div>
         <!-- Footer -->
         <div class="border-t-2 border-blue-500 bg-blue-100 p-1 rounded-b-lg text-xs">
+
+
+
             <!-- actions -->
             <div class="flex justify-center items-center gap-x-3 mt-1">
                 <!-- Quote actions -->
@@ -200,14 +200,15 @@
                 </button>
                 <button
                     v-if="type === 'QUOTES'"
+                    @click="$emit('showModal',modalData)"
                 >
-                    Add quote request
+                    Quote requests
                 </button>
                 <button
                     v-if="type === 'QUOTES'"
                     @click="quoteToOrder()"
                 >
-                    Order
+                    Ordering
                 </button>
 
                 <!-- Order actions -->

@@ -9,7 +9,6 @@
     import {Link} from "@inertiajs/vue3";
 
     const props = defineProps({
-        batch: Object,
         projects: Object,
     });
 
@@ -38,14 +37,13 @@
     >
         <!-- Body -->
         <div class="p-3">
-            <span v-if="projects.length > 1" class="text-sm block text-gray-500">Batch ID: {{batch.id}}</span>
             <span v-for="project in projects" class="block">{{ cropText(project.name) }}</span>
         </div>
         <!-- Footer -->
         <div
             class="border-t-2 border-blue-500 bg-blue-100 p-1 rounded-b-lg text-xs"
         >
-            PM: [You]
+            PM: {{projects[0].projectManager.name}}
 
             <!-- Single project actions -->
             <div v-if="projects.length === 1">

@@ -29,7 +29,7 @@ class ProjectResource extends JsonResource
 //            "percentageOfMaterialsOrdered" => $this->percentageOfMaterialsOrdered(),
             "daysUntilQuoteRequestDeadline" => $this->daysUntilQuoteRequestDeadline(),
             "quoteRequestDeadline" => $this->quoteRequestDeadline(),
-            "user" => $this->user,
+            "projectManager" => $this->user,
         ];
     }
 }

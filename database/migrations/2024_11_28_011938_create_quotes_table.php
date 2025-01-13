@@ -17,7 +17,7 @@ return new class extends Migration
 
             $table->foreignId('user_id')->constrained();
             $table->foreignId('batch_id')->constrained();
-            $table->foreignId('supplier_id')->constrained();
+            $table->foreignId('supplier_id')->nullable()->constrained();
             $table->string("supplier_quote_reference")->nullable();
             $table->boolean("quote_sent")->default(false);
         });

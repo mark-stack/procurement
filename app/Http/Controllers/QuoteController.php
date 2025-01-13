@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\Piece;
 use App\Models\Project;
 use App\Models\Quote;
+use App\Models\Supplier;
 use App\Services\NestingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -127,10 +128,14 @@ class QuoteController extends Controller
         /*
          * Create order & attach batch
          */
-        $quote = Quote::Create([
-            'user_id' => $user->id,
-            "batch_id" => $batch->id,
-        ]);
+//        $steelMerchant = Supplier::query()->where()->first()
+//        $quote = Quote::Create([
+//            'user_id' => $user->id,
+//            "batch_id" => $batch->id,
+//            'supplier_id' => 999,
+//            "supplier_quote_reference" => null,
+//            "quote_sent" => false,
+//        ]);
 
         return back();
     }
