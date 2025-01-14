@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Resources\ProjectResource;
 use App\Models\Batch;
 use App\Models\Project;
+use App\Models\Quote;
 use App\Services\NestingService;
 use App\Services\SupplierService;
 use Illuminate\Http\RedirectResponse;
@@ -76,11 +77,29 @@ class ProjectController extends Controller
                 $supplierCategories = unserialize($supplier->supplier_categories);
 
                 foreach($supplierCategories as $supplierCategory => $isUsed){
-                    if($isUsed){
+                    //This means there's pieces for the given supplier category.
+                    $batchGroup = $batchGroups["assigned"][$supplierCategory] ?? null;
+
+                    if($isUsed && $batchGroup){
+
+                        $quote = Quote::firstOrCreate(
+                            [
+                                'user_id' => $user->id,
+                                "batch_id" => $batch->id,
+                                'supplier_id' => $supplier->id,
+                                "supplier_category" => $supplierCategory,
+                            ],
+                            [
+                                "supplier_quote_reference" => null,
+                                "quote_sent" => false,
+                            ]
+                        );
+
                         $addQuoteRequests[] = [
                             "supplierName" => $supplier->name,
                             "supplierCategory" => $supplierCategory,
-                            "batchGroups" => $batchGroups,
+                            "batchGroup" => $batchGroup,
+                            "quote" => $quote,
                         ];
                     }
                 }
@@ -90,12 +109,20 @@ class ProjectController extends Controller
             //Append quote quantities
             $currentQuoteCoverage = [];
             foreach($supplierCategoriesFormatted as $supplierCategory => $data){
-                $appended = $data;
-                $appended["qtyQuotes"] = $batch->quotes()->count(); //todo get just "fasteners" etc
-                $currentQuoteCoverage[$supplierCategory] = $appended;
+                //This means there's pieces for the given supplier category.
+                $batchGroup = $batchGroups["assigned"][$supplierCategory] ?? null;
+
+                if($batchGroup){
+                    $appended = $data;
+                    $appended["qtyQuotes"] = $batch->quotes()
+                        ->where("supplier_category",$supplierCategory)
+                        ->where("quote_sent",true)
+                        ->count();
+                    $currentQuoteCoverage[$supplierCategory] = $appended;
+                }
             }
 
-            $quoted[] = [
+            $quoted[$batch->id] = [
                 "batch" => [
                     "id" => $batch->id,
                     "totalMaterial" => 999, //todo
@@ -105,6 +132,8 @@ class ProjectController extends Controller
                 "projects" => ProjectResource::collection($batch->projects()),
                 "otherData" => [
                     "quotes" => $batch->quotes,
+                    "totalQuotesQty" => $batch->quotes()->count(),
+                    "sentQuotesQty" => $batch->quotes()->where("quote_sent",true)->count(),
                 ],
                 "modalData" => [
                     "addQuoteRequests" => $addQuoteRequests,
@@ -124,7 +153,28 @@ class ProjectController extends Controller
         foreach($batchesForOrdering as $batch){
             $order = $batch->order;
 
-            $ordered[] = [
+            $currentQuoteCoverage = [];
+
+
+            //nesting
+            $piecesNested = $nestingService->piecesNested($batch->pieces);
+            $batchGroups = $nestingService->batchGroups($piecesNested);
+
+            foreach($supplierCategoriesFormatted as $supplierCategory => $data){
+                //This means there's pieces for the given supplier category.
+                $batchGroup = $batchGroups["assigned"][$supplierCategory] ?? null;
+
+                if($batchGroup){
+                    $appended = $data;
+                    $appended["qtyQuotes"] = $batch->quotes()
+                        ->where("supplier_category",$supplierCategory)
+                        ->where("quote_sent",true)
+                        ->count();
+                    $currentQuoteCoverage[$supplierCategory] = $appended;
+                }
+            }
+
+            $ordered[$batch->id] = [
                 "batch" => [
                     "id" => $batch->id,
                     "totalMaterial" => 999, //todo
@@ -138,10 +188,11 @@ class ProjectController extends Controller
                     "approxDueDate" => null, //todo actual - derived from earliest project
                 ],
                 "modalData" => [
-
+                    "currentQuoteCoverage" => $currentQuoteCoverage,
                 ],
             ];
         }
+
 
         $batches = [
             "QUOTED" => $quoted,

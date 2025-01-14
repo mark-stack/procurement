@@ -126,16 +126,32 @@ class QuoteController extends Controller
             ]);
 
         /*
-         * Create order & attach batch
+         * Create quotes & attach to batch
          */
-//        $steelMerchant = Supplier::query()->where()->first()
-//        $quote = Quote::Create([
-//            'user_id' => $user->id,
-//            "batch_id" => $batch->id,
-//            'supplier_id' => 999,
-//            "supplier_quote_reference" => null,
-//            "quote_sent" => false,
-//        ]);
+
+        //nesting
+//        $piecesNested = $nestingService->piecesNested($batch->pieces);
+//        $batchGroups = $nestingService->batchGroups($piecesNested);
+//
+//        foreach($business->suppliers as $supplier){
+//            $supplierCategories = unserialize($supplier->supplier_categories);
+//
+//            foreach($supplierCategories as $supplierCategory => $isUsed){
+//                //This means there's pieces for the given supplier category.
+//                $batchGroup = $batchGroups["assigned"][$supplierCategory] ?? null;
+//            dd($batchGroup);
+//                if($isUsed && $batchGroup){
+//                    Quote::Create([
+//                        'user_id' => $user->id,
+//                        "batch_id" => $batch->id,
+//                        'supplier_id' => $supplier->id,
+//                        "supplier_category" => $supplierCategory,
+//                        "supplier_quote_reference" => null,
+//                        "quote_sent" => false,
+//                    ]);
+//                }
+//            }
+//        }
 
         return back();
     }
@@ -159,9 +175,16 @@ class QuoteController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Quote $quote)
+    public function update(Request $request, Quote $quote): RedirectResponse
     {
-        //
+        $validated = $request->validate([
+            'quote_sent' => 'required',
+        ]);
+
+        $quote->quote_sent = $validated["quote_sent"];
+        $quote->save();
+
+        return back();
     }
 
     /**

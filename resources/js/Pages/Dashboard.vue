@@ -9,6 +9,7 @@
     import KanbanReadyForNestingCard from "@/Components/KanbanReadyForNestingCard.vue";
     import KanbanGeneralBatchCard from "@/Components/KanbanGeneralBatchCard.vue";
     import KanbanModal from "@/Components/KanbanModal.vue";
+    import KanbanModalOrders from "@/Components/KanbanModalOrders.vue";
 
     //Props
     const props = defineProps({
@@ -37,8 +38,9 @@
     //Variables
     const editProject = ref(null);
     const showArchivedProjects = ref(false);
-    const showModal = ref(false);
-    const modalData = ref(null);
+    const showQuotesModal = ref(false);
+    const showOrdersModal = ref(false);
+    const modalSelectedBatchId = ref(null);
 
     //Shared Methods
     //...
@@ -320,7 +322,8 @@
                                     type="QUOTES"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
-                                    @showModal="data => {modalData = data; showModal = true;}"
+                                    @showQuotesModal="batchId => {console.log(batchId); modalSelectedBatchId = batchId; showQuotesModal = true; showOrdersModal = false;}"
+                                    @showOrdersModal="batchId => {console.log(batchId); modalSelectedBatchId = batchId; showOrdersModal = true; showQuotesModal = false;}"
                                 />
                             </div>
                         </div>
@@ -338,11 +341,11 @@
                                     :batch="batch['batch']"
                                     :projects="batch['projects'].data"
                                     :otherData="batch['otherData']"
-                                    :modalData="batch['modalData']"
                                     type="ORDERS"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
-                                    @showModal="data => {modalData = data; showModal = true;}"
+                                    @showQuotesModal="batchId => {console.log(batchId); modalSelectedBatchId = batchId; showQuotesModal = true; showOrdersModal = false;}"
+                                    @showOrdersModal="batchId => {console.log(batchId); modalSelectedBatchId = batchId; showOrdersModal = true; showQuotesModal = false;}"
                                 />
                             </div>
                         </div>
@@ -360,11 +363,11 @@
                                     :batch="batch['batch']"
                                     :projects="batch['projects'].data"
                                     :otherData="batch['otherData']"
-                                    :modalData="batch['modalData']"
                                     type="DELIVERED"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
-                                    @showModal="data => {modalData = data; showModal = true;}"
+                                    @showQuotesModal="batchId => {console.log(batchId); modalSelectedBatchId = batchId; showQuotesModal = true; showOrdersModal = false;}"
+                                    @showOrdersModal="batchId => {console.log(batchId); modalSelectedBatchId = batchId; showOrdersModal = true; showQuotesModal = false;}"
                                 />
                             </div>
                         </div>
@@ -530,10 +533,17 @@
         </div>
     </AuthenticatedLayout>
 
-    <!-- Modal -->
+    <!-- Modals -->
     <KanbanModal
-        :showModal="showModal"
-        :modalData="modalData"
-        @closeModal="showModal = false"
+        :showModal="showQuotesModal"
+        :allData="batches['QUOTED']"
+        :modalSelectedBatchId="modalSelectedBatchId"
+        @closeModal="showQuotesModal = false"
+    />
+    <KanbanModalOrders
+        :showModal="showOrdersModal"
+        :allData="batches['ORDERED']"
+        :modalSelectedBatchId="modalSelectedBatchId"
+        @closeModal="showOrdersModal = false"
     />
 </template>

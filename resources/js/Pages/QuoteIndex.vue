@@ -2,16 +2,15 @@
     //General Imports
     import {ref} from "vue";
     import moment from "moment";
+    import {useForm} from "@inertiajs/vue3";
 
     //Component Imports
     import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
-    import shared from "@/Shared/shared.js";
     import VisualNestingWithText from "@/Components/VisualNestingWithText.vue";
     import DisplayPiecesList from "@/Components/DisplayPiecesList.vue";
     import ListPurchasables from "@/Components/ListPurchasables.vue";
     import VisualBundleNest from "@/Components/VisualBundleNest.vue";
     import VisualOrderList from "@/Components/VisualOrderList.vue";
-    import {useForm} from "@inertiajs/vue3";
 
     //Props
     const props = defineProps({
@@ -34,63 +33,7 @@
     //Shared data
 
     //Methods
-    function sendSupplierBatchEmail(batchGroup) {
-        // Email details
-        const emailAddress = ""; //"example@example.com";
-        const subject = "xxxxxxxxx"; //todo
-        let materialList = ""; // Headers
-
-        Object.values(batchGroup).forEach(item => {
-            //Meterage
-            if(item.algo === 'METERAGE'){
-                // Build the material list
-
-                let description = item.product_derived_label;
-
-                item.nested.orderList.forEach(bar => {
-                    let text = " - " + description + ": " + bar.count + " off " + parseFloat(bar.result).toLocaleString() + "mm"; // + item.nominal_units.toLowerCase();
-                    materialList += text + "\n"; // Rows
-                });
-            }
-            //Area
-            if(item.algo === 'AREA'){
-                //todo
-            }
-            //Bundle
-            if(item.algo === 'BUNDLE'){
-                //todo
-            }
-        });
-
-        // Create the mailto link
-        let row1 = "Hi, I'm seeking a quote for the following:";
-        let row2 = materialList;
-        let row3 = "Thank you.";
-
-        const body = encodeURIComponent(`${row1}\n\n${row2}\n\n${row3}`);
-        const mailtoLink = `mailto:${emailAddress}?subject=${encodeURIComponent(subject)}&body=${body}`;
-
-        // Open the email client
-        window.location.href = mailtoLink;
-    }
-
-    function confirmBatch(batchLabel,batchGroup){
-        let url = route("batches.store");
-
-        formConfirmBatch.batchLabel = batchLabel;
-        formConfirmBatch.batchGroup = batchGroup;
-
-        formConfirmBatch.post(url, {
-            preserveScroll: true,
-            onSuccess: () => {
-                console.log('success');
-                formConfirmBatch.reset();
-            },
-            onError: errors => {
-                console.log('errors',errors);
-            },
-        });
-    }
+    //
 </script>
 
 <template>
@@ -152,41 +95,7 @@
 
                     <template v-for="(batchGroup,batchLabel) in batchGroups.assigned">
                         <div v-if="batchLabel === currentBatch" class="pt-5">
-                            <!-- Confirm -->
-                            <div class="flex gap-x-2 mt-5 mb-5">
-                                <button
-                                    class="font-bold rounded bg-green-50 px-2 py-1"
-                                    type="button"
-                                    @click="confirmBatch(batchLabel,batchGroup)"
-                                >
-                                    Quote '{{batchLabel}}' batch
-                                </button>
-                                <button
-                                    class="font-bold rounded bg-green-50 px-2 py-1"
-                                    type="button"
-                                    @click="confirmBatch(batchLabel,batchGroup)"
-                                >
-                                    Order '{{batchLabel}}' batch
-                                </button>
-                            </div>
 
-                            <div>
-                                <b>Suppliers:</b>
-                                <ul>
-                                    <li>
-                                        Surdex Steel:
-                                        <button
-                                            @click="sendSupplierBatchEmail(batchGroup)"
-                                            class="ml-2 mr-2 bg-deep-purple-accent-400 rounded px-2 py-1 text-white text-sm"
-                                        >
-                                            Prepare Surdex email
-                                        </button>
-                                        (does not send anything)
-                                    </li>
-                                    <li>ABC Steel:</li>
-                                    <li>XYZ Steel:</li>
-                                </ul>
-                            </div>
                             <div class="grid grid-cols-1 gap-5">
                                 <div
                                     v-for="item in batchGroup"

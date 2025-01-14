@@ -13,7 +13,6 @@
         projects: Object,
         type: String,
         otherData: Object,
-        modalData: Object,
     });
 
     //Form
@@ -30,7 +29,7 @@
     //...
 
     //Variables
-    const emit = defineEmits(['toggleArchive','editMode','showModal']);
+    const emit = defineEmits(['toggleArchive','editMode','showQuotesModal','showOrdersModal']);
 
     //Methods
     function cropText(text, maxLength = 5) {
@@ -132,8 +131,7 @@
             <span class="text-sm block text-gray-500">Batch ID: {{batch.id}}</span>
             <!-- Quotes -->
             <span v-if="type === 'QUOTES'" class="text-sm block text-gray-800">Quote deadline: [1/2/24]</span>
-            <span v-if="type === 'QUOTES'" class="text-sm block text-gray-800">Quotes: {{otherData.quotes.length}}</span>
-            <span v-if="type === 'QUOTES'" class="text-sm block text-gray-800">Quote coverage: [2/5]</span>
+            <span v-if="type === 'QUOTES'" class="text-sm block text-gray-800">Quote coverage: {{ otherData.sentQuotesQty }}/{{ otherData.totalQuotesQty }}</span>
 
             <!-- Orders -->
             <span v-if="type === 'ORDERS'" class="text-sm block text-gray-800">Order deadline: [1/2/24]</span>
@@ -200,7 +198,7 @@
                 </button>
                 <button
                     v-if="type === 'QUOTES'"
-                    @click="$emit('showModal',modalData)"
+                    @click="$emit('showQuotesModal',batch.id)"
                 >
                     Quote requests
                 </button>
@@ -224,14 +222,11 @@
                 >
                     Cancel<br><small>(Back to quoting)</small>
                 </button>
-                <button v-if="type === 'ORDERS' && otherData.order.all_project_manager_approvals && !otherData.order.order_sent && !otherData.order.order_confirmation_received">
-                    Email tables
-                </button>
                 <button
                     v-if="type === 'ORDERS' && otherData.order.all_project_manager_approvals && !otherData.order.order_sent && !otherData.order.order_confirmation_received"
-                    @click="markAsOrdered(otherData.order)"
+                    @click="$emit('showOrdersModal',batch.id)"
                 >
-                    Is ordered (add PO)
+                    Manage Orders
                 </button>
                 <button
                     v-if="type === 'ORDERS' && otherData.order.order_sent && !otherData.order.order_confirmation_received"

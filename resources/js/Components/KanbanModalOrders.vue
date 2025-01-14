@@ -15,10 +15,10 @@ import {Link, useForm, usePage} from "@inertiajs/vue3";
 
     //Forms
     const formQuoteUpdate = useForm({
-        quote_sent: null,
+        order_sent: null,
     });
     const form = useForm({
-        items: props.allData,
+        items: props.allQuoteData,
     });
 
     //Shared data
@@ -99,34 +99,6 @@ import {Link, useForm, usePage} from "@inertiajs/vue3";
                 console.log('errors',errors);
             },
         });
-
-        // //formQuoteUpdate.quote_sent = (quote.quote_sent === 0 || quote.quote_sent === false);
-        // formQuoteUpdate.put(url, {
-        //     preserveScroll: true,
-        //     onSuccess: () => {
-        //         console.log('success');
-        //
-        //
-        //         //Update form
-        //         let qtyQuotes = form.items[props.modalSelectedBatchId].modalData.currentQuoteCoverage[quote.supplier_category].qtyQuotes;
-        //         //true = subtract
-        //         console.log("aaa",formQuoteUpdate.quote_sent,(quote.quote_sent === 0 || quote.quote_sent === false));
-        //         if(formQuoteUpdate.quote_sent === 1 || formQuoteUpdate.quote_sent === true){
-        //             console.log("add",qtyQuotes);
-        //             qtyQuotes = qtyQuotes - 1;
-        //         }
-        //         //false = add
-        //         if(formQuoteUpdate.quote_sent === 0 || formQuoteUpdate.quote_sent === false){
-        //             console.log("subtract",qtyQuotes);
-        //             qtyQuotes = qtyQuotes + 1;
-        //         }
-        //
-        //         form.items[props.modalSelectedBatchId].modalData.currentQuoteCoverage[quote.supplier_category].qtyQuotes = qtyQuotes;
-        //     },
-        //     onError: errors => {
-        //         console.log('errors',errors);
-        //     },
-        // });
     }
 </script>
 
@@ -169,92 +141,50 @@ import {Link, useForm, usePage} from "@inertiajs/vue3";
                         class="relative bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:max-w-3xl sm:w-full"
                     >
                         <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                            <div class="grid grid-cols-2">
-                                <!-- left-->
-                                <div class="p-5 border-r-2 border-gray-300">
-                                    <h3 class="text-2xl leading-6 font-medium text-gray-900 mb-5" id="modal-title">
-                                        Add quote requests
-                                    </h3>
 
-                                    <div class="mt-3">
-                                        <div class="w-full grid grid-cols-1 gap-y-3">
-                                            <div class="grid grid-cols-3">
-                                                <div class="font-semibold">Supplier</div>
-                                                <div class="font-semibold text-center">Email Tables</div>
-                                                <div class="font-semibold text-center">Sent RFQ?</div>
-                                            </div>
-                                            <form
-                                                v-for="row in form.items[modalSelectedBatchId]?.modalData?.addQuoteRequests"
-                                                class="grid grid-cols-3"
-                                            >
-                                                <div>
-                                                    {{row.supplierName}}
-                                                    <br>
-                                                    <span class="text-xs">{{row.supplierCategory}}</span>
-                                                </div>
-                                                <div class="text-center">
-                                                    <!-- has batch group -->
-                                                    <button
-                                                        v-if="row.batchGroup"
-                                                        @click="sendSupplierBatchEmail(row.batchGroup)"
-                                                        class="bg-green-50 rounded px-1 border-2 border-green-100 hover:bg-green-100"
-                                                    >
-                                                        <i class="fa-regular fa-envelope text-2xl"></i>
-                                                    </button>
-                                                    <!-- no batch group -->
-                                                    <div v-else class="text-red-500 text-xs">
-                                                        no batch group
-                                                    </div>
-                                                </div>
-                                                <div class="text-center">
-                                                    <input
-                                                        v-model="row.quote.quote_sent"
-                                                        true-value="1"
-                                                        false-value="0"
-                                                        @change="quoteSentCheckbox(row.quote)"
-                                                        type="checkbox"
-                                                    />
-                                                </div>
-                                            </form>
+                            <div class="p-5">
+                                <h3 class="text-2xl leading-6 font-medium text-gray-900 mb-5" id="modal-title">
+                                    Add orders
+                                </h3>
+
+                                <div class="mt-3">
+                                    <div class="w-full grid grid-cols-1 gap-y-3">
+                                        <div class="grid grid-cols-7">
+                                            <div class="col-span-2 font-semibold">Supplier Category</div>
+                                            <div class="col-span-1 font-semibold text-center">Quotes</div>
+                                            <div class="col-span-1 font-semibold text-center">Preferred Supplier</div>
+                                            <div class="col-span-1 font-semibold text-center">Email tables</div>
+                                            <div class="col-span-1 font-semibold text-center">Sent Order?</div>
+                                            <div class="col-span-1 font-semibold text-center">Coverage</div>
                                         </div>
-                                    </div>
-                                </div>
-                                <!-- right -->
-                                <div class="pt-5 pr-5 pb-5 pl-10">
-                                    <h3 class="text-2xl leading-6 font-medium text-gray-900 mb-5" id="modal-title">
-                                        Current quote coverage
-                                    </h3>
-
-                                    <div class="mt-3 grid grid-cols-1 gap-y-3">
-<!--                                        <p class="text-sm text-gray-500">-->
-<!--                                            Are you sure you want to deactivate your account? All of your data will be permanently removed. This action cannot be undone.-->
-<!--                                        </p>-->
                                         <div
                                             v-for="(data,supplierCategory) in allData[modalSelectedBatchId]?.modalData?.currentQuoteCoverage"
-                                            class="grid grid-cols-5"
+                                            class="grid grid-cols-7"
                                         >
-                                            <div class="col-span-3">
+                                            <div class="col-span-2">
                                                 <h3>{{supplierCategory}}</h3>
                                                 <p class="text-xs text-gray-600">{{data.includedProducts.string}}</p>
                                             </div>
                                             <div
-                                                class="col-span-2 text-sm "
+                                                class="col-span-1 text-sm text-center"
                                                 :class="data.qtyQuotes === 0 ? 'text-orange-600' : 'text-green-600'"
                                             >
-                                                {{data.qtyQuotes}} quote{{(data.qtyQuotes === 0 || data.qtyQuotes > 1) ? 's' : ''}}
+                                                {{data.qtyQuotes}}
+                                            </div>
+                                            <div class="col-span-1 text-center">
+                                                Preferred Supplier
+                                            </div>
+                                            <div class="col-span-1 text-center">
+                                                Email tables
+                                            </div>
+                                            <div class="col-span-1 text-center">
+                                                <input type="checkbox"/>
+                                            </div>
+                                            <div class="col-span-1 text-center">
+                                                coverage
                                             </div>
                                         </div>
-
                                     </div>
-                                </div>
-                                <!-- edit suppliers -->
-                                <div class="pl-5 pt-2">
-                                    <Link
-                                        :href="route('suppliers.index',business.id)"
-                                        class="underline text-blue-500"
-                                    >
-                                        Edit suppliers
-                                    </Link>
                                 </div>
                             </div>
                         </div>

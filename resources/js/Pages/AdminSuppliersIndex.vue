@@ -264,20 +264,22 @@
                                 <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">
                                     By Supplier
                                 </h1>
-                                <div v-for="supplier in suppliers.data" class="mb-3 flex gap-x-3">
-                                    <button
-                                        v-if="showDeleteButton(supplier)"
-                                        class="text-red-500 font-extrabold"
-                                        @click="deleteConfirmation(supplier.id)"
-                                    >
-                                        <i class="fa-regular fa-circle-xmark"></i>
-                                    </button>
-                                    <button @click="editMode(supplier)">
-                                        <i class="fa-regular fa-pen-to-square"></i>
-                                    </button>
-                                    <div>
+                                <div v-for="supplier in suppliers.data" class="mb-3 grid grid-cols-3">
+                                    <div class="col-span-2">
                                         <span class="block">{{supplier.name}}</span>
                                         <span class="block text-xs">{{supplier.categoriesAsCommaString}}</span>
+                                    </div>
+                                    <div class="flex gap-x-2">
+                                        <button @click="editMode(supplier)">
+                                            <i class="fa-regular fa-pen-to-square"></i>
+                                        </button>
+                                        <button
+                                            v-if="showDeleteButton(supplier)"
+                                            class="text-red-500 font-extrabold"
+                                            @click="deleteConfirmation(supplier.id)"
+                                        >
+                                            <i class="fa-regular fa-circle-xmark"></i>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
