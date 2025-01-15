@@ -19,7 +19,7 @@
     //...
 
     //Variables
-    const emit = defineEmits(['toggleArchive','editMode']);
+    const emit = defineEmits(['toggleArchive','editMode','showBom']);
 
     //Methods
     function cropText(text, maxLength = 5) {
@@ -61,8 +61,11 @@
                 <!-- actions -->
                 <div class="flex justify-center items-center gap-x-6 mt-1">
                     <Link :href="route('products.index',projects[0].id)">
-                        BOM
+                        BOM (page)
                     </Link>
+                    <button @click="$emit('showBom',projects[0])">
+                        BOM (modal)
+                    </button>
                     <button @click="$emit('editMode',projects[0])">
                         Edit
                     </button>

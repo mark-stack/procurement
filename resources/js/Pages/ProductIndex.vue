@@ -460,27 +460,6 @@
                             @input="formStore.excel = $event.target.files[0]; handleFileSelect()"
                             hidden
                         />
-<!--                        <div v-if="uploading" class="mt-2 text-green-500">-->
-<!--                            <div class="flex gap-x-2 justify-center load-6">-->
-<!--                                <div class="letter-holder">-->
-<!--                                    <div class="l-1 letter">I</div>-->
-<!--                                    <div class="l-2 letter">m</div>-->
-<!--                                    <div class="l-3 letter">p</div>-->
-<!--                                    <div class="l-4 letter">o</div>-->
-<!--                                    <div class="l-5 letter">r</div>-->
-<!--                                    <div class="l-6 letter">t</div>-->
-<!--                                    <div class="l-7 letter">i</div>-->
-<!--                                    <div class="l-8 letter">n</div>-->
-<!--                                    <div class="l-9 letter">g</div>-->
-<!--                                    <div class="l-10 letter">.</div>-->
-<!--                                    <div class="l-11 letter">.</div>-->
-<!--                                    <div class="l-12 letter">.</div>-->
-<!--                                </div>-->
-<!--                                <div>-->
-<!--                                    it can take 10 seconds or so-->
-<!--                                </div>-->
-<!--                            </div>-->
-<!--                        </div>-->
                     </div>
 
 
@@ -1070,6 +1049,5 @@
             width: 25px;
         }
     }
-
 </style>
 

@@ -20,7 +20,7 @@
     //...
 
     //Variables
-    const emit = defineEmits(['toggleArchive','editMode','quoteNow','orderNow']);
+    const emit = defineEmits(['toggleArchive','editMode','quoteNow','orderNow','showBom']);
     const user = computed(() => usePage().props.auth.user);
 
     //Methods
@@ -53,11 +53,12 @@
                     <h6 class="text-xs text-gray-500">Quote/order by [4/2/24]</h6>
                     <div class="text-xs">
                         <div class="grid grid-cols-3 justify-between">
-                            <Link
-                                :href="route('products.index',projects[0].id)"
-                            >
-                                BOM
+                            <Link :href="route('products.index',project.id)">
+                                BOM (page)
                             </Link>
+                            <button @click="$emit('showBom',project)">
+                                BOM (modal)
+                            </button>
                             <button
                                 @click="$emit('toggleArchive',projects[0])"
                                 class="text-gray-500 transition-colors duration-200 dark:hover:text-red-500 dark:text-gray-300 hover:text-red-500 focus:outline-none"

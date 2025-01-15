@@ -42,7 +42,8 @@ class HandleInertiaRequests extends Middleware
             ],
             "hasSeedImport" => Product::count() > 0,
             'flash' => [
-                'warning' => fn () => $request->session()->get('warning')
+                'warning' => fn () => $request->session()->get('warning'),
+                'downloadedData' => fn () => $request->session()->get('downloadedData'),
             ],
             "adminEmail" => env("ADMIN_EMAIL"),
         ];

@@ -21,7 +21,10 @@ use App\Http\Controllers\RawMaterialQuoteController;
 use App\Http\Controllers\SuggestedNestingController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Middleware\BusinessReadyMiddleware;
+use App\Models\Project;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 Route::middleware(['auth','verified'])->group(function () {
 
@@ -67,6 +70,15 @@ Route::middleware(['auth','verified'])->group(function () {
         //GET	/photos/{photo}/edit	edit	photos.edit
         //PUT/PATCH	/photos/{photo}	update	photos.update
         //DELETE	/photos/{photo}	destroy	photos.destroy
+
+        Route::post("download/{project}",function(Request $request, Project $project){
+            return back()->with([
+                'downloadedData' => [
+                    "project_id" => $project->id,
+                    "data" => [$project->name],
+                ],
+            ]);
+        })->name("download");
 
 
         //Raw Material Quotes
