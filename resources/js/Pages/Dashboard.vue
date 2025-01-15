@@ -8,7 +8,7 @@
     import KanbanNeedsImportingCard from "@/Components/KanbanNeedsImportingCard.vue";
     import KanbanReadyForNestingCard from "@/Components/KanbanReadyForNestingCard.vue";
     import KanbanGeneralBatchCard from "@/Components/KanbanGeneralBatchCard.vue";
-    import KanbanModal from "@/Components/KanbanModal.vue";
+    import KanbanModalQuotes from "@/Components/KanbanModalQuotes.vue";
     import KanbanModalOrders from "@/Components/KanbanModalOrders.vue";
 
     //Props
@@ -41,11 +41,16 @@
     const showQuotesModal = ref(false);
     const showOrdersModal = ref(false);
     const modalSelectedBatchId = ref(null);
+    const signal = ref(false);
 
     //Shared Methods
     //...
 
     //Methods
+    function sendSignal(){
+        signal.value = !signal.value; // Toggle signal
+    }
+
     function submit(){
         //Edit mode
         if(editProject.value){
@@ -139,6 +144,8 @@
             preserveScroll: true,
             onSuccess: () => {
                 console.log('success');
+                //todo trigger orders card form reset
+                sendSignal();
             },
             onError: errors => {
                 console.log('errors',errors);
@@ -146,7 +153,7 @@
         });
     }
 
-    function orderNow(batch){
+    function orderNow(){
         let url = route("orders.store");
 
         formOrdersStore.batch_id = null;
@@ -322,8 +329,8 @@
                                     type="QUOTES"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
-                                    @showQuotesModal="batchId => {console.log(batchId); modalSelectedBatchId = batchId; showQuotesModal = true; showOrdersModal = false;}"
-                                    @showOrdersModal="batchId => {console.log(batchId); modalSelectedBatchId = batchId; showOrdersModal = true; showQuotesModal = false;}"
+                                    @showQuotesModal="batchId => {modalSelectedBatchId = batchId; showQuotesModal = true; showOrdersModal = false;}"
+                                    @showOrdersModal="batchId => {modalSelectedBatchId = batchId; showOrdersModal = true; showQuotesModal = false;}"
                                 />
                             </div>
                         </div>
@@ -344,8 +351,8 @@
                                     type="ORDERS"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
-                                    @showQuotesModal="batchId => {console.log(batchId); modalSelectedBatchId = batchId; showQuotesModal = true; showOrdersModal = false;}"
-                                    @showOrdersModal="batchId => {console.log(batchId); modalSelectedBatchId = batchId; showOrdersModal = true; showQuotesModal = false;}"
+                                    @showQuotesModal="batchId => {modalSelectedBatchId = batchId; showQuotesModal = true; showOrdersModal = false;}"
+                                    @showOrdersModal="batchId => {modalSelectedBatchId = batchId; showOrdersModal = true; showQuotesModal = false;}"
                                 />
                             </div>
                         </div>
@@ -366,8 +373,8 @@
                                     type="DELIVERED"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
-                                    @showQuotesModal="batchId => {console.log(batchId); modalSelectedBatchId = batchId; showQuotesModal = true; showOrdersModal = false;}"
-                                    @showOrdersModal="batchId => {console.log(batchId); modalSelectedBatchId = batchId; showOrdersModal = true; showQuotesModal = false;}"
+                                    @showQuotesModal="batchId => {modalSelectedBatchId = batchId; showQuotesModal = true; showOrdersModal = false;}"
+                                    @showOrdersModal="batchId => {modalSelectedBatchId = batchId; showOrdersModal = true; showQuotesModal = false;}"
                                 />
                             </div>
                         </div>
@@ -531,13 +538,15 @@
 <!--                </section>-->
             </div>
         </div>
+
     </AuthenticatedLayout>
 
     <!-- Modals -->
-    <KanbanModal
+    <KanbanModalQuotes
         :showModal="showQuotesModal"
         :allData="batches['QUOTED']"
         :modalSelectedBatchId="modalSelectedBatchId"
+        :signal="signal"
         @closeModal="showQuotesModal = false"
     />
     <KanbanModalOrders

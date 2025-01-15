@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Resources\ProjectResource;
 use App\Models\Batch;
 use App\Models\Order;
+use App\Models\OrderApproval;
 use App\Models\Piece;
 use App\Models\Project;
 use App\Models\Quote;
@@ -118,6 +119,7 @@ class QuoteController extends Controller
         /*
          * Assign all PIECE objects to BATCH
          */
+        $projectsReadyForBatching = $business->projectsReadyForBatching(); //Note get this before updating pieces
         $piecesReadyForBatching = $nestingService->piecesReadyForBatching($business);
         Piece::query()
             ->whereIn("id",$piecesReadyForBatching->pluck("id"))
@@ -126,32 +128,15 @@ class QuoteController extends Controller
             ]);
 
         /*
-         * Create quotes & attach to batch
+         * Create pending order approvals
          */
-
-        //nesting
-//        $piecesNested = $nestingService->piecesNested($batch->pieces);
-//        $batchGroups = $nestingService->batchGroups($piecesNested);
-//
-//        foreach($business->suppliers as $supplier){
-//            $supplierCategories = unserialize($supplier->supplier_categories);
-//
-//            foreach($supplierCategories as $supplierCategory => $isUsed){
-//                //This means there's pieces for the given supplier category.
-//                $batchGroup = $batchGroups["assigned"][$supplierCategory] ?? null;
-//            dd($batchGroup);
-//                if($isUsed && $batchGroup){
-//                    Quote::Create([
-//                        'user_id' => $user->id,
-//                        "batch_id" => $batch->id,
-//                        'supplier_id' => $supplier->id,
-//                        "supplier_category" => $supplierCategory,
-//                        "supplier_quote_reference" => null,
-//                        "quote_sent" => false,
-//                    ]);
-//                }
-//            }
-//        }
+        foreach($projectsReadyForBatching as $project){
+            OrderApproval::create([
+                'batch_id' => $batch->id,
+                'project_id' => $project->id,
+                'project_manager_approved' => false,
+            ]);
+        }
 
         return back();
     }

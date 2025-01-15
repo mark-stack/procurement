@@ -1,9 +1,9 @@
 <script setup>
-//General Imports
-import {ref} from "vue";
-import {Link, useForm, usePage} from "@inertiajs/vue3";
+    //General Imports
+    import {ref} from "vue";
+    import {useForm, usePage} from "@inertiajs/vue3";
 
-//Component Imports
+    //Component Imports
     //...
 
     //Props
@@ -14,11 +14,11 @@ import {Link, useForm, usePage} from "@inertiajs/vue3";
     });
 
     //Forms
-    const formQuoteUpdate = useForm({
+    const formOrderUpdate = useForm({
         order_sent: null,
     });
     const form = useForm({
-        items: props.allQuoteData,
+        items: props.allData,
     });
 
     //Shared data
@@ -29,7 +29,7 @@ import {Link, useForm, usePage} from "@inertiajs/vue3";
     const clickCount = ref(0);
 
     //Shared Methods
-    //...
+    import shared from '@/Shared/shared';
 
     //Methods
     function onClickAway(event) {
@@ -46,51 +46,11 @@ import {Link, useForm, usePage} from "@inertiajs/vue3";
         }
     }
 
-    function sendSupplierBatchEmail(batchGroup) {
-        // Email details
-        const emailAddress = ""; //"example@example.com";
-        const subject = "xxxxxxxxx"; //todo
-        let materialList = ""; // Headers
+    function orderSentCheckbox(order){
+        let url = route("orders.update",order.id);
 
-        Object.values(batchGroup).forEach(item => {
-            //Meterage
-            if(item.algo === 'METERAGE'){
-                // Build the material list
-
-                let description = item.product_derived_label;
-
-                item.nested.orderList.forEach(bar => {
-                    let text = " - " + description + ": " + bar.count + " off " + parseFloat(bar.result).toLocaleString() + "mm"; // + item.nominal_units.toLowerCase();
-                    materialList += text + "\n"; // Rows
-                });
-            }
-            //Area
-            if(item.algo === 'AREA'){
-                //todo
-            }
-            //Bundle
-            if(item.algo === 'BUNDLE'){
-                //todo
-            }
-        });
-
-        // Create the mailto link
-        let row1 = "Hi, I'm seeking a quote for the following:";
-        let row2 = materialList;
-        let row3 = "Thank you.";
-
-        const body = encodeURIComponent(`${row1}\n\n${row2}\n\n${row3}`);
-        const mailtoLink = `mailto:${emailAddress}?subject=${encodeURIComponent(subject)}&body=${body}`;
-
-        // Open the email client
-        window.location.href = mailtoLink;
-    }
-
-    function quoteSentCheckbox(quote){
-        let url = route("quotes.update",quote.id);
-
-        formQuoteUpdate.quote_sent = quote.quote_sent === "0" ? false : true;
-        formQuoteUpdate.put(url, {
+        formOrderUpdate.order_sent = order.order_sent === "0" ? false : true;
+        formOrderUpdate.put(url, {
             preserveScroll: true,
             onSuccess: () => {
                 console.log('success');
@@ -144,18 +104,17 @@ import {Link, useForm, usePage} from "@inertiajs/vue3";
 
                             <div class="p-5">
                                 <h3 class="text-2xl leading-6 font-medium text-gray-900 mb-5" id="modal-title">
-                                    Add orders
+                                    Manage orders
                                 </h3>
 
                                 <div class="mt-3">
                                     <div class="w-full grid grid-cols-1 gap-y-3">
                                         <div class="grid grid-cols-7">
-                                            <div class="col-span-2 font-semibold">Supplier Category</div>
+                                            <div class="col-span-2 font-semibold">Procurement Category</div>
                                             <div class="col-span-1 font-semibold text-center">Quotes</div>
-                                            <div class="col-span-1 font-semibold text-center">Preferred Supplier</div>
-                                            <div class="col-span-1 font-semibold text-center">Email tables</div>
+                                            <div class="col-span-2 font-semibold text-left">Preferred Quote/Supplier</div>
+                                            <div class="col-span-1 font-semibold text-center">Email Tables</div>
                                             <div class="col-span-1 font-semibold text-center">Sent Order?</div>
-                                            <div class="col-span-1 font-semibold text-center">Coverage</div>
                                         </div>
                                         <div
                                             v-for="(data,supplierCategory) in allData[modalSelectedBatchId]?.modalData?.currentQuoteCoverage"
@@ -166,22 +125,44 @@ import {Link, useForm, usePage} from "@inertiajs/vue3";
                                                 <p class="text-xs text-gray-600">{{data.includedProducts.string}}</p>
                                             </div>
                                             <div
-                                                class="col-span-1 text-sm text-center"
+                                                class="col-span-1 text-center font-bold pt-2"
                                                 :class="data.qtyQuotes === 0 ? 'text-orange-600' : 'text-green-600'"
                                             >
                                                 {{data.qtyQuotes}}
                                             </div>
-                                            <div class="col-span-1 text-center">
-                                                Preferred Supplier
+                                            <div class="col-span-2 text-center">
+                                                <!-- Has quotes to pick from -->
+                                                <div v-if="data.qtyQuotes > 0">
+                                                    <select class="w-full rounded">
+                                                        <option value="quote_1">quote_1</option>
+                                                        <option value="quote_2">quote_2</option>
+                                                    </select>
+                                                </div>
+                                                <!-- No quotes > pick supplier -->
+                                                <div v-else>
+                                                    <select class="w-full rounded">
+                                                        <option value="supplier_1">supplier_1</option>
+                                                        <option value="supplier_2">supplier_2</option>
+                                                    </select>
+                                                </div>
+
                                             </div>
                                             <div class="col-span-1 text-center">
-                                                Email tables
+                                                <button
+                                                    v-if="data.qtyQuotes === 0"
+                                                    @click="shared.sendSupplierBatchEmail(data.batchGroup)"
+                                                    class="bg-green-50 rounded px-1 border-2 border-green-100 hover:bg-green-100"
+                                                >
+                                                    <i class="fa-regular fa-envelope text-2xl"></i>
+                                                </button>
                                             </div>
                                             <div class="col-span-1 text-center">
-                                                <input type="checkbox"/>
-                                            </div>
-                                            <div class="col-span-1 text-center">
-                                                coverage
+                                                <input
+                                                    type="checkbox"
+                                                    true-value="1"
+                                                    false-value="0"
+                                                    @change="orderSentCheckbox(data.order)"
+                                                />
                                             </div>
                                         </div>
                                     </div>

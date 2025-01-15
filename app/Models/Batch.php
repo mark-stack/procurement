@@ -24,6 +24,11 @@ class Batch extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function orderApprovals(): HasMany
+    {
+        return $this->hasMany(OrderApproval::class);
+    }
+
     //optional
     public function quotes(): HasMany
     {
@@ -31,9 +36,9 @@ class Batch extends Model
     }
 
     //optional
-    public function order(): HasOne
+    public function orders(): HasMany
     {
-        return $this->hasOne(Order::class);
+        return $this->hasMany(Order::class);
     }
 
     //Collection

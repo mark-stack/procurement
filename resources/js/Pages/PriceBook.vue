@@ -1,8 +1,6 @@
 <script setup>
     //General Imports
     import {useForm, usePage} from "@inertiajs/vue3";
-    import {computed, onMounted, ref} from "vue";
-    import shared from '@/Shared/shared';
 
     //Component Imports
     import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";

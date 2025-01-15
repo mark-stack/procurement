@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Order;
+use App\Models\Batch;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -11,10 +11,12 @@ class ApproveAllProjectManagersController extends Controller
     /**
      * Handle the incoming request.
      */
-    public function __invoke(Request $request, Order $order): RedirectResponse
+    public function __invoke(Request $request, Batch $batch): RedirectResponse
     {
-        $order->all_project_manager_approvals = true;
-        $order->save();
+        foreach($batch->orderApprovals as $orderApproval){
+            $orderApproval->project_manager_approved = true;
+            $orderApproval->save();
+        }
 
         return back();
     }

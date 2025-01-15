@@ -3,10 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\ProjectResource;
-use App\Models\Batch;
 use App\Models\Project;
 use App\Models\Quote;
 use App\Services\NestingService;
+use App\Services\OrderService;
+use App\Services\QuoteService;
 use App\Services\SupplierService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,6 +23,7 @@ class ProjectController extends Controller
     {
         //Services
         $nestingService = new NestingService();
+        $quoteService = new QuoteService();
 
         //Prerequisite variables
         $user = auth()->user();
@@ -56,8 +58,7 @@ class ProjectController extends Controller
          */
         $quoted = [];
         $batchesForQuoting = $business->batches()
-//            ->has('quote')
-            ->doesntHave('order')
+            ->doesntHave('orders')
             //todo other criteria for being ready
             ->get();
         foreach($batchesForQuoting as $batch){
@@ -134,6 +135,7 @@ class ProjectController extends Controller
                     "quotes" => $batch->quotes,
                     "totalQuotesQty" => $batch->quotes()->count(),
                     "sentQuotesQty" => $batch->quotes()->where("quote_sent",true)->count(),
+                    "batchQuotingDeadline" => $quoteService->batchQuotingDeadline($batch),
                 ],
                 "modalData" => [
                     "addQuoteRequests" => $addQuoteRequests,
@@ -143,15 +145,16 @@ class ProjectController extends Controller
         }
 
         /**
-         * Batches for ordering
+         * Batches for Ordering
          */
         $ordered = [];
         $batchesForOrdering = $business->batches()
-            ->has('order')
+            ->has('orders')
             //todo other criteria for being ready
             ->get();
         foreach($batchesForOrdering as $batch){
-            $order = $batch->order;
+            //todo firstOrCreate for ORDER and QUOTE objects?
+            $orders = $batch->orders;
 
             $currentQuoteCoverage = [];
 
@@ -170,6 +173,10 @@ class ProjectController extends Controller
                         ->where("supplier_category",$supplierCategory)
                         ->where("quote_sent",true)
                         ->count();
+
+                    $appended["batchGroup"] = $batchGroup;
+                    $appended["orders"] = $orders;
+
                     $currentQuoteCoverage[$supplierCategory] = $appended;
                 }
             }
@@ -183,9 +190,11 @@ class ProjectController extends Controller
                 ],
                 "projects" => ProjectResource::collection($batch->projects()),
                 "otherData" => [
-                    "order" => $order,
-                    "supplier" => $order->supplier,
+                    "orders" => $orders,
                     "approxDueDate" => null, //todo actual - derived from earliest project
+                    "totalOrdersQty" => $batch->orders()->count(),
+                    "sentOrdersQty" => $batch->orders()->where("order_sent",true)->count(),
+                    "all_project_manager_approvals" => (new OrderService())->allProjectManagersApproved($batch),
                 ],
                 "modalData" => [
                     "currentQuoteCoverage" => $currentQuoteCoverage,

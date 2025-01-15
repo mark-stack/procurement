@@ -1,9 +1,9 @@
 <script setup>
-//General Imports
-import {ref} from "vue";
-import {Link, useForm, usePage} from "@inertiajs/vue3";
+    //General Imports
+    import {ref, toRefs, watch} from "vue";
+    import {Link, useForm, usePage} from "@inertiajs/vue3";
 
-//Component Imports
+    //Component Imports
     //...
 
     //Props
@@ -11,13 +11,14 @@ import {Link, useForm, usePage} from "@inertiajs/vue3";
         showModal: Boolean,
         allData: Object,
         modalSelectedBatchId: Number|null,
+        signal: Boolean,
     });
 
     //Forms
     const formQuoteUpdate = useForm({
         quote_sent: null,
     });
-    const form = useForm({
+    let form = useForm({
         items: props.allData,
     });
 
@@ -29,7 +30,16 @@ import {Link, useForm, usePage} from "@inertiajs/vue3";
     const clickCount = ref(0);
 
     //Shared Methods
-    //...
+    import shared from '@/Shared/shared';
+
+    //Watcher
+    const { signal } = toRefs(props);
+    watch(signal, (newVal) => {
+        console.log('Signal changed:', newVal);
+        form = useForm({
+            items: props.allData,
+        });
+    });
 
     //Methods
     function onClickAway(event) {
@@ -46,46 +56,6 @@ import {Link, useForm, usePage} from "@inertiajs/vue3";
         }
     }
 
-    function sendSupplierBatchEmail(batchGroup) {
-        // Email details
-        const emailAddress = ""; //"example@example.com";
-        const subject = "xxxxxxxxx"; //todo
-        let materialList = ""; // Headers
-
-        Object.values(batchGroup).forEach(item => {
-            //Meterage
-            if(item.algo === 'METERAGE'){
-                // Build the material list
-
-                let description = item.product_derived_label;
-
-                item.nested.orderList.forEach(bar => {
-                    let text = " - " + description + ": " + bar.count + " off " + parseFloat(bar.result).toLocaleString() + "mm"; // + item.nominal_units.toLowerCase();
-                    materialList += text + "\n"; // Rows
-                });
-            }
-            //Area
-            if(item.algo === 'AREA'){
-                //todo
-            }
-            //Bundle
-            if(item.algo === 'BUNDLE'){
-                //todo
-            }
-        });
-
-        // Create the mailto link
-        let row1 = "Hi, I'm seeking a quote for the following:";
-        let row2 = materialList;
-        let row3 = "Thank you.";
-
-        const body = encodeURIComponent(`${row1}\n\n${row2}\n\n${row3}`);
-        const mailtoLink = `mailto:${emailAddress}?subject=${encodeURIComponent(subject)}&body=${body}`;
-
-        // Open the email client
-        window.location.href = mailtoLink;
-    }
-
     function quoteSentCheckbox(quote){
         let url = route("quotes.update",quote.id);
 
@@ -99,34 +69,6 @@ import {Link, useForm, usePage} from "@inertiajs/vue3";
                 console.log('errors',errors);
             },
         });
-
-        // //formQuoteUpdate.quote_sent = (quote.quote_sent === 0 || quote.quote_sent === false);
-        // formQuoteUpdate.put(url, {
-        //     preserveScroll: true,
-        //     onSuccess: () => {
-        //         console.log('success');
-        //
-        //
-        //         //Update form
-        //         let qtyQuotes = form.items[props.modalSelectedBatchId].modalData.currentQuoteCoverage[quote.supplier_category].qtyQuotes;
-        //         //true = subtract
-        //         console.log("aaa",formQuoteUpdate.quote_sent,(quote.quote_sent === 0 || quote.quote_sent === false));
-        //         if(formQuoteUpdate.quote_sent === 1 || formQuoteUpdate.quote_sent === true){
-        //             console.log("add",qtyQuotes);
-        //             qtyQuotes = qtyQuotes - 1;
-        //         }
-        //         //false = add
-        //         if(formQuoteUpdate.quote_sent === 0 || formQuoteUpdate.quote_sent === false){
-        //             console.log("subtract",qtyQuotes);
-        //             qtyQuotes = qtyQuotes + 1;
-        //         }
-        //
-        //         form.items[props.modalSelectedBatchId].modalData.currentQuoteCoverage[quote.supplier_category].qtyQuotes = qtyQuotes;
-        //     },
-        //     onError: errors => {
-        //         console.log('errors',errors);
-        //     },
-        // });
     }
 </script>
 
@@ -196,7 +138,7 @@ import {Link, useForm, usePage} from "@inertiajs/vue3";
                                                     <!-- has batch group -->
                                                     <button
                                                         v-if="row.batchGroup"
-                                                        @click="sendSupplierBatchEmail(row.batchGroup)"
+                                                        @click="shared.sendSupplierBatchEmail(row.batchGroup)"
                                                         class="bg-green-50 rounded px-1 border-2 border-green-100 hover:bg-green-100"
                                                     >
                                                         <i class="fa-regular fa-envelope text-2xl"></i>
@@ -229,19 +171,23 @@ import {Link, useForm, usePage} from "@inertiajs/vue3";
 <!--                                        <p class="text-sm text-gray-500">-->
 <!--                                            Are you sure you want to deactivate your account? All of your data will be permanently removed. This action cannot be undone.-->
 <!--                                        </p>-->
+                                        <div class="grid grid-cols-4">
+                                            <div class="col-span-3 font-semibold">Procurement Category</div>
+                                            <div class="col-span-1 font-semibold text-center">Quotes</div>
+                                        </div>
                                         <div
                                             v-for="(data,supplierCategory) in allData[modalSelectedBatchId]?.modalData?.currentQuoteCoverage"
-                                            class="grid grid-cols-5"
+                                            class="grid grid-cols-4"
                                         >
                                             <div class="col-span-3">
                                                 <h3>{{supplierCategory}}</h3>
                                                 <p class="text-xs text-gray-600">{{data.includedProducts.string}}</p>
                                             </div>
                                             <div
-                                                class="col-span-2 text-sm "
+                                                class="col-span-1 text-center font-bold pt-2"
                                                 :class="data.qtyQuotes === 0 ? 'text-orange-600' : 'text-green-600'"
                                             >
-                                                {{data.qtyQuotes}} quote{{(data.qtyQuotes === 0 || data.qtyQuotes > 1) ? 's' : ''}}
+                                                {{data.qtyQuotes}}
                                             </div>
                                         </div>
 

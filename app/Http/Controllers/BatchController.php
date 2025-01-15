@@ -58,6 +58,9 @@ class BatchController extends Controller
                 "batch_id" => null,
             ]);
 
+            //Delete order approvals
+            $batch->orderApprovals()->delete();
+
             //Delete batch
             $batch->delete();
         }

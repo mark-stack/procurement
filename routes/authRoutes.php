@@ -3,6 +3,7 @@
 use App\Http\Controllers\ApproveAllProjectManagersController;
 use App\Http\Controllers\BatchController;
 use App\Http\Controllers\BatchNestingController;
+use App\Http\Controllers\CancelBatchOrdersController;
 use App\Http\Controllers\MarkAsOrderedController;
 use App\Http\Controllers\MarkNotificationStatusController;
 use App\Http\Controllers\MarkOrderConfirmationReceivedController;
@@ -94,9 +95,10 @@ Route::middleware(['auth','verified'])->group(function () {
 
         //Orders
         Route::resource('orders', OrderController::class);
-        Route::post("approve-all-project-managers/{order}", ApproveAllProjectManagersController::class)->name("approve.all.project.managers");
+        Route::post("approve-all-project-managers/{batch}", ApproveAllProjectManagersController::class)->name("approve.all.project.managers");
         Route::post("mark-as-ordered/{order}", MarkAsOrderedController::class)->name("mark.as.ordered");
         Route::post("mark-order-confirmation-received/{order}", MarkOrderConfirmationReceivedController::class)->name("mark.order.confirmation.received");
+        Route::post("cancel-batch-orders/{batch}", CancelBatchOrdersController::class)->name("cancel.batch.orders");
 
         //Suggested Nesting
         Route::get("suggested-nesting", SuggestedNestingController::class)->name("suggested.nesting");

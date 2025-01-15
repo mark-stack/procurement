@@ -7,6 +7,7 @@
 
     //Props
     import {Link, useForm} from "@inertiajs/vue3";
+    import moment from "moment/moment.js";
 
     const props = defineProps({
         batch: Object,
@@ -20,7 +21,9 @@
     const formOrdersStore = useForm({
         batch_id: props.batch.id,
     });
-    const formCancelOrder = useForm({});
+    const formCancelBatchOrders = useForm({
+        orders: Object,
+    });
     const formApproveAllProjectManagers = useForm({});
     const formMarkAsOrdered = useForm({});
     const formMarkOrderConfirmationReceived = useForm({});
@@ -66,10 +69,11 @@
         });
     }
 
-    function cancelOrder(order){
-        let url = route("orders.destroy",order.id);
+    function cancelBatchOrders(orders,batch){
+        let url = route("cancel.batch.orders",batch.id);
 
-        formCancelOrder.delete(url, {
+        formCancelBatchOrders.orders = orders;
+        formCancelBatchOrders.post(url, {
             preserveScroll: true,
             onSuccess: () => {
                 console.log('success');
@@ -80,8 +84,8 @@
         });
     }
 
-    function approveAllProjectManagers(order){
-        let url = route("approve.all.project.managers",order.id);
+    function approveAllProjectManagers(batch){
+        let url = route("approve.all.project.managers",batch.id);
 
         formApproveAllProjectManagers.post(url, {
             preserveScroll: true,
@@ -130,46 +134,23 @@
         <div class="p-3">
             <span class="text-sm block text-gray-500">Batch ID: {{batch.id}}</span>
             <!-- Quotes -->
-            <span v-if="type === 'QUOTES'" class="text-sm block text-gray-800">Quote deadline: [1/2/24]</span>
-            <span v-if="type === 'QUOTES'" class="text-sm block text-gray-800">Quote coverage: {{ otherData.sentQuotesQty }}/{{ otherData.totalQuotesQty }}</span>
+            <p v-if="type === 'QUOTES'" class="text-sm block text-gray-800">Quote deadline: {{ moment(otherData.batchQuotingDeadline).fromNow() }}</p>
+            <p v-if="type === 'QUOTES'" class="text-sm block text-gray-800">Quote coverage: {{ otherData.sentQuotesQty }}/{{ otherData.totalQuotesQty }}</p>
 
             <!-- Orders -->
-            <span v-if="type === 'ORDERS'" class="text-sm block text-gray-800">Order deadline: [1/2/24]</span>
-            <span v-if="type === 'ORDERS'" class="text-sm block text-gray-800">Order coverage: [2/5]</span>
+            <p v-if="type === 'ORDERS'" class="text-sm block text-gray-800">Order deadline: [1/2/24]</p>
             <p
                 v-if="type === 'ORDERS'"
-                :class="otherData.order.all_project_manager_approvals ? 'text-green-600' : 'text-orange-800'"
+                :class="otherData.all_project_manager_approvals ? 'text-green-600' : 'text-orange-800'"
                 class="text-sm block "
             >
-                All PM approval: {{otherData.order.all_project_manager_approvals ? 'Yes' : 'No'}}
+                All PM approval: {{otherData.all_project_manager_approvals ? 'Yes' : 'No'}}
             </p>
             <p
                 v-if="type === 'ORDERS'"
-                :class="otherData.supplier ? 'text-green-600' : 'text-orange-800'"
                 class="text-sm block text-gray-800"
             >
-                Supplier: {{otherData.supplier ? supplier.name : 'not yet'}}
-            </p>
-            <p
-                v-if="type === 'ORDERS'"
-                :class="otherData.order.order_sent ? 'text-green-600' : 'text-orange-800'"
-                class="text-sm block"
-            >
-                Order coverage: [{{otherData.order.order_sent ? 'Yes' : 'No'}}]
-            </p>
-<!--            <p-->
-<!--                v-if="type === 'ORDERS'"-->
-<!--                :class="otherData.order.order_confirmation_received ? 'text-green-600' : 'text-orange-800'"-->
-<!--                class="text-sm block"-->
-<!--            >-->
-<!--                Order confirmation: {{otherData.order.order_confirmation_received ? 'Yes' : 'No'}}-->
-<!--            </p>-->
-            <p
-                v-if="type === 'ORDERS'"
-                :class="otherData.order.purchase_order_number ? 'text-green-600' : 'text-orange-800'"
-                class="text-sm block"
-            >
-                Purchase Order #: {{otherData.order.purchase_order_number ?? 'not yet'}}
+                Order coverage: {{ otherData.sentOrdersQty }}/{{ otherData.totalOrdersQty }}
             </p>
             <p
                 v-if="type === 'ORDERS'"
@@ -183,9 +164,6 @@
         </div>
         <!-- Footer -->
         <div class="border-t-2 border-blue-500 bg-blue-100 p-1 rounded-b-lg text-xs">
-
-
-
             <!-- actions -->
             <div class="flex justify-center items-center gap-x-3 mt-1">
                 <!-- Quote actions -->
@@ -200,41 +178,41 @@
                     v-if="type === 'QUOTES'"
                     @click="$emit('showQuotesModal',batch.id)"
                 >
-                    Quote requests
+                    Manage Quotes
                 </button>
                 <button
                     v-if="type === 'QUOTES'"
                     @click="quoteToOrder()"
                 >
-                    Ordering
+                    Start Ordering
                 </button>
 
                 <!-- Order actions -->
                 <button
-                    v-if="type === 'ORDERS' && !otherData.order.all_project_manager_approvals"
-                    @click="approveAllProjectManagers(otherData.order)"
+                    v-if="type === 'ORDERS' && !otherData.all_project_manager_approvals"
+                    @click="approveAllProjectManagers(batch)"
                 >
                     All Project<br>Managers approved
                 </button>
                 <button
-                    v-if="type === 'ORDERS' && !otherData.order.all_project_manager_approvals"
-                    @click="cancelOrder(otherData.order)"
+                    v-if="type === 'ORDERS' && !otherData.all_project_manager_approvals"
+                    @click="cancelBatchOrders(otherData.orders,batch)"
                 >
                     Cancel<br><small>(Back to quoting)</small>
                 </button>
                 <button
-                    v-if="type === 'ORDERS' && otherData.order.all_project_manager_approvals && !otherData.order.order_sent && !otherData.order.order_confirmation_received"
+                    v-if="type === 'ORDERS' && otherData.all_project_manager_approvals"
                     @click="$emit('showOrdersModal',batch.id)"
                 >
                     Manage Orders
                 </button>
-                <button
-                    v-if="type === 'ORDERS' && otherData.order.order_sent && !otherData.order.order_confirmation_received"
-                    @click="markOrderConfirmationReceived(otherData.order)"
-                >
-                    Received order confirmation
-                </button>
-                <button v-if="type === 'ORDERS' && otherData.order.order_confirmation_received && !otherData.order.is_delivered">
+<!--                <button-->
+<!--                    v-if="type === 'ORDERS' && otherData.order.order_sent && !otherData.order.order_confirmation_received"-->
+<!--                    @click="markOrderConfirmationReceived(otherData.order)"-->
+<!--                >-->
+<!--                    Received order confirmation-->
+<!--                </button>-->
+                <button v-if="type === 'ORDERS' && otherData.orders.order_confirmation_received && !otherData.order.is_delivered">
                     Is Delivered
                 </button>
 

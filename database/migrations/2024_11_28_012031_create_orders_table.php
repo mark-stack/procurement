@@ -21,7 +21,6 @@ return new class extends Migration
             $table->foreignId('quote_id')->nullable()->constrained(); //optional
 
             //Status
-            $table->boolean("all_project_manager_approvals")->default(false);
             $table->boolean("order_sent")->default(false);
             $table->boolean("order_confirmation_received")->default(false);
             $table->string("purchase_order_number")->nullable();
