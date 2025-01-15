@@ -4,9 +4,7 @@ export default {
         const emailAddress = ""; //"example@example.com";
         const subject = ""; //todo
         let materialList = ""; // Headers
-
-        console.log("batchGroup",batchGroup);
-
+        
         Object.values(batchGroup).forEach(item => {
             //Meterage
             if(item.algo === 'METERAGE'){

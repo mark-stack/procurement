@@ -214,7 +214,6 @@
                         console.log('success');
                         if(downloadedBomData.value){
                             bomData.value.push(downloadedBomData.value);
-                            console.log("bomData",bomData.value);
                         }
                     },
                     onError: errors => {
@@ -330,7 +329,7 @@
                 <section class="mt-5 mb-20">
 
                     <!-- kanban -->
-                    <div class="grid grid-cols-5 gap-x-3">
+                    <div class="grid grid-cols-4 gap-x-3">
                         <!-- Needs BOM Import -->
                         <div>
                             <!-- header -->
@@ -418,27 +417,27 @@
                             </div>
                         </div>
                         <!-- Materials Received -->
-                        <div>
-                            <!-- header -->
-                            <div class="border-b-2 border-gray-500">
-                                <h2 class="text-xl font-bold text-center">Delivery</h2>
-                            </div>
-                            <!-- body -->
-                            <div class="grid grid-cols-1 gap-y-2 pt-3">
-                                <!-- card -->
-                                <KanbanGeneralBatchCard
-                                    v-for="batch in batches['DELIVERED']"
-                                    :batch="batch['batch']"
-                                    :projects="batch['projects'].data"
-                                    :otherData="batch['otherData']"
-                                    type="DELIVERED"
-                                    @toggleArchive="p => toggleArchive(p)"
-                                    @editMode="p => editMode(p)"
-                                    @showQuotesModal="batchId => {modalSelectedBatchId = batchId; showQuotesModal = true; showOrdersModal = false;}"
-                                    @showOrdersModal="batchId => {modalSelectedBatchId = batchId; showOrdersModal = true; showQuotesModal = false;}"
-                                />
-                            </div>
-                        </div>
+<!--                        <div>-->
+<!--                            &lt;!&ndash; header &ndash;&gt;-->
+<!--                            <div class="border-b-2 border-gray-500">-->
+<!--                                <h2 class="text-xl font-bold text-center">Delivery</h2>-->
+<!--                            </div>-->
+<!--                            &lt;!&ndash; body &ndash;&gt;-->
+<!--                            <div class="grid grid-cols-1 gap-y-2 pt-3">-->
+<!--                                &lt;!&ndash; card &ndash;&gt;-->
+<!--                                <KanbanGeneralBatchCard-->
+<!--                                    v-for="batch in batches['DELIVERED']"-->
+<!--                                    :batch="batch['batch']"-->
+<!--                                    :projects="batch['projects'].data"-->
+<!--                                    :otherData="batch['otherData']"-->
+<!--                                    type="DELIVERED"-->
+<!--                                    @toggleArchive="p => toggleArchive(p)"-->
+<!--                                    @editMode="p => editMode(p)"-->
+<!--                                    @showQuotesModal="batchId => {modalSelectedBatchId = batchId; showQuotesModal = true; showOrdersModal = false;}"-->
+<!--                                    @showOrdersModal="batchId => {modalSelectedBatchId = batchId; showOrdersModal = true; showQuotesModal = false;}"-->
+<!--                                />-->
+<!--                            </div>-->
+<!--                        </div>-->
                     </div>
 
                     <!-- toggle archived projects -->

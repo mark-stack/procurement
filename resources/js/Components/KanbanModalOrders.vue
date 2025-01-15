@@ -28,7 +28,7 @@
     //
 
     //Shared Methods
-    //
+    import shared from '@/Shared/shared';
 
     //Methods
     function orderSentCheckbox(order){
