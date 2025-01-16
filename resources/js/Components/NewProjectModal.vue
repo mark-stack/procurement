@@ -54,7 +54,6 @@
             formProjectCreate.post(url, {
                 preserveScroll: true,
                 onSuccess: () => {
-                    console.log('success');
                     formProjectCreate.reset();
 
                     //Close modal

@@ -145,6 +145,7 @@ class RawMaterialListClarificationsController extends Controller
             }
         }
 
+        //todo possibility: return data to the view
         return back();
     }
 }

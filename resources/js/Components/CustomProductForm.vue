@@ -9,7 +9,7 @@
     //Props
     const props = defineProps({
         item: Object,
-        index: Number,
+        index: String,
         form: Object,
         allMeasurements: Object,
         formDependentData: Object,

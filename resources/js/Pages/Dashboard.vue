@@ -49,7 +49,8 @@
     const showNewProjectModal = ref(false);
     const showBomEditModal = ref(false);
     const modalSelectedBatchId = ref(null);
-    const signal = ref(false);
+    const refreshModalQuotes = ref(false);
+    const refreshModalBom = ref(false);
     const bomData = ref([]);
 
 
@@ -57,8 +58,11 @@
     //...
 
     //Methods
-    function sendSignal(){
-        signal.value = !signal.value; // Toggle signal
+    function sendRefreshModalQuotes(){
+        refreshModalQuotes.value = !refreshModalQuotes.value; // Toggle refreshModalQuotes
+    }
+    function sendRefreshModalBom(){
+        refreshModalBom.value = !refreshModalBom.value; // Toggle refreshModalBom
     }
 
     // function submit(){
@@ -157,7 +161,7 @@
             onSuccess: () => {
                 console.log('success');
                 //todo trigger orders card form reset
-                sendSignal();
+                sendRefreshModalQuotes();
             },
             onError: errors => {
                 console.log('errors',errors);
@@ -193,36 +197,67 @@
     function showBom(project){
         //Set project
         bomProject.value = project;
+        console.log("Set project");
 
-        //Show modal
-        showBomEditModal.value = true;
+        /**
+         Only download new data if hasn't already
+         */
+        let existingDownload = undefined; //todo Object.values(bomData.value).find(item => item.project_id == bomProject.value.id);
+        console.log("existingDownload",existingDownload);
+
+        if(existingDownload === undefined){
+            console.log("not already downloaded. Proceed to download data");
+            downloadProjectBomData(bomProject.value.id);
+        }
+        else{
+            //Show modal
+            showBomEditModal.value = true;
+            console.log("already downloaded. show modal");
+        }
+    }
+
+    function downloadProjectBomData(projectId){
+        console.log("download BOM data");
+        let url = route("download",projectId);
+        formDownload.post(url, {
+            preserveScroll: true,
+            onSuccess: () => {
+                if(downloadedBomData.value){
+                    //Delete if exists
+                    bomData.value = Object.values(bomData.value).filter(item => item.project_id != projectId);
+                    console.log("delete existing downloaded data");
+
+                    //Create
+                    bomData.value.push(downloadedBomData.value);
+                    console.log("pushed new download data",bomData.value);
+
+                    //Refresh modal BOM signal
+                    sendRefreshModalBom();
+
+                    //Show modal
+                    showBomEditModal.value = true;
+                    console.log("show modal");
+                }
+            },
+            onError: errors => {
+                console.log('errors',errors);
+            },
+        });
     }
 
     //Watcher
-    watch(bomProject, (newVal) => {
-        if(newVal){
-            /**
-                Only download new data if hasn't already
-             */
-            let existingDownload = Object.values(bomData.value).find(item => item.project_id == bomProject.value.id);
-
-            if(existingDownload === undefined){
-                let url = route("download",bomProject.value.id);
-                formDownload.post(url, {
-                    preserveScroll: true,
-                    onSuccess: () => {
-                        console.log('success');
-                        if(downloadedBomData.value){
-                            bomData.value.push(downloadedBomData.value);
-                        }
-                    },
-                    onError: errors => {
-                        console.log('errors',errors);
-                    },
-                });
-            }
-        }
-    });
+    // watch(bomProject, (newVal) => {
+    //     if(newVal){
+    //         /**
+    //             Only download new data if hasn't already
+    //          */
+    //         let existingDownload = Object.values(bomData.value).find(item => item.project_id == bomProject.value.id);
+    //
+    //         if(existingDownload === undefined){
+    //             downloadProjectBomData(bomProject.value.id)
+    //         }
+    //     }
+    // });
 </script>
 
 <template>
@@ -335,12 +370,22 @@
                             <!-- header -->
                             <div class="border-b-2 border-gray-500">
                                 <h2 class="text-xl font-bold text-center">
-                                    New Projects <button type="button" @click="addProject()" class="underline text-blue-500 font-bold">Add</button>
+                                    New Projects
                                 </h2>
                             </div>
                             <!-- body -->
                             <div class="grid grid-cols-1 gap-y-2 pt-3">
-                                <!-- card -->
+                                <!-- new project -->
+                                <div class="text-center p-5 border-2 border-gray-300 border-dashed rounded-lg">
+                                    <button
+                                        type="button"
+                                        @click="addProject()"
+                                        class="underline text-blue-500 font-semibold"
+                                    >
+                                        New Project
+                                    </button>
+                                </div>
+                                <!-- cards -->
                                 <template v-for="project in projects['BOM_REQUIRED'].data">
                                     <KanbanNeedsImportingCard
                                         :projects="[project]"
@@ -445,7 +490,7 @@
                         <button
                             v-if="archivedProjects.data.length > 0"
                             @click="showArchivedProjects = !showArchivedProjects"
-                            class="text-center text-blue-500 underline mt-3 mb-2"
+                            class="text-center text-blue-500 underline mt-6 mb-2"
                         >
                             {{showArchivedProjects ? 'Hide' : 'Show'}} {{archivedProjects.data.length}} Archived Project{{archivedProjects.data.length > 1 ? 's' : ''}}
                         </button>
@@ -606,7 +651,7 @@
         :showModal="showQuotesModal"
         :allData="batches['QUOTED']"
         :modalSelectedBatchId="modalSelectedBatchId"
-        :signal="signal"
+        :refreshModalQuotes="refreshModalQuotes"
         @closeModal="showQuotesModal = false"
     />
     <KanbanModalOrders
@@ -621,14 +666,16 @@
         width="400"
         :editProject="editProject"
         @closeModal="showNewProjectModal = false"
-        @closeModalOnSuccess="console.log('@closeModalOnSuccess'); showNewProjectModal = false"
+        @closeModalOnSuccess="showNewProjectModal = false"
     />
     <BomEditModal
         v-if="showBomEditModal"
         width="800"
         :project="bomProject"
         :bomData="bomData"
+        :refreshModalBom="refreshModalBom"
         @closeModal="showBomEditModal = false"
-        @closeModalOnSuccess="console.log('@closeModalOnSuccess'); showBomEditModal = false"
+        @closeModalOnSuccess="showBomEditModal = false"
+        @redownload="projectId => downloadProjectBomData(projectId)"
     />
 </template>

@@ -47,16 +47,7 @@
 
             <!-- Single project actions -->
             <div v-if="projects.length === 1">
-                <!-- Import materials button -->
-                <div class="flex justify-center items-center gap-x-6 mt-2">
-                    <Link
-                        :href="route('products.index',projects[0].id)"
-                        :class="projects[0].hasRawMaterialQuotes ? 'text-emerald-500 bg-emerald-100 border-emerald-300 hover:bg-emerald-200' : 'text-orange-500 bg-orange-50 border-orange-300 hover:bg-orange-100'"
-                        class="px-2 py-1 rounded border-2 font-semibold"
-                    >
-                        {{projects[0].hasRawMaterialQuotes ? 'Imported Materials' : 'Import Materials'}}
-                    </Link>
-                </div>
+
 
                 <!-- actions -->
                 <div class="flex justify-center items-center gap-x-6 mt-1">

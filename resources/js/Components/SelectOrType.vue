@@ -10,7 +10,7 @@
         id: Number,
         label: String,
         reference: String,
-        index: Number,
+        index: String,
         form: Object,
         options: Object,
         errors: Object,

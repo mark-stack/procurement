@@ -11,7 +11,7 @@
         showModal: Boolean,
         allData: Object,
         modalSelectedBatchId: Number|null,
-        signal: Boolean,
+        refreshModalQuotes: Boolean,
     });
 
     //Forms
@@ -33,9 +33,9 @@
     import shared from '@/Shared/shared';
 
     //Watcher
-    const { signal } = toRefs(props);
-    watch(signal, (newVal) => {
-        console.log('Signal changed:', newVal);
+    const { refreshModalQuotes } = toRefs(props);
+    watch(refreshModalQuotes, (newVal) => {
+        console.log('refreshModalQuotes changed:', newVal);
         form = useForm({
             items: props.allData,
         });
