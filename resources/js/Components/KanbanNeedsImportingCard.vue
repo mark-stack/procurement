@@ -1,15 +1,15 @@
 <script setup>
     //General Imports
-    //...
+    import moment from "moment";
 
     //Component Imports
-    //...
+    import CardButtonGreen from "@/Components/CardButtonGreen.vue";
+    import CardButtonRed from "@/Components/CardButtonRed.vue";
+    import CardButtonYellow from "@/Components/CardButtonYellow.vue";
 
     //Props
-    import {Link} from "@inertiajs/vue3";
-
     const props = defineProps({
-        projects: Object,
+        project: Object,
     });
 
     //Form
@@ -21,53 +21,51 @@
     //Variables
     const emit = defineEmits(['toggleArchive','editMode','showBom']);
 
+    //Shared methods
+    import shared from '@/Shared/shared';
+
     //Methods
-    function cropText(text, maxLength = 5) {
-        if (text.length > maxLength) {
-            return text.substring(0, maxLength) + "...";
-        }
-        return text;
-    }
+    //
 </script>
 
 <template>
     <!-- card -->
-    <div
-        class="border-2 border-blue-500 rounded-lg"
-    >
-        <!-- Body -->
-        <div class="p-3">
-            <span v-for="project in projects" class="block">{{ cropText(project.name) }}</span>
-        </div>
-        <!-- Footer -->
-        <div
-            class="border-t-2 border-blue-500 bg-blue-100 p-1 rounded-b-lg text-xs"
-        >
-            PM: {{projects[0].projectManager.name}}
-
-            <!-- Single project actions -->
-            <div v-if="projects.length === 1">
-
-
-                <!-- actions -->
-                <div class="flex justify-center items-center gap-x-6 mt-1">
-                    <Link :href="route('products.index',projects[0].id)">
-                        BOM (page)
-                    </Link>
-                    <button @click="$emit('showBom',projects[0])">
-                        BOM (modal)
-                    </button>
-                    <button @click="$emit('editMode',projects[0])">
-                        Edit
-                    </button>
-                    <button
-                        @click="$emit('toggleArchive',projects[0])"
-                        class="text-gray-800 transition-colors duration-200 dark:hover:text-red-500 dark:text-gray-300 hover:text-red-500 focus:outline-none"
-                    >
-                        Archive
-                    </button>
+    <div class="relative flex flex-col items-start p-4 mt-3 bg-white rounded-lg cursor-pointer bg-opacity-90 group hover:bg-opacity-100" draggable="true">
+        <h4 class="text-base font-medium">
+            {{ shared.cropText(shared.capitalizeWords(project.name)) }}
+        </h4>
+        <div class="flex items-center w-full mt-3 text-xs font-medium text-gray-500">
+            <div class="flex items-center">
+                <i class="fa-regular fa-calendar-days text-base"></i>
+                <div>
+                    <span class="ml-1 text-xs">Quote by:</span>
+                    <span class="block ml-1 leading-none text-xs">{{ moment(project.quoteRequestDeadline).format("DD-MM-YYYY")}}</span>
                 </div>
             </div>
+            <div class="flex items-center ml-4">
+                <i class="fa-solid fa-file-lines text-base"></i>
+                <span class="ml-1 leading-none text-sm">[9]</span>
+            </div>
+            <div class="flex items-center ml-4">
+                <i class="fa-solid fa-user text-base"></i>
+                <span class="ml-1 leading-none text-sm">{{project.projectManager.name}}</span>
+            </div>
+        </div>
+
+        <div class="mt-3 w-full flex gap-x-2 justify-between items-center">
+            <CardButtonRed
+                @click="$emit('toggleArchive',project)"
+                label="Archive"
+            />
+            <CardButtonYellow
+                @click="$emit('editMode',project)"
+                label="Edit"
+            />
+            <CardButtonGreen
+                @click="$emit('showBom',project)"
+                label="Materials"
+                :highlight="true"
+            />
         </div>
     </div>
 </template>

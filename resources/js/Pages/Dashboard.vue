@@ -364,31 +364,33 @@
                 <section class="mt-5 mb-20">
 
                     <!-- kanban -->
-                    <div class="grid grid-cols-4 gap-x-3">
+                    <div class="grid grid-cols-4">
                         <!-- Needs BOM Import -->
-                        <div>
+                        <div class="border-r-2 border-indigo-200 p-2">
                             <!-- header -->
-                            <div class="border-b-2 border-gray-500">
-                                <h2 class="text-xl font-bold text-center">
-                                    New Projects
+                            <div>
+                                <h2 class="text-xl font-bold text-center text-gray-900">
+                                    <span class="text-indigo-300 text-base">1.</span> New Projects
                                 </h2>
                             </div>
                             <!-- body -->
                             <div class="grid grid-cols-1 gap-y-2 pt-3">
                                 <!-- new project -->
-                                <div class="text-center p-5 border-2 border-gray-300 border-dashed rounded-lg">
+                                <div class="">
                                     <button
                                         type="button"
                                         @click="addProject()"
-                                        class="underline text-blue-500 font-semibold"
+                                        class="w-full text-center p-5 border-2 text-gray-600 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 border-gray-400 hover:border-gray-500 border-dashed rounded-lg font-semibold text-lg"
                                     >
-                                        New Project
+                                        + Add new project
                                     </button>
                                 </div>
+
+
                                 <!-- cards -->
                                 <template v-for="project in projects['BOM_REQUIRED'].data">
                                     <KanbanNeedsImportingCard
-                                        :projects="[project]"
+                                        :project="project"
                                         @toggleArchive="p => toggleArchive(p)"
                                         @editMode="p => editMode(p)"
                                         @showBom="p => showBom(p)"
@@ -397,10 +399,12 @@
                             </div>
                         </div>
                         <!-- Ready for auto nesting -->
-                        <div>
+                        <div class="border-r-2 border-indigo-200 p-2">
                             <!-- header -->
-                            <div class="border-b-2 border-gray-500">
-                                <h2 class="text-xl font-bold text-center">Nesting</h2>
+                            <div>
+                                <h2 class="text-xl font-bold text-center">
+                                    <span class="text-indigo-300 text-base">2.</span> Nesting
+                                </h2>
                             </div>
                             <!-- body -->
                             <div class="grid grid-cols-1 gap-y-2 pt-3">
@@ -417,10 +421,12 @@
                             </div>
                         </div>
                         <!-- Quoted -->
-                        <div>
+                        <div class="border-r-2 border-indigo-200 p-2">
                             <!-- header -->
-                            <div class="border-b-2 border-gray-500">
-                                <h2 class="text-xl font-bold text-center">Quoting</h2>
+                            <div>
+                                <h2 class="text-xl font-bold text-center">
+                                    <span class="text-indigo-300 text-base">3.</span> Quoting
+                                </h2>
                             </div>
                             <!-- body -->
                             <div class="grid grid-cols-1 gap-y-2 pt-3">
@@ -440,10 +446,12 @@
                             </div>
                         </div>
                         <!-- Ordered -->
-                        <div>
+                        <div class="p-2">
                             <!-- header -->
-                            <div class="border-b-2 border-gray-500">
-                                <h2 class="text-xl font-bold text-center">Ordering</h2>
+                            <div>
+                                <h2 class="text-xl font-bold text-center">
+                                    <span class="text-indigo-300 text-base">4.</span> Ordering
+                                </h2>
                             </div>
                             <!-- body -->
                             <div class="grid grid-cols-1 gap-y-2 pt-3">

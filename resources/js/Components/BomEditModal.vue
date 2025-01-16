@@ -372,25 +372,36 @@
         <div :style="'width:'+width+'px'">
 
             <div class="dark:bg-gray-900 rounded-xl">
-                <div class="px-6 pt-4 pb-4 mx-auto text-center">
+                <div class="pt-4 pb-4 mx-auto text-center">
                     <h1 class="text-3xl font-semibold text-gray-800 dark:text-gray-100">
                         Bill of Materials
                     </h1>
 
-                    <div v-if="freezeView">
-                        Loading...
+                    <div
+                        v-if="freezeView"
+                        style="height:400px"
+                        class="p-20 text-lg text-gray-700 italic"
+                    >
+                        “Patience is bitter, but its fruit is sweet.”
                     </div>
-                    <div v-else> <!-- v-else -->
-                        <div class="mt-2">
+                    <div v-else class="pt-5">
+                        <!-- Drag n drop  -->
+                        <div
+                            v-if="!hasClarifications() && !hasUserCustomProducts()"
+                            class="pl-5 pr-5"
+                        >
+                            <!-- Rectangle -->
                             <div>
+                                <!-- (isDragging ? 'border-color: #00f;color: #00f;' : 'color: #aaa;') +  -->
                                 <div
                                     id="dropzone"
                                     @click="triggerFileInput"
                                     @dragover.prevent="handleDragOver"
                                     @dragleave="handleDragLeave"
                                     @drop.prevent="handleDrop"
-                                    class="bg-white"
-                                    :style="(isDragging ? 'border-color: #00f;color: #00f;' : 'color: #aaa;') + (formStore.processing ? 'pointer-events: none;' : '')"
+                                    class="border-2 text-gray-600 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 border-gray-400 hover:border-gray-500 border-dashed font-semibold text-lg"
+                                    :class="isDragging ? 'bg-gray-100' : 'bg-gray-50'"
+                                    :style="(formStore.processing ? 'pointer-events: none;' : '')"
                                 >
                                     <div class="w-full mx-auto text-center">
                                         <div v-if="uploading" class="text-green-500">
@@ -414,7 +425,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div v-else>
+                                        <div v-else class="text-gray-700">
                                             {{isDragging ? 'Drop it here!' : 'Material list in Excel format: Click to upload, or drag & drop here'}}
                                         </div>
                                     </div>
@@ -429,15 +440,19 @@
                                 />
                             </div>
 
-
+                            <!-- drag n drop error -->
                             <div v-if="warning" class="text-center text-orange-500 mt-2">
                                 {{warning}}
                             </div>
                         </div>
 
-                        <div class="p-3 mt-5 overflow-y-auto" style="height:300px">
-                            <!-- clarifications (user might decide to re-upload) -->
-                            <section v-if="thisDownloadedBomData(bomData).senseChecks.length > 0" class="container mt-5">
+                        <!-- Sense checks / Clarifications / User custom products / Table-->
+                        <div class="overflow-y-auto pl-5 pr-5">
+                            <!-- Sense checks -->
+                            <section
+                                v-if="thisDownloadedBomData(bomData).senseChecks.length > 0"
+                                style="height:400px"
+                            >
                                 <h2 class="font-bold text-lg">Sense checks</h2>
 
                                 <!-- No bolts -->
@@ -492,11 +507,14 @@
                                 <!-- todo: tonnage checks -->
 
                                 <!-- todo: minimum grade check-->
-
                             </section>
 
-                            <!-- Clarifications (preparing for RFQ) -->
-                            <section v-if="showClarifications && hasClarifications()" class="container mt-5">
+                            <!-- Clarifications  -->
+                            <section
+                                v-else-if="showClarifications && hasClarifications()"
+                                style="height:400px"
+                                class="pl-5"
+                            >
                                 <h2 class="font-bold text-lg">Exact product clarifications</h2>
                                 <form @submit.prevent="submitClarifications()">
                                     <template v-for="(item,index) in formClarifications">
@@ -540,7 +558,10 @@
                             </section>
 
                             <!-- User custom products -->
-                            <section v-else-if="showUserCustomProducts && hasUserCustomProducts()" class="mt-5">
+                            <section
+                                v-else-if="showUserCustomProducts && hasUserCustomProducts()"
+                                style="height:400px"
+                            >
                                 <h2 class="font-bold text-lg">Custom products (add to price book)</h2>
                                 <p class="mb-3 text-gray-600">
                                     This action is just required once. It will be added to the price book for you and other members in your company.
@@ -576,7 +597,11 @@
                             </section>
 
                             <!-- table -->
-                            <section v-if="showTable()" class="container mt-2">
+                            <section
+                                v-else-if="showTable()"
+                                style="height:300px"
+                                class="text-left"
+                            >
                                 <button
                                     :disabled="formBulkActions.selectedRawMaterialQuoteIds.length == 0"
                                     @click="submitBulkDelete()"
@@ -788,19 +813,6 @@
                                                                     </div>
                                                                 </div>
                                                             </td>
-
-                                                            <!--                                            <td class="px-4 py-4 text-sm whitespace-nowrap">-->
-                                                            <!--                                                <div class="flex items-center gap-x-6">-->
-                                                            <!--                                                    <p-->
-                                                            <!--                                                        @click="initiateUpdate(template)"-->
-                                                            <!--                                                        class="text-gray-500 transition-colors duration-200 dark:hover:text-yellow-500 dark:text-gray-300 hover:text-yellow-500 focus:outline-none"-->
-                                                            <!--                                                    >-->
-                                                            <!--                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">-->
-                                                            <!--                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />-->
-                                                            <!--                                                        </svg>-->
-                                                            <!--                                                    </p>-->
-                                                            <!--                                                </div>-->
-                                                            <!--                                            </td>-->
                                                         </tr>
                                                         </tbody>
                                                     </table>
@@ -810,6 +822,13 @@
                                     </div>
                                 </div>
                             </section>
+
+                            <div
+                                v-else class="pt-28 text-gray-600 text-lg"
+                                style="height:300px"
+                            >
+                                Upload your first Bill of Materials above <i class="fa-regular fa-hand-point-up"></i> <i class="fa-regular fa-hand-point-up"></i>
+                            </div>
                         </div>
                     </div>
                 </div>

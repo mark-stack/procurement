@@ -1,14 +1,13 @@
 <script setup>
     //General Imports
-    //...
-
-    //Component Imports
-    //...
-
-    //Props
     import {Link, useForm} from "@inertiajs/vue3";
     import moment from "moment/moment.js";
 
+    //Component Imports
+    import CardButtonYellow from "@/Components/CardButtonYellow.vue";
+    import CardButtonGreen from "@/Components/CardButtonGreen.vue";
+
+    //Props
     const props = defineProps({
         batch: Object,
         projects: Object,
@@ -33,6 +32,10 @@
 
     //Variables
     const emit = defineEmits(['toggleArchive','editMode','showQuotesModal','showOrdersModal']);
+
+    //Shared methods
+    import shared from "@/Shared/shared.js";
+    import CardButtonRed from "@/Components/CardButtonRed.vue";
 
     //Methods
     function cropText(text, maxLength = 5) {
@@ -128,6 +131,67 @@
 </script>
 
 <template>
+    <!-- card -->
+    <div class="relative flex flex-col items-start pt-2 pl-4 pr-4 pb-4 bg-white rounded-lg cursor-pointer bg-opacity-90 group hover:bg-opacity-100" draggable="true">
+        <div class="w-full mb-2 text-center">
+            <p class="text-sm text-green-500">Saves <b>[13%]</b> waste</p>
+        </div>
+
+        <div class="grid grid-cols-1 gap-y-2 w-full text-xs font-medium text-gray-500">
+            <div
+                v-for="project in projects"
+                class="w-full rounded-lg border-2 border-gray-300 p-2"
+            >
+                <h4 class="text-base font-medium">
+                    {{ shared.cropText(shared.capitalizeWords(project.name)) }}
+                </h4>
+                <div class="flex">
+                    <div class="flex items-center">
+                        <i class="fa-regular fa-calendar-days text-base"></i>
+                        <div>
+                            <span class="ml-1 text-xs">Quote by:</span>
+                            <span class="block ml-1 leading-none text-xs">{{ moment(project.quoteRequestDeadline).format("DD-MM-YYYY")}}</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center ml-4">
+                        <i class="fa-solid fa-file-lines text-base"></i>
+                        <span class="ml-1 leading-none text-sm">[9]</span>
+                    </div>
+                    <div class="flex items-center ml-4">
+                        <i class="fa-solid fa-user text-base"></i>
+                        <span class="ml-1 leading-none text-sm">{{project.projectManager.name}}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex w-full justify-center mt-2">
+            <CardButtonGreen
+                label="Nesting details"
+                :highlight="false"
+            />
+        </div>
+
+        <div class="mt-3 w-full flex gap-x-2 justify-between items-center">
+            <CardButtonRed
+                v-if="type === 'QUOTES'"
+                @click="breakBatch(batch)"
+                label="Re-nest"
+            />
+            <CardButtonYellow
+                @click="$emit('orderNow')"
+                label="Order now"
+            />
+            <CardButtonGreen
+                @click="$emit('showQuotesModal',batch.id)"
+                label="Manage Quotes"
+                :highlight="true"
+            />
+        </div>
+        <p class="mt-1 text-xs block text-center text-orange-300">Suggest to wait [3 more days] to allow for more possible materials.</p>
+
+    </div>
+
     <!-- card -->
     <div class="border-2 border-blue-500 rounded-lg">
         <!-- Body -->

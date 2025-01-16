@@ -2,13 +2,14 @@
     //General Imports
     import {Link, useForm, usePage} from "@inertiajs/vue3";
     import {computed} from "vue";
+    import moment from "moment/moment.js";
 
     //Component Imports
-    //...
+    import CardButtonRed from "@/Components/CardButtonRed.vue";
+    import CardButtonYellow from "@/Components/CardButtonYellow.vue";
+    import CardButtonGreen from "@/Components/CardButtonGreen.vue";
 
     //Props
-
-
     const props = defineProps({
         projects: Object,
     });
@@ -16,21 +17,14 @@
     //Form
     //
 
-    //Shared data
-    //...
-
     //Variables
     const emit = defineEmits(['toggleArchive','editMode','quoteNow','orderNow','showBom']);
     const user = computed(() => usePage().props.auth.user);
 
-    //Methods
-    function cropText(text, maxLength = 13) {
-        if (text.length > maxLength) {
-            return text.substring(0, maxLength) + "..";
-        }
-        return text;
-    }
+    //Shared methods
+    import shared from '@/Shared/shared';
 
+    //Methods
     function isYourProject(project){
         return project.user_id == user.value.id;
     }
@@ -38,53 +32,127 @@
 
 <template>
     <!-- card -->
-    <div class="border-2 border-blue-500 rounded-lg">
-        <!-- Body -->
-        <div class="p-3">
-            <span class="text-sm block text-gray-500">Auto Batched Nesting</span>
-            <span class="text-sm block text-green-500">Saves 13% waste</span>
-            <span class="text-xs block text-orange-500">Suggest to wait [3 more days] to allow for more possible materials.</span>
-            <Link :href="route('suggested.nesting')" class="font-bold">Nesting details <i class="fa-solid fa-list"/></Link>
+    <div class="relative flex flex-col items-start pt-2 pl-4 pr-4 pb-4 bg-white rounded-lg cursor-pointer bg-opacity-90 group hover:bg-opacity-100" draggable="true">
+        <div class="w-full mb-2 text-center">
+            <p class="text-sm text-green-500">Saves <b>[13%]</b> waste</p>
+        </div>
 
-            <div class="mt-3 grid grid-cols-1 gap-y-2">
-                <!-- project mini card -->
-                <div v-for="project in projects" class="p-2 rounded-lg border-2 border-blue-200 bg-blue-50">
-                    <h3>{{ cropText(project.name,16) }}</h3>
-                    <h6 class="text-xs text-gray-500">Quote/order by [4/2/24]</h6>
-                    <div class="text-xs">
-                        <div class="grid grid-cols-3 justify-between">
-                            <Link :href="route('products.index',project.id)">
-                                BOM (page)
-                            </Link>
-                            <button @click="$emit('showBom',project)">
-                                BOM (modal)
-                            </button>
-                            <button
-                                @click="$emit('toggleArchive',projects[0])"
-                                class="text-gray-500 transition-colors duration-200 dark:hover:text-red-500 dark:text-gray-300 hover:text-red-500 focus:outline-none"
-                            >
-                                Archive
-                            </button>
-                            <button
-                                v-if="isYourProject(project)"
-                                class="text-gray-500"
-                                @click="$emit('editMode',project)"
-                            >
-                                Edit
-                            </button>
+        <div class="grid grid-cols-1 gap-y-2 w-full text-xs font-medium text-gray-500">
+            <div
+                v-for="project in projects"
+                class="w-full rounded-lg border-2 border-gray-300 p-2"
+            >
+                <h4 class="text-base font-medium">
+                    {{ shared.cropText(shared.capitalizeWords(project.name)) }}
+                </h4>
+                <div class="flex">
+                    <div class="flex items-center">
+                        <i class="fa-regular fa-calendar-days text-base"></i>
+                        <div>
+                            <span class="ml-1 text-xs">Quote by:</span>
+                            <span class="block ml-1 leading-none text-xs">{{ moment(project.quoteRequestDeadline).format("DD-MM-YYYY")}}</span>
                         </div>
                     </div>
+                    <div class="flex items-center ml-4">
+                        <i class="fa-solid fa-file-lines text-base"></i>
+                        <span class="ml-1 leading-none text-sm">[9]</span>
+                    </div>
+                    <div class="flex items-center ml-4">
+                        <i class="fa-solid fa-user text-base"></i>
+                        <span class="ml-1 leading-none text-sm">{{project.projectManager.name}}</span>
+                    </div>
+                </div>
+                <div class="mt-3 w-full flex gap-x-2 justify-between items-center">
+                    <CardButtonRed
+                        @click="$emit('toggleArchive',project)"
+                        label="Archive"
+                    />
+                    <CardButtonYellow
+                        @click="$emit('editMode',project)"
+                        label="Edit"
+                    />
+                    <CardButtonGreen
+                        @click="$emit('showBom',project)"
+                        label="Materials"
+                        :highlight="false"
+                    />
                 </div>
             </div>
         </div>
-        <!-- Footer -->
-        <div class="grid grid-cols-2 border-t-2 border-blue-500 bg-blue-100 p-1 rounded-b-lg text-xs">
-            <button @click="$emit('quoteNow')">
-                Quote now
-            </button>
-            <button @click="$emit('orderNow')">
-                Order now
-            </button>
+
+        <div class="flex w-full justify-center mt-2">
+            <CardButtonGreen
+                label="Nesting details"
+                :highlight="false"
+            />
         </div>
+
+
+
+        <div class="mt-3 w-full flex gap-x-2 justify-between items-center">
+            <CardButtonYellow
+                @click="$emit('orderNow')"
+                label="Order now"
+            />
+            <CardButtonGreen
+                @click="$emit('quoteNow')"
+                label="Quote now"
+                :highlight="true"
+            />
+        </div>
+        <p class="mt-1 text-xs block text-center text-orange-300">Suggest to wait [3 more days] to allow for more possible materials.</p>
+
     </div>
+
+
+    <!-- card -->
+<!--    <div class="border-2 border-blue-500 rounded-lg">-->
+<!--        &lt;!&ndash; Body &ndash;&gt;-->
+<!--        <div class="p-3">-->
+<!--            <span class="text-sm block text-gray-500">Auto Batched Nesting</span>-->
+<!--            <span class="text-sm block text-green-500">Saves 13% waste</span>-->
+<!--            <span class="text-xs block text-orange-500">Suggest to wait [3 more days] to allow for more possible materials.</span>-->
+<!--            <Link :href="route('suggested.nesting')" class="font-bold">Nesting details <i class="fa-solid fa-list"/></Link>-->
+
+<!--            <div class="mt-3 grid grid-cols-1 gap-y-2">-->
+<!--                &lt;!&ndash; project mini card &ndash;&gt;-->
+<!--                <div v-for="project in projects" class="p-2 rounded-lg border-2 border-blue-200 bg-blue-50">-->
+<!--                    <h3>{{ shared.cropText(project.name,16) }}</h3>-->
+<!--                    <h6 class="text-xs text-gray-500">Quote/order by [4/2/24]</h6>-->
+<!--                    <div class="text-xs">-->
+<!--                        <div class="grid grid-cols-3 justify-between">-->
+<!--&lt;!&ndash;                            <Link :href="route('products.index',project.id)">&ndash;&gt;-->
+<!--&lt;!&ndash;                                BOM (page)&ndash;&gt;-->
+<!--&lt;!&ndash;                            </Link>&ndash;&gt;-->
+<!--                            <button @click="$emit('showBom',project)">-->
+<!--                                BOM (modal)-->
+<!--                            </button>-->
+<!--                            <button-->
+<!--                                @click="$emit('toggleArchive',projects[0])"-->
+<!--                                class="text-gray-500 transition-colors duration-200 dark:hover:text-red-500 dark:text-gray-300 hover:text-red-500 focus:outline-none"-->
+<!--                            >-->
+<!--                                Archive-->
+<!--                            </button>-->
+<!--                            <button-->
+<!--                                v-if="isYourProject(project)"-->
+<!--                                class="text-gray-500"-->
+<!--                                @click="$emit('editMode',project)"-->
+<!--                            >-->
+<!--                                Edit-->
+<!--                            </button>-->
+<!--                        </div>-->
+<!--                    </div>-->
+<!--                </div>-->
+<!--            </div>-->
+<!--        </div>-->
+<!--        &lt;!&ndash; Footer &ndash;&gt;-->
+<!--        <div class="grid grid-cols-2 border-t-2 border-blue-500 bg-blue-100 p-1 rounded-b-lg text-xs">-->
+<!--            <button @click="$emit('quoteNow')">-->
+<!--                Quote now-->
+<!--            </button>-->
+<!--            <button @click="$emit('orderNow')">-->
+<!--                Order now-->
+<!--            </button>-->
+<!--        </div>-->
+<!--    </div>-->
 </template>

@@ -133,7 +133,7 @@
         </aside>
 
         <!-- Main -->
-        <main class="col-span-4 h-screen overflow-y-auto pl-4 pr-4">
+        <main class="col-span-4 h-screen overflow-y-auto pl-4 pr-4 bg-gradient-to-tr from-blue-100 via-indigo-100 to-gray-100">
             <slot />
         </main>
     </div>

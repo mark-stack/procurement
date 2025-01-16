@@ -38,4 +38,13 @@ export default {
         // Open the email client
         window.location.href = mailtoLink;
     },
+    capitalizeWords(input) {
+        return input.replace(/\b\w/g, char => char.toUpperCase());
+    },
+    cropText(text, maxLength = 5) {
+        if (text.length > maxLength) {
+            return text.substring(0, maxLength) + "...";
+        }
+        return text;
+    }
 }
