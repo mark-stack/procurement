@@ -6,6 +6,8 @@
     //Component Imports
     import CardButtonYellow from "@/Components/CardButtonYellow.vue";
     import CardButtonGreen from "@/Components/CardButtonGreen.vue";
+    import CardButtonRed from "@/Components/CardButtonRed.vue";
+    import CardButtonBlue from "@/Components/CardButtonBlue.vue";
 
     //Props
     const props = defineProps({
@@ -31,38 +33,21 @@
     //...
 
     //Variables
-    const emit = defineEmits(['toggleArchive','editMode','showQuotesModal','showOrdersModal','pageLoadingOn','pageLoadingOff','orderNow']);
+    const emit = defineEmits(['toggleArchive','editMode','showQuotesModal','showOrdersModal','pageLoadingOn','pageLoadingOff','orderNow','showBom','showNesting']);
 
     //Shared methods
     import shared from "@/Shared/shared.js";
-    import CardButtonRed from "@/Components/CardButtonRed.vue";
-    import CardButtonBlue from "@/Components/CardButtonBlue.vue";
 
     //Methods
-    function cropText(text, maxLength = 5) {
-        if (text.length > maxLength) {
-            return text.substring(0, maxLength) + "...";
-        }
-        return text;
-    }
-
     function breakBatch(batch){
         let url = route("batches.destroy",batch.id);
         formBreakBatch.delete(url, {
             preserveScroll: true,
             onSuccess: () => {
                 console.log('success after re-nest');
-
-                //Close page loader
-                //todo not firing for some reason
-                emit('pageLoadingOff');
             },
             onError: errors => {
                 console.log('errors',errors);
-
-                //Close page loader
-                //todo not firing for some reason
-                emit('pageLoadingOff');
             },
         });
     }
@@ -160,7 +145,19 @@
             class="w-full mb-2 text-center"
         >
             <p class="text-sm text-gray-700">
-                Quote coverage: {{ otherData.sentQuotesQty }}/{{ otherData.totalQuotesQty }}
+                Quote coverage: <b>{{ otherData.sentQuotesQty }}/{{ otherData.totalQuotesQty }}</b>
+            </p>
+        </div>
+
+        <div
+            v-if="type === 'ORDERS'"
+            class="w-full mb-2 text-center"
+        >
+            <p class="text-sm text-gray-700">
+                Order coverage: <b>{{ otherData.sentOrdersQty }}/{{ otherData.totalOrdersQty }}</b>
+            </p>
+            <p v-if="otherData.all_project_manager_approvals" class="text-sm text-green-700">
+                All project managers approved
             </p>
         </div>
 
@@ -170,31 +167,47 @@
                 v-for="project in projects"
                 class="w-full rounded-lg border-2 border-gray-300 p-2"
             >
-                <h4 class="text-base font-medium">
-                    {{ shared.cropText(shared.capitalizeWords(project.name)) }}
-                </h4>
-                <div class="flex">
+                <div class="grid grid-cols-6">
+                    <h4 class="col-span-4 text-base font-medium">
+                        {{ shared.cropText(shared.capitalizeWords(project.name),15) }}
+                    </h4>
+                    <span class="col-span-2 text-right pt-1"><i class="fa-solid fa-user text-xs"></i> {{shared.cropText(project.projectManager.name,5)}}</span>
+                </div>
+
+                <div class="flex justify-between mt-2">
                     <div class="flex items-center">
-                        <i class="fa-regular fa-calendar-days text-base"></i>
-                        <div>
+                        <i class="fa-regular fa-calendar-days text-2xl"></i>
+                        <!-- Quote by -->
+                        <div v-if="type === 'QUOTES'">
                             <span class="ml-1 text-xs">Quote by:</span>
                             <span class="block ml-1 leading-none text-xs">{{ moment(project.quoteRequestDeadline).format("DD-MM-YYYY")}}</span>
                         </div>
+                        <!-- Order by -->
+                        <div v-if="type === 'ORDERS'">
+                            <span class="ml-1 text-xs">Order by:</span>
+                            <span class="block ml-1 leading-none text-xs">[{{ moment(project.quoteRequestDeadline).format("DD-MM-YYYY")}}]</span>
+                        </div>
                     </div>
+
                     <div class="flex items-center ml-4">
-                        <i class="fa-solid fa-list text-base"></i>
-                        <span class="ml-1 leading-none text-sm">{{ project.qtyMaterialRows }}</span>
+                        <CardButtonGreen
+                            @click="$emit('pageLoadingOn',null);$emit('showBom',project)"
+                            :label="project.qtyMaterialRows"
+                            :highlight="false"
+                            :icon="true"
+                        />
                     </div>
-                    <div class="flex items-center ml-4">
-                        <i class="fa-solid fa-user text-base"></i>
-                        <span class="ml-1 leading-none text-sm">{{project.projectManager.name}}</span>
-                    </div>
+<!--                    <div class="flex items-center ml-4">-->
+<!--                        <i class="fa-solid fa-user text-base"></i>-->
+<!--                        <span class="ml-1 leading-none text-xs">{{shared.cropText(project.projectManager.name,10)}}</span>-->
+<!--                    </div>-->
                 </div>
             </div>
         </div>
 
         <div class="flex w-full justify-center mt-2">
             <CardButtonBlue
+                @click="$emit('pageLoadingOn',null);$emit('showNesting',batch)"
                 label="Nesting details"
                 :highlight="false"
             />
@@ -204,7 +217,7 @@
             <!-- Quote actions -->
             <CardButtonRed
                 v-if="type === 'QUOTES'"
-                @click="breakBatch(batch)"
+                @click="$emit('pageLoadingOn',5);breakBatch(batch)"
                 label="Re-nest"
             />
             <CardButtonYellow
@@ -217,29 +230,33 @@
                 @click="$emit('showQuotesModal',batch.id)"
                 label="Quotes"
                 :highlight="true"
+                :icon="false"
             />
 
             <!-- Order actions -->
             <CardButtonRed
-                v-if="type === 'ORDERS' && !otherData.all_project_manager_approvals"
-                @click="cancelBatchOrders(otherData.orders,batch)"
-                label="Back to quoting"
+                v-if="type === 'ORDERS'"
+                @click="$emit('pageLoadingOn',5); cancelBatchOrders(otherData.orders,batch)"
+                label="Back to quotes"
             />
             <CardButtonGreen
                 v-if="type === 'ORDERS' && !otherData.all_project_manager_approvals"
-                @click="$emit('pageLoadingOn');approveAllProjectManagers(batch)"
+                @click="$emit('pageLoadingOn',null); approveAllProjectManagers(batch)"
                 label="PMs Approve"
                 :highlight="false"
+                :icon="false"
             />
             <CardButtonGreen
                 v-if="type === 'ORDERS' && otherData.all_project_manager_approvals"
                 @click="$emit('showOrdersModal',batch.id)"
                 label="Orders"
                 :highlight="true"
+                :icon="false"
             />
         </div>
         <p class="w-full mt-2 text-xs block text-center text-orange-300">
-            Quoting deadline is in {{shared.daysUntilNearestQuoteDeadline(props.projects)}}
+            <span v-if="type === 'QUOTES'">Quoting deadline is in {{shared.daysUntilNearestQuoteDeadline(props.projects)}}</span>
+            <span v-if="type === 'ORDERS'">Ordering deadline is in [{{shared.daysUntilNearestQuoteDeadline(props.projects)}}]</span>
         </p>
     </div>
 

@@ -43,9 +43,9 @@ export default {
     capitalizeWords(input) {
         return input.replace(/\b\w/g, char => char.toUpperCase());
     },
-    cropText(text, maxLength = 5) {
+    cropText(text, maxLength = 25) {
         if (text.length > maxLength) {
-            return text.substring(0, maxLength) + "...";
+            return text.substring(0, maxLength) + "..";
         }
         return text;
     },

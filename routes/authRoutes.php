@@ -21,6 +21,8 @@ use App\Http\Controllers\RawMaterialQuoteController;
 use App\Http\Controllers\SuggestedNestingController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Middleware\BusinessReadyMiddleware;
+use App\Http\Resources\ProjectResource;
+use App\Models\Batch;
 use App\Models\Project;
 use App\Services\NestingService;
 use App\Services\ProductService;
@@ -74,8 +76,7 @@ Route::middleware(['auth','verified'])->group(function () {
         //PUT/PATCH	/photos/{photo}	update	photos.update
         //DELETE	/photos/{photo}	destroy	photos.destroy
 
-        Route::post("download/{project}",function(Request $request, Project $project){
-
+        Route::post("download-bom/{project}",function(Request $request, Project $project){
 
             /**
              * Single purpose: upload, clarify, and display consolidated BOM for a project
@@ -208,7 +209,7 @@ Route::middleware(['auth','verified'])->group(function () {
             $nestingGroups = $nestingService->getNestingGroups();
 
             return back()->with([
-                'downloadedData' => [
+                'downloadedBomData' => [
                     "project_id" => $project->id,
                     "data" => [
                         "project" => $project,
@@ -224,8 +225,72 @@ Route::middleware(['auth','verified'])->group(function () {
                     ],
                 ],
             ]);
-        })->name("download");
+        })->name("download.bom");
 
+        Route::post("download-nesting/{batch?}",function(Request $request, Batch $batch = null){
+            //Services
+            $nestingService = new NestingService();
+
+            //Prerequisite variables
+            $user = auth()->user();
+            $business = $user->business;
+
+            /**
+             * Batch nesting
+             */
+            if($batch){
+                $type = "BATCH";
+
+                //Projects in batch
+                $projectsForBatching = $batch->projects();
+
+                //Pieces ready for batching
+                $piecesInBatch = $batch->pieces;
+
+                //Pieces nested
+                $piecesNested = $nestingService->piecesNested($piecesInBatch);
+
+                //Nesting stats
+                $usage = $nestingService->usage($piecesNested);
+
+                //Grouped by nesting algorithm
+                $batchGroups = $nestingService->batchGroups($piecesNested);
+            }
+            /**
+             * Suggested
+             */
+            else{
+                $type = "SUGGESTED";
+
+                //Projects ready for batching
+                $projectsForBatching = $business->projectsReadyForBatching();
+
+                //Pieces ready for batching
+                $piecesReadyForBatching = $nestingService->piecesReadyForBatching($business);
+
+                //Pieces nested
+                $piecesNested = $nestingService->piecesNested($piecesReadyForBatching);
+
+                //Nesting stats
+                $usage = $nestingService->usage($piecesNested);
+
+                //Grouped by nesting algorithm
+                $batchGroups = $nestingService->batchGroups($piecesNested);
+            }
+
+            return back()->with([
+                'downloadedNestingData' => [
+                    "batch_id" => $batch ? $batch->id : 0,
+                    "data" => [
+                        "pieces" => $piecesNested,
+                        "projectsReadyForBatching" => ProjectResource::collection($projectsForBatching),
+                        "batchGroups" => $batchGroups,
+                        "usage" => $usage,
+                        "type" => $type,
+                    ],
+                ],
+            ]);
+        })->name("download.nesting");
 
         //Raw Material Quotes
         Route::name("raw.material.quote.")->group(function () {

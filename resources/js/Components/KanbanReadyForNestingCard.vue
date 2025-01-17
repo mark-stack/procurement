@@ -19,7 +19,7 @@
     //
 
     //Variables
-    const emit = defineEmits(['toggleArchive','editMode','quoteNow','orderNow','showBom','pageLoadingOn']);
+    const emit = defineEmits(['toggleArchive','editMode','quoteNow','orderNow','showBom','pageLoadingOn','showNesting']);
     const user = computed(() => usePage().props.auth.user);
 
     //Shared methods
@@ -44,10 +44,15 @@
                 v-for="project in projects"
                 class="w-full rounded-lg border-2 border-gray-300 p-2"
             >
-                <h4 class="text-base font-medium">
-                    {{ shared.cropText(shared.capitalizeWords(project.name)) }}
-                </h4>
-                <div class="flex">
+
+                <div class="grid grid-cols-6">
+                    <h4 class="col-span-4 text-base font-medium">
+                        {{ shared.cropText(shared.capitalizeWords(project.name),15) }}
+                    </h4>
+                    <span class="col-span-2 text-right pt-1"><i class="fa-solid fa-user text-xs"></i> {{shared.cropText(project.projectManager.name,5)}}</span>
+                </div>
+
+                <div class="flex justify-between mt-2">
                     <div class="flex items-center">
                         <i class="fa-regular fa-calendar-days text-base"></i>
                         <div>
@@ -56,27 +61,31 @@
                         </div>
                     </div>
                     <div class="flex items-center ml-4">
-                        <i class="fa-solid fa-list text-base"></i>
-                        <span class="ml-1 leading-none text-sm">{{ project.qtyMaterialRows }}</span>
-                    </div>
-                    <div class="flex items-center ml-4">
-                        <i class="fa-solid fa-user text-base"></i>
-                        <span class="ml-1 leading-none text-sm">{{project.projectManager.name}}</span>
+                        <CardButtonGreen
+                            @click="$emit('pageLoadingOn',null);$emit('showBom',project)"
+                            :label="project.qtyMaterialRows"
+                            :highlight="false"
+                            :icon="true"
+                        />
                     </div>
                 </div>
+
                 <div class="mt-3 w-full flex gap-x-2 justify-between items-center">
                     <CardButtonRed
+                        v-if="isYourProject(project)"
                         @click="$emit('toggleArchive',project)"
                         label="Archive"
                     />
                     <CardButtonYellow
+                        v-if="isYourProject(project)"
                         @click="$emit('editMode',project)"
                         label="Edit"
                     />
                     <CardButtonGreen
-                        @click="$emit('pageLoadingOn');$emit('showBom',project);"
+                        @click="$emit('pageLoadingOn',null);$emit('showBom',project);"
                         label="Materials"
                         :highlight="false"
+                        :icon="false"
                     />
                 </div>
             </div>
@@ -85,6 +94,7 @@
         <!-- Nesting details -->
         <div class="flex w-full justify-center mt-2">
             <CardButtonBlue
+                @click="$emit('pageLoadingOn',null);$emit('showNesting')"
                 label="Nesting details"
                 :highlight="false"
             />
@@ -92,14 +102,11 @@
 
         <!-- Actions -->
         <div class="mt-3 w-full flex gap-x-2 justify-between items-center">
-            <CardButtonYellow
-                @click="$emit('pageLoadingOn');$emit('orderNow')"
-                label="Order now"
-            />
             <CardButtonGreen
-                @click="$emit('pageLoadingOn');$emit('quoteNow')"
+                @click="$emit('pageLoadingOn',null);$emit('quoteNow')"
                 label="Quote now"
                 :highlight="true"
+                :icon="false"
             />
         </div>
         <p class="mt-1 text-xs block text-center text-orange-300">

@@ -95,6 +95,7 @@ class OrderController extends Controller
          * 2) Case #2: Batch required - create & attach orders to batch
          */
         else{
+            dd("deprecate this, right?");
             /*
              * Services
              */

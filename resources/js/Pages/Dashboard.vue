@@ -13,6 +13,7 @@
     import NewProjectModal from "@/Components/NewProjectModal.vue";
     import BomEditModal from "@/Components/BomEditModal.vue";
     import PageLoadingOverlay from "@/Components/PageLoadingOverlay.vue";
+    import NestingModal from "@/Components/NestingModal.vue";
 
     //Props
     const props = defineProps({
@@ -34,25 +35,29 @@
     const formOrdersStore = useForm({
         batch_id: null,
     });
-    const formDownload = useForm({
-        //
-    });
+    const formDownloadBom = useForm({});
+    const formDownloadNesting = useForm({});
 
     //Shared data
-    const downloadedBomData = computed(() => usePage().props.flash.downloadedData);
+    const downloadedBomData = computed(() => usePage().props.flash.downloadedBomData);
+    const downloadedNestingData = computed(() => usePage().props.flash.downloadedNestingData);
 
     //Variables
     const editProject = ref(null);
     const bomProject = ref(null);
+    const nestingBatch = ref(null);
     const showArchivedProjects = ref(false);
     const showQuotesModal = ref(false);
     const showOrdersModal = ref(false);
     const showNewProjectModal = ref(false);
     const showBomEditModal = ref(false);
+    const showNestingModal = ref(false);
     const modalSelectedBatchId = ref(null);
     const refreshModalQuotes = ref(false);
     const refreshModalBom = ref(false);
+    const refreshModalNesting = ref(false);
     const bomData = ref([]);
+    const nestingData = ref([]);
     const pageLoading = ref(false);
 
     //Shared Methods
@@ -64,6 +69,9 @@
     }
     function sendRefreshModalBom(){
         refreshModalBom.value = !refreshModalBom.value; // Toggle refreshModalBom
+    }
+    function sendRefreshModalNesting(){
+        refreshModalNesting.value = !refreshModalNesting.value; // Toggle refreshModalBom
     }
 
     // function submit(){
@@ -182,14 +190,17 @@
         });
     }
 
-    function orderNow(){
+    function orderNow(batchId){
         let url = route("orders.store");
 
-        formOrdersStore.batch_id = null;
+        //Page loader
+        pageLoading.value = true;
+
+        formOrdersStore.batch_id = batchId;
         formOrdersStore.post(url, {
             preserveScroll: true,
             onSuccess: () => {
-                console.log('success');
+                console.log("success after 'formOrdersStore'");
 
                 //Remove page loader
                 pageLoading.value = false;
@@ -235,10 +246,35 @@
         }
     }
 
+    function showNesting(batch){
+
+        console.log("batch",batch);
+
+        //Set batch
+        nestingBatch.value = batch;
+        console.log("Set project");
+
+        /**
+         Only download new data if hasn't already
+         */
+        let existingDownload = undefined; //todo Object.values(bomData.value).find(item => item.project_id == nestingBatch.value.id);
+        console.log("existingDownload",existingDownload);
+
+        if(existingDownload === undefined){
+            console.log("not already downloaded. Proceed to download data");
+            downloadNestingData(nestingBatch.value?.id);
+        }
+        else{
+            //Show modal
+            showNestingModal.value = true;
+            console.log("already downloaded. show nesting modal");
+        }
+    }
+
     function downloadProjectBomData(projectId){
         console.log("download BOM data");
-        let url = route("download",projectId);
-        formDownload.post(url, {
+        let url = route("download.bom",projectId);
+        formDownloadBom.post(url, {
             preserveScroll: true,
             onSuccess: () => {
                 if(downloadedBomData.value){
@@ -267,19 +303,49 @@
         });
     }
 
-    //Watcher
-    // watch(bomProject, (newVal) => {
-    //     if(newVal){
-    //         /**
-    //             Only download new data if hasn't already
-    //          */
-    //         let existingDownload = Object.values(bomData.value).find(item => item.project_id == bomProject.value.id);
-    //
-    //         if(existingDownload === undefined){
-    //             downloadProjectBomData(bomProject.value.id)
-    //         }
-    //     }
-    // });
+    function downloadNestingData(batchId){
+        console.log("download nesting data");
+        let url = route("download.nesting",batchId);
+        formDownloadNesting.post(url, {
+            preserveScroll: true,
+            onSuccess: () => {
+                if(downloadedNestingData.value){
+                    //Delete if exists
+                    nestingData.value = Object.values(nestingData.value).filter(item => item.batch_id != batchId);
+                    console.log("delete existing downloaded data");
+
+                    //Create
+                    nestingData.value.push(downloadedNestingData.value);
+                    console.log("pushed new download data",nestingData.value);
+
+                    //Refresh modal BOM signal
+                    sendRefreshModalNesting();
+
+                    //Show modal
+                    showNestingModal.value = true;
+                    console.log("show nesting modal");
+
+                    //Remove page loader
+                    pageLoading.value = false;
+                    console.log("remove page loader");
+                }
+            },
+            onError: errors => {
+                console.log('errors',errors);
+            },
+        });
+    }
+
+    function pageLoaderTimer(seconds){
+        pageLoading.value = true;
+
+        if(seconds){
+            let milliseconds = seconds*1000;
+            setTimeout(() => {
+                pageLoading.value = false;
+            }, milliseconds);
+        }
+    }
 </script>
 
 <template>
@@ -420,8 +486,8 @@
                                         @toggleArchive="p => toggleArchive(p)"
                                         @editMode="p => editMode(p)"
                                         @showBom="p => showBom(p)"
-                                        @pageLoadingOn="console.log('loading ON'); pageLoading = true"
-                                        @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
+                                        @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
+                                        @pageLoadingOff="pageLoading = false"
                                     />
                                 </template>
                             </div>
@@ -446,8 +512,9 @@
                                     @quoteNow="quoteNow()"
                                     @orderNow="orderNow()"
                                     @showBom="p => showBom(p)"
-                                    @pageLoadingOn="console.log('loading ON'); pageLoading = true"
+                                    @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
                                     @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
+                                    @showNesting="b => showNesting(b)"
                                 />
                             </div>
                         </div>
@@ -464,6 +531,7 @@
                                 <!-- card -->
                                 <KanbanGeneralBatchCard
                                     v-for="batch in batches['QUOTED']"
+                                    :key="batch['batch']['id']"
                                     :batch="batch['batch']"
                                     :projects="batch['projects'].data"
                                     :otherData="batch['otherData']"
@@ -473,9 +541,11 @@
                                     @editMode="p => editMode(p)"
                                     @showQuotesModal="batchId => {modalSelectedBatchId = batchId; showQuotesModal = true; showOrdersModal = false;}"
                                     @showOrdersModal="batchId => {modalSelectedBatchId = batchId; showOrdersModal = true; showQuotesModal = false;}"
-                                    @pageLoadingOn="console.log('loading ON'); pageLoading = true"
+                                    @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
                                     @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
-                                    @orderNow="orderNow()"
+                                    @orderNow="orderNow(batch['batch']['id'])"
+                                    @showBom="p => showBom(p)"
+                                    @showNesting="b => showNesting(b)"
                                 />
                             </div>
                         </div>
@@ -492,6 +562,7 @@
                                 <!-- card -->
                                 <KanbanGeneralBatchCard
                                     v-for="batch in batches['ORDERED']"
+                                    :key="batch['batch']['id']"
                                     :batch="batch['batch']"
                                     :projects="batch['projects'].data"
                                     :otherData="batch['otherData']"
@@ -500,8 +571,11 @@
                                     @editMode="p => editMode(p)"
                                     @showQuotesModal="batchId => {modalSelectedBatchId = batchId; showQuotesModal = true; showOrdersModal = false;}"
                                     @showOrdersModal="batchId => {modalSelectedBatchId = batchId; showOrdersModal = true; showQuotesModal = false;}"
-                                    @pageLoadingOn="console.log('loading ON'); pageLoading = true"
+                                    @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
                                     @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
+                                    @orderNow="orderNow(batch['batch']['id'])"
+                                    @showBom="p => showBom(p)"
+                                    @showNesting="b => showNesting(b)"
                                 />
                             </div>
                         </div>
@@ -721,5 +795,13 @@
         @closeModal="showBomEditModal = false"
         @closeModalOnSuccess="showBomEditModal = false"
         @redownload="projectId => downloadProjectBomData(projectId)"
+    />
+    <NestingModal
+        v-if="showNestingModal"
+        width="900"
+        :nestingData="nestingData"
+        :refreshModalNesting="refreshModalNesting"
+        :batchId="0"
+        @closeModal="showNestingModal = false"
     />
 </template>
