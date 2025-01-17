@@ -1,17 +1,12 @@
 <script setup>
     //General Imports
-    import { ref } from 'vue';
     import {Link, usePage} from '@inertiajs/vue3';
+    import {ref} from "vue";
 
     //Component Imports
-    import ApplicationLogo from '@/Components/ApplicationLogo.vue';
-    import Dropdown from '@/Components/Dropdown.vue';
-    import DropdownLink from '@/Components/DropdownLink.vue';
-    import NavLink from '@/Components/NavLink.vue';
-    import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
-    import Notifications from "@/Components/Notifications.vue";
     import Notifications2 from "@/Components/Notifications2.vue";
     import NavButton from "@/Components/NavButton.vue";
+    import PageLoadingOverlay from "@/Components/PageLoadingOverlay.vue";
 
     //Props
     // const props = defineProps({
@@ -26,13 +21,6 @@
     const isAdmin = usePage().props.auth.isAdmin;
     const onboarded = usePage().props.auth.onboarded;
     const hasSeedImport = usePage().props.hasSeedImport;
-
-    //Variables
-    //...
-
-    //Methods
-    //...
-
 </script>
 
 <template>
@@ -134,7 +122,7 @@
 
         <!-- Main -->
         <main class="col-span-4 h-screen overflow-y-auto pl-4 pr-4 bg-gradient-to-tr from-blue-100 via-indigo-100 to-gray-100">
-            <slot />
+            <slot/>
         </main>
     </div>
 </template>

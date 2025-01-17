@@ -1,6 +1,6 @@
 <script setup>
     //General Imports
-    import {Link, useForm, usePage} from "@inertiajs/vue3";
+    import {usePage} from "@inertiajs/vue3";
     import {computed} from "vue";
     import moment from "moment/moment.js";
 
@@ -18,7 +18,7 @@
     //
 
     //Variables
-    const emit = defineEmits(['toggleArchive','editMode','quoteNow','orderNow','showBom']);
+    const emit = defineEmits(['toggleArchive','editMode','quoteNow','orderNow','showBom','pageLoadingOn']);
     const user = computed(() => usePage().props.auth.user);
 
     //Shared methods
@@ -28,11 +28,22 @@
     function isYourProject(project){
         return project.user_id == user.value.id;
     }
+
+    function daysUntilNearestQuoteDeadline(){
+        let arrayOfTimestamps = [];
+        Object.values(props.projects).forEach(project => {
+            arrayOfTimestamps.push(project.quoteRequestDeadline);
+        });
+
+        const moments = arrayOfTimestamps.map(ts => moment(ts));
+
+        return moment.min(moments).fromNow(true);
+    }
 </script>
 
 <template>
     <!-- card -->
-    <div class="relative flex flex-col items-start pt-2 pl-4 pr-4 pb-4 bg-white rounded-lg cursor-pointer bg-opacity-90 group hover:bg-opacity-100" draggable="true">
+    <div class="relative flex flex-col items-start pt-2 pl-4 pr-4 pb-4 bg-white rounded-lg bg-opacity-90 group hover:bg-opacity-100" draggable="true">
         <div class="w-full mb-2 text-center">
             <p class="text-sm text-green-500">Saves <b>[13%]</b> waste</p>
         </div>
@@ -54,8 +65,8 @@
                         </div>
                     </div>
                     <div class="flex items-center ml-4">
-                        <i class="fa-solid fa-file-lines text-base"></i>
-                        <span class="ml-1 leading-none text-sm">[9]</span>
+                        <i class="fa-solid fa-list text-base"></i>
+                        <span class="ml-1 leading-none text-sm">{{ project.qtyMaterialRows }}</span>
                     </div>
                     <div class="flex items-center ml-4">
                         <i class="fa-solid fa-user text-base"></i>
@@ -72,7 +83,7 @@
                         label="Edit"
                     />
                     <CardButtonGreen
-                        @click="$emit('showBom',project)"
+                        @click="$emit('pageLoadingOn');$emit('showBom',project);"
                         label="Materials"
                         :highlight="false"
                     />
@@ -80,6 +91,7 @@
             </div>
         </div>
 
+        <!-- Nesting details -->
         <div class="flex w-full justify-center mt-2">
             <CardButtonGreen
                 label="Nesting details"
@@ -87,20 +99,21 @@
             />
         </div>
 
-
-
+        <!-- Actions -->
         <div class="mt-3 w-full flex gap-x-2 justify-between items-center">
             <CardButtonYellow
-                @click="$emit('orderNow')"
+                @click="$emit('pageLoadingOn');$emit('orderNow')"
                 label="Order now"
             />
             <CardButtonGreen
-                @click="$emit('quoteNow')"
+                @click="$emit('pageLoadingOn');$emit('quoteNow')"
                 label="Quote now"
                 :highlight="true"
             />
         </div>
-        <p class="mt-1 text-xs block text-center text-orange-300">Suggest to wait [3 more days] to allow for more possible materials.</p>
+        <p class="mt-1 text-xs block text-center text-orange-300">
+            Wait {{daysUntilNearestQuoteDeadline()}} to allow for more possible materials (Earliest order deadline)
+        </p>
 
     </div>
 

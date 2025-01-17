@@ -19,7 +19,7 @@
     //...
 
     //Variables
-    const emit = defineEmits(['toggleArchive','editMode','showBom']);
+    const emit = defineEmits(['toggleArchive','editMode','showBom','pageLoading']);
 
     //Shared methods
     import shared from '@/Shared/shared';
@@ -30,7 +30,7 @@
 
 <template>
     <!-- card -->
-    <div class="relative flex flex-col items-start p-4 mt-3 bg-white rounded-lg cursor-pointer bg-opacity-90 group hover:bg-opacity-100" draggable="true">
+    <div class="relative flex flex-col items-start p-4 mt-3 bg-white rounded-lg bg-opacity-90 group hover:bg-opacity-100" draggable="true">
         <h4 class="text-base font-medium">
             {{ shared.cropText(shared.capitalizeWords(project.name)) }}
         </h4>
@@ -43,8 +43,8 @@
                 </div>
             </div>
             <div class="flex items-center ml-4">
-                <i class="fa-solid fa-file-lines text-base"></i>
-                <span class="ml-1 leading-none text-sm">[9]</span>
+                <i class="fa-solid fa-list text-base"></i>
+                <span class="ml-1 leading-none text-sm">{{ project.qtyMaterialRows }}</span>
             </div>
             <div class="flex items-center ml-4">
                 <i class="fa-solid fa-user text-base"></i>
@@ -62,7 +62,7 @@
                 label="Edit"
             />
             <CardButtonGreen
-                @click="$emit('showBom',project)"
+                @click="$emit('pageLoading',true);$emit('showBom',project)"
                 label="Materials"
                 :highlight="true"
             />

@@ -30,6 +30,7 @@ class ProjectResource extends JsonResource
             "daysUntilQuoteRequestDeadline" => $this->daysUntilQuoteRequestDeadline(),
             "quoteRequestDeadline" => $this->quoteRequestDeadline(),
             "projectManager" => $this->user,
+            "qtyMaterialRows" => $this->rawMaterialQuotes()->count(),
         ];
     }
 }

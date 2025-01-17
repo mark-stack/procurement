@@ -380,9 +380,10 @@
                     <div
                         v-if="freezeView"
                         style="height:400px"
-                        class="p-20 text-lg text-gray-700 italic"
+                        class="p-20 text-gray-700 italic"
                     >
-                        “Patience is bitter, but its fruit is sweet.”
+                        <span class="block font-bold text-xl">Loading...</span>
+                        <span class="block font-bold text-lg">“Patience is bitter, but its fruit is sweet.”</span>
                     </div>
                     <div v-else class="pt-5">
                         <!-- Drag n drop  -->

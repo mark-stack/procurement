@@ -31,7 +31,7 @@
     //...
 
     //Variables
-    const emit = defineEmits(['toggleArchive','editMode','showQuotesModal','showOrdersModal']);
+    const emit = defineEmits(['toggleArchive','editMode','showQuotesModal','showOrdersModal','pageLoadingOn','pageLoadingOff']);
 
     //Shared methods
     import shared from "@/Shared/shared.js";
@@ -50,10 +50,18 @@
         formBreakBatch.delete(url, {
             preserveScroll: true,
             onSuccess: () => {
-                console.log('success');
+                console.log('success after re-nest');
+
+                //Close page loader
+                //todo not firing for some reason
+                emit('pageLoadingOff');
             },
             onError: errors => {
                 console.log('errors',errors);
+
+                //Close page loader
+                //todo not firing for some reason
+                emit('pageLoadingOff');
             },
         });
     }
@@ -65,9 +73,15 @@
             preserveScroll: true,
             onSuccess: () => {
                 console.log('success');
+
+                //Close page loader
+                emit('pageLoadingOff');
             },
             onError: errors => {
                 console.log('errors',errors);
+
+                //Close page loader
+                emit('pageLoadingOff');
             },
         });
     }
@@ -132,7 +146,7 @@
 
 <template>
     <!-- card -->
-    <div class="relative flex flex-col items-start pt-2 pl-4 pr-4 pb-4 bg-white rounded-lg cursor-pointer bg-opacity-90 group hover:bg-opacity-100" draggable="true">
+    <div class="relative flex flex-col items-start pt-2 pl-4 pr-4 pb-4 bg-white rounded-lg bg-opacity-90 group hover:bg-opacity-100" draggable="true">
         <div class="w-full mb-2 text-center">
             <p class="text-sm text-green-500">Saves <b>[13%]</b> waste</p>
         </div>
@@ -154,8 +168,8 @@
                         </div>
                     </div>
                     <div class="flex items-center ml-4">
-                        <i class="fa-solid fa-file-lines text-base"></i>
-                        <span class="ml-1 leading-none text-sm">[9]</span>
+                        <i class="fa-solid fa-list text-base"></i>
+                        <span class="ml-1 leading-none text-sm">{{ project.qtyMaterialRows }}</span>
                     </div>
                     <div class="flex items-center ml-4">
                         <i class="fa-solid fa-user text-base"></i>
@@ -179,7 +193,7 @@
                 label="Re-nest"
             />
             <CardButtonYellow
-                @click="$emit('orderNow')"
+                @click="$emit('pageLoadingOn');$emit('orderNow')"
                 label="Order now"
             />
             <CardButtonGreen
@@ -188,106 +202,106 @@
                 :highlight="true"
             />
         </div>
-        <p class="mt-1 text-xs block text-center text-orange-300">Suggest to wait [3 more days] to allow for more possible materials.</p>
+        <p class="mt-1 text-xs block text-center text-orange-300">Suggest to wait [{{ moment(otherData.batchQuotingDeadline).fromNow()}}] to allow for more possible materials.</p>
 
     </div>
 
     <!-- card -->
-    <div class="border-2 border-blue-500 rounded-lg">
-        <!-- Body -->
-        <div class="p-3">
-            <span class="text-sm block text-gray-500">Batch ID: {{batch.id}}</span>
-            <!-- Quotes -->
-            <p v-if="type === 'QUOTES'" class="text-sm block text-gray-800">Quote deadline: {{ moment(otherData.batchQuotingDeadline).fromNow() }}</p>
-            <p v-if="type === 'QUOTES'" class="text-sm block text-gray-800">Quote coverage: {{ otherData.sentQuotesQty }}/{{ otherData.totalQuotesQty }}</p>
+<!--    <div class="border-2 border-blue-500 rounded-lg">-->
+<!--        &lt;!&ndash; Body &ndash;&gt;-->
+<!--        <div class="p-3">-->
+<!--            <span class="text-sm block text-gray-500">Batch ID: {{batch.id}}</span>-->
+<!--            &lt;!&ndash; Quotes &ndash;&gt;-->
+<!--            <p v-if="type === 'QUOTES'" class="text-sm block text-gray-800">Quote deadline: {{ moment(otherData.batchQuotingDeadline).fromNow() }}</p>-->
+<!--            <p v-if="type === 'QUOTES'" class="text-sm block text-gray-800">Quote coverage: {{ otherData.sentQuotesQty }}/{{ otherData.totalQuotesQty }}</p>-->
 
-            <!-- Orders -->
-            <p v-if="type === 'ORDERS'" class="text-sm block text-gray-800">Order deadline: [1/2/24]</p>
-            <p
-                v-if="type === 'ORDERS'"
-                :class="otherData.all_project_manager_approvals ? 'text-green-600' : 'text-orange-800'"
-                class="text-sm block "
-            >
-                All PM approval: {{otherData.all_project_manager_approvals ? 'Yes' : 'No'}}
-            </p>
-            <p
-                v-if="type === 'ORDERS'"
-                class="text-sm block text-gray-800"
-            >
-                Order coverage: {{ otherData.sentOrdersQty }}/{{ otherData.totalOrdersQty }}
-            </p>
-            <p
-                v-if="type === 'ORDERS'"
-                class="text-sm block text-gray-800"
-            >
-                Delivery approx: [1/2/24]
-            </p>
-            <Link :href="route('batch.nesting',batch.id)" class="font-bold">Nesting details <i class="fa-solid fa-list"/></Link>
+<!--            &lt;!&ndash; Orders &ndash;&gt;-->
+<!--            <p v-if="type === 'ORDERS'" class="text-sm block text-gray-800">Order deadline: [1/2/24]</p>-->
+<!--            <p-->
+<!--                v-if="type === 'ORDERS'"-->
+<!--                :class="otherData.all_project_manager_approvals ? 'text-green-600' : 'text-orange-800'"-->
+<!--                class="text-sm block "-->
+<!--            >-->
+<!--                All PM approval: {{otherData.all_project_manager_approvals ? 'Yes' : 'No'}}-->
+<!--            </p>-->
+<!--            <p-->
+<!--                v-if="type === 'ORDERS'"-->
+<!--                class="text-sm block text-gray-800"-->
+<!--            >-->
+<!--                Order coverage: {{ otherData.sentOrdersQty }}/{{ otherData.totalOrdersQty }}-->
+<!--            </p>-->
+<!--            <p-->
+<!--                v-if="type === 'ORDERS'"-->
+<!--                class="text-sm block text-gray-800"-->
+<!--            >-->
+<!--                Delivery approx: [1/2/24]-->
+<!--            </p>-->
+<!--            <Link :href="route('batch.nesting',batch.id)" class="font-bold">Nesting details <i class="fa-solid fa-list"/></Link>-->
 
-            <span v-for="project in projects" class="block">{{ cropText(project.name) }}</span>
-        </div>
-        <!-- Footer -->
-        <div class="border-t-2 border-blue-500 bg-blue-100 p-1 rounded-b-lg text-xs">
-            <!-- actions -->
-            <div class="flex justify-center items-center gap-x-3 mt-1">
-                <!-- Quote actions -->
-                <button
-                    v-if="type === 'QUOTES'"
-                    @click="breakBatch(batch)"
-                    class="text-gray-500 transition-colors duration-200 dark:hover:text-red-500 dark:text-gray-300 hover:text-red-500 focus:outline-none"
-                >
-                    Break Batch (re-nest)
-                </button>
-                <button
-                    v-if="type === 'QUOTES'"
-                    @click="$emit('showQuotesModal',batch.id)"
-                >
-                    Manage Quotes
-                </button>
-                <button
-                    v-if="type === 'QUOTES'"
-                    @click="quoteToOrder()"
-                >
-                    Start Ordering
-                </button>
-
-                <!-- Order actions -->
-                <button
-                    v-if="type === 'ORDERS' && !otherData.all_project_manager_approvals"
-                    @click="approveAllProjectManagers(batch)"
-                >
-                    All Project<br>Managers approved
-                </button>
-                <button
-                    v-if="type === 'ORDERS' && !otherData.all_project_manager_approvals"
-                    @click="cancelBatchOrders(otherData.orders,batch)"
-                >
-                    Cancel<br><small>(Back to quoting)</small>
-                </button>
-                <button
-                    v-if="type === 'ORDERS' && otherData.all_project_manager_approvals"
-                    @click="$emit('showOrdersModal',batch.id)"
-                >
-                    Manage Orders
-                </button>
+<!--            <span v-for="project in projects" class="block">{{ cropText(project.name) }}</span>-->
+<!--        </div>-->
+<!--        &lt;!&ndash; Footer &ndash;&gt;-->
+<!--        <div class="border-t-2 border-blue-500 bg-blue-100 p-1 rounded-b-lg text-xs">-->
+<!--            &lt;!&ndash; actions &ndash;&gt;-->
+<!--            <div class="flex justify-center items-center gap-x-3 mt-1">-->
+<!--                &lt;!&ndash; Quote actions &ndash;&gt;-->
 <!--                <button-->
-<!--                    v-if="type === 'ORDERS' && otherData.order.order_sent && !otherData.order.order_confirmation_received"-->
-<!--                    @click="markOrderConfirmationReceived(otherData.order)"-->
+<!--                    v-if="type === 'QUOTES'"-->
+<!--                    @click="breakBatch(batch)"-->
+<!--                    class="text-gray-500 transition-colors duration-200 dark:hover:text-red-500 dark:text-gray-300 hover:text-red-500 focus:outline-none"-->
 <!--                >-->
-<!--                    Received order confirmation-->
+<!--                    Break Batch (re-nest)-->
 <!--                </button>-->
-                <button v-if="type === 'ORDERS' && otherData.orders.order_confirmation_received && !otherData.order.is_delivered">
-                    Is Delivered
-                </button>
+<!--                <button-->
+<!--                    v-if="type === 'QUOTES'"-->
+<!--                    @click="$emit('showQuotesModal',batch.id)"-->
+<!--                >-->
+<!--                    Manage Quotes-->
+<!--                </button>-->
+<!--                <button-->
+<!--                    v-if="type === 'QUOTES'"-->
+<!--                    @click="quoteToOrder()"-->
+<!--                >-->
+<!--                    Start Ordering-->
+<!--                </button>-->
 
-                <!-- Delivered actions -->
-                <button v-if="type === 'DELIVERED'">
-                    Not Delivered
-                </button>
-                <button v-if="type === 'DELIVERED'">
-                    Done (Archive)
-                </button>
-            </div>
-        </div>
-    </div>
+<!--                &lt;!&ndash; Order actions &ndash;&gt;-->
+<!--                <button-->
+<!--                    v-if="type === 'ORDERS' && !otherData.all_project_manager_approvals"-->
+<!--                    @click="approveAllProjectManagers(batch)"-->
+<!--                >-->
+<!--                    All Project<br>Managers approved-->
+<!--                </button>-->
+<!--                <button-->
+<!--                    v-if="type === 'ORDERS' && !otherData.all_project_manager_approvals"-->
+<!--                    @click="cancelBatchOrders(otherData.orders,batch)"-->
+<!--                >-->
+<!--                    Cancel<br><small>(Back to quoting)</small>-->
+<!--                </button>-->
+<!--                <button-->
+<!--                    v-if="type === 'ORDERS' && otherData.all_project_manager_approvals"-->
+<!--                    @click="$emit('showOrdersModal',batch.id)"-->
+<!--                >-->
+<!--                    Manage Orders-->
+<!--                </button>-->
+<!--&lt;!&ndash;                <button&ndash;&gt;-->
+<!--&lt;!&ndash;                    v-if="type === 'ORDERS' && otherData.order.order_sent && !otherData.order.order_confirmation_received"&ndash;&gt;-->
+<!--&lt;!&ndash;                    @click="markOrderConfirmationReceived(otherData.order)"&ndash;&gt;-->
+<!--&lt;!&ndash;                >&ndash;&gt;-->
+<!--&lt;!&ndash;                    Received order confirmation&ndash;&gt;-->
+<!--&lt;!&ndash;                </button>&ndash;&gt;-->
+<!--                <button v-if="type === 'ORDERS' && otherData.orders.order_confirmation_received && !otherData.order.is_delivered">-->
+<!--                    Is Delivered-->
+<!--                </button>-->
+
+<!--                &lt;!&ndash; Delivered actions &ndash;&gt;-->
+<!--                <button v-if="type === 'DELIVERED'">-->
+<!--                    Not Delivered-->
+<!--                </button>-->
+<!--                <button v-if="type === 'DELIVERED'">-->
+<!--                    Done (Archive)-->
+<!--                </button>-->
+<!--            </div>-->
+<!--        </div>-->
+<!--    </div>-->
 </template>

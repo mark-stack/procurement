@@ -12,6 +12,7 @@
     import KanbanModalOrders from "@/Components/KanbanModalOrders.vue";
     import NewProjectModal from "@/Components/NewProjectModal.vue";
     import BomEditModal from "@/Components/BomEditModal.vue";
+    import PageLoadingOverlay from "@/Components/PageLoadingOverlay.vue";
 
     //Props
     const props = defineProps({
@@ -52,7 +53,7 @@
     const refreshModalQuotes = ref(false);
     const refreshModalBom = ref(false);
     const bomData = ref([]);
-
+    const pageLoading = ref(false);
 
     //Shared Methods
     //...
@@ -162,6 +163,9 @@
                 console.log('success');
                 //todo trigger orders card form reset
                 sendRefreshModalQuotes();
+
+                //Remove page loader
+                pageLoading.value = false;
             },
             onError: errors => {
                 console.log('errors',errors);
@@ -177,6 +181,9 @@
             preserveScroll: true,
             onSuccess: () => {
                 console.log('success');
+
+                //Remove page loader
+                pageLoading.value = false;
             },
             onError: errors => {
                 console.log('errors',errors);
@@ -237,6 +244,9 @@
                     //Show modal
                     showBomEditModal.value = true;
                     console.log("show modal");
+
+                    //Remove page loader
+                    pageLoading.value = false;
                 }
             },
             onError: errors => {
@@ -264,6 +274,10 @@
     <Head title="Dashboard" />
 
     <AuthenticatedLayout>
+        <PageLoadingOverlay
+            v-if="pageLoading"
+        />
+
         <div class="py-3">
             <div class="mx-auto max-w-7xl">
 <!--                <section-->
@@ -394,6 +408,8 @@
                                         @toggleArchive="p => toggleArchive(p)"
                                         @editMode="p => editMode(p)"
                                         @showBom="p => showBom(p)"
+                                        @pageLoadingOn="console.log('loading ON'); pageLoading = true"
+                                        @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
                                     />
                                 </template>
                             </div>
@@ -417,6 +433,8 @@
                                     @quoteNow="quoteNow()"
                                     @orderNow="orderNow()"
                                     @showBom="p => showBom(p)"
+                                    @pageLoadingOn="console.log('loading ON'); pageLoading = true"
+                                    @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
                                 />
                             </div>
                         </div>
@@ -442,6 +460,9 @@
                                     @editMode="p => editMode(p)"
                                     @showQuotesModal="batchId => {modalSelectedBatchId = batchId; showQuotesModal = true; showOrdersModal = false;}"
                                     @showOrdersModal="batchId => {modalSelectedBatchId = batchId; showOrdersModal = true; showQuotesModal = false;}"
+                                    @pageLoadingOn="console.log('loading ON'); pageLoading = true"
+                                    @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
+
                                 />
                             </div>
                         </div>
@@ -678,7 +699,7 @@
     />
     <BomEditModal
         v-if="showBomEditModal"
-        width="800"
+        width="900"
         :project="bomProject"
         :bomData="bomData"
         :refreshModalBom="refreshModalBom"
