@@ -7,7 +7,7 @@ use Carbon\Carbon;
 
 class QuoteService
 {
-    public function batchQuotingDeadline(Batch $batch): Carbon
+    public function batchQuotingDeadline(Batch $batch): ?Carbon
     {
         $dates = [];
         foreach($batch->projects() as $project){

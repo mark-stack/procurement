@@ -29,6 +29,13 @@ class ProjectController extends Controller
         $user = auth()->user();
         $business = $user->business;
 
+        /*
+         * Material efficiency
+         */
+        $piecesReadyForBatching = $nestingService->piecesReadyForBatching($business);
+        $piecesNested = $nestingService->piecesNested($piecesReadyForBatching);
+        $usageStats = $nestingService->usage($piecesNested);
+
         $projects = [
             "BOM_REQUIRED" => ProjectResource::collection(Project::query()
                 ->thisBusiness($business)
@@ -36,9 +43,12 @@ class ProjectController extends Controller
                 ->doesntHave('rawMaterialQuotes')
                 ->latest()
                 ->get()),
-            "BOM_IMPORTED" => ProjectResource::collection($business
-                ->projectsReadyForBatching()
-                ->sortBy("created_at")),
+            "BOM_IMPORTED" => [
+                "projects" => ProjectResource::collection($business
+                    ->projectsReadyForBatching()
+                    ->sortBy("created_at")),
+                "usageStats" => $usageStats,
+            ],
         ];
 
         //Category and included products

@@ -31,11 +31,12 @@
     //...
 
     //Variables
-    const emit = defineEmits(['toggleArchive','editMode','showQuotesModal','showOrdersModal','pageLoadingOn','pageLoadingOff']);
+    const emit = defineEmits(['toggleArchive','editMode','showQuotesModal','showOrdersModal','pageLoadingOn','pageLoadingOff','orderNow']);
 
     //Shared methods
     import shared from "@/Shared/shared.js";
     import CardButtonRed from "@/Components/CardButtonRed.vue";
+    import CardButtonBlue from "@/Components/CardButtonBlue.vue";
 
     //Methods
     function cropText(text, maxLength = 5) {
@@ -107,10 +108,16 @@
         formApproveAllProjectManagers.post(url, {
             preserveScroll: true,
             onSuccess: () => {
-                console.log('success');
+                console.log("success after 'formApproveAllProjectManagers'");
+
+                //Close page loader
+                emit('pageLoadingOff');
             },
             onError: errors => {
                 console.log('errors',errors);
+
+                //Close page loader
+                emit('pageLoadingOff');
             },
         });
     }
@@ -147,9 +154,16 @@
 <template>
     <!-- card -->
     <div class="relative flex flex-col items-start pt-2 pl-4 pr-4 pb-4 bg-white rounded-lg bg-opacity-90 group hover:bg-opacity-100" draggable="true">
-        <div class="w-full mb-2 text-center">
-            <p class="text-sm text-green-500">Saves <b>[13%]</b> waste</p>
+
+        <div
+            v-if="type === 'QUOTES'"
+            class="w-full mb-2 text-center"
+        >
+            <p class="text-sm text-gray-700">
+                Quote coverage: {{ otherData.sentQuotesQty }}/{{ otherData.totalQuotesQty }}
+            </p>
         </div>
+
 
         <div class="grid grid-cols-1 gap-y-2 w-full text-xs font-medium text-gray-500">
             <div
@@ -180,30 +194,53 @@
         </div>
 
         <div class="flex w-full justify-center mt-2">
-            <CardButtonGreen
+            <CardButtonBlue
                 label="Nesting details"
                 :highlight="false"
             />
         </div>
 
         <div class="mt-3 w-full flex gap-x-2 justify-between items-center">
+            <!-- Quote actions -->
             <CardButtonRed
                 v-if="type === 'QUOTES'"
                 @click="breakBatch(batch)"
                 label="Re-nest"
             />
             <CardButtonYellow
-                @click="$emit('pageLoadingOn');$emit('orderNow')"
-                label="Order now"
+                v-if="type === 'QUOTES'"
+                @click="$emit('orderNow')"
+                label="Order"
             />
             <CardButtonGreen
+                v-if="type === 'QUOTES'"
                 @click="$emit('showQuotesModal',batch.id)"
-                label="Manage Quotes"
+                label="Quotes"
+                :highlight="true"
+            />
+
+            <!-- Order actions -->
+            <CardButtonRed
+                v-if="type === 'ORDERS' && !otherData.all_project_manager_approvals"
+                @click="cancelBatchOrders(otherData.orders,batch)"
+                label="Back to quoting"
+            />
+            <CardButtonGreen
+                v-if="type === 'ORDERS' && !otherData.all_project_manager_approvals"
+                @click="$emit('pageLoadingOn');approveAllProjectManagers(batch)"
+                label="PMs Approve"
+                :highlight="false"
+            />
+            <CardButtonGreen
+                v-if="type === 'ORDERS' && otherData.all_project_manager_approvals"
+                @click="$emit('showOrdersModal',batch.id)"
+                label="Orders"
                 :highlight="true"
             />
         </div>
-        <p class="mt-1 text-xs block text-center text-orange-300">Suggest to wait [{{ moment(otherData.batchQuotingDeadline).fromNow()}}] to allow for more possible materials.</p>
-
+        <p class="w-full mt-2 text-xs block text-center text-orange-300">
+            Quoting deadline is in {{shared.daysUntilNearestQuoteDeadline(props.projects)}}
+        </p>
     </div>
 
     <!-- card -->

@@ -1,3 +1,5 @@
+import moment from "moment";
+
 export default {
     sendSupplierBatchEmail(batchGroup) {
         // Email details
@@ -46,5 +48,15 @@ export default {
             return text.substring(0, maxLength) + "...";
         }
         return text;
+    },
+    daysUntilNearestQuoteDeadline(projects){
+        let arrayOfTimestamps = [];
+        Object.values(projects).forEach(project => {
+            arrayOfTimestamps.push(project.quoteRequestDeadline);
+        });
+
+        const moments = arrayOfTimestamps.map(ts => moment(ts));
+
+        return moment.min(moments).fromNow(true);
     }
 }

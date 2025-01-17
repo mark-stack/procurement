@@ -75,7 +75,8 @@
                     <br>
                     Total Waste = {{ (usage.totalWaste/1000).toLocaleString() }} m
                     <br>
-                    Efficiency = {{(Math.round(usage.totalUsedMaterial/usage.totalMaterial*100)) }}%
+                    Efficiency = {{ usage.efficiency }}
+                    <!-- {{(Math.round(usage.totalUsedMaterial/usage.totalMaterial*100)) }}% -->
                 </div>
 
 

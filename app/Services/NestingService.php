@@ -636,6 +636,9 @@ class NestingService
             "totalMaterial" => $totalMaterial,
             "totalUsedMaterial" => $totalUsedMaterial,
             "totalWaste" => $totalWaste,
+            "efficiency" => $totalMaterial === 0
+                ? 0
+                : (round($totalUsedMaterial/$totalMaterial*100)),
         ];
     }
 

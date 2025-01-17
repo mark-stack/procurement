@@ -19,7 +19,7 @@
     //...
 
     //Variables
-    const emit = defineEmits(['toggleArchive','editMode','showBom','pageLoading']);
+    const emit = defineEmits(['toggleArchive','editMode','showBom','pageLoadingOn']);
 
     //Shared methods
     import shared from '@/Shared/shared';
@@ -62,7 +62,7 @@
                 label="Edit"
             />
             <CardButtonGreen
-                @click="$emit('pageLoading',true);$emit('showBom',project)"
+                @click="$emit('pageLoadingOn');$emit('showBom',project)"
                 label="Materials"
                 :highlight="true"
             />

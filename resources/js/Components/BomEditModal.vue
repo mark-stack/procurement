@@ -383,7 +383,7 @@
                         class="p-20 text-gray-700 italic"
                     >
                         <span class="block font-bold text-xl">Loading...</span>
-                        <span class="block font-bold text-lg">“Patience is bitter, but its fruit is sweet.”</span>
+                        <span class="block text-lg">“Patience is bitter, but its fruit is sweet.”</span>
                     </div>
                     <div v-else class="pt-5">
                         <!-- Drag n drop  -->

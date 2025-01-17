@@ -12,6 +12,7 @@
     //Props
     const props = defineProps({
         projects: Object,
+        usageStats: Number,
     });
 
     //Form
@@ -23,21 +24,11 @@
 
     //Shared methods
     import shared from '@/Shared/shared';
+    import CardButtonBlue from "@/Components/CardButtonBlue.vue";
 
     //Methods
     function isYourProject(project){
         return project.user_id == user.value.id;
-    }
-
-    function daysUntilNearestQuoteDeadline(){
-        let arrayOfTimestamps = [];
-        Object.values(props.projects).forEach(project => {
-            arrayOfTimestamps.push(project.quoteRequestDeadline);
-        });
-
-        const moments = arrayOfTimestamps.map(ts => moment(ts));
-
-        return moment.min(moments).fromNow(true);
     }
 </script>
 
@@ -45,7 +36,7 @@
     <!-- card -->
     <div class="relative flex flex-col items-start pt-2 pl-4 pr-4 pb-4 bg-white rounded-lg bg-opacity-90 group hover:bg-opacity-100" draggable="true">
         <div class="w-full mb-2 text-center">
-            <p class="text-sm text-green-500">Saves <b>[13%]</b> waste</p>
+            <p class="text-sm text-green-500"><b>{{usageStats.efficiency}}%</b> efficiency</p>
         </div>
 
         <div class="grid grid-cols-1 gap-y-2 w-full text-xs font-medium text-gray-500">
@@ -93,7 +84,7 @@
 
         <!-- Nesting details -->
         <div class="flex w-full justify-center mt-2">
-            <CardButtonGreen
+            <CardButtonBlue
                 label="Nesting details"
                 :highlight="false"
             />
@@ -112,9 +103,8 @@
             />
         </div>
         <p class="mt-1 text-xs block text-center text-orange-300">
-            Wait {{daysUntilNearestQuoteDeadline()}} to allow for more possible materials (Earliest order deadline)
+            Wait {{shared.daysUntilNearestQuoteDeadline(props.projects)}} to allow for more possible materials (Earliest order deadline)
         </p>
-
     </div>
 
 

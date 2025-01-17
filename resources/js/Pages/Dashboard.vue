@@ -98,6 +98,9 @@
     //     }
     // }
     function submitArchiveToggle(id){
+        //page loader ON
+        pageLoading.value = true;
+
         let url = route("projects.destroy",id);
         formProjectDelete.delete(url, {
             preserveScroll: true,
@@ -108,9 +111,15 @@
                 if(props.archivedProjects.data.length === 0){
                     showArchivedProjects.value = false;
                 }
+
+                //page loader OFF
+                pageLoading.value = false;
             },
             onError: errors => {
                 console.log('errors',errors);
+
+                //page loader OFF
+                pageLoading.value = false;
             },
         });
     }
@@ -187,6 +196,9 @@
             },
             onError: errors => {
                 console.log('errors',errors);
+
+                //Remove page loader
+                pageLoading.value = false;
             },
         });
     }
@@ -426,8 +438,9 @@
                             <div class="grid grid-cols-1 gap-y-2 pt-3">
                                 <!-- card -->
                                 <KanbanReadyForNestingCard
-                                    v-if="projects['BOM_IMPORTED'].data.length > 0"
-                                    :projects="projects['BOM_IMPORTED'].data"
+                                    v-if="projects['BOM_IMPORTED'].projects.data.length > 0"
+                                    :projects="projects['BOM_IMPORTED'].projects.data"
+                                    :usageStats="projects['BOM_IMPORTED'].usageStats"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
                                     @quoteNow="quoteNow()"
@@ -462,7 +475,7 @@
                                     @showOrdersModal="batchId => {modalSelectedBatchId = batchId; showOrdersModal = true; showQuotesModal = false;}"
                                     @pageLoadingOn="console.log('loading ON'); pageLoading = true"
                                     @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
-
+                                    @orderNow="orderNow()"
                                 />
                             </div>
                         </div>
@@ -487,6 +500,8 @@
                                     @editMode="p => editMode(p)"
                                     @showQuotesModal="batchId => {modalSelectedBatchId = batchId; showQuotesModal = true; showOrdersModal = false;}"
                                     @showOrdersModal="batchId => {modalSelectedBatchId = batchId; showOrdersModal = true; showQuotesModal = false;}"
+                                    @pageLoadingOn="console.log('loading ON'); pageLoading = true"
+                                    @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
                                 />
                             </div>
                         </div>
