@@ -28,8 +28,11 @@ class SuggestedNestingController extends Controller
         //Pieces ready for batching
         $piecesReadyForBatching = $nestingService->piecesReadyForBatching($business);
 
+        //Letter-project array
+        $lettersProjectArray = $nestingService->getLetterProjectArray($piecesReadyForBatching);
+
         //Pieces nested
-        $piecesNested = $nestingService->piecesNested($piecesReadyForBatching);
+        $piecesNested = $nestingService->piecesNested($piecesReadyForBatching,$lettersProjectArray);
 
         //Nesting stats
         $usage = $nestingService->usage($piecesNested);

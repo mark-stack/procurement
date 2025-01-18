@@ -598,13 +598,13 @@ class NestingService
         return $resultArray;
     }
 
-    public function piecesNested(Collection $pieces): array
+    public function piecesNested(Collection $pieces, array $lettersProjectArray): array
     {
         $byAlgo = $pieces->groupBy("nesting_algo");
 
         $piecesNested = [];
         foreach($byAlgo as $nestingAlgoLabel => $pieces){
-            $piecesNested[] = $this->nesting($nestingAlgoLabel,$pieces);
+            $piecesNested[] = $this->nesting($nestingAlgoLabel,$pieces,$lettersProjectArray);
         }
 
         return $piecesNested;
@@ -655,6 +655,36 @@ class NestingService
             ->whereIn("project_id",$projectsForQuotingIds)
             ->readyToBatch()
             ->get();
+    }
+
+    public function getLetterProjectArray(Collection $piecesReadyForBatching): array
+    {
+        $projectIds = [];
+        foreach($piecesReadyForBatching as $piece){
+            $projectIds[] = $piece->project_id;
+        }
+        $projectIds = array_values(array_unique($projectIds));
+
+        $lettersProjectArray = [];
+
+        foreach($projectIds as $index => $id){
+            $letter = match ($index) {
+                0 => "A",
+                1 => "B",
+                2 => "C",
+                3 => "D",
+                4 => "E",
+                5 => "F",
+                6 => "G",
+                7 => "H",
+                8 => "I",
+                9 => "J",
+            };
+
+            $lettersProjectArray[$id] = $letter;
+        }
+
+        return $lettersProjectArray;
     }
 
     /**
@@ -714,7 +744,7 @@ class NestingService
         ];
     }
 
-    public function nesting(string $nestingAlgoLabel, Collection $allPieces): Collection
+    public function nesting(string $nestingAlgoLabel, Collection $allPieces, array $lettersProjectArray): Collection
     {
         //Services
         $productService = new ProductService();
@@ -788,7 +818,7 @@ class NestingService
 
                     $appended->pieces = $piecesArray;
                     $appended->purchasable = $purchasableVariations;
-                    $appended->nested = $this->meterageAlgorithm($cutLengths,$purchasableVariations);
+                    $appended->nested = $this->meterageAlgorithm($cutLengths,$purchasableVariations,$lettersProjectArray);
 
                     $result[] = $appended;
                 }
@@ -966,7 +996,7 @@ class NestingService
         return $result;
     }
 
-    function meterageAlgorithm(array $cutLengths, array $stockLengths): array
+    function meterageAlgorithm(array $cutLengths, array $stockLengths, array $lettersProjectArray): array
     {
         // Sort cut lengths in descending order (FFD heuristic)
         //rsort($cutLengths);
@@ -995,6 +1025,7 @@ class NestingService
                     $stock['pieces'][] = [
                         "cutLength" => $cutLength,
                         "projectId" => $cut["project"],
+                        "letter" => $lettersProjectArray[$cut["project"]],
                     ];
                     $stock['waste'] -= $cutLength;
                     $placed = true;
@@ -1015,6 +1046,7 @@ class NestingService
                             'pieces' => [[
                                 "cutLength" => $cutLength,
                                 "projectId" => $cut["project"],
+                                "letter" => $lettersProjectArray[$cut["project"]],
                             ]],
                         ];
 
@@ -1033,6 +1065,7 @@ class NestingService
                     $unfitCuts[] = [
                         "project" => $cut["project"],
                         "length" => $cut["length"],
+                        "letter" => $lettersProjectArray[$cut["project"]],
                     ];
                 }
             }

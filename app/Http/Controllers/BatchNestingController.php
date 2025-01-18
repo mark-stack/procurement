@@ -29,8 +29,11 @@ class BatchNestingController extends Controller
         //Pieces ready for batching
         $piecesInBatch = $batch->pieces;
 
+        //Letter-project array
+        $lettersProjectArray = $nestingService->getLetterProjectArray($piecesInBatch);
+
         //Pieces nested
-        $piecesNested = $nestingService->piecesNested($piecesInBatch);
+        $piecesNested = $nestingService->piecesNested($piecesInBatch,$lettersProjectArray);
 
         //Nesting stats
         $usage = $nestingService->usage($piecesNested);

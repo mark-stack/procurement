@@ -43,7 +43,7 @@
 </script>
 
 <template>
-    <div class="text=sm">
+    <div class="text-sm">
         {{qty}} off {{ parseInt(stockLength).toLocaleString() }}{{ displayUnits() }}
     </div>
 </template>

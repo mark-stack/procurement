@@ -142,6 +142,11 @@ class Project extends Model
         return Carbon::parse($this->date_materials_required)->subDays($this->fromQuoteRequestToReceivedDays());
     }
 
+    public function orderDeadline(): Carbon
+    {
+        return Carbon::parse($this->date_materials_required)->subDays($this->longestDeliveryDays());
+    }
+
     //Local scopes
     public function beforeMaterialsQuotingDeadline(Builder $query): void
     {

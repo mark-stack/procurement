@@ -45,7 +45,7 @@
     const freezeView = ref(false);
 
     //Shared Methods
-    //
+    import shared from "@/Shared/shared.js";
 
     //Methods
     const triggerFileInput = () => {
@@ -293,13 +293,6 @@
         });
 
         return result;
-    }
-
-    function cropText(text, maxLength = 25) {
-        if (text.length > maxLength) {
-            return text.substring(0, maxLength) + "...";
-        }
-        return text;
     }
 
     function displayLength(row){
@@ -702,7 +695,7 @@
                                                                     <div class="flex items-center gap-x-2">
                                                                         <div>
                                                                             <label :for="'check'+row.id" class="font-medium text-gray-800 dark:text-white ">
-                                                                                {{ cropText(row.description) }}
+                                                                                {{ shared.cropText(row.description) }}
                                                                             </label>
                                                                         </div>
                                                                     </div>

@@ -252,8 +252,11 @@ Route::middleware(['auth','verified'])->group(function () {
                 //Pieces ready for batching
                 $piecesInBatch = $batch->pieces;
 
+                //Letter-project array
+                $lettersProjectArray = $nestingService->getLetterProjectArray($piecesInBatch);
+
                 //Pieces nested
-                $piecesNested = $nestingService->piecesNested($piecesInBatch);
+                $piecesNested = $nestingService->piecesNested($piecesInBatch,$lettersProjectArray);
 
                 //Nesting stats
                 $usage = $nestingService->usage($piecesNested);
@@ -273,8 +276,11 @@ Route::middleware(['auth','verified'])->group(function () {
                 //Pieces ready for batching
                 $piecesReadyForBatching = $nestingService->piecesReadyForBatching($business);
 
+                //Letter-project array
+                $lettersProjectArray = $nestingService->getLetterProjectArray($piecesReadyForBatching);
+
                 //Pieces nested
-                $piecesNested = $nestingService->piecesNested($piecesReadyForBatching);
+                $piecesNested = $nestingService->piecesNested($piecesReadyForBatching,$lettersProjectArray);
 
                 //Nesting stats
                 $usage = $nestingService->usage($piecesNested);

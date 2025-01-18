@@ -185,7 +185,7 @@
                         <!-- Order by -->
                         <div v-if="type === 'ORDERS'">
                             <span class="ml-1 text-xs">Order by:</span>
-                            <span class="block ml-1 leading-none text-xs">[{{ moment(project.quoteRequestDeadline).format("DD-MM-YYYY")}}]</span>
+                            <span class="block ml-1 leading-none text-xs">{{ moment(project.orderDeadline).format("DD-MM-YYYY")}}</span>
                         </div>
                     </div>
 
@@ -255,8 +255,8 @@
             />
         </div>
         <p class="w-full mt-2 text-xs block text-center text-orange-300">
-            <span v-if="type === 'QUOTES'">Quoting deadline is in {{shared.daysUntilNearestQuoteDeadline(props.projects)}}</span>
-            <span v-if="type === 'ORDERS'">Ordering deadline is in [{{shared.daysUntilNearestQuoteDeadline(props.projects)}}]</span>
+            <span v-if="type === 'QUOTES'">{{ shared.quoteDeadlineMessage(projects) }}</span>
+            <span v-if="type === 'ORDERS'">{{ shared.orderDeadlineMessage(projects) }}</span>
         </p>
     </div>
 

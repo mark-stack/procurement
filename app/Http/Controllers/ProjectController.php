@@ -33,7 +33,8 @@ class ProjectController extends Controller
          * Material efficiency
          */
         $piecesReadyForBatching = $nestingService->piecesReadyForBatching($business);
-        $piecesNested = $nestingService->piecesNested($piecesReadyForBatching);
+        $lettersProjectArray = $nestingService->getLetterProjectArray($piecesReadyForBatching);
+        $piecesNested = $nestingService->piecesNested($piecesReadyForBatching,$lettersProjectArray);
         $usageStats = $nestingService->usage($piecesNested);
 
         $projects = [
@@ -81,7 +82,8 @@ class ProjectController extends Controller
             $addQuoteRequests = [];
 
             //nesting
-            $piecesNested = $nestingService->piecesNested($batch->pieces);
+            $lettersProjectArray = $nestingService->getLetterProjectArray($batch->pieces);
+            $piecesNested = $nestingService->piecesNested($batch->pieces,$lettersProjectArray);
             $batchGroups = $nestingService->batchGroups($piecesNested);
 
             foreach($business->suppliers as $supplier){
@@ -170,7 +172,8 @@ class ProjectController extends Controller
 
 
             //nesting
-            $piecesNested = $nestingService->piecesNested($batch->pieces);
+            $lettersProjectArray = $nestingService->getLetterProjectArray($batch->pieces);
+            $piecesNested = $nestingService->piecesNested($batch->pieces,$lettersProjectArray);
             $batchGroups = $nestingService->batchGroups($piecesNested);
 
             foreach($supplierCategoriesFormatted as $supplierCategory => $data){

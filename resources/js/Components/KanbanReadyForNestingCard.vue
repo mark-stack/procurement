@@ -109,8 +109,8 @@
                 :icon="false"
             />
         </div>
-        <p class="mt-1 text-xs block text-center text-orange-300">
-            Wait {{shared.daysUntilNearestQuoteDeadline(props.projects)}} to allow for more possible materials (Earliest order deadline)
+        <p class="w-full mt-1 text-xs block text-center text-orange-300">
+            {{ shared.quoteDeadlineMessage(projects) }}
         </p>
     </div>
 

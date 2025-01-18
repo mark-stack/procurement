@@ -29,6 +29,7 @@ class ProjectResource extends JsonResource
 //            "percentageOfMaterialsOrdered" => $this->percentageOfMaterialsOrdered(),
             "daysUntilQuoteRequestDeadline" => $this->daysUntilQuoteRequestDeadline(),
             "quoteRequestDeadline" => $this->quoteRequestDeadline(),
+            "orderDeadline" => $this->orderDeadline(),
             "projectManager" => $this->user,
             "qtyMaterialRows" => $this->rawMaterialQuotes()->count(),
         ];
