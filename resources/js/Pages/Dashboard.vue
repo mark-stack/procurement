@@ -45,7 +45,7 @@
     //Variables
     const editProject = ref(null);
     const bomProject = ref(null);
-    const nestingBatch = ref(null);
+    const selectedNestingBatchId = ref(null);
     const showArchivedProjects = ref(false);
     const showQuotesModal = ref(false);
     const showOrdersModal = ref(false);
@@ -246,23 +246,23 @@
         }
     }
 
-    function showNesting(batch){
+    function showNesting(batchId){
 
-        console.log("batch",batch);
+        console.log("batch",batchId);
 
         //Set batch
-        nestingBatch.value = batch;
+        selectedNestingBatchId.value = batchId;
         console.log("Set project");
 
         /**
          Only download new data if hasn't already
          */
-        let existingDownload = undefined; //todo Object.values(bomData.value).find(item => item.project_id == nestingBatch.value.id);
+        let existingDownload = undefined; //todo Object.values(bomData.value).find(item => item.project_id == selectedNestingBatchId.value.id);
         console.log("existingDownload",existingDownload);
 
         if(existingDownload === undefined){
             console.log("not already downloaded. Proceed to download data");
-            downloadNestingData(nestingBatch.value?.id);
+            downloadNestingData(batchId);
         }
         else{
             //Show modal
@@ -514,7 +514,7 @@
                                     @showBom="p => showBom(p)"
                                     @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
                                     @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
-                                    @showNesting="b => showNesting(b)"
+                                    @showNesting="batchId => showNesting(batchId)"
                                 />
                             </div>
                         </div>
@@ -545,7 +545,7 @@
                                     @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
                                     @orderNow="orderNow(batch['batch']['id'])"
                                     @showBom="p => showBom(p)"
-                                    @showNesting="b => showNesting(b)"
+                                    @showNesting="batchId => showNesting(batchId)"
                                 />
                             </div>
                         </div>
@@ -575,7 +575,7 @@
                                     @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
                                     @orderNow="orderNow(batch['batch']['id'])"
                                     @showBom="p => showBom(p)"
-                                    @showNesting="b => showNesting(b)"
+                                    @showNesting="batchId => showNesting(batchId)"
                                 />
                             </div>
                         </div>
@@ -801,7 +801,7 @@
         width="900"
         :nestingData="nestingData"
         :refreshModalNesting="refreshModalNesting"
-        :batchId="0"
+        :batchId="selectedNestingBatchId"
         @closeModal="showNestingModal = false"
     />
 </template>

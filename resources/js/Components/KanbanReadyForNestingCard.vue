@@ -94,7 +94,7 @@
         <!-- Nesting details -->
         <div class="flex w-full justify-center mt-2">
             <CardButtonBlue
-                @click="$emit('pageLoadingOn',null);$emit('showNesting')"
+                @click="$emit('pageLoadingOn',null);$emit('showNesting',0)"
                 label="Nesting details"
                 :highlight="false"
             />

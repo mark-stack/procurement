@@ -207,7 +207,7 @@
 
         <div class="flex w-full justify-center mt-2">
             <CardButtonBlue
-                @click="$emit('pageLoadingOn',null);$emit('showNesting',batch)"
+                @click="$emit('pageLoadingOn',null);$emit('showNesting',batch.id)"
                 label="Nesting details"
                 :highlight="false"
             />

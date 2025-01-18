@@ -227,7 +227,12 @@ Route::middleware(['auth','verified'])->group(function () {
             ]);
         })->name("download.bom");
 
-        Route::post("download-nesting/{batch?}",function(Request $request, Batch $batch = null){
+        Route::post("download-nesting/{batch_id}",function(Request $request, int $batch_id){
+            /**
+             * batch_id = 0 represents "ready to nest" which has no batch object created yet
+             */
+            $batch = $batch_id === 0 ? null : Batch::findOrFail($batch_id);
+
             //Services
             $nestingService = new NestingService();
 

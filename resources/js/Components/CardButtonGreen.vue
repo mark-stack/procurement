@@ -4,7 +4,7 @@
 
     //Props
     const props = defineProps({
-        label: String,
+        label: String|Number,
         highlight: Boolean,
         icon: Boolean,
     });
