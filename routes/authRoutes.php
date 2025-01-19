@@ -208,7 +208,7 @@ Route::middleware(['auth','verified'])->group(function () {
              */
             $nestingGroups = $nestingService->getNestingGroups();
 
-            return back()->with([
+            return Inertia::render('Dashboard',[
                 'downloadedBomData' => [
                     "project_id" => $project->id,
                     "data" => [
@@ -248,12 +248,19 @@ Route::middleware(['auth','verified'])->group(function () {
                 //Suggested
                 : $nestingService->getBatchDataForView("SUGGESTED",$business,null);
 
-            return back()->with([
+            return Inertia::render('Dashboard',[
                 'downloadedNestingData' => [
                     "batch_id" => $batch ? $batch->id : 0,
                     "data" => $batchData,
                 ],
             ]);
+//
+//            return back()->with([
+//                'downloadedNestingData' => [
+//                    "batch_id" => $batch ? $batch->id : 0,
+//                    "data" => $batchData,
+//                ],
+//            ]);
         })->name("download.nesting");
 
         //Raw Material Quotes

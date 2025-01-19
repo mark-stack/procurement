@@ -1,6 +1,6 @@
 <script setup>
     //General Imports
-    import {Link, Head, useForm, usePage} from '@inertiajs/vue3';
+    import {Link, Head, useForm, usePage, router} from '@inertiajs/vue3';
     import {computed, ref, toRefs, watch} from "vue";
 
     //Component Imports
@@ -35,8 +35,8 @@
     const formOrdersStore = useForm({
         batch_id: null,
     });
-    const formDownloadBom = useForm({});
-    const formDownloadNesting = useForm({});
+    // const formDownloadBom = useForm({});
+    // const formDownloadNesting = useForm({});
 
     //Shared data
     const downloadedBomData = computed(() => usePage().props.flash.downloadedBomData);
@@ -276,16 +276,20 @@
     function downloadProjectBomData(projectId){
         console.log("download BOM data");
         let url = route("download.bom",projectId);
-        formDownloadBom.post(url, {
+
+        let data = {};
+        router.post(url, data, {
+            only: ["downloadedBomData"],
+            except: ["projects","batches","archivedProjects"],
             preserveScroll: true,
-            onSuccess: () => {
-                if(downloadedBomData.value){
+            onSuccess: (page) => {
+                if(page.props.downloadedBomData){
                     //Delete if exists
                     bomData.value = Object.values(bomData.value).filter(item => item.project_id != projectId);
                     console.log("delete existing downloaded data");
 
                     //Create
-                    bomData.value.push(downloadedBomData.value);
+                    bomData.value.push(page.props.downloadedBomData);
                     console.log("pushed new download data",bomData.value);
 
                     //Refresh modal BOM signal
@@ -301,6 +305,9 @@
             },
             onError: errors => {
                 console.log('errors',errors);
+
+                //Remove page loader
+                pageLoading.value = false;
             },
         });
     }
@@ -308,16 +315,21 @@
     function downloadNestingData(batchId){
         console.log("download nesting data");
         let url = route("download.nesting",batchId);
-        formDownloadNesting.post(url, {
+
+        let data = {};
+        router.post(url, data, {
+            only: ["downloadedNestingData"],
+            except: ["projects","batches","archivedProjects"],
             preserveScroll: true,
-            onSuccess: () => {
-                if(downloadedNestingData.value){
+            onSuccess: (page) => {
+                if (page.props.downloadedNestingData) {
+
                     //Delete if exists
                     nestingData.value = Object.values(nestingData.value).filter(item => item.batch_id != batchId);
                     console.log("delete existing downloaded data");
 
                     //Create
-                    nestingData.value.push(downloadedNestingData.value);
+                    nestingData.value.push(page.props.downloadedNestingData);
                     console.log("pushed new download data",nestingData.value);
 
                     //Refresh modal BOM signal
@@ -334,8 +346,41 @@
             },
             onError: errors => {
                 console.log('errors',errors);
+
+                //Remove page loader
+                pageLoading.value = false;
             },
         });
+
+
+        // formDownloadNesting.post(url, {
+        //     preserveScroll: true,
+        //     onSuccess: () => {
+        //         if(downloadedNestingData.value){
+        //             //Delete if exists
+        //             nestingData.value = Object.values(nestingData.value).filter(item => item.batch_id != batchId);
+        //             console.log("delete existing downloaded data");
+        //
+        //             //Create
+        //             nestingData.value.push(downloadedNestingData.value);
+        //             console.log("pushed new download data",nestingData.value);
+        //
+        //             //Refresh modal BOM signal
+        //             sendRefreshModalNesting();
+        //
+        //             //Show modal
+        //             showNestingModal.value = true;
+        //             console.log("show nesting modal");
+        //
+        //             //Remove page loader
+        //             pageLoading.value = false;
+        //             console.log("remove page loader");
+        //         }
+        //     },
+        //     onError: errors => {
+        //         console.log('errors',errors);
+        //     },
+        // });
     }
 
     function pageLoaderTimer(seconds){
