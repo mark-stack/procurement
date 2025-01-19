@@ -51,7 +51,7 @@ it("would be a disaster if meterage nesting for a single project didn't work cor
         $qtyPieces = $qtyPieces + $items[1];
     }
 
-    $response = $this->get(route("quotes.index"));
+    $response = $this->get(route("suggested.nesting"));
     $response->assertStatus(200);
 
     /**

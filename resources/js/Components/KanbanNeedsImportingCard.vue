@@ -1,6 +1,8 @@
 <script setup>
     //General Imports
     import moment from "moment";
+    import {computed} from "vue";
+    import {usePage} from "@inertiajs/vue3";
 
     //Component Imports
     import CardButtonGreen from "@/Components/CardButtonGreen.vue";
@@ -20,6 +22,7 @@
 
     //Variables
     const emit = defineEmits(['toggleArchive','editMode','showBom','pageLoadingOn']);
+    const user = computed(() => usePage().props.auth.user);
 
     //Shared methods
     import shared from '@/Shared/shared';
@@ -30,17 +33,23 @@
 
 <template>
     <!-- card -->
-    <div class="relative flex flex-col items-start p-4 mt-3 bg-white rounded-lg bg-opacity-90 group hover:bg-opacity-100" draggable="true">
+    <div
+        :class="shared.isYourProject(project,user.id) ? 'bg-white' : 'bg-gray-200'"
+        class="relative flex flex-col items-start p-4 mt-3 rounded-lg group"
+    >
 <!--        <h4 class="text-base font-medium">-->
 <!--            {{ shared.cropText(shared.capitalizeWords(project.name)) }}-->
 <!--        </h4>-->
-        <div class="grid grid-cols-7 text-gray-500">
+        <div class="w-full grid grid-cols-7 text-gray-500">
             <h4 class="col-span-5 text-base font-medium">
                 {{ shared.cropText(shared.capitalizeWords(project.name),15) }}
             </h4>
-            <span class="col-span-2 text-xs font-medium text-right pt-1"><i class="fa-solid fa-user text-xs"></i> {{shared.cropText(project.projectManager.name,6)}}</span>
+            <span class="col-span-2 text-xs font-medium text-right pt-1"><i class="fa-solid fa-user text-xs"></i> {{shared.isYourProject(project,user.id) ? 'Yours' : shared.cropText(project.projectManager.name,6)}}</span>
         </div>
-        <div class="flex justify-between w-full mt-3 text-xs font-medium text-gray-500">
+        <div
+            v-if="shared.isYourProject(project,user.id)"
+            class="flex justify-between w-full mt-3 text-xs font-medium text-gray-500"
+        >
             <div class="flex items-center">
                 <i class="fa-regular fa-calendar-days text-2xl"></i>
                 <div>
@@ -49,8 +58,6 @@
                 </div>
             </div>
             <div class="flex items-center ml-4">
-<!--                <i class="fa-solid fa-list text-base"></i>-->
-<!--                <span class="ml-1 leading-none text-sm">{{ project.qtyMaterialRows }}</span>-->
                 <CardButtonGreen
                     @click="$emit('pageLoadingOn',null);$emit('showBom',project)"
                     :label="project.qtyMaterialRows"
@@ -58,13 +65,12 @@
                     :icon="true"
                 />
             </div>
-<!--            <div class="flex items-center ml-4">-->
-<!--                <i class="fa-solid fa-user text-base"></i>-->
-<!--                <span class="ml-1 leading-none text-xs">{{project.projectManager.name}}</span>-->
-<!--            </div>-->
         </div>
 
-        <div class="mt-3 w-full flex gap-x-2 justify-between items-center">
+        <div
+            v-if="shared.isYourProject(project,user.id)"
+            class="mt-3 w-full flex gap-x-2 justify-between items-center"
+        >
             <CardButtonRed
                 @click="$emit('toggleArchive',project)"
                 label="Archive"

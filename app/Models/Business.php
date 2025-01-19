@@ -46,7 +46,7 @@ class Business extends Model
 
     public function batches(): HasManyThrough
     {
-        return $this->hasManyThrough(Batch::class, User::class);
+        return $this->hasManyThrough(Batch::class, User::class,);
     }
 
     //Local scopes

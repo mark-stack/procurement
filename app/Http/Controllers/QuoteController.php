@@ -19,10 +19,13 @@ use Inertia\Response;
 class QuoteController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * @deprecated
      */
     public function index(): Response
     {
+
+//        //todo: use common code with modal for this
+//
 //        //Services
 //        $nestingService = new NestingService();
 //

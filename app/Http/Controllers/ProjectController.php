@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Resources\ProjectResource;
 use App\Models\Project;
 use App\Models\Quote;
+use App\Services\BatchService;
 use App\Services\NestingService;
 use App\Services\OrderService;
 use App\Services\QuoteService;
@@ -24,6 +25,7 @@ class ProjectController extends Controller
         //Services
         $nestingService = new NestingService();
         $quoteService = new QuoteService();
+        $batchService = new BatchService();
 
         //Prerequisite variables
         $user = auth()->user();
@@ -38,13 +40,15 @@ class ProjectController extends Controller
         $usageStats = $nestingService->usage($piecesNested);
 
         $projects = [
-            "BOM_REQUIRED" => ProjectResource::collection(Project::query()
+            //Kanban column 1
+            "NEW_PROJECTS" => ProjectResource::collection(Project::query()
                 ->thisBusiness($business)
                 ->active()
                 ->doesntHave('rawMaterialQuotes')
-                ->latest()
+                ->sortByUserAndLatest()
                 ->get()),
-            "BOM_IMPORTED" => [
+            //Kanban column 2
+            "READY_FOR_NESTING" => [
                 "projects" => ProjectResource::collection($business
                     ->projectsReadyForBatching()
                     ->sortBy("created_at")),
@@ -65,13 +69,16 @@ class ProjectController extends Controller
         }
 
         /**
-         * Batches for quoting
+         * Batches for quoting (Kanban column 3)
          */
         $quoted = [];
         $batchesForQuoting = $business->batches()
             ->doesntHave('orders')
-            //todo other criteria for being ready
             ->get();
+
+        //Sort
+        $batchesForQuoting = $batchService->sortByUserAndLatest($batchesForQuoting,$business);
+
         foreach($batchesForQuoting as $batch){
             /**
              * Modal: "add quote requests"
@@ -155,15 +162,19 @@ class ProjectController extends Controller
                 ],
             ];
         }
+        $quoted = array_values($quoted);
 
         /**
-         * Batches for Ordering
+         * Batches for Ordering (Kanban column 4)
          */
         $ordered = [];
         $batchesForOrdering = $business->batches()
             ->has('orders')
-            //todo other criteria for being ready
             ->get();
+
+        //Sort
+        $batchesForOrdering = $batchService->sortByUserAndLatest($batchesForOrdering,$business);
+
         foreach($batchesForOrdering as $batch){
             //todo firstOrCreate for ORDER and QUOTE objects?
             $orders = $batch->orders;
@@ -214,6 +225,7 @@ class ProjectController extends Controller
                 ],
             ];
         }
+        $ordered = array_values($ordered);
 
 
         $batches = [

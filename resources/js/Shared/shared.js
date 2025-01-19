@@ -169,5 +169,19 @@ export default {
         }
 
         return ref;
-    }
+    },
+    isYourProject(project,userId){
+        return project.user_id == userId;
+    },
+    atLeastOneProjectIsYours(projects,userId){
+        let atLeastOneProjectIsYours = false;
+
+        Object.values(projects).forEach(project => {
+            if(project.user_id == userId){
+                atLeastOneProjectIsYours = true;
+            }
+        });
+
+        return atLeastOneProjectIsYours;
+    },
 }

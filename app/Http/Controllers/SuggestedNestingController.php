@@ -22,30 +22,9 @@ class SuggestedNestingController extends Controller
         $user = auth()->user();
         $business = $user->business;
 
-        //Projects ready for batching
-        $projectsReadyForBatching = $business->projectsReadyForBatching();
+        //View data
+        $batchData = $nestingService->getBatchDataForView("SUGGESTED",$business,null);
 
-        //Pieces ready for batching
-        $piecesReadyForBatching = $nestingService->piecesReadyForBatching($business);
-
-        //Letter-project array
-        $lettersProjectArray = $nestingService->getLetterProjectArray($piecesReadyForBatching);
-
-        //Pieces nested
-        $piecesNested = $nestingService->piecesNested($piecesReadyForBatching,$lettersProjectArray);
-
-        //Nesting stats
-        $usage = $nestingService->usage($piecesNested);
-
-        //Grouped by nesting algorithm
-        $batchGroups = $nestingService->batchGroups($piecesNested);
-
-        return Inertia::render('QuoteIndex',[
-            "pieces" => $piecesNested,
-            "projectsReadyForBatching" => ProjectResource::collection($projectsReadyForBatching),
-            "batchGroups" => $batchGroups,
-            "usage" => $usage,
-            "type" => "SUGGESTED",
-        ]);
+        return Inertia::render('QuoteIndex',$batchData);
     }
 }

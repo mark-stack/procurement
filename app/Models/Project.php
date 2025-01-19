@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Support\Facades\Auth;
 
 #[ObservedBy([ProjectObserver::class])]
 class Project extends Model
@@ -176,5 +177,11 @@ class Project extends Model
     public function scopeUnBatchedPieces(Builder $query): void
     {
         $query->whereRelation("pieces","batch_id","=",null);
+    }
+
+    public function scopeSortByUserAndLatest(Builder $query): Builder
+    {
+        return $query->orderByRaw('user_id = ? DESC', [Auth::id()])
+            ->orderBy('created_at', 'DESC');
     }
 }

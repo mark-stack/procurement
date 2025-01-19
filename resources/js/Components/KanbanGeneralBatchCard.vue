@@ -1,6 +1,6 @@
 <script setup>
     //General Imports
-    import {Link, useForm} from "@inertiajs/vue3";
+    import {Link, useForm, usePage} from "@inertiajs/vue3";
     import moment from "moment/moment.js";
 
     //Component Imports
@@ -34,9 +34,11 @@
 
     //Variables
     const emit = defineEmits(['toggleArchive','editMode','showQuotesModal','showOrdersModal','pageLoadingOn','pageLoadingOff','orderNow','showBom','showNesting']);
+    const user = computed(() => usePage().props.auth.user);
 
     //Shared methods
     import shared from "@/Shared/shared.js";
+    import {computed} from "vue";
 
     //Methods
     function breakBatch(batch){
@@ -138,10 +140,12 @@
 
 <template>
     <!-- card -->
-    <div class="relative flex flex-col items-start pt-2 pl-4 pr-4 pb-4 bg-white rounded-lg bg-opacity-90 group hover:bg-opacity-100" draggable="true">
-
+    <div
+        :class="shared.atLeastOneProjectIsYours(projects,user.id) ? 'bg-white' : 'bg-gray-200'"
+        class="relative flex flex-col items-start pt-2 pl-4 pr-4 pb-4 rounded-lg group"
+    >
         <div
-            v-if="type === 'QUOTES'"
+            v-if="type === 'QUOTES' && shared.atLeastOneProjectIsYours(projects,user.id)"
             class="w-full mb-2 text-center"
         >
             <p class="text-sm text-gray-700">
@@ -150,7 +154,7 @@
         </div>
 
         <div
-            v-if="type === 'ORDERS'"
+            v-if="type === 'ORDERS' && shared.atLeastOneProjectIsYours(projects,user.id)"
             class="w-full mb-2 text-center"
         >
             <p class="text-sm text-gray-700">
@@ -162,20 +166,27 @@
         </div>
 
 
-        <div class="grid grid-cols-1 gap-y-2 w-full text-xs font-medium text-gray-500">
+        <div
+            :class="shared.atLeastOneProjectIsYours(projects,user.id) ? '' : 'mt-2'"
+            class="grid grid-cols-1 gap-y-2 w-full text-xs font-medium text-gray-500"
+        >
             <div
                 v-for="project in projects"
-                class="w-full rounded-lg border-2 border-gray-300 p-2"
+                :class="shared.isYourProject(project,user.id) ? 'border-green-100' : 'border-gray-300'"
+                class="w-full rounded-lg border-2 p-2"
             >
                 <div class="grid grid-cols-6">
                     <h4 class="col-span-4 text-base font-medium">
                         {{ shared.cropText(shared.capitalizeWords(project.name),15) }}
                     </h4>
-                    <span class="col-span-2 text-right pt-1"><i class="fa-solid fa-user text-xs"></i> {{shared.cropText(project.projectManager.name,5)}}</span>
+                    <span class="col-span-2 text-right pt-1"><i class="fa-solid fa-user text-xs"></i> {{shared.isYourProject(project,user.id) ? 'Yours' : shared.cropText(project.projectManager.name,5)}}</span>
                 </div>
 
-                <div class="flex justify-between mt-2">
-                    <div class="flex items-center">
+                <div
+                    v-if="shared.atLeastOneProjectIsYours(projects,user.id)"
+                    class="flex justify-between mt-2"
+                >
+                    <div  class="flex items-center">
                         <i class="fa-regular fa-calendar-days text-2xl"></i>
                         <!-- Quote by -->
                         <div v-if="type === 'QUOTES'">
@@ -189,7 +200,10 @@
                         </div>
                     </div>
 
-                    <div class="flex items-center ml-4">
+                    <div
+                        v-if="shared.isYourProject(project,user.id)"
+                        class="flex items-center ml-4"
+                    >
                         <CardButtonGreen
                             @click="$emit('pageLoadingOn',null);$emit('showBom',project)"
                             :label="project.qtyMaterialRows"
@@ -197,15 +211,14 @@
                             :icon="true"
                         />
                     </div>
-<!--                    <div class="flex items-center ml-4">-->
-<!--                        <i class="fa-solid fa-user text-base"></i>-->
-<!--                        <span class="ml-1 leading-none text-xs">{{shared.cropText(project.projectManager.name,10)}}</span>-->
-<!--                    </div>-->
                 </div>
             </div>
         </div>
 
-        <div class="flex w-full justify-center mt-2">
+        <div
+            v-if="shared.atLeastOneProjectIsYours(projects,user.id)"
+            class="flex w-full justify-center mt-2"
+        >
             <CardButtonBlue
                 @click="$emit('pageLoadingOn',null);$emit('showNesting',batch.id)"
                 label="Nesting details"
@@ -213,7 +226,10 @@
             />
         </div>
 
-        <div class="mt-3 w-full flex gap-x-2 justify-between items-center">
+        <div
+            v-if="shared.atLeastOneProjectIsYours(projects,user.id)"
+            class="mt-3 w-full flex gap-x-2 justify-between items-center"
+        >
             <!-- Quote actions -->
             <CardButtonRed
                 v-if="type === 'QUOTES'"
@@ -254,7 +270,10 @@
                 :icon="false"
             />
         </div>
-        <p class="w-full mt-2 text-xs block text-center text-orange-300">
+        <p
+            v-if="shared.atLeastOneProjectIsYours(projects,user.id)"
+            class="w-full mt-2 text-xs block text-center text-orange-300"
+        >
             <span v-if="type === 'QUOTES'">{{ shared.quoteDeadlineMessage(projects) }}</span>
             <span v-if="type === 'ORDERS'">{{ shared.orderDeadlineMessage(projects) }}</span>
         </p>

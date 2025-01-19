@@ -1,7 +1,7 @@
 <script setup>
     //General Imports
-    import {computed, ref, toRefs, watch} from "vue";
-    import {usePage} from "@inertiajs/vue3";
+    import { computed, ref, toRefs, watch } from "vue";
+    import { usePage, Link } from "@inertiajs/vue3";
 
     //Component Imports
     import Modal from "@/Layouts/Modal.vue";
@@ -48,48 +48,6 @@
         return data;
     }
 
-    function lettersSwitch(index){
-        let letter = "";
-
-        switch (index) {
-            case 0:
-                letter = "A";
-                break;
-            case 1:
-                letter = "B";
-                break;
-            case 2:
-                letter = "C";
-                break;
-            case 3:
-                letter = "D";
-                break;
-            case 4:
-                letter = "E";
-                break;
-            case 5:
-                letter = "F";
-                break;
-            case 6:
-                letter = "G";
-                break;
-            case 7:
-                letter = "H";
-                break;
-            case 8:
-                letter = "I";
-                break;
-            case 9:
-                letter = "J";
-                break;
-            case 10:
-                letter = "K";
-                break;
-        }
-
-        return letter;
-    }
-
     //Watcher
     const { refreshModalBom } = toRefs(props);
     watch(refreshModalBom, (newVal) => {
@@ -104,7 +62,12 @@
 
             <div class="dark:bg-gray-900 rounded-xl">
                 <div class="pt-2 pb-4 mx-auto text-center">
-                    <h1 class="text-3xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
+                    <Link v-if="isAdmin" :href="batchId === 0 ? route('suggested.nesting') : route('batch.nesting',batchId)">
+                        <h1 class="text-3xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
+                            Nesting Details
+                        </h1>
+                    </Link>
+                    <h1 v-else class="text-3xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
                         Nesting Details
                     </h1>
 

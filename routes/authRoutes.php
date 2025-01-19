@@ -240,65 +240,18 @@ Route::middleware(['auth','verified'])->group(function () {
             $user = auth()->user();
             $business = $user->business;
 
-            /**
-             * Batch nesting
-             */
-            if($batch){
-                $type = "BATCH";
+            //View data
+            $batchData = $batch
+                //Batch nesting
+                ? $nestingService->getBatchDataForView("BATCH",$business,$batch)
 
-                //Projects in batch
-                $projectsForBatching = $batch->projects();
-
-                //Pieces ready for batching
-                $piecesInBatch = $batch->pieces;
-
-                //Letter-project array
-                $lettersProjectArray = $nestingService->getLetterProjectArray($piecesInBatch);
-
-                //Pieces nested
-                $piecesNested = $nestingService->piecesNested($piecesInBatch,$lettersProjectArray);
-
-                //Nesting stats
-                $usage = $nestingService->usage($piecesNested);
-
-                //Grouped by nesting algorithm
-                $batchGroups = $nestingService->batchGroups($piecesNested);
-            }
-            /**
-             * Suggested
-             */
-            else{
-                $type = "SUGGESTED";
-
-                //Projects ready for batching
-                $projectsForBatching = $business->projectsReadyForBatching();
-
-                //Pieces ready for batching
-                $piecesReadyForBatching = $nestingService->piecesReadyForBatching($business);
-
-                //Letter-project array
-                $lettersProjectArray = $nestingService->getLetterProjectArray($piecesReadyForBatching);
-
-                //Pieces nested
-                $piecesNested = $nestingService->piecesNested($piecesReadyForBatching,$lettersProjectArray);
-
-                //Nesting stats
-                $usage = $nestingService->usage($piecesNested);
-
-                //Grouped by nesting algorithm
-                $batchGroups = $nestingService->batchGroups($piecesNested);
-            }
+                //Suggested
+                : $nestingService->getBatchDataForView("SUGGESTED",$business,null);
 
             return back()->with([
                 'downloadedNestingData' => [
                     "batch_id" => $batch ? $batch->id : 0,
-                    "data" => [
-                        "pieces" => $piecesNested,
-                        "projectsReadyForBatching" => ProjectResource::collection($projectsForBatching),
-                        "batchGroups" => $batchGroups,
-                        "usage" => $usage,
-                        "type" => $type,
-                    ],
+                    "data" => $batchData,
                 ],
             ]);
         })->name("download.nesting");

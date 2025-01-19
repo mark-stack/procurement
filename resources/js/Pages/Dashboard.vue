@@ -59,6 +59,8 @@
     const bomData = ref([]);
     const nestingData = ref([]);
     const pageLoading = ref(false);
+    const underNavScreenHeight = window.innerHeight - 68;
+    const kanbanHeight = underNavScreenHeight - 50;
 
     //Shared Methods
     //...
@@ -356,8 +358,8 @@
             v-if="pageLoading"
         />
 
-        <div class="py-3">
-            <div class="mx-auto max-w-7xl">
+        <div class="overflow-y-hidden" :style="'height:'+underNavScreenHeight+'px'">
+            <div class="mx-auto max-w-screen">
 <!--                <section-->
 <!--                    class="dark:bg-gray-900 rounded-xl"-->
 <!--                    :class="editProject ? 'bg-yellow-50' : 'bg-white'"-->
@@ -453,11 +455,11 @@
 <!--                    </div>-->
 <!--                </section>-->
 
-                <section class="mt-5 mb-20">
+                <section>
 
                     <!-- kanban -->
-                    <div class="grid grid-cols-4">
-                        <!-- Needs BOM Import -->
+                    <div class="grid grid-cols-5">
+                        <!-- New projects-->
                         <div class="border-r-2 border-indigo-200 p-2">
                             <!-- header -->
                             <div>
@@ -466,7 +468,10 @@
                                 </h2>
                             </div>
                             <!-- body -->
-                            <div class="grid grid-cols-1 gap-y-2 pt-3">
+                            <div
+                                class="pt-3 overflow-y-auto"
+                                :style="'height:'+kanbanHeight+'px'"
+                            >
                                 <!-- new project -->
                                 <div class="">
                                     <button
@@ -480,9 +485,10 @@
 
 
                                 <!-- cards -->
-                                <template v-for="project in projects['BOM_REQUIRED'].data">
+                                <template v-for="project in projects['NEW_PROJECTS'].data">
                                     <KanbanNeedsImportingCard
                                         :project="project"
+                                        class="mb-3"
                                         @toggleArchive="p => toggleArchive(p)"
                                         @editMode="p => editMode(p)"
                                         @showBom="p => showBom(p)"
@@ -501,12 +507,15 @@
                                 </h2>
                             </div>
                             <!-- body -->
-                            <div class="grid grid-cols-1 gap-y-2 pt-3">
+                            <div
+                                class="pt-3 overflow-y-auto"
+                                :style="'height:'+kanbanHeight+'px'"
+                            >
                                 <!-- card -->
                                 <KanbanReadyForNestingCard
-                                    v-if="projects['BOM_IMPORTED'].projects.data.length > 0"
-                                    :projects="projects['BOM_IMPORTED'].projects.data"
-                                    :usageStats="projects['BOM_IMPORTED'].usageStats"
+                                    v-if="projects['READY_FOR_NESTING'].projects.data.length > 0"
+                                    :projects="projects['READY_FOR_NESTING'].projects.data"
+                                    :usageStats="projects['READY_FOR_NESTING'].usageStats"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
                                     @quoteNow="quoteNow()"
@@ -527,7 +536,10 @@
                                 </h2>
                             </div>
                             <!-- body -->
-                            <div class="grid grid-cols-1 gap-y-2 pt-3">
+                            <div
+                                class="pt-3 overflow-y-auto"
+                                :style="'height:'+kanbanHeight+'px'"
+                            >
                                 <!-- card -->
                                 <KanbanGeneralBatchCard
                                     v-for="batch in batches['QUOTED']"
@@ -537,6 +549,7 @@
                                     :otherData="batch['otherData']"
                                     :modalData="batch['modalData']"
                                     type="QUOTES"
+                                    class="mb-3"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
                                     @showQuotesModal="batchId => {modalSelectedBatchId = batchId; showQuotesModal = true; showOrdersModal = false;}"
@@ -550,7 +563,7 @@
                             </div>
                         </div>
                         <!-- Ordered -->
-                        <div class="p-2">
+                        <div class="border-r-2 border-indigo-200 p-2">
                             <!-- header -->
                             <div>
                                 <h2 class="text-xl font-bold text-center">
@@ -558,7 +571,10 @@
                                 </h2>
                             </div>
                             <!-- body -->
-                            <div class="grid grid-cols-1 gap-y-2 pt-3">
+                            <div
+                                class="pt-3 overflow-y-auto"
+                                :style="'height:'+kanbanHeight+'px'"
+                            >
                                 <!-- card -->
                                 <KanbanGeneralBatchCard
                                     v-for="batch in batches['ORDERED']"
@@ -567,6 +583,7 @@
                                     :projects="batch['projects'].data"
                                     :otherData="batch['otherData']"
                                     type="ORDERS"
+                                    class="mb-3"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
                                     @showQuotesModal="batchId => {modalSelectedBatchId = batchId; showQuotesModal = true; showOrdersModal = false;}"
@@ -579,15 +596,20 @@
                                 />
                             </div>
                         </div>
-                        <!-- Materials Received -->
-<!--                        <div>-->
-<!--                            &lt;!&ndash; header &ndash;&gt;-->
-<!--                            <div class="border-b-2 border-gray-500">-->
-<!--                                <h2 class="text-xl font-bold text-center">Delivery</h2>-->
-<!--                            </div>-->
-<!--                            &lt;!&ndash; body &ndash;&gt;-->
-<!--                            <div class="grid grid-cols-1 gap-y-2 pt-3">-->
-<!--                                &lt;!&ndash; card &ndash;&gt;-->
+
+                        <div class="p-2">
+                            <!-- header -->
+                            <div>
+                                <h2 class="text-xl font-bold text-center">
+                                    <span class="text-indigo-300 text-base">5.</span> Delivered
+                                </h2>
+                            </div>
+                            <!-- body -->
+                            <div
+                                class="pt-3 overflow-y-auto"
+                                :style="'height:'+kanbanHeight+'px'"
+                            >
+                                <!-- card -->
 <!--                                <KanbanGeneralBatchCard-->
 <!--                                    v-for="batch in batches['DELIVERED']"-->
 <!--                                    :batch="batch['batch']"-->
@@ -599,34 +621,34 @@
 <!--                                    @showQuotesModal="batchId => {modalSelectedBatchId = batchId; showQuotesModal = true; showOrdersModal = false;}"-->
 <!--                                    @showOrdersModal="batchId => {modalSelectedBatchId = batchId; showOrdersModal = true; showQuotesModal = false;}"-->
 <!--                                />-->
-<!--                            </div>-->
-<!--                        </div>-->
+                            </div>
+                        </div>
                     </div>
 
                     <!-- toggle archived projects -->
-                    <div>
-                        <button
-                            v-if="archivedProjects.data.length > 0"
-                            @click="showArchivedProjects = !showArchivedProjects"
-                            class="text-center text-blue-500 underline mt-6 mb-2"
-                        >
-                            {{showArchivedProjects ? 'Hide' : 'Show'}} {{archivedProjects.data.length}} Archived Project{{archivedProjects.data.length > 1 ? 's' : ''}}
-                        </button>
-                        <div v-if="showArchivedProjects">
-                            <table>
-                                <tr>
-                                   <th class="p-1">Name</th>
-                                   <th class="p-1">Actions</th>
-                                </tr>
-                                <tr v-for="project in archivedProjects.data">
-                                    <td class="p-1">{{project.name}}</td>
-                                    <td class="p-1">
-                                        <span style="cursor: pointer; " class="underline text-blue-500" @click="toggleArchive(project)">restore</span>
-                                    </td>
-                                </tr>
-                            </table>
-                        </div>
-                    </div>
+<!--                    <div>-->
+<!--                        <button-->
+<!--                            v-if="archivedProjects.data.length > 0"-->
+<!--                            @click="showArchivedProjects = !showArchivedProjects"-->
+<!--                            class="text-center text-blue-500 underline mt-6 mb-2"-->
+<!--                        >-->
+<!--                            {{showArchivedProjects ? 'Hide' : 'Show'}} {{archivedProjects.data.length}} Archived Project{{archivedProjects.data.length > 1 ? 's' : ''}}-->
+<!--                        </button>-->
+<!--                        <div v-if="showArchivedProjects">-->
+<!--                            <table>-->
+<!--                                <tr>-->
+<!--                                   <th class="p-1">Name</th>-->
+<!--                                   <th class="p-1">Actions</th>-->
+<!--                                </tr>-->
+<!--                                <tr v-for="project in archivedProjects.data">-->
+<!--                                    <td class="p-1">{{project.name}}</td>-->
+<!--                                    <td class="p-1">-->
+<!--                                        <span style="cursor: pointer; " class="underline text-blue-500" @click="toggleArchive(project)">restore</span>-->
+<!--                                    </td>-->
+<!--                                </tr>-->
+<!--                            </table>-->
+<!--                        </div>-->
+<!--                    </div>-->
                 </section>
 
 
@@ -805,3 +827,23 @@
         @closeModal="showNestingModal = false"
     />
 </template>
+
+<style scoped>
+    /* Custom scrollbar styles */
+    ::-webkit-scrollbar {
+        width: 8px; /* Width of the scrollbar */
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #f1f1f1; /* Background of the track */
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #bfbfbf; /* Color of the scrollbar thumb */
+        border-radius: 10px; /* Rounded corners */
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: #888; /* Color when hovered */
+    }
+</style>

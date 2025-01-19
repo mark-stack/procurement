@@ -7,6 +7,8 @@ use App\Enums\MaterialEnums;
 use App\Enums\MeasurementUnitEnums;
 use App\Enums\NestingEnums;
 use App\Enums\ProductEnums;
+use App\Http\Resources\ProjectResource;
+use App\Models\Batch;
 use App\Models\Business;
 use App\Models\Piece;
 use App\Models\Product;
@@ -1275,6 +1277,63 @@ class NestingService
         $nestingGroups[NestingEnums::BUNDLE->value] = array_values($products);
 
         return $nestingGroups;
+    }
+
+    public function getBatchDataForView(string $type, Business $business, Batch|null $batch): array
+    {
+        $piecesNested = null;
+        $projectsForBatching = null;
+        $batchGroups = null;
+        $usage = null;
+
+        //Batch (after batch object exists)
+        if($type === "BATCH"){
+            //Projects in batch
+            $projectsForBatching = $batch->projects();
+
+            //Pieces ready for batching
+            $piecesInBatch = $batch->pieces;
+
+            //Letter-project array
+            $lettersProjectArray = $this->getLetterProjectArray($piecesInBatch);
+
+            //Pieces nested
+            $piecesNested = $this->piecesNested($piecesInBatch,$lettersProjectArray);
+
+            //Nesting stats
+            $usage = $this->usage($piecesNested);
+
+            //Grouped by nesting algorithm
+            $batchGroups = $this->batchGroups($piecesNested);
+        }
+        //Suggested (pre-batch at nesting phase)
+        if($type === "SUGGESTED"){
+            //Projects ready for batching
+            $projectsForBatching = $business->projectsReadyForBatching();
+
+            //Pieces ready for batching
+            $piecesReadyForBatching = $this->piecesReadyForBatching($business);
+
+            //Letter-project array
+            $lettersProjectArray = $this->getLetterProjectArray($piecesReadyForBatching);
+
+            //Pieces nested
+            $piecesNested = $this->piecesNested($piecesReadyForBatching,$lettersProjectArray);
+
+            //Nesting stats
+            $usage = $this->usage($piecesNested);
+
+            //Grouped by nesting algorithm
+            $batchGroups = $this->batchGroups($piecesNested);
+        }
+
+        return [
+            "pieces" => $piecesNested,
+            "projectsReadyForBatching" => ProjectResource::collection($projectsForBatching),
+            "batchGroups" => $batchGroups,
+            "usage" => $usage,
+            "type" => $type,
+        ];
     }
 }
 

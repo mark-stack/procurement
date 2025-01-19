@@ -23,30 +23,9 @@ class BatchNestingController extends Controller
         $user = auth()->user();
         $business = $user->business;
 
-        //Projects in batch
-        $projectsInBatch = $batch->projects();
+        //View data
+        $batchData = $nestingService->getBatchDataForView("BATCH",$business,$batch);
 
-        //Pieces ready for batching
-        $piecesInBatch = $batch->pieces;
-
-        //Letter-project array
-        $lettersProjectArray = $nestingService->getLetterProjectArray($piecesInBatch);
-
-        //Pieces nested
-        $piecesNested = $nestingService->piecesNested($piecesInBatch,$lettersProjectArray);
-
-        //Nesting stats
-        $usage = $nestingService->usage($piecesNested);
-
-        //Grouped by nesting algorithm
-        $batchGroups = $nestingService->batchGroups($piecesNested);
-
-        return Inertia::render('QuoteIndex',[
-            "pieces" => $piecesNested,
-            "projectsReadyForBatching" => ProjectResource::collection($projectsInBatch),
-            "batchGroups" => $batchGroups,
-            "usage" => $usage,
-            "type" => "BATCH",
-        ]);
+        return Inertia::render('QuoteIndex',$batchData);
     }
 }

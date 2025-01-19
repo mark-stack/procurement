@@ -11,6 +11,7 @@
     import ListPurchasables from "@/Components/ListPurchasables.vue";
     import VisualBundleNest from "@/Components/VisualBundleNest.vue";
     import VisualOrderList from "@/Components/VisualOrderList.vue";
+    import VisualNestingWithBars from "@/Components/VisualNestingWithBars.vue";
 
     //Props
     const props = defineProps({
@@ -75,8 +76,7 @@
                     <br>
                     Total Waste = {{ (usage.totalWaste/1000).toLocaleString() }} m
                     <br>
-                    Efficiency = {{ usage.efficiency }}
-                    <!-- {{(Math.round(usage.totalUsedMaterial/usage.totalMaterial*100)) }}% -->
+                    Efficiency = {{ usage.efficiency }}%
                 </div>
 
 
@@ -100,7 +100,7 @@
                             <div class="grid grid-cols-1 gap-5">
                                 <div
                                     v-for="item in batchGroup"
-                                    class="grid grid-cols-4 border-2 border-gray-300 rounded-xl p-5 gap-3"
+                                    class="grid grid-cols-4 border-2 border-gray-300 rounded-xl p-5 gap-3 bg-white"
                                 >
                                     <!-- Spec -->
                                     <div>
@@ -149,15 +149,21 @@
                                         <h2 class="font-bold">{{item.algo}} Nesting</h2>
                                         <!-- Nesting algorithm: meterage -->
                                         <div v-if="item.algo === 'METERAGE'">
-                                            <p v-for="bar in item.nested.usedStockBars" class="mt-3">
-                                                <VisualNestingWithText
-                                                    :stockLength="bar.result['stock_length']"
-                                                    :pieces="bar.result.pieces"
-                                                    :measurementUnit="item.nominal_units"
-                                                    :waste="bar.result.waste"
-                                                    :qty="bar.count"
-                                                />
-                                            </p>
+
+                                            <VisualNestingWithBars
+                                                :usedStockBars="item.nested.usedStockBars"
+                                                :measurementUnit="item.nominal_units"
+                                            />
+
+<!--                                            <p v-for="bar in item.nested.usedStockBars" class="mt-3">-->
+<!--                                                <VisualNestingWithText-->
+<!--                                                    :stockLength="bar.result['stock_length']"-->
+<!--                                                    :pieces="bar.result.pieces"-->
+<!--                                                    :measurementUnit="item.nominal_units"-->
+<!--                                                    :waste="bar.result.waste"-->
+<!--                                                    :qty="bar.count"-->
+<!--                                                />-->
+<!--                                            </p>-->
                                             <p
                                                 v-if="item.nested.unfitCuts.length > 0"
                                                 class="text-red-500 font-bold mt-2"
