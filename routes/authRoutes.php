@@ -76,7 +76,7 @@ Route::middleware(['auth','verified'])->group(function () {
         //PUT/PATCH	/photos/{photo}	update	photos.update
         //DELETE	/photos/{photo}	destroy	photos.destroy
 
-        Route::post("download-bom/{project}",function(Request $request, Project $project){
+        Route::get("download-bom/{project}",function(Request $request, Project $project){
 
             /**
              * Single purpose: upload, clarify, and display consolidated BOM for a project
@@ -208,7 +208,7 @@ Route::middleware(['auth','verified'])->group(function () {
              */
             $nestingGroups = $nestingService->getNestingGroups();
 
-            return Inertia::render('Dashboard',[
+            return response()->json([
                 'downloadedBomData' => [
                     "project_id" => $project->id,
                     "data" => [
@@ -227,7 +227,7 @@ Route::middleware(['auth','verified'])->group(function () {
             ]);
         })->name("download.bom");
 
-        Route::post("download-nesting/{batch_id}",function(Request $request, int $batch_id){
+        Route::get("download-nesting/{batch_id}",function(Request $request, int $batch_id){
             /**
              * batch_id = 0 represents "ready to nest" which has no batch object created yet
              */
@@ -248,19 +248,12 @@ Route::middleware(['auth','verified'])->group(function () {
                 //Suggested
                 : $nestingService->getBatchDataForView("SUGGESTED",$business,null);
 
-            return Inertia::render('Dashboard',[
+            return response()->json([
                 'downloadedNestingData' => [
                     "batch_id" => $batch ? $batch->id : 0,
                     "data" => $batchData,
                 ],
             ]);
-//
-//            return back()->with([
-//                'downloadedNestingData' => [
-//                    "batch_id" => $batch ? $batch->id : 0,
-//                    "data" => $batchData,
-//                ],
-//            ]);
         })->name("download.nesting");
 
         //Raw Material Quotes

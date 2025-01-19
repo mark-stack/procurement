@@ -8,7 +8,7 @@
     "require": {
         "php": "^8.2",
         "cesargb/laravel-magiclink": "^2.21",
-        "inertiajs/inertia-laravel": "^1.0",
+        "inertiajs/inertia-laravel": "2.0",
         "laravel/breeze": "^2.2",
         "laravel/framework": "^11.31",
         "laravel/sanctum": "^4.0",
