@@ -61,7 +61,7 @@ class PLATE_Implementation extends ProductBaseImplementation
             "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
             "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
             //"defaultGrade" => GradeEnums::NONE, //todo
-            "supplierGroup" => SupplierGroupEnums::STEEL_MERCHANT,
+            "supplierGroup" => SupplierGroupEnums::PROFILE_CUTTING,
         ];
     }
 

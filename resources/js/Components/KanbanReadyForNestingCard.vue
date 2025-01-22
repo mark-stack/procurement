@@ -38,7 +38,18 @@
             v-if="shared.atLeastOneProjectIsYours(projects,user.id)"
             class="w-full mb-2 text-center"
         >
-            <p class="text-sm text-green-500"><b>{{usageStats.efficiency ? (usageStats.efficiency+'%') : 'calculating'}}</b> efficiency{{usageStats.efficiency ? '' : '...'}}</p>
+            <p
+                v-if="usageStats"
+                class="text-sm text-green-500"
+            >
+                <b>{{usageStats.efficiency}}%</b> efficiency
+            </p>
+            <p
+                v-else
+                class="text-sm text-green-500"
+            >
+                calculating efficiency...
+            </p>
         </div>
 
         <div class="grid grid-cols-1 gap-y-2 w-full text-xs font-medium text-gray-500">

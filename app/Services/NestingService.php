@@ -705,9 +705,9 @@ class NestingService
         return $pieces->groupBy("nesting_algo");
     }
 
-    public function batchGroups(array $piecesNested): array
+    public function batchGroups(array $piecesNested, Business $business): array
     {
-        $supplierGroups = (new SupplierService())->supplierGroups();
+        $supplierGroups = (new SupplierService())->supplierGroups($business);
 
         $resultAssigned = [];
         $resultUnassigned = [];
@@ -1304,7 +1304,7 @@ class NestingService
             $usage = $this->usage($piecesNested);
 
             //Grouped by nesting algorithm
-            $batchGroups = $this->batchGroups($piecesNested);
+            $batchGroups = $this->batchGroups($piecesNested,$business);
         }
         //Suggested (pre-batch at nesting phase)
         if($type === "SUGGESTED"){
@@ -1324,7 +1324,7 @@ class NestingService
             $usage = $this->usage($piecesNested);
 
             //Grouped by nesting algorithm
-            $batchGroups = $this->batchGroups($piecesNested);
+            $batchGroups = $this->batchGroups($piecesNested,$business);
         }
 
         return [

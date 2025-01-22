@@ -17,6 +17,7 @@
     //Variables
     const showNotifications = ref(false);
     const showMenu = ref(false);
+    const underNavScreenHeight = window.innerHeight - 68;
 </script>
 
 <template>
@@ -137,7 +138,7 @@
 
                                 <!-- Price Book -->
                                 <NavButton
-                                    v-if="onboarded"
+                                    v-if="onboarded && business.upgraded"
                                     :route="route('pricebook')"
                                     label="Price Book"
                                     icon="fa-solid fa-list"
@@ -199,7 +200,7 @@
         </div>
     </nav>
 
-    <div class="grid grid-cols-5">
+    <div class="grid grid-cols-5" :style="'height:'+underNavScreenHeight+'px'">
 <!--        &lt;!&ndash;sidebar &ndash;&gt;-->
 <!--        <aside class="col-span-1 h-screen px-2 py-8 overflow-y-auto bg-white border-r dark:bg-gray-900 dark:border-gray-700">-->
 <!--            <div class="flex justify-between">-->

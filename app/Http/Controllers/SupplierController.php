@@ -21,7 +21,7 @@ class SupplierController extends Controller
         $suppliers = $business->suppliers()->orderBy("name")->get();
 
         //Category and included products
-        $categories = (new SupplierService())->supplierGroups();
+        $categories = (new SupplierService())->supplierGroups($business);
 
         //Category, included products, user attached suppliers
         $byCategory = [];

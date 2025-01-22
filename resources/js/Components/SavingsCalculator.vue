@@ -142,7 +142,7 @@
 
             <!-- Value Display -->
             <div class="mt-2 text-gray-800 font-semibold">
-                Waste reduction: {{formCalculator.wastePct}}%
+                Yield increase: {{formCalculator.wastePct}}%
             </div>
         </div>
 

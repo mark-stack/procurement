@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\SupplierGroupEnums;
 use App\Http\Controllers\ApproveAllProjectManagersController;
 use App\Http\Controllers\BatchController;
 use App\Http\Controllers\BatchNestingController;
@@ -23,7 +24,9 @@ use App\Http\Controllers\SupplierController;
 use App\Http\Middleware\BusinessReadyMiddleware;
 use App\Http\Resources\ProjectResource;
 use App\Models\Batch;
+use App\Models\Business;
 use App\Models\Project;
+use App\Services\DataClassificationService;
 use App\Services\NestingService;
 use App\Services\ProductService;
 use Illuminate\Support\Facades\Gate;
@@ -86,6 +89,7 @@ Route::middleware(['auth','verified'])->group(function () {
             //Services
             $nestingService = new NestingService();
             $productService = new ProductService();
+            $dataClassificationService = new DataClassificationService();
 
             //Prerequisite variables
             $user = $project->user;
@@ -106,59 +110,92 @@ Route::middleware(['auth','verified'])->group(function () {
 
             //Loop user's material rows
             foreach($project->rawMaterialQuotes as $rawMaterialQuote){
+                $include = false;
+
                 $getProductMatchOptions = $productService->getProductMatchOptions($business,$rawMaterialQuote);
+
 
                 if($getProductMatchOptions){
                     /**
                      * 1) Non-price book (will be user custom product)
+                     * UPGRADED has custom product ability
                      */
                     if($getProductMatchOptions["status"] === "CUSTOM"){
-                        $requiresCustom[] = [
-                            "selected" => [
-                                "product_category" => null,
-                                "material" => null,
-                                "grade" => null,
-                                "nominal_length" => null,
-                                "nominal_width" => null,
-                                "nominal_height" => null,
-                                "nesting_algo" => null,
-                                "purchasable_length_1" => null,
-                                "purchasable_length_2" => null,
-                                "purchasable_length_3" => null,
-                                "purchasable_width_1" => null,
-                                "purchasable_width_2" => null,
-                                "purchasable_width_3" => null,
-                                "suppliers" => [],
-                            ],
-                            "selected_other" => [
-                                "product_category" => null,
-                                "material" => null,
-                                "grade" => null,
-                                "surface" => null,
-                                "suppliers" => [],
-                            ],
-                            "data" => $rawMaterialQuote,
-                            "nominalSizeData" => $productService->getNominalSizeData(),
-                        ];
+                        if($business->upgraded){
+                            $include = true;
+
+                            $requiresCustom[] = [
+                                "selected" => [
+                                    "product_category" => null,
+                                    "material" => null,
+                                    "grade" => null,
+                                    "nominal_length" => null,
+                                    "nominal_width" => null,
+                                    "nominal_height" => null,
+                                    "nesting_algo" => null,
+                                    "purchasable_length_1" => null,
+                                    "purchasable_length_2" => null,
+                                    "purchasable_length_3" => null,
+                                    "purchasable_width_1" => null,
+                                    "purchasable_width_2" => null,
+                                    "purchasable_width_3" => null,
+                                    "suppliers" => [],
+                                ],
+                                "selected_other" => [
+                                    "product_category" => null,
+                                    "material" => null,
+                                    "grade" => null,
+                                    "surface" => null,
+                                    "suppliers" => [],
+                                ],
+                                "data" => $rawMaterialQuote,
+                                "nominalSizeData" => $productService->getNominalSizeData(),
+                            ];
+                        }
                     }
 
                     /**
                      * 2) Price book exact match
                      */
                     elseif($getProductMatchOptions["status"] === "EXACT"){
-                        $rawMaterialQuote["product"] = $getProductMatchOptions['decodedOption'];
+                        //Upgraded (shows custom options)
+                        if($business->upgraded){
+                            $rawMaterialQuote["product"] = $getProductMatchOptions['decodedOption'];
+                            $include = true;
+                        }
+                        //Standard
+                        else{
+                            if($getProductMatchOptions["supplierGroup"] === SupplierGroupEnums::STEEL_MERCHANT->value){
+                                $rawMaterialQuote["product"] = $getProductMatchOptions['decodedOption'];
+                                $include = true;
+                            }
+                        }
                     }
 
                     /**
                      * 3) Price book partial match (requires confirmation)
                      */
                     elseif($getProductMatchOptions["status"] === "PARTIAL"){
-                        $partialProductMatches[] = [
-                            "selected" => null,
-                            "data" => $rawMaterialQuote,
-                            "options" => $getProductMatchOptions['decodedOptions'],
-                            "custom" => $getProductMatchOptions['custom'],
-                        ];
+                        //Upgraded (shows custom options)
+                        if($business->upgraded){
+                            $partialProductMatches[] = [
+                                "selected" => null,
+                                "data" => $rawMaterialQuote,
+                                "options" => $getProductMatchOptions['decodedOptions'],
+                                "custom" => $getProductMatchOptions['custom'],
+                            ];
+                        }
+                        //Standard
+                        else{
+                            if($getProductMatchOptions["supplierGroup"] === SupplierGroupEnums::STEEL_MERCHANT->value){
+                                $partialProductMatches[] = [
+                                    "selected" => null,
+                                    "data" => $rawMaterialQuote,
+                                    "options" => $getProductMatchOptions['decodedOptions'],
+                                    "custom" => $getProductMatchOptions['custom'],
+                                ];
+                            }
+                        }
                     }
                 }
 
@@ -180,14 +217,16 @@ Route::middleware(['auth','verified'])->group(function () {
                 }
 
                 //Append Array
-                $nesting_algo = ($rawMaterialQuote->product_category && $nestingService->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category))
-                    ? $nestingService->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category)[0]
-                    : null;
-                $rawMaterialQuote->nesting_algo = $nesting_algo;
-                $baseline_unit_rate = $productService->getBaseLineUnitRateFromGeneral($getProductMatchOptions["decodedOption"] ?? null);
-                $rawMaterialQuote->baseline_unit_rate = $baseline_unit_rate;
-                $rawMaterialQuote->baseline_unit_rate_comparison = $productService->getBaselineUnitRateHighLowComparison($rawMaterialQuote->unit_rate,$baseline_unit_rate);
-                $materialListRows[] = $rawMaterialQuote;
+                if($include){
+                    $nesting_algo = ($rawMaterialQuote->product_category && $nestingService->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category))
+                        ? $nestingService->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category)[0]
+                        : null;
+                    $rawMaterialQuote->nesting_algo = $nesting_algo;
+                    $baseline_unit_rate = $productService->getBaseLineUnitRateFromGeneral($getProductMatchOptions["decodedOption"] ?? null);
+                    $rawMaterialQuote->baseline_unit_rate = $baseline_unit_rate;
+                    $rawMaterialQuote->baseline_unit_rate_comparison = $productService->getBaselineUnitRateHighLowComparison($rawMaterialQuote->unit_rate,$baseline_unit_rate);
+                    $materialListRows[] = $rawMaterialQuote;
+                }
             }
 
             /**
@@ -208,6 +247,8 @@ Route::middleware(['auth','verified'])->group(function () {
              */
             $nestingGroups = $nestingService->getNestingGroups();
 
+
+            //dd(1,$materialListRows);
             return response()->json([
                 'downloadedBomData' => [
                     "project_id" => $project->id,
@@ -255,6 +296,21 @@ Route::middleware(['auth','verified'])->group(function () {
                 ],
             ]);
         })->name("download.nesting");
+
+        Route::get("download-usage-data",function(Request $request){
+            $nestingService = new NestingService();
+
+            $user = auth()->user();
+            $business = $user->business;
+
+            $piecesReadyForBatching = $nestingService->piecesReadyForBatching($business);
+            $lettersProjectArray = $nestingService->getLetterProjectArray($piecesReadyForBatching);
+            $piecesNested = $nestingService->piecesNested($piecesReadyForBatching,$lettersProjectArray);
+
+            return response()->json([
+                'usageData' => $nestingService->usage($piecesNested),
+            ]);
+        })->name("download.usage.data");
 
         //Raw Material Quotes
         Route::name("raw.material.quote.")->group(function () {

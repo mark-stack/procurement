@@ -22,12 +22,12 @@
     const user = usePage().props.auth.user;
 
     //Variables
-    const trial_months = 3;
+    const trial_months = 2;
     const savings_period_years = 5;
     const fullPriceAnnual = 10000;
     const fullPriceMonthly = 850;
-    const firstYearDiscount = 0;
-    const whichPlan = "MONTHLY";
+    const firstYearDiscount = 61;
+    const whichPlan = "ANNUAL";
 
     //Shared Methods
     //...

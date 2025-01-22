@@ -13,7 +13,7 @@ use ReflectionClass;
 
 class ProductService
 {
-    public function getProductConfigs(bool $fasteners): array
+    public function getProductConfigs(bool $fasteners, Business $business): array
     {
         $productConfigs = [];
 
@@ -24,14 +24,34 @@ class ProductService
             if (class_exists($implementation)) {
                 $service = new $implementation();
                 $config = $service->config();
+                $supplierGroup = $config["supplierGroup"]->value;
 
-                //Fasteners
-                if($config["isFastener"] === $fasteners){
-                    $productConfigs[] = [
-                        "config" => $config,
-                        "service" => $service,
-                    ];
-                }
+                /*
+                 * Upgraded = find all supplier categories
+                 */
+                //if($business->upgraded){
+                    //Fasteners
+                    if($config["isFastener"] === $fasteners){
+                        $productConfigs[] = [
+                            "config" => $config,
+                            "service" => $service,
+                        ];
+                    }
+                    else{
+                        $productConfigs[] = [
+                            "config" => $config,
+                            "service" => $service,
+                        ];
+                    }
+//                }
+//                else{
+//                    if($supplierGroup === "STEEL_MERCHANT"){
+//                        $productConfigs[] = [
+//                            "config" => $config,
+//                            "service" => $service,
+//                        ];
+//                    }
+//                }
             }
         }
 
@@ -130,6 +150,7 @@ class ProductService
                 "status" => "PARTIAL",
                 "decodedOptions" => $decodedCustomProducts,
                 "custom" => true,
+                "supplierGroup" => $decodedGeneralProductsRaw["supplierGroup"],
             ];
         }
         //Price book candidate
@@ -141,6 +162,7 @@ class ProductService
                 $result = [
                     "status" => "EXACT",
                     "decodedOption" => $decodedGeneralProducts[0],
+                    "supplierGroup" => $decodedGeneralProductsRaw["supplierGroup"],
                 ];
             }
 
@@ -152,6 +174,7 @@ class ProductService
                     "status" => "PARTIAL",
                     "decodedOptions" => $decodedGeneralProducts,
                     "custom" => false,
+                    "supplierGroup" => $decodedGeneralProductsRaw["supplierGroup"],
                 ];
             }
             //If no results, it's user-custom
@@ -159,6 +182,7 @@ class ProductService
                 $result = [
                     "status" => "CUSTOM",
                     "decodedOptions" => null,
+                    "supplierGroup" => $decodedGeneralProductsRaw["supplierGroup"],
                 ];
             }
         }

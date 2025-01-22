@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\MeasurementUnitEnums;
 use App\Enums\NestingEnums;
+use App\Models\Business;
 use App\Models\Piece;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
@@ -83,8 +84,11 @@ class CsvService
         $dataClassificationService = new DataClassificationService();
         $productService = new ProductService();
 
+        //Prerequisite variables
+        $user = $project->user;
+        $business = $user->business;
+
         foreach($detectedTables as $tableInstance){
-            $type = $tableInstance["type"];
             $rows = $tableInstance["data"];
 
             //Sense checks
@@ -97,7 +101,7 @@ class CsvService
                  * Description (Use derived if no description column provided)
                  */
                 if(!$row["description"]){
-                    $productConfig = $dataClassificationService->findProductConfigFromText($row["description"]);
+                    $productConfig = $dataClassificationService->findProductConfigFromText($row["description"],$business);
                     $productCategory = $productConfig ? $productConfig["productCategory"] : null;
 
                     $row["description"] = $productService->generateProductLabel(
@@ -145,6 +149,7 @@ class CsvService
             $this->saveRawMaterialQuoteData(
                 $rowDataWithGeneralProductMatches,
                 $project,
+                $business,
             );
         }
     }
@@ -429,7 +434,7 @@ class CsvService
         return (float) $result;
     }
 
-    public function saveRawMaterialQuoteData($rows,$project): array
+    public function saveRawMaterialQuoteData(array $rows,Project $project,Business $business): array
     {
         /**
          * Single purpose: save BOM row
@@ -443,7 +448,7 @@ class CsvService
         $materialList = [];
 
         foreach($rows as $row){
-            $productConfig = $dataClassificationService->findProductConfigFromText($row["description"]);
+            $productConfig = $dataClassificationService->findProductConfigFromText($row["description"],$business);
             $productCategory = $productConfig
                 ? $productConfig["productCategory"]
                 : null;

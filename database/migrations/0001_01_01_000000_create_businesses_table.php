@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string("name")->nullable();
             $table->string("domain");
             $table->boolean("admin_setup_complete")->default(false);
+            $table->boolean("upgraded")->default(false);
         });
     }
 

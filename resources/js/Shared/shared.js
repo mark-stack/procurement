@@ -106,7 +106,7 @@ export default {
 
         //In the past
         if(daysUntilNearestOrderDeadline < 0){
-            message = "The order deadline was " + daysUntilNearestOrderDeadline + " day"+ (daysUntilNearestOrderDeadline > 1 ? 's' : '') +" ago. You need to order these materials today.";
+            message = "The order deadline was " + (0-daysUntilNearestOrderDeadline) + " day"+ (daysUntilNearestOrderDeadline > 1 ? 's' : '') +" ago. You need to order these materials today.";
         }
         //Today
         else if(daysUntilNearestOrderDeadline === 0){

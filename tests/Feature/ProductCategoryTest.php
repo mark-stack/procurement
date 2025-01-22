@@ -180,7 +180,7 @@ function testProductCategories(?string $description): void
     $dataClassificationService = new DataClassificationService();
 
     //Finds by regex, not by database record
-    $productConfig = $dataClassificationService->findProductConfigFromText($description);
+    $productConfig = $dataClassificationService->findProductConfigFromText($description,$business);
 
     expect($productConfig)->toBeArray();
 }

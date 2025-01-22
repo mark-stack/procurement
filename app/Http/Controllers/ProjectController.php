@@ -23,7 +23,7 @@ class ProjectController extends Controller
     public function index(): Response
     {
         //Services
-        $nestingService = new NestingService();
+        //$nestingService = new NestingService();
         $quoteService = new QuoteService();
         $batchService = new BatchService();
 
@@ -31,21 +31,6 @@ class ProjectController extends Controller
         $user = auth()->user();
         $business = $user->business;
 
-        /*
-         * Material efficiency
-         * todo: 4.5 seconds. Load async
-         */
-//        $piecesReadyForBatching = $nestingService->piecesReadyForBatching($business);
-//        $lettersProjectArray = $nestingService->getLetterProjectArray($piecesReadyForBatching);
-//        $piecesNested = $nestingService->piecesNested($piecesReadyForBatching,$lettersProjectArray);
-//        $usageStats = $nestingService->usage($piecesNested);
-        $usageStats = [];
-//        dd([
-//            $piecesReadyForBatching,
-//            $lettersProjectArray,
-//            $piecesNested,
-//            $usageStats,
-//        ]);
         $projects = [
             //Kanban column 1
             "NEW_PROJECTS" => ProjectResource::collection(Project::query()
@@ -59,12 +44,11 @@ class ProjectController extends Controller
                 "projects" => ProjectResource::collection($business
                     ->projectsReadyForBatching()
                     ->sortBy("created_at")),
-                "usageStats" => $usageStats,
             ],
         ];
 
         //Category and included products
-        $supplierCategoriesWithIncludedProducts = (new SupplierService())->supplierGroups();
+        $supplierCategoriesWithIncludedProducts = (new SupplierService())->supplierGroups($business);
         $supplierCategoriesFormatted = [];
         foreach($supplierCategoriesWithIncludedProducts as $supplierCategory => $includedProducts){
             $supplierCategoriesFormatted[$supplierCategory] = [

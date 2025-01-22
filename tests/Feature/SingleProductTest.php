@@ -35,7 +35,7 @@ function findProducts(string $description): Collection
     $dataClassificationService = new DataClassificationService();
 
     //PRODUCT
-    $product = $dataClassificationService->findProductConfigFromText($description);
+    $product = $dataClassificationService->findProductConfigFromText($description,$business);
 
     $generalProductMatches = collect([]);
 

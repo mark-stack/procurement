@@ -19,7 +19,7 @@ class AdminSupplierIndexController extends Controller
     {
         return Inertia::render('AdminSuppliersIndex',[
             "suppliers" => SupplierResource::collection($business->suppliers()->orderBy("name")->get()),
-            "byCategory" => (new SupplierService())->supplierGroups(),
+            "byCategory" => (new SupplierService())->supplierGroups($business),
             "business" => $business,
         ]);
     }

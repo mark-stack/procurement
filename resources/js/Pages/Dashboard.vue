@@ -1,7 +1,7 @@
 <script setup>
     //General Imports
-    import {Link, Head, useForm, usePage, router} from '@inertiajs/vue3';
-    import {computed, ref, toRefs, watch} from "vue";
+    import {Head, useForm, usePage} from '@inertiajs/vue3';
+    import {computed, ref} from "vue";
     import axios from 'axios';
 
     //Component Imports
@@ -24,24 +24,14 @@
     });
 
     //Forms
-    // const formProjectCreate = useForm({
-    //     name: null,
-    //     awarded: true,
-    //     date_materials_required: null,
-    //     reference: null,
-    //     tentative: true,
-    // });
     const formProjectDelete = useForm({});
     const formQuoteStore = useForm({});
     const formOrdersStore = useForm({
         batch_id: null,
     });
-    // const formDownloadBom = useForm({});
-    // const formDownloadNesting = useForm({});
 
     //Shared data
-    const downloadedBomData = computed(() => usePage().props.flash.downloadedBomData);
-    const downloadedNestingData = computed(() => usePage().props.flash.downloadedNestingData);
+    //
 
     //Variables
     const editProject = ref(null);
@@ -60,6 +50,7 @@
     const bomData = ref([]);
     const nestingData = ref([]);
     const pageLoading = ref(false);
+    const usageData = ref(null);
     const underNavScreenHeight = window.innerHeight - 68;
     const kanbanHeight = underNavScreenHeight - 50;
 
@@ -77,37 +68,6 @@
         refreshModalNesting.value = !refreshModalNesting.value; // Toggle refreshModalBom
     }
 
-    // function submit(){
-    //     //Edit mode
-    //     if(editProject.value){
-    //         let url = route("projects.update",editProject.value.id);
-    //         formProjectCreate.put(url, {
-    //             preserveScroll: true,
-    //             onSuccess: () => {
-    //                 console.log('success');
-    //                 formProjectCreate.reset();
-    //                 editProject.value = null;
-    //             },
-    //             onError: errors => {
-    //                 console.log('errors',errors);
-    //             },
-    //         });
-    //     }
-    //     //Create mode
-    //     else{
-    //         let url = route("projects.store");
-    //         formProjectCreate.post(url, {
-    //             preserveScroll: true,
-    //             onSuccess: () => {
-    //                 console.log('success');
-    //                 formProjectCreate.reset();
-    //             },
-    //             onError: errors => {
-    //                 console.log('errors',errors);
-    //             },
-    //         });
-    //     }
-    // }
     function submitArchiveToggle(id){
         //page loader ON
         pageLoading.value = true;
@@ -156,23 +116,6 @@
         // formProjectCreate.reference = project.reference;
         // formProjectCreate.tentative = project.tentative;
     }
-
-    // function checkBoxActions(){
-    //     /**
-    //         If awarded = false, clear "reference" and "date_materials_required"
-    //      */
-    //     let awardedToggledTo = !formProjectCreate.awarded;
-    //     if(awardedToggledTo === false){
-    //         formProjectCreate.reset("reference","date_materials_required");
-    //     }
-    // }
-
-    // function backToNewProject(){
-    //     //Clear the form
-    //     formProjectCreate.reset();
-    //
-    //     editProject.value = null;
-    // }
 
     function quoteNow(){
         let url = route("quotes.store");
@@ -274,14 +217,31 @@
         }
     }
 
-    async function downloadProjectBomData(projectId){
-        let url = route("download.bom",projectId);
+    async function getUsageData(){
+        /**
+         Axios
+         */
+        try {
+            const response = await axios.get(route("download.usage.data"));
 
+            if(response.data.usageData){
+                console.log("usageData",response.data.usageData);
+                usageData.value = response.data.usageData;
+            }
+        } catch (error) {
+
+        } finally {
+
+        }
+    }
+    getUsageData();
+
+    async function downloadProjectBomData(projectId){
         /**
             Axios
          */
         try {
-            const response = await axios.get(url);
+            const response = await axios.get(route("download.bom",projectId));
 
             if(response.data.downloadedBomData){
                 //Delete if exists
@@ -311,13 +271,11 @@
     }
 
     async function downloadNestingData(batchId){
-        let url = route("download.nesting",batchId);
-
         /**
          Axios
          */
         try {
-            const response = await axios.get(url);
+            const response = await axios.get(route("download.nesting",batchId));
 
             if(response.data.downloadedNestingData){
                 //Delete if exists
@@ -431,8 +389,8 @@
         <PageLoadingOverlay
             v-if="pageLoading"
         />
-
-        <div class="overflow-y-hidden" :style="'height:'+underNavScreenHeight+'px'">
+<!--  class="overflow-y-hidden" :style="'height:'+underNavScreenHeight+'px'" -->
+        <div>
             <div class="mx-auto max-w-screen">
 <!--                <section-->
 <!--                    class="dark:bg-gray-900 rounded-xl"-->
@@ -589,7 +547,7 @@
                                 <KanbanReadyForNestingCard
                                     v-if="projects['READY_FOR_NESTING'].projects.data.length > 0"
                                     :projects="projects['READY_FOR_NESTING'].projects.data"
-                                    :usageStats="projects['READY_FOR_NESTING'].usageStats"
+                                    :usageStats="usageData"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
                                     @quoteNow="quoteNow()"

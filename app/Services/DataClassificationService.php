@@ -7,6 +7,7 @@ use App\Enums\MeasurementUnitEnums;
 use App\Enums\GradeEnums;
 use App\Enums\NestingEnums;
 use App\Enums\ProductEnums;
+use App\Enums\SupplierGroupEnums;
 use App\Enums\SurfaceEnums;
 use App\Models\Business;
 use App\Models\Piece;
@@ -53,6 +54,10 @@ class DataClassificationService
         $generalProductDefinition = $implementation
             ? $implementation->generalProductDefinition()
             : $this->fallbackGeneralProductDefinition();
+
+        //Supplier group
+        $config = $implementation->config();
+        $supplierGroup = $config["supplierGroup"]->value;
 
         //Product definition
         $allFieldsIndividual = [];
@@ -227,6 +232,7 @@ class DataClassificationService
             "allFields" => $allFields,
             "allFieldsIndividual" => $allFieldsIndividual,
             "results" => $results ?? [],
+            "supplierGroup" => $supplierGroup,
         ];
     }
 
@@ -257,7 +263,7 @@ class DataClassificationService
         ];
     }
 
-    public function findImplementationFromProductCategory($productString): ?object
+    public function findImplementationFromProductCategory(string $productString): ?object
     {
         $result = null;
 
@@ -530,9 +536,10 @@ class DataClassificationService
             "allFields" => false,
             "allFieldsIndividual" => [],
             "results" => [],
+            "supplierGroup" => null,
         ];
 
-        $productConfig = $this->findProductConfigFromText($text);
+        $productConfig = $this->findProductConfigFromText($text,$user->business);
 
         if($productConfig){
             //MATERIAL
@@ -593,10 +600,11 @@ class DataClassificationService
         return $generalProductMatches;
     }
 
-    public function findProductConfigFromText(?string $text): ?array
+    public function findProductConfigFromText(?string $text, Business $business): ?array
     {
         /**
-         * Single purpose: extract a 'product_category' from text. e.g "PFC"
+         * Single purpose: extract a 'product_category' from text. e.g "PFC".
+         * UPGRADE does all products. STANDARD does sections only
          */
         $productService = new ProductService();
         $resultProductConfigs = [];
@@ -605,11 +613,15 @@ class DataClassificationService
          * Fasteners advanced classification
          * 1) Find one of: MX, bolt, csk, hd bolt, etc...
          * 2) Then do further classification based on keywords and lengths
+         * UPGRADED can do fasteners
          */
-        $fastenersConfig = $this->findFastenersConfigFromText($text);
-        if($fastenersConfig){
-            $resultProductConfigs[] = $fastenersConfig;
-        }
+        //if($business->upgraded){
+            $fastenersConfig = $this->findFastenersConfigFromText($text,$business);
+            if($fastenersConfig){
+                $resultProductConfigs[] = $fastenersConfig;
+            }
+        //}
+
 
         /**
          * Standard classification
@@ -617,7 +629,7 @@ class DataClassificationService
          * 2) Regex match (one mandatory?)
          */
         if(!$resultProductConfigs){
-            $regularConfigs = $productService->getProductConfigs(false);
+            $regularConfigs = $productService->getProductConfigs(false,$business);
             foreach($regularConfigs as $regularConfig){
                 //negative keywords
                 $containsNegativeKeywords = false;
@@ -652,7 +664,7 @@ class DataClassificationService
         return $resultProductConfig;
     }
 
-    public function findFastenersConfigFromText(?string $text): ?array
+    public function findFastenersConfigFromText(?string $text, Business $business): ?array
     {
         $resultFastenerConfig = null;
 
@@ -665,7 +677,7 @@ class DataClassificationService
         //Second pass
         if($fastenersFound){
             $resultFastenerConfigs = [];
-            $fastenerConfigs = $productService->getProductConfigs(true);
+            $fastenerConfigs = $productService->getProductConfigs(true,$business);
 
             foreach($fastenerConfigs as $fastenerConfig){
                 //negative keywords

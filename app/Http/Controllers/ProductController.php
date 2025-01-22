@@ -55,6 +55,7 @@ class ProductController extends Controller
             if($getProductMatchOptions){
                 /**
                  * 1) Non-price book (will be user custom product)
+                 * UPGRADED feature
                  */
                 if($getProductMatchOptions["status"] === "CUSTOM"){
                     $requiresCustom[] = [
