@@ -45,9 +45,12 @@
     const showNestingModal = ref(false);
     const modalSelectedBatchId = ref(null);
     const refreshModalQuotes = ref(false);
+    const refreshModalOrders = ref(false);
     const refreshModalBom = ref(false);
     const refreshModalNesting = ref(false);
     const bomData = ref([]);
+    const quotesData = ref([]);
+    const ordersData = ref([]);
     const nestingData = ref([]);
     const pageLoading = ref(false);
     const usageData = ref(null);
@@ -58,15 +61,19 @@
     //...
 
     //Methods
-    function sendRefreshModalQuotes(){
-        refreshModalQuotes.value = !refreshModalQuotes.value; // Toggle refreshModalQuotes
-    }
     function sendRefreshModalBom(){
         refreshModalBom.value = !refreshModalBom.value; // Toggle refreshModalBom
     }
     function sendRefreshModalNesting(){
         refreshModalNesting.value = !refreshModalNesting.value; // Toggle refreshModalBom
     }
+    function sendRefreshModalQuotes(){
+        refreshModalQuotes.value = !refreshModalQuotes.value; // Toggle refreshModalQuotes
+    }
+    function sendRefreshModalOrders(){
+        refreshModalOrders.value = !refreshModalOrders.value; // Toggle refreshModalOrders
+    }
+
 
     function submitArchiveToggle(id){
         //page loader ON
@@ -192,6 +199,35 @@
         }
     }
 
+    function showQuotes(batchId){
+
+        //Close orders modal (if open)
+        showOrdersModal.value = false;
+
+        //Set selected batch
+        modalSelectedBatchId.value = batchId;
+
+        //Page loader
+        pageLoading.value = true;
+
+        //Download
+        downloadQuotesModalData(batchId);
+    }
+
+    function showOrders(batchId){
+        //Close quotes modal (if open)
+        showQuotesModal.value = false;
+
+        //Set selected batch
+        modalSelectedBatchId.value = batchId;
+
+        //Page loader
+        pageLoading.value = true;
+
+        //Download
+        downloadOrdersModalData(batchId);
+    }
+
     function showNesting(batchId){
 
         console.log("batch",batchId);
@@ -225,7 +261,6 @@
             const response = await axios.get(route("download.usage.data"));
 
             if(response.data.usageData){
-                console.log("usageData",response.data.usageData);
                 usageData.value = response.data.usageData;
             }
         } catch (error) {
@@ -263,6 +298,78 @@
         } finally {
             //Show modal
             showBomEditModal.value = true;
+            console.log("show modal");
+
+            //Remove page loader
+            pageLoading.value = false;
+        }
+    }
+
+    async function downloadQuotesModalData(batchId){
+        /**
+         Axios
+         */
+        try {
+            const response = await axios.get(route("download.quotes.data",batchId));
+
+            if(response.data.downloadedQuotesData){
+                console.log("existing array",quotesData.value);
+
+                //Delete if exists
+                quotesData.value = Object.values(quotesData.value).filter(item => item.batch_id != batchId);
+                console.log("delete existing downloaded data");
+
+                //Create
+                quotesData.value.push(response.data.downloadedQuotesData);
+                console.log("pushed new download data",quotesData.value);
+
+                //Refresh modal QUOTES signal
+                sendRefreshModalQuotes();
+            }
+        } catch (error) {
+            console.error('Error fetching data:', error);
+
+            //Remove page loader
+            pageLoading.value = false;
+        } finally {
+            //Show modal
+            showQuotesModal.value = true;
+            console.log("show modal");
+
+            //Remove page loader
+            pageLoading.value = false;
+        }
+    }
+
+    async function downloadOrdersModalData(batchId){
+        /**
+         Axios
+         */
+        try {
+            const response = await axios.get(route("download.orders.data",batchId));
+
+            if(response.data.downloadedOrdersData){
+                console.log("existing array",quotesData.value);
+
+                //Delete if exists
+                ordersData.value = Object.values(ordersData.value).filter(item => item.batch_id != batchId);
+                console.log("delete existing downloaded data");
+
+                //Create
+                ordersData.value.push(response.data.downloadedOrdersData);
+                console.log("pushed new download data",ordersData.value);
+
+                //Refresh modal QUOTES signal
+                sendRefreshModalOrders();
+            }
+        } catch (error) {
+            console.error('Error fetching data:', error);
+
+            //Remove page loader
+            pageLoading.value = false;
+        } finally {
+            //Show modal
+            showOrdersModal.value = true;
             console.log("show modal");
 
             //Remove page loader
@@ -584,8 +691,8 @@
                                     class="mb-3"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
-                                    @showQuotesModal="batchId => {modalSelectedBatchId = batchId; showQuotesModal = true; showOrdersModal = false;}"
-                                    @showOrdersModal="batchId => {modalSelectedBatchId = batchId; showOrdersModal = true; showQuotesModal = false;}"
+                                    @showQuotesModal="batchId => showQuotes(batchId)"
+                                    @showOrdersModal="batchId => showOrders(batchId)"
                                     @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
                                     @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
                                     @orderNow="orderNow(batch['batch']['id'])"
@@ -618,8 +725,8 @@
                                     class="mb-3"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
-                                    @showQuotesModal="batchId => {modalSelectedBatchId = batchId; showQuotesModal = true; showOrdersModal = false;}"
-                                    @showOrdersModal="batchId => {modalSelectedBatchId = batchId; showOrdersModal = true; showQuotesModal = false;}"
+                                    @showQuotesModal="batchId => showQuotes(batchId)"
+                                    @showOrdersModal="batchId => showOrders(batchId)"
                                     @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
                                     @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
                                     @orderNow="orderNow(batch['batch']['id'])"
@@ -824,6 +931,7 @@
         :allData="batches['QUOTED']"
         :modalSelectedBatchId="modalSelectedBatchId"
         :refreshModalQuotes="refreshModalQuotes"
+        :quotesData="quotesData"
         @closeModal="showQuotesModal = false"
     />
     <KanbanModalOrders
@@ -831,6 +939,8 @@
         width="700"
         :allData="batches['ORDERED']"
         :modalSelectedBatchId="modalSelectedBatchId"
+        :refreshModalOrders="refreshModalOrders"
+        :ordersData="ordersData"
         @closeModal="showOrdersModal = false"
     />
     <NewProjectModal

@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class Stock extends Model
 {
-    /** @use HasFactory<\Database\Factories\StockFactory> */
     use HasFactory;
 
     protected $guarded = [];

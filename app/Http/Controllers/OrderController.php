@@ -50,93 +50,46 @@ class OrderController extends Controller
         $business = $user->business;
         $batchId = $validated["batch_id"];
 
+        abort_if(!$batchId,401);
+
         /*
          * Case #1: Batch exists - create & attach order to batch
          */
-        if($batchId){
-            //Get batch
-            $batch = Batch::findOrFail($batchId);
 
-            //Get quote (if exists)
-            $quotes = $batch->quotes;
+        //Get batch
+        $batch = Batch::findOrFail($batchId);
 
-            //Create pending orders (1:1 with quotes) and attach to batch
-            foreach($quotes as $quote){
-                $order = Order::firstOrCreate(
-                    [
-                        'batch_id' => $batch->id,
-                        'quote_id' => $quote->id,
-                    ],
-                    [
-                        'user_id' => $user->id,
-                        'supplier_id' => null,
-                    ]
-                );
-            }
+        //Get quote (if exists)
+        $quotes = $batch->quotes;
 
-            /*
-             * Create pending order approvals
-             */
-            $projectsReadyForBatching = $business->projectsReadyForBatching();
-            foreach($projectsReadyForBatching as $project){
-                OrderApproval::firstOrCreate(
-                    [
-                        'batch_id' => $batch->id,
-                        'project_id' => $project->id,
-                    ],
-                    [
-                        'project_manager_approved' => false,
-                    ]
-                );
-            }
+        //Create pending orders (1:1 with quotes) and attach to batch
+        foreach($quotes as $quote){
+            $order = Order::firstOrCreate(
+                [
+                    'batch_id' => $batch->id,
+                    'quote_id' => $quote->id,
+                ],
+                [
+                    'user_id' => $user->getKey(),
+                    'supplier_id' => null,
+                ]
+            );
         }
 
         /*
-         * 2) Case #2: Batch required - create & attach orders to batch
+         * Create pending order approvals
          */
-        else{
-            dd("deprecate this, right?");
-            /*
-             * Services
-             */
-            $nestingService = new NestingService();
-
-            /*
-             * Create batch
-             */
-            $batch = Batch::create([
-                'user_id' => $user->id,
-                "total_length" => 999, //todo
-                "total_used_length" => 999, //todo
-            ]);
-
-            /*
-             * Assign all PIECE objects to BATCH
-             */
-            $projectsReadyForBatching = $business->projectsReadyForBatching(); //Note get this before updating pieces
-            $piecesReadyForBatching = $nestingService->piecesReadyForBatching($business);
-            Piece::query()
-                ->whereIn("id",$piecesReadyForBatching->pluck("id"))
-                ->update([
-                    "batch_id" => $batch->id,
-                ]);
-
-            //todo do findOrCreate in ProjectController like quote?
-
-            /*
-             * Create pending order approvals
-             */
-            foreach($projectsReadyForBatching as $project){
-                OrderApproval::firstOrCreate(
-                    [
-                        'batch_id' => $batch->id,
-                        'project_id' => $project->id,
-                    ],
-                    [
-                        'project_manager_approved' => false,
-                    ]
-                );
-            }
+        $projectsReadyForBatching = $business->projectsReadyForBatching();
+        foreach($projectsReadyForBatching as $project){
+            OrderApproval::firstOrCreate(
+                [
+                    'batch_id' => $batch->id,
+                    'project_id' => $project->id,
+                ],
+                [
+                    'project_manager_approved' => false,
+                ]
+            );
         }
 
         return back();
@@ -161,16 +114,9 @@ class OrderController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Order $order): RedirectResponse
+    public function update(Request $request, Order $order)
     {
-        $validated = $request->validate([
-            "order_sent" => "required",
-        ]);
 
-        $order->order_sent = $validated["order_sent"];
-        $order->save();
-
-        return back();
     }
 
     /**

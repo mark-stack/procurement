@@ -291,39 +291,39 @@ class ProductService
 ////        $lengthRequired = $this->senseCheckLengthRequired($lengthRequired,$measurementUnit);
 //    }
 
-    public function getLengthRequired($lengthRequiredColumnIndex,$row,$description): int
-    {
-        $result = null;
-
-        /**
-         * If has a "length required" column
-         */
-        if($lengthRequiredColumnIndex){
-            //Has length in description
-            $lengthInDescription = $this->searchLengthRequiredInDescription($description);
-            if($lengthInDescription){
-                $result = $lengthInDescription;
-            }
-            //NO length in description
-            else{
-                $result = $this->normaliseLengthWidthRequired($row[$lengthRequiredColumnIndex]);
-            }
-        }
-        /**
-         * NO "length required" column
-         */
-        else{
-            //Search for length in description
-            $result = $this->searchLengthRequiredInDescription($description);
-        }
-
-        //default to 1
-        if(!$result){
-            $result = 1;
-        }
-
-        return $result;
-    }
+//    public function getLengthRequired($lengthRequiredColumnIndex,$row,$description): int
+//    {
+//        $result = null;
+//
+//        /**
+//         * If has a "length required" column
+//         */
+//        if($lengthRequiredColumnIndex){
+//            //Has length in description
+//            $lengthInDescription = $this->searchLengthRequiredInDescription($description);
+//            if($lengthInDescription){
+//                $result = $lengthInDescription;
+//            }
+//            //NO length in description
+//            else{
+//                $result = $this->normaliseLengthWidthRequired($row[$lengthRequiredColumnIndex]);
+//            }
+//        }
+//        /**
+//         * NO "length required" column
+//         */
+//        else{
+//            //Search for length in description
+//            $result = $this->searchLengthRequiredInDescription($description);
+//        }
+//
+//        //default to 1
+//        if(!$result){
+//            $result = 1;
+//        }
+//
+//        return $result;
+//    }
 
 
 
@@ -1027,15 +1027,12 @@ class ProductService
         return $baselineUnitRate;
     }
 
-    public function getBaselineUnitRateHighLowComparison(?string $unitRate, ?string $baseline_unit_rate): string
+    public function getBaselineUnitRateHighLowComparison(?string $unitRate, ?float $baseline_unit_rate): string
     {
         $comparison = "NONE";
 
         if($unitRate && $baseline_unit_rate){
             $unitRate = floatval($unitRate);
-            $baseline_unit_rate = $baseline_unit_rate
-                ? floatval($baseline_unit_rate)
-                : null;
 
             if($unitRate < ($baseline_unit_rate*0.9)){
                 $comparison = "LOW";

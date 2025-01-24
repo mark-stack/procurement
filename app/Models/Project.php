@@ -149,7 +149,7 @@ class Project extends Model
     }
 
     //Local scopes
-    public function beforeMaterialsQuotingDeadline(Builder $query): void
+    public function scopeBeforeMaterialsQuotingDeadline(Builder $query): void
     {
         $query->whereBetween('date_materials_required', [
             Carbon::now(),

@@ -46,7 +46,7 @@ class Piece extends Model
             ->where("material",$this->material)
             ->where("grade",$this->grade)
             ->where("surface",$this->surface)
-            ->where("nominal_units",$this->measurement_unit)
+            ->where("nominal_units",$this->nominal_units)
             ->where("nominal_length",$this->nominal_length)
             ->where("nominal_width",$this->nominal_width)
             ->where("nominal_height",$this->nominal_height)

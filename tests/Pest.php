@@ -126,7 +126,7 @@ function createUser(int $id, Business $business, bool $isAdmin, bool $emailVerif
     return User::factory()->create([
         "name" => "Mark",
         "email" => $isAdmin
-            ? env("ADMIN_EMAIL")
+            ? config("env.admin_email")
             : ($id."@".$business->domain),
         "business_id" => $business->id,
         "email_verified_at" => $emailVerified ? now() : null,

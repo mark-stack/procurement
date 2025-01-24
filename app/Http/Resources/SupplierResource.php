@@ -2,9 +2,9 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Supplier;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use PhpParser\Node\Scalar\String_;
 
 class SupplierResource extends JsonResource
 {
@@ -15,14 +15,16 @@ class SupplierResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $supplier = Supplier::findOrFail($this->id); // @phpstan-ignore-line
+
         return [
-            'id' => $this->id,
-            'name' => $this->name,
-            'category' => $this->category,
-            'created_at' => $this->created_at,
-            "isUsed" => $this->isUsed(),
+            'id' => $supplier->id,
+            'name' => $supplier->name,
+            'category' => $supplier->category,
+            'created_at' => $supplier->created_at,
+            "isUsed" => $supplier->isUsed(),
             "categoriesAsCommaString" => $this->categoriesAsCommaString($this->supplier_categories),
-            "categoriesForm" => unserialize($this->supplier_categories),
+            "categoriesForm" => unserialize($supplier->supplier_categories),
         ];
     }
 

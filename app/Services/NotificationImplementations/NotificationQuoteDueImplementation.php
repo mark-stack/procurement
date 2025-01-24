@@ -16,7 +16,7 @@ class NotificationQuoteDueImplementation implements NotificationInterface
 
     public function __construct()
     {
-        $testMode = env("TEST_MODE");
+        $testMode = config("env.test_mode");
         $this->subInterval = $testMode ? 'subMinutes' : 'subDays';
         $this->addInterval = $testMode ? 'addMinutes' : 'addDays';
     }
@@ -107,6 +107,7 @@ class NotificationQuoteDueImplementation implements NotificationInterface
                 "GREEN" => $this->markGreen($notification),
                 "YELLOW" => $this->markYellow($notification),
                 "RED" => $this->markRed($notification),
+                default => back(),
             };
         }
 
@@ -125,6 +126,7 @@ class NotificationQuoteDueImplementation implements NotificationInterface
     public function markRed(DatabaseNotification $notification): RedirectResponse
     {
         //Not used
+        return back();
     }
 
     public function markYellow(DatabaseNotification $notification): RedirectResponse

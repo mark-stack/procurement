@@ -2,9 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\Batch;
 use App\Models\Business;
-use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
 class BatchService
@@ -33,7 +31,7 @@ class BatchService
                 if(in_array($batch->id,$batchIdsThisQuery)){
                     $allInternalProjects[] = [
                         "batch_id" => $batch->id, //The order of this is like 'created_at'
-                        "thisUser" => $project->user_id === $user->id,
+                        "thisUser" => $project->user_id === $user->getKey(),
                     ];
                 }
             }

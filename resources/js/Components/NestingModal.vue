@@ -28,7 +28,7 @@
     const business = usePage().props.auth.business;
     const freezeView = ref(false);
     const currentBatch = ref(Object.keys(thisDownloadedNestingData(props.nestingData).batchGroups.assigned)[0]);
-    let projects = thisDownloadedNestingData(props.nestingData).projectsReadyForBatching.data;
+    let projects = thisDownloadedNestingData(props.nestingData).projectsReadyForBatching;
 
     //Shared Methods
     import shared from "@/Shared/shared.js";
@@ -110,16 +110,19 @@
 
 
                         <div class="mb-3 text-gray-600 mt-3">
-
+                            <!-- category toggle buttons -->
                             <div class="flex gap-x-3">
-                                <button
-                                    v-for="(batchGroup,batchLabel) in thisDownloadedNestingData(nestingData).batchGroups.assigned"
-                                    class="rounded px-2 py-1 text-green-900"
-                                    :class="batchLabel === currentBatch ? 'bg-green-300 border-2 border-green-900' : 'bg-green-200'"
-                                    @click="currentBatch = batchLabel"
-                                >
-                                    <b>{{batchLabel}}</b> batch
-                                </button>
+                                <!-- Multiple results - display category toggle buttons. No buttons for 1 result only -->
+                                <template v-if="Object.keys(thisDownloadedNestingData(nestingData).batchGroups.assigned).length > 1">
+                                    <button
+                                        v-for="(batchGroup,batchLabel) in thisDownloadedNestingData(nestingData).batchGroups.assigned"
+                                        class="rounded px-2 py-1 text-green-900"
+                                        :class="batchLabel === currentBatch ? 'bg-green-300 border-2 border-green-900' : 'bg-green-200'"
+                                        @click="currentBatch = batchLabel"
+                                    >
+                                        <b>{{batchLabel}}</b> batch
+                                    </button>
+                                </template>
                             </div>
 
                             <section class="">

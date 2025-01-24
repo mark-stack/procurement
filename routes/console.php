@@ -9,6 +9,6 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote')->hourly();
 
-$testMode = env("TEST_MODE");
+$testMode = config("env.test_mode");
 $frequency = $testMode ? 'everyMinute' : 'hourly';
 Schedule::job(new HourlyNotificationsJob())->$frequency();

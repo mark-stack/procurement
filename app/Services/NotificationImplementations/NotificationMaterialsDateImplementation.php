@@ -14,7 +14,7 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
     public string $subInterval;
     public function __construct()
     {
-        $testMode = env("TEST_MODE");
+        $testMode = config("env.test_mode");
         $this->subInterval = $testMode ? 'subMinutes' : 'subDays';
     }
 
@@ -38,7 +38,7 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
         foreach($tentativeProjects as $project) {
             $projectManager = $project->user;
 
-            if (!$this->notifiedAlready($projectManager,$project)) {
+            if (!$this->notifiedAlready($projectManager,$project->id)) {
                 //Mark all previous as read
                 $this->markPreviousAsRead($projectManager,$project);
 
@@ -119,6 +119,7 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
                 "GREEN" => $this->markGreen($notification),
                 "YELLOW" => $this->markYellow($notification),
                 "RED" => $this->markRed($notification),
+                default => back(),
             };
         }
 

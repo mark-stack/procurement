@@ -23,7 +23,6 @@ class ProjectController extends Controller
     public function index(): Response
     {
         //Services
-        //$nestingService = new NestingService();
         $quoteService = new QuoteService();
         $batchService = new BatchService();
 
@@ -47,18 +46,6 @@ class ProjectController extends Controller
             ],
         ];
 
-        //Category and included products
-        $supplierCategoriesWithIncludedProducts = (new SupplierService())->supplierGroups($business);
-        $supplierCategoriesFormatted = [];
-        foreach($supplierCategoriesWithIncludedProducts as $supplierCategory => $includedProducts){
-            $supplierCategoriesFormatted[$supplierCategory] = [
-                "includedProducts" => [
-                    "array" => $includedProducts,
-                    "string" => implode(", ",$includedProducts),
-                ],
-            ];
-        }
-
         /**
          * Batches for quoting (Kanban column 3)
          */
@@ -77,64 +64,6 @@ class ProjectController extends Controller
              * e.g "ABC Steel" who does 'fasteners' and 'steel merchant' is 2 rows
              */
 
-            $addQuoteRequests = [];
-
-            //nesting
-            //todo download async when modal opens
-//            $lettersProjectArray = $nestingService->getLetterProjectArray($batch->pieces);
-//            $piecesNested = $nestingService->piecesNested($batch->pieces,$lettersProjectArray);
-//            $batchGroups = $nestingService->batchGroups($piecesNested);
-
-//            foreach($business->suppliers as $supplier){
-//                $supplierCategories = unserialize($supplier->supplier_categories);
-//
-//                foreach($supplierCategories as $supplierCategory => $isUsed){
-//                    //This means there's pieces for the given supplier category.
-//                    $batchGroup = $batchGroups["assigned"][$supplierCategory] ?? null;
-//
-//                    if($isUsed && $batchGroup){
-//
-//                        $quote = Quote::firstOrCreate(
-//                            [
-//                                'user_id' => $user->id,
-//                                "batch_id" => $batch->id,
-//                                'supplier_id' => $supplier->id,
-//                                "supplier_category" => $supplierCategory,
-//                            ],
-//                            [
-//                                "supplier_quote_reference" => null,
-//                                "quote_sent" => false,
-//                            ]
-//                        );
-//
-//                        $addQuoteRequests[] = [
-//                            "supplierName" => $supplier->name,
-//                            "supplierCategory" => $supplierCategory,
-//                            "batchGroup" => $batchGroup,
-//                            "quote" => $quote,
-//                        ];
-//                    }
-//                }
-//            }
-
-            //Modal: "current quote coverage"
-            //Append quote quantities
-            //todo download async when modal opens
-//            $currentQuoteCoverage = [];
-//            foreach($supplierCategoriesFormatted as $supplierCategory => $data){
-//                //This means there's pieces for the given supplier category.
-//                $batchGroup = $batchGroups["assigned"][$supplierCategory] ?? null;
-//
-//                if($batchGroup){
-//                    $appended = $data;
-//                    $appended["qtyQuotes"] = $batch->quotes()
-//                        ->where("supplier_category",$supplierCategory)
-//                        ->where("quote_sent",true)
-//                        ->count();
-//                    $currentQuoteCoverage[$supplierCategory] = $appended;
-//                }
-//            }
-
             $quoted[$batch->id] = [
                 "batch" => [
                     "id" => $batch->id,
@@ -148,11 +77,6 @@ class ProjectController extends Controller
                     "totalQuotesQty" => $batch->quotes()->count(),
                     "sentQuotesQty" => $batch->quotes()->where("quote_sent",true)->count(),
                     "batchQuotingDeadline" => $quoteService->batchQuotingDeadline($batch),
-                ],
-                "modalData" => [
-                    //todo download async when modal opens
-//                    "addQuoteRequests" => $addQuoteRequests,
-//                    "currentQuoteCoverage" => $currentQuoteCoverage,
                 ],
             ];
         }
@@ -172,32 +96,12 @@ class ProjectController extends Controller
         foreach($batchesForOrdering as $batch){
             $orders = $batch->orders;
 
-            //todo download async when modal opens
-//            $currentQuoteCoverage = [];
-//
-//
-//            //nesting
-//            $lettersProjectArray = $nestingService->getLetterProjectArray($batch->pieces);
-//            $piecesNested = $nestingService->piecesNested($batch->pieces,$lettersProjectArray);
-//            $batchGroups = $nestingService->batchGroups($piecesNested);
-//
-//            foreach($supplierCategoriesFormatted as $supplierCategory => $data){
-//                //This means there's pieces for the given supplier category.
-//                $batchGroup = $batchGroups["assigned"][$supplierCategory] ?? null;
-//
-//                if($batchGroup){
-//                    $appended = $data;
-//                    $appended["qtyQuotes"] = $batch->quotes()
-//                        ->where("supplier_category",$supplierCategory)
-//                        ->where("quote_sent",true)
-//                        ->count();
-//
-//                    $appended["batchGroup"] = $batchGroup;
-//                    $appended["orders"] = $orders;
-//
-//                    $currentQuoteCoverage[$supplierCategory] = $appended;
-//                }
-//            }
+            //Total orders qty
+            $supplierCategories = [];
+            foreach($orders as $order){
+                $supplierCategories[] = $order->quote->supplier_category;
+            }
+            $totalOrdersQty = count(array_unique($supplierCategories));
 
             $ordered[$batch->id] = [
                 "batch" => [
@@ -210,13 +114,9 @@ class ProjectController extends Controller
                 "otherData" => [
                     "orders" => $orders,
                     "approxDueDate" => null, //todo actual - derived from earliest project
-                    "totalOrdersQty" => $batch->orders()->count(),
+                    "totalOrdersQty" => $totalOrdersQty, //todo qty of supplier categories
                     "sentOrdersQty" => $batch->orders()->where("order_sent",true)->count(),
                     "all_project_manager_approvals" => (new OrderService())->allProjectManagersApproved($batch),
-                ],
-                "modalData" => [
-                    //todo download async when modal opens
-//                    "currentQuoteCoverage" => $currentQuoteCoverage,
                 ],
             ];
         }
@@ -242,9 +142,6 @@ class ProjectController extends Controller
                     "otherData" => [
 
                     ],
-                    "modalData" => [
-                        //todo download async when modal opens
-                    ],
                 ],
             ],
         ];
@@ -257,12 +154,6 @@ class ProjectController extends Controller
             ->where('archive',true)
             ->latest()
             ->get());
-
-//        dd([
-//            "projects" => $projects,
-//            "batches" => $batches,
-//            "archivedProjects" => $archivedProjects,
-//        ]);
 
         /*
          * Modal data

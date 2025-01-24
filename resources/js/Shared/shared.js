@@ -86,7 +86,7 @@ export default {
 
         //In the past
         if(daysUntilNearestQuoteDeadline < 0){
-            message = "The quote deadline was " + daysUntilNearestQuoteDeadline + " day"+ (daysUntilNearestQuoteDeadline > 1 ? 's' : '') +" ago. You need to quote these materials today or even directly order.";
+            message = "The quote deadline was " + (0 - daysUntilNearestQuoteDeadline) + " day"+ (daysUntilNearestQuoteDeadline > 1 ? 's' : '') +" ago. You need to quote these materials today.";
         }
         //Today
         else if(daysUntilNearestQuoteDeadline === 0){

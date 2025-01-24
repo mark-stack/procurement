@@ -35,7 +35,7 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user(),
-                "business" => $request->user()?->business,
+                "business" => $request->user() ? $request->user()->business : null,
                 "isAdmin" => $request->user() && $request->user()->isAdmin(),
                 "onboarded" => $request->user() && $request->user()->business->admin_setup_complete,
                 "notifications" => (new NotificationService())->getNotifications($request->user()),
@@ -44,7 +44,7 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'warning' => fn () => $request->session()->get('warning'),
             ],
-            "adminEmail" => env("ADMIN_EMAIL"),
+            "adminEmail" => config("env.admin_email"),
         ];
     }
 }

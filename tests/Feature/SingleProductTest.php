@@ -25,7 +25,7 @@ function createAdmin(): User
     //Admin user
     return User::factory()->create([
         "name" => "Mark",
-        "email" => env("ADMIN_EMAIL"),
+        "email" => config("env.admin_email"),
         "business_id" => $adminBusiness->id,
     ]);
 }

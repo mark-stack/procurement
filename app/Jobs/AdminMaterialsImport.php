@@ -70,7 +70,7 @@ class AdminMaterialsImport implements ShouldQueue
         /**
          * Send completion email
          */
-        $adminUser = User::query()->where("email",env("ADMIN_EMAIL"))->first();
+        $adminUser = User::query()->where("email",config("env.admin_email"))->first();
         if($adminUser){
             $message = "The import finalised.";
             Notification::send($adminUser, new AdminImportFinalised($message));

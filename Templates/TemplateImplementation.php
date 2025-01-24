@@ -15,7 +15,7 @@ class TemplateImplementation implements NotificationInterface
 
     public function __construct()
     {
-        $testMode = env("TEST_MODE");
+        $testMode = config("env.test_mode");
         $this->subInterval = $testMode ? 'subMinutes' : 'subDays';
     }
 

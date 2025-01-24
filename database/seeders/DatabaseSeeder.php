@@ -26,7 +26,7 @@ class DatabaseSeeder extends Seeder
          */
         $adminUser = User::factory()->create([
             'name' => 'Mark',
-            'email' => env("ADMIN_EMAIL"),
+            'email' => config("env.admin_email"),
         ]);
         $adminBusiness = Business::create([
             "name" => null,

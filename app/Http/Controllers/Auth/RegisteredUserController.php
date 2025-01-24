@@ -62,7 +62,7 @@ class RegisteredUserController extends Controller
         $user->save();
 
         //Admin notify
-        $adminUser = User::query()->where("email",env("ADMIN_EMAIL"))->first();
+        $adminUser = User::query()->where("email",config("env.admin_email"))->first();
         if($adminUser){
             $message = "A new user signed up:";
             Notification::send($adminUser, new NewUserEmail($user,$message));

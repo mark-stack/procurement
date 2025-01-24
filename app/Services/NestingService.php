@@ -55,79 +55,79 @@ class NestingService
     /**
      * @deprecated
      */
-    public function isPurchasableSize($rawMaterialQuote): bool
-    {
-        /**
-         * Find the purchasable qty
-         */
-
-        $result = false;
-
-        $measurementEnum = null;
-        foreach(MeasurementUnitEnums::cases() as $enum){
-            if($enum->value === $rawMaterialQuote["nominal_units"]){
-                $measurementEnum = $enum;
-            }
-        }
-
-        $productEnum = null;
-        foreach(ProductEnums::cases() as $enum){
-            if($enum->value === $rawMaterialQuote["product_category"]){
-                $productEnum = $enum;
-            }
-        }
-
-        /**
-         * Material spec
-         * 'product_category', 'material', 'grade', 'surface', 'nominal_units', 'size'
-         */
-        $materialSpec = new stdClass();
-        $materialSpec->product_category = $rawMaterialQuote->product_category;
-        $materialSpec->material = $rawMaterialQuote->material;
-        $materialSpec->grade = 999; //todo
-        $materialSpec->surface = 999; //todo
-        $materialSpec->nominal_units = $rawMaterialQuote->nominal_units;
-        $materialSpec->size = 999; //todo
-
-        /**
-         * Length to compare to stock sizes
-         */
-        $lengthToCompare = (float) $rawMaterialQuote->length_required;
-
-
-
-        $purchasableLengths = $this->getPurchasableVariations((array)$materialSpec);
-        dd([
-            "rawMaterialQuote" => $rawMaterialQuote,
-            "measurementEnum" => $measurementEnum,
-            "productEnum" => $productEnum,
-            "purchasableLengths" => $purchasableLengths,
-            "lengthToCompare" => $lengthToCompare,
-        ]);
-
-
-        $priceBookProducts = $this->findByAttributes(
-            auth()->user(),
-            $productEnum,
-            $rawMaterialQuote["material"],
-            null, //$grades,
-            null, //$surface,
-            $measurementEnum,
-            null, //$size,
-            null //$length,
-        );
-
-        if($priceBookProducts->count() > 0){
-            $lengths = $priceBookProducts->pluck('length')->toArray();
-            $normalisedToMeters = $this->normaliseArrayOfLengthsToMeters($lengths,$rawMaterialQuote["nominal_units"]);
-            $providedLengthInMeters = (float) $rawMaterialQuote["length_required"];
-            if(in_array($providedLengthInMeters,$normalisedToMeters)){
-                $result = true;
-            }
-        }
-
-        return $result;
-    }
+//    public function isPurchasableSize($rawMaterialQuote): bool
+//    {
+//        /**
+//         * Find the purchasable qty
+//         */
+//
+//        $result = false;
+//
+//        $measurementEnum = null;
+//        foreach(MeasurementUnitEnums::cases() as $enum){
+//            if($enum->value === $rawMaterialQuote["nominal_units"]){
+//                $measurementEnum = $enum;
+//            }
+//        }
+//
+//        $productEnum = null;
+//        foreach(ProductEnums::cases() as $enum){
+//            if($enum->value === $rawMaterialQuote["product_category"]){
+//                $productEnum = $enum;
+//            }
+//        }
+//
+//        /**
+//         * Material spec
+//         * 'product_category', 'material', 'grade', 'surface', 'nominal_units', 'size'
+//         */
+//        $materialSpec = new stdClass();
+//        $materialSpec->product_category = $rawMaterialQuote->product_category;
+//        $materialSpec->material = $rawMaterialQuote->material;
+//        $materialSpec->grade = 999; //todo
+//        $materialSpec->surface = 999; //todo
+//        $materialSpec->nominal_units = $rawMaterialQuote->nominal_units;
+//        $materialSpec->size = 999; //todo
+//
+//        /**
+//         * Length to compare to stock sizes
+//         */
+//        $lengthToCompare = (float) $rawMaterialQuote->length_required;
+//
+//
+//
+//        $purchasableLengths = $this->getPurchasableVariations((array)$materialSpec);
+//        dd([
+//            "rawMaterialQuote" => $rawMaterialQuote,
+//            "measurementEnum" => $measurementEnum,
+//            "productEnum" => $productEnum,
+//            "purchasableLengths" => $purchasableLengths,
+//            "lengthToCompare" => $lengthToCompare,
+//        ]);
+//
+//
+//        $priceBookProducts = $this->findByAttributes(
+//            auth()->user(),
+//            $productEnum,
+//            $rawMaterialQuote["material"],
+//            null, //$grades,
+//            null, //$surface,
+//            $measurementEnum,
+//            null, //$size,
+//            null //$length,
+//        );
+//
+//        if($priceBookProducts->count() > 0){
+//            $lengths = $priceBookProducts->pluck('length')->toArray();
+//            $normalisedToMeters = $this->normaliseArrayOfLengthsToMeters($lengths,$rawMaterialQuote["nominal_units"]);
+//            $providedLengthInMeters = (float) $rawMaterialQuote["length_required"];
+//            if(in_array($providedLengthInMeters,$normalisedToMeters)){
+//                $result = true;
+//            }
+//        }
+//
+//        return $result;
+//    }
 
     public function allMaterialLabels(): array
     {
@@ -681,6 +681,11 @@ class NestingService
                 7 => "H",
                 8 => "I",
                 9 => "J",
+                10 => "K",
+                11 => "L",
+                12 => "M",
+                13 => "N",
+                default => "O", //shouldn't get this far
             };
 
             $lettersProjectArray[$id] = $letter;

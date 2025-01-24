@@ -21,65 +21,9 @@ class QuoteController extends Controller
     /**
      * @deprecated
      */
-    public function index(): Response
+    public function index()
     {
 
-//        //todo: use common code with modal for this
-//
-//        //Services
-//        $nestingService = new NestingService();
-//
-//        $user = auth()->user();
-//        $business = $user->business;
-//
-//
-//        $projectsReadyForBatching = $business->projectsReadyForBatching();
-//
-//        $piecesReadyForBatching = $nestingService->piecesReadyForBatching($business);
-//
-//        /*
-//         * Nested by algorithm
-//         */
-//        $piecesNested = $nestingService->piecesNested($piecesReadyForBatching);
-//
-//
-//
-//        /**
-//         * Sums of material totals, usage, and waste
-//         */
-//        $totalMaterial = 0;
-//        $totalUsedMaterial = 0;
-//        $totalWaste = 0;
-//
-//        foreach($piecesNested as $items){
-//            foreach($items as $item){
-//                $item = (array) $item;
-//                if(isset($item["nested"]["totals"])){
-//                    $totals = $item["nested"]["totals"];
-//
-//                    $totalMaterial = $totalMaterial + $totals["totalMaterial"];
-//                    $totalUsedMaterial = $totalUsedMaterial + $totals["totalUsedMaterial"];
-//                    $totalWaste = $totalWaste + $totals["totalWaste"];
-//                }
-//            }
-//        }
-//        $usage = [
-//            "totalMaterial" => $totalMaterial,
-//            "totalUsedMaterial" => $totalUsedMaterial,
-//            "totalWaste" => $totalWaste,
-//        ];
-//
-//        /**
-//         * Batch groups
-//         */
-//        $batchGroups = $nestingService->batchGroups($piecesNested);
-//
-//        return Inertia::render('QuoteIndex',[
-//            "pieces" => $piecesNested,
-//            "projectsReadyForBatching" => ProjectResource::collection($projectsReadyForBatching),
-//            "batchGroups" => $batchGroups,
-//            "usage" => $usage,
-//        ]);
     }
 
     /**

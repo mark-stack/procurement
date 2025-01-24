@@ -2,16 +2,16 @@
 
 namespace App\Models;
 
+use Database\Factories\SupplierFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Bus;
 
 class Supplier extends Model
 {
-    /** @use HasFactory<\Database\Factories\SupplierFactory> */
+    /** @use HasFactory<SupplierFactory> */
     use HasFactory;
 
     protected $guarded = [];
@@ -72,7 +72,7 @@ class Supplier extends Model
 
         // 1) Attached to non-admin business
         $cond1 = $this->businesses()
-            ->whereRelation("users","email","!=",env("ADMIN_BUSINESS"))
+            ->whereRelation("users","email","!=",config("env.admin_business"))
             ->count() > 0;
 
         // 2) Attached to quotes

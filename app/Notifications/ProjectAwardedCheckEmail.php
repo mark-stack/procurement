@@ -43,7 +43,7 @@ class ProjectAwardedCheckEmail extends Notification implements ShouldQueue
         $magicLink = MagicLink::create($action);
 
         //MagicLink is being weird making default "localhost" instead of "http://127.0.0.1:8000"
-        //$testMode = env("TEST_MODE");
+        //$testMode = config("env.test_mode");
         //$baseUrl = $testMode ? 'http://127.0.0.1:8000' : redirect()->route("projects.index");
         //$magicLinkUrl = $magicLink->baseUrl($baseUrl)->url;
         $magicLinkUrl = $magicLink->url;

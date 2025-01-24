@@ -142,7 +142,7 @@
 
             <!-- Value Display -->
             <div class="mt-2 text-gray-800 font-semibold">
-                Yield increase: {{formCalculator.wastePct}}%
+                Material Yield increase: {{formCalculator.wastePct}}%
             </div>
         </div>
 
@@ -167,7 +167,7 @@
 <!--            <span class="block"><b>${{ beforeFees() }}</b> - <b>${{(price/1000).toFixed(1)}}K</b> for {{years}} year software term</span>-->
             <span class="block mt-3 text-4xl text-deep-purple-accent-400">Save <b>${{ beforeFees() }}</b> {{ displayTerm() }}</span>
             <div class="flex mt-2">
-                <span class="text-emerald-500 font-bold">{{ roiDisplay() }} ROI</span> <span class="ml-1 text-emerald-500"> with software</span>
+                <span class="text-emerald-500 font-bold">{{ roiDisplay() }} ROI</span> <span class="ml-1 text-emerald-500"> from the software</span>
             </div>
 
         </div>

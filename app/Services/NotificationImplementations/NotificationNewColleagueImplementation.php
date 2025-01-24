@@ -16,7 +16,7 @@ class NotificationNewColleagueImplementation implements NotificationInterface
 
     public function __construct()
     {
-        $testMode = env("TEST_MODE");
+        $testMode = config("env.test_mode");
         $this->subInterval = $testMode ? 'subMinutes' : 'subDays';
     }
 
@@ -35,7 +35,7 @@ class NotificationNewColleagueImplementation implements NotificationInterface
         foreach($newUsers as $newUser){
             $colleagues = $newUser->business->users()->where("id","!=",$newUser->id)->get();
             foreach($colleagues as $colleague){
-                if(!$this->notifiedAlready($colleague, )){
+                if(!$this->notifiedAlready($colleague, $newUser->id)){
                     //Mark all previous as read
                     $this->markPreviousAsRead($colleague, $newUser);
 
@@ -97,6 +97,7 @@ class NotificationNewColleagueImplementation implements NotificationInterface
                 "GREEN" => $this->markGreen($notification),
                 "YELLOW" => $this->markYellow($notification),
                 "RED" => $this->markRed($notification),
+                default => back(),
             };
         }
 
@@ -106,11 +107,13 @@ class NotificationNewColleagueImplementation implements NotificationInterface
     public function markGreen(DatabaseNotification $notification): RedirectResponse
     {
         // Not used
+        return back();
     }
 
     public function markRed(DatabaseNotification $notification): RedirectResponse
     {
         // Not used
+        return back();
     }
 
     public function markYellow(DatabaseNotification $notification): RedirectResponse

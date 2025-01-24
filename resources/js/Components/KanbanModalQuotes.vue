@@ -12,6 +12,7 @@
         allData: Object,
         modalSelectedBatchId: Number|null,
         refreshModalQuotes: Boolean,
+        quotesData: Object,
     });
 
     //Forms
@@ -28,18 +29,10 @@
     //Variables
     const emit = defineEmits(['closeModal']);
     const clickCount = ref(0);
+    //const freezeView = ref(false);
 
     //Shared Methods
     import shared from '@/Shared/shared';
-
-    //Watcher
-    const { refreshModalQuotes } = toRefs(props);
-    watch(refreshModalQuotes, (newVal) => {
-        console.log('refreshModalQuotes changed:', newVal);
-        form = useForm({
-            items: props.allData,
-        });
-    });
 
     //Methods
     function onClickAway(event) {
@@ -70,6 +63,22 @@
             },
         });
     }
+
+    function isLoaded(){
+        return Object.values(props.quotesData).length === 0
+    }
+
+    //Watcher
+    const { refreshModalQuotes } = toRefs(props);
+    watch(refreshModalQuotes, (newVal) => {
+        console.log('refreshModalQuotes changed:', newVal);
+
+        //freezeView.value = false;
+
+        form = useForm({
+            items: props.allData,
+        });
+    });
 </script>
 
 <template>
@@ -118,7 +127,15 @@
                                         Add quote requests
                                     </h3>
 
-                                    <div class="mt-3">
+                                    <!-- Loading -->
+                                    <div
+                                        v-if="isLoaded()"
+                                        class="p-20 text-gray-700 italic"
+                                    >
+                                        <span class="block font-bold text-xl">Loading...</span>
+                                    </div>
+
+                                    <div v-else class="mt-3">
                                         <div class="w-full grid grid-cols-1 gap-y-3">
                                             <div class="grid grid-cols-3">
                                                 <div class="font-semibold">Supplier</div>
@@ -126,7 +143,7 @@
                                                 <div class="font-semibold text-center">Sent RFQ?</div>
                                             </div>
                                             <form
-                                                v-for="row in form.items[modalSelectedBatchId]?.modalData?.addQuoteRequests"
+                                                v-for="row in quotesData[0]?.data.addQuoteRequests"
                                                 class="grid grid-cols-3"
                                             >
                                                 <div>
@@ -176,7 +193,7 @@
                                             <div class="col-span-1 font-semibold text-center">Quotes</div>
                                         </div>
                                         <div
-                                            v-for="(data,supplierCategory) in allData[modalSelectedBatchId]?.modalData?.currentQuoteCoverage"
+                                            v-for="(data,supplierCategory) in quotesData[0]?.data.currentQuoteCoverage"
                                             class="grid grid-cols-4"
                                         >
                                             <div class="col-span-3">

@@ -15,7 +15,7 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
 
     public function __construct()
     {
-        $testMode = env("TEST_MODE");
+        $testMode = config("env.test_mode");
         $this->subInterval = $testMode ? 'subMinutes' : 'subDays';
     }
 
@@ -38,7 +38,7 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
         foreach($nonAwardedProjects as $project) {
             $projectManager = $project->user;
 
-            if (!$this->notifiedAlready($projectManager, $project)) {
+            if (!$this->notifiedAlready($projectManager, $project->id)) {
                 //Mark all previous as read
                 $this->markPreviousAsRead($projectManager, $project);
 
@@ -83,7 +83,7 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
         if($project->awarded){
             $class = $this->getNotificationClass();
             $classWithPath = "App\Notifications\\".$class;
-            $recipient = $project->user;
+            $recipient = $project->user()->first();
 
             $recipient->notifications()
                 ->where("type",$classWithPath)
@@ -118,6 +118,7 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
                 "GREEN" => $this->markGreen($notification),
                 "YELLOW" => $this->markYellow($notification),
                 "RED" => $this->markRed($notification),
+                default => back(),
             };
         }
 

@@ -24,9 +24,9 @@
     //Variables
     const trial_months = 2;
     const savings_period_years = 5;
-    const fullPriceAnnual = 10000;
-    const fullPriceMonthly = 850;
-    const firstYearDiscount = 61;
+    const fullPriceAnnual = 5900;
+    const fullPriceMonthly = 490;
+    const firstYearDiscount = 50;
     const whichPlan = "ANNUAL";
 
     //Shared Methods
@@ -76,7 +76,7 @@
 </script>
 
 <template>
-    <Head title="Welcome" />
+    <Head title="Steel Procurement" />
 
     <div class="bg-gray-900">
         <div class="px-4 py-5 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8">
@@ -205,17 +205,17 @@
                     <p class="text-base text-gray-700 md:text-lg">
                         <b>Centralised procurement is the key to:</b>
                         <br>
-                        - <span class="font-semibold text-deep-purple-accent-400">Far less waste</span> via cross-project nesting.
+                        - <span class="font-semibold text-deep-purple-accent-400">Far less waste</span> from cross-project nesting.
 <!--                        <br>-->
 <!--                        - <span class="font-semibold text-deep-purple-accent-400">More bulk discounts</span> via cross-project batched orders.-->
 <!--                        <br>-->
 <!--                        - <span class="font-semibold text-deep-purple-accent-400">More supplier discounts</span> aligned to your material lists.-->
                         <br>
-                        - <span class="font-semibold text-deep-purple-accent-400">Less delivery fees</span> via cross-project batched orders.
+                        - <span class="font-semibold text-deep-purple-accent-400">Less delivery fees</span> from cross-project batched orders.
                         <br>
-                        - <span class="font-semibold text-deep-purple-accent-400">Less over-ordering</span> via reusing tracked surplus stock.
+                        - <span class="font-semibold text-deep-purple-accent-400">Less over-ordering</span> from reusing tracked offcuts.
                         <br>
-                        - <span class="font-semibold text-deep-purple-accent-400">Less re-ordering</span> via automated material list checking.
+                        - <span class="font-semibold text-deep-purple-accent-400">Less ordering errors</span> from automated material list checks.
                     </p>
                 </div>
                 <div class="flex flex-col items-center md:flex-row">
@@ -455,14 +455,14 @@
                         </p>
                         Compares against a database of 10,000+ items
                     </li>
-                    <li class="flex items-start">
-                        <p class="mr-1">
-                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">
-                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
-                            </svg>
-                        </p>
-                        Custom items easily added (once and done)
-                    </li>
+<!--                    <li class="flex items-start">-->
+<!--                        <p class="mr-1">-->
+<!--                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">-->
+<!--                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>-->
+<!--                            </svg>-->
+<!--                        </p>-->
+<!--                        Custom items easily added (once and done)-->
+<!--                    </li>-->
                     <li class="flex items-start">
                         <p class="mr-1">
                             <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">

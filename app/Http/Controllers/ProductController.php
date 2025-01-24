@@ -131,7 +131,10 @@ class ProductController extends Controller
             $rawMaterialQuote->nesting_algo = $nesting_algo;
             $baseline_unit_rate = $productService->getBaseLineUnitRateFromGeneral($getProductMatchOptions["decodedOption"] ?? null);
             $rawMaterialQuote->baseline_unit_rate = $baseline_unit_rate;
-            $rawMaterialQuote->baseline_unit_rate_comparison = $productService->getBaselineUnitRateHighLowComparison($rawMaterialQuote->unit_rate,$baseline_unit_rate);
+            $rawMaterialQuote->baseline_unit_rate_comparison = $productService->getBaselineUnitRateHighLowComparison(
+                $rawMaterialQuote->unit_rate,
+                $baseline_unit_rate
+            );
             $materialListRows[] = $rawMaterialQuote;
         }
 

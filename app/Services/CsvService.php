@@ -401,7 +401,7 @@ class CsvService
          */
 
         $float = (float) $rawSubQty;
-        return $float === 0 ? 1.0 : $float;
+        return $float === 0.0 ? 1.0 : $float;
     }
 
     public function normaliseLengthWidthRequired(string $quantity, string $lengthWidthUnits): float
@@ -578,14 +578,14 @@ class CsvService
         $thisCellBlank = true;
         if(isset($csvArray[$index][$skipOrFinishCheckColumnIndex])){
             $thisCell = $csvArray[$index][$skipOrFinishCheckColumnIndex];
-            $thisCellBlank = $thisCell=== "" || $thisCell === null;
+            $thisCellBlank = $thisCell == "" || $thisCell == null;
         }
 
         //Next row exists
         $nextCellBlank = true;
         if(isset($csvArray[$index + 1][$skipOrFinishCheckColumnIndex])){
             $nextCell = $csvArray[$index + 1][$skipOrFinishCheckColumnIndex];
-            $nextCellBlank = $nextCell === "" || $nextCell === null;
+            $nextCellBlank = $nextCell == "" || $nextCell == null;
         }
 
         return $thisCellBlank && $nextCellBlank;
@@ -635,7 +635,7 @@ class CsvService
         $skip = false;
 
         if(isset($csvRow[$descriptionColumnIndex])){
-            $skip =  $csvRow[$descriptionColumnIndex] === "" || $csvRow[$descriptionColumnIndex] === null;
+            $skip =  $csvRow[$descriptionColumnIndex] === "";
         }
 
         return $skip;

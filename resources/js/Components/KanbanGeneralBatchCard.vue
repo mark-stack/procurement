@@ -233,11 +233,11 @@
             <!-- Quote actions -->
             <CardButtonRed
                 v-if="type === 'QUOTES'"
-                @click="$emit('pageLoadingOn',5);breakBatch(batch)"
+                @click="$emit('pageLoadingOn',3);breakBatch(batch)"
                 label="Re-nest"
             />
             <CardButtonYellow
-                v-if="type === 'QUOTES'"
+                v-if="type === 'QUOTES' && otherData.totalQuotesQty > 0"
                 @click="$emit('orderNow')"
                 label="Order"
             />
@@ -252,7 +252,7 @@
             <!-- Order actions -->
             <CardButtonRed
                 v-if="type === 'ORDERS'"
-                @click="$emit('pageLoadingOn',5); cancelBatchOrders(otherData.orders,batch)"
+                @click="$emit('pageLoadingOn',3); cancelBatchOrders(otherData.orders,batch)"
                 label="Back to quotes"
             />
             <CardButtonGreen
