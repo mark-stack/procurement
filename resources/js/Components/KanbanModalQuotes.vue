@@ -4,11 +4,11 @@
     import {Link, useForm, usePage} from "@inertiajs/vue3";
 
     //Component Imports
-    //...
+    import Modal from "@/Layouts/Modal.vue";
 
     //Props
     const props = defineProps({
-        showModal: Boolean,
+        width: Number,
         allData: Object,
         modalSelectedBatchId: Number|null,
         refreshModalQuotes: Boolean,
@@ -18,41 +18,144 @@
     //Forms
     const formQuoteUpdate = useForm({
         quote_sent: null,
-    });
-    let form = useForm({
-        items: props.allData,
+        supplier_quote_reference: null,
+        quoted_price: null,
+        quoted_lead_time: null,
     });
 
     //Shared data
     const business = usePage().props.auth.business;
 
     //Variables
-    const emit = defineEmits(['closeModal']);
-    const clickCount = ref(0);
-    //const freezeView = ref(false);
+    let showInputs = ref(null);
+    const currentInputEditRow = ref(null);
 
     //Shared Methods
     import shared from '@/Shared/shared';
 
     //Methods
-    function onClickAway(event) {
-        if(props.showModal){
-            //This is to exclude initial button click
-            clickCount.value = clickCount.value + 1;
-            if(clickCount.value > 1){
-                //Reset
-                clickCount.value = 0;
+    function setupShowInputs(){
+        let resultArray = [];
 
-                //Close modal
-                emit('closeModal');
-            }
+        Object.values(props.quotesData[0]?.data.quotesAndOrders).forEach(data => {
+            Object.values(data.rows).forEach(row => {
+                resultArray[row.supplier.id] = {
+                    quoted_price: false,
+                    quoted_lead_time: false,
+                    supplier_quote_reference: false,
+                };
+            });
+        });
+
+        return resultArray;
+    }
+
+    function showQuotedLeadTime(supplierId){
+        let showQuotedLeadTime = false;
+
+        if(showInputs.value.hasOwnProperty(supplierId)){
+            showQuotedLeadTime = showInputs.value[supplierId].quoted_lead_time;
+        }
+
+        return showQuotedLeadTime;
+    }
+
+    function showQuotedPrice(supplierId){
+        let showQuotedPrice = false;
+
+        if(showInputs.value.hasOwnProperty(supplierId)){
+            showQuotedPrice = showInputs.value[supplierId].quoted_price;
+        }
+
+        return showQuotedPrice;
+    }
+
+    function showSupplierQuoteReference(supplierId){
+        let showSupplierQuoteReference = false;
+
+        if(showInputs.value.hasOwnProperty(supplierId)){
+            showSupplierQuoteReference = showInputs.value[supplierId].supplier_quote_reference;
+        }
+
+        return showSupplierQuoteReference;
+    }
+
+    function toggleShowInput(row,type){
+        //Save any currently open
+        if(currentInputEditRow.value){
+            console.log("has open input. Save it.",currentInputEditRow.value);
+            saveInput(currentInputEditRow.value,false);
+        }
+
+        //Set current row
+        currentInputEditRow.value = row;
+        console.log("currentInputEditRow",currentInputEditRow.value);
+
+        //hide any currently open
+        showInputs.value = setupShowInputs();
+
+        //quoted_lead_time
+        if(type === 'quoted_lead_time'){
+            showInputs.value[row.supplier.id].quoted_lead_time = true;
+        }
+
+        //quotedPrice
+        if(type === 'quoted_price'){
+            showInputs.value[row.supplier.id].quoted_price = true;
+        }
+
+        //supplierQuoteReference
+        if(type === 'supplier_quote_reference'){
+            showInputs.value[row.supplier.id].supplier_quote_reference = true;
         }
     }
 
-    function quoteSentCheckbox(quote){
-        let url = route("quotes.update",quote.id);
+    function hideInput(){
+        //hide any currently open
+        showInputs.value = setupShowInputs();
 
-        formQuoteUpdate.quote_sent = quote.quote_sent === "0" ? false : true;
+        //Clear current input selection
+        currentInputEditRow.value = null;
+        console.log("cancel. current row",currentInputEditRow.value);
+    }
+
+    function saveInput(row,autoCloseAll){
+        let url = route("quotes.update",row.quote.id);
+
+        formQuoteUpdate.quote_sent = row.quote.quote_sent === "0" ? false : true;
+        formQuoteUpdate.supplier_quote_reference = row.quote.supplier_quote_reference;
+        formQuoteUpdate.quoted_price = row.quote.quoted_price;
+        formQuoteUpdate.quoted_lead_time = row.quote.quoted_lead_time;
+
+        formQuoteUpdate.put(url, {
+            preserveScroll: true,
+            onSuccess: () => {
+                console.log('success');
+
+                //Close all inputs
+                if(autoCloseAll){
+                    console.log("autoCloseAll because there's NO open input");
+                    showInputs.value = setupShowInputs();
+                }
+
+                //Clear current input selection
+                currentInputEditRow.value = null;
+                console.log("saved completed. current row",currentInputEditRow.value);
+            },
+            onError: errors => {
+                console.log('errors',errors);
+            },
+        });
+    }
+
+    function quoteSentCheckbox(row){
+        let url = route("quotes.update",row.quote.id);
+
+        formQuoteUpdate.quote_sent = row.quote.quote_sent === "0" ? false : true;
+        formQuoteUpdate.supplier_quote_reference = row.row.quote.supplier_quote_reference;
+        formQuoteUpdate.quoted_price = row.quote.quoted_price;
+        formQuoteUpdate.quoted_lead_time = row.quote.quoted_lead_time;
+
         formQuoteUpdate.put(url, {
             preserveScroll: true,
             onSuccess: () => {
@@ -64,6 +167,10 @@
         });
     }
 
+    function orderSentCheckbox(row){
+        console.log("orderSentCheckbox: quote id = ",row.isOrdered); //todo
+    }
+
     function isLoaded(){
         return Object.values(props.quotesData).length === 0
     }
@@ -73,166 +180,263 @@
     watch(refreshModalQuotes, (newVal) => {
         console.log('refreshModalQuotes changed:', newVal);
 
-        //freezeView.value = false;
-
-        form = useForm({
-            items: props.allData,
-        });
+        //Initialise 'show inputs'
+        showInputs.value = setupShowInputs();
     });
 </script>
 
 <template>
+    <Modal>
+        <div :style="'width:'+width+'px'">
+            <div class="p-5">
+                <div class="grid grid-cols-3">
+                    <div class="col-span-2">
+                        <h3 class="text-2xl leading-6 font-medium text-gray-900 mb-5" id="modal-title">
+                            Quotes / Orders
+                        </h3>
+                    </div>
+                    <div class="text-right">
+                        <Link
+                            :href="route('suppliers.index',business.id)"
+                            class="underline text-blue-500"
+                        >
+                            Add/Edit suppliers
+                        </Link>
+                    </div>
+                </div>
 
-    <!-- Modal (https://codepen.io/npmhieu/pen/mdxaEbE?editors=1000) -->
-    <div id="basicModal" v-show="showModal">
-        <div
-            x-show="open"
-            class="relative z-10"
-            aria-labelledby="modal-title"
-            x-ref="dialog"
-            aria-modal="true"
-        >
-            <div
-                x-show="open"
-                x-transition:enter="ease-out duration-300"
-                x-transition:enter-start="opacity-0"
-                x-transition:enter-end="opacity-100"
-                x-transition:leave="ease-in duration-200"
-                x-transition:leave-start="opacity-100"
-                x-transition:leave-end="opacity-0"
-                x-description="Background backdrop, show/hide based on modal state."
-                class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-            ></div>
+                <!-- Loading -->
+                <div
+                    v-if="isLoaded()"
+                    class="p-20 text-gray-700 italic"
+                >
+                    <span class="block font-bold text-xl">Loading...</span>
+                </div>
 
+                <div v-else class="mt-3">
 
-            <div class="fixed z-10 inset-0 overflow-y-auto">
-                <div class="flex items-end sm:items-center justify-center min-h-full p-4 text-center sm:p-0">
                     <div
-                        v-click-away="onClickAway"
-                        x-show="open"
-                        x-transition:enter="ease-out duration-300"
-                        x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-                        x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
-                        x-transition:leave="ease-in duration-200"
-                        x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
-                        x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-                        x-description="Modal panel, show/hide based on modal state."
-                        class="relative bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:max-w-3xl sm:w-full"
+                        v-for="(data,supplierGroup) in quotesData[0]?.data.quotesAndOrders"
+                        class="border-2 border-gray-200 rounded-lg p-3 mb-2"
                     >
-                        <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                            <div class="grid grid-cols-2">
-                                <!-- left-->
-                                <div class="p-5 border-r-2 border-gray-300">
-                                    <h3 class="text-2xl leading-6 font-medium text-gray-900 mb-5" id="modal-title">
-                                        Add quote requests
-                                    </h3>
-
-                                    <!-- Loading -->
-                                    <div
-                                        v-if="isLoaded()"
-                                        class="p-20 text-gray-700 italic"
-                                    >
-                                        <span class="block font-bold text-xl">Loading...</span>
-                                    </div>
-
-                                    <div v-else class="mt-3">
-                                        <div class="w-full grid grid-cols-1 gap-y-3">
-                                            <div class="grid grid-cols-3">
-                                                <div class="font-semibold">Supplier</div>
-                                                <div class="font-semibold text-center">Email Tables</div>
-                                                <div class="font-semibold text-center">Sent RFQ?</div>
-                                            </div>
-                                            <form
-                                                v-for="row in quotesData[0]?.data.addQuoteRequests"
-                                                class="grid grid-cols-3"
-                                            >
-                                                <div>
-                                                    {{row.supplierName}}
-                                                    <br>
-                                                    <span class="text-xs">{{row.supplierCategory}}</span>
-                                                </div>
-                                                <div class="text-center">
-                                                    <!-- has batch group -->
-                                                    <button
-                                                        v-if="row.batchGroup"
-                                                        @click="shared.sendSupplierBatchEmail(row.batchGroup)"
-                                                        class="bg-green-50 rounded px-1 border-2 border-green-100 hover:bg-green-100"
-                                                    >
-                                                        <i class="fa-regular fa-envelope text-2xl"></i>
-                                                    </button>
-                                                    <!-- no batch group -->
-                                                    <div v-else class="text-red-500 text-xs">
-                                                        no batch group
-                                                    </div>
-                                                </div>
-                                                <div class="text-center">
-                                                    <input
-                                                        v-model="row.quote.quote_sent"
-                                                        true-value="1"
-                                                        false-value="0"
-                                                        @change="quoteSentCheckbox(row.quote)"
-                                                        type="checkbox"
-                                                    />
-                                                </div>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </div>
-                                <!-- right -->
-                                <div class="pt-5 pr-5 pb-5 pl-10">
-                                    <h3 class="text-2xl leading-6 font-medium text-gray-900 mb-5" id="modal-title">
-                                        Current quote coverage
-                                    </h3>
-
-                                    <div class="mt-3 grid grid-cols-1 gap-y-3">
-<!--                                        <p class="text-sm text-gray-500">-->
-<!--                                            Are you sure you want to deactivate your account? All of your data will be permanently removed. This action cannot be undone.-->
-<!--                                        </p>-->
-                                        <div class="grid grid-cols-4">
-                                            <div class="col-span-3 font-semibold">Procurement Category</div>
-                                            <div class="col-span-1 font-semibold text-center">Quotes</div>
-                                        </div>
-                                        <div
-                                            v-for="(data,supplierCategory) in quotesData[0]?.data.currentQuoteCoverage"
-                                            class="grid grid-cols-4"
-                                        >
-                                            <div class="col-span-3">
-                                                <h3>{{supplierCategory}}</h3>
-                                                <p class="text-xs text-gray-600">{{data.includedProducts.string}}</p>
-                                            </div>
-                                            <div
-                                                class="col-span-1 text-center font-bold pt-2"
-                                                :class="data.qtyQuotes === 0 ? 'text-orange-600' : 'text-green-600'"
-                                            >
-                                                {{data.qtyQuotes}}
-                                            </div>
-                                        </div>
-
-                                    </div>
-                                </div>
-                                <!-- edit suppliers -->
-                                <div class="pl-5 pt-2">
-                                    <Link
-                                        :href="route('suppliers.index',business.id)"
-                                        class="underline text-blue-500"
-                                    >
-                                        Edit suppliers
-                                    </Link>
-                                </div>
+                        <!-- header -->
+                        <div class="grid grid-cols-2">
+                            <div>
+                                <h2 class="font-semibold">{{supplierGroup}}</h2>
+                                <p class="text-sm text-gray-400">{{data.categoryLevel.includedProducts.string}}</p>
+                            </div>
+                            <div class="text-right">
+                                PO: <span class="font-semibold">{{data.categoryLevel.purchaseOrderNumber}}</span>
                             </div>
                         </div>
-                        <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                            <button
-                                type="button"
-                                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                                @click="$emit('closeModal'); clickCount = 0;"
+
+                        <!-- Main-->
+                        <div class="mt-3">
+                            <!-- heading row -->
+                            <div class="grid grid-cols-10 text-xs text-gray-500 text-center mb-2 font-semibold">
+                                <div class="col-span-2 text-left">
+                                    Supplier
+                                </div>
+                                <div>
+                                    Email tables
+                                </div>
+                                <div>
+                                    Sent Quote
+                                </div>
+                                <div>
+                                    Price
+                                </div>
+                                <div>
+                                    Lead time (days)
+                                </div>
+                                <div class="col-span-2">
+                                    Quote reference
+                                </div>
+                                <div>
+                                    Sent order
+                                </div>
+                                <div>
+                                    Delivered
+                                </div>
+                            </div>
+                            <!-- rows -->
+                            <div
+                                v-for="row in data.rows"
+                                class="grid grid-cols-10 text-center mb-2"
                             >
-                                Done
-                            </button>
+                                <!-- supplier -->
+                                <div class="col-span-2 text-left">
+                                    {{ shared.cropText(row.supplier.name,20) }}
+                                </div>
+                                <!-- email button -->
+                                <div>
+                                    <button
+                                        @click="shared.sendSupplierBatchEmail(data.categoryLevel.batchGroup)"
+                                        class="bg-green-50 rounded px-1 border-2 border-green-100 hover:bg-green-100"
+                                    >
+                                        <i class="fa-regular fa-envelope text-2xl"></i>
+                                    </button>
+                                </div>
+                                <!-- is quoted -->
+                                <div>
+                                    <input
+                                        v-model="row.quote.quote_sent"
+                                        true-value="1"
+                                        false-value="0"
+                                        @change="quoteSentCheckbox(row)"
+                                        type="checkbox"
+                                    />
+                                </div>
+                                <!-- Price -->
+                                <div>
+                                    <!-- has quote details -->
+                                    <div v-if="showQuotedPrice(row.supplier.id)">
+                                        <input
+                                            v-model="row.quote.quoted_price"
+                                            type="number"
+                                            class="w-full text-sm rounded"
+                                            style="width:80px"
+                                            min="1"
+                                            max="99"
+                                        />
+                                        <div class="flex gap-x-1 justify-center">
+                                            <template v-if="formQuoteUpdate.processing">
+                                                <span class="text-xs text-green-500 font-bold">Saving...</span>
+                                            </template>
+                                            <template v-else>
+                                                <button @click="saveInput(row,true)" class="text-xs underline text-green-500 font-bold">Save</button>
+                                                <button @click="hideInput()" class="text-xs underline">Cancel</button>
+                                            </template>
+                                        </div>
+                                    </div>
+
+                                    <template v-else>
+                                        <button
+                                            v-if="row.quote.quoted_price"
+                                            class="text-sm text-blue-500 underline italic"
+                                            @click="toggleShowInput(row,'quoted_price')"
+                                        >
+                                            ${{ row.quote.quoted_price.toFixed(2) }}
+                                        </button>
+                                        <button
+                                            v-else
+                                            class="text-xs text-blue-500 underline"
+                                            @click="toggleShowInput(row,'quoted_price')"
+                                        >
+                                            Add
+                                        </button>
+                                    </template>
+                                </div>
+
+                                <!-- Lead time -->
+                                <div>
+                                    <div v-if="showQuotedLeadTime(row.supplier.id)">
+                                        <input
+                                            v-model="row.quote.quoted_lead_time"
+                                            required
+                                            type="number"
+                                            class="w-full text-sm rounded"
+                                            style="width:60px"
+                                            min="1"
+                                            max="99"
+                                        />
+                                        <div class="flex gap-x-1 justify-center">
+                                            <template v-if="formQuoteUpdate.processing">
+                                                <span class="text-xs text-green-500 font-bold">Saving...</span>
+                                            </template>
+                                            <template v-else>
+                                                <button @click="saveInput(row,true)" class="text-xs underline text-green-500 font-bold">Save</button>
+                                                <button @click="hideInput()" class="text-xs underline">Cancel</button>
+                                            </template>
+                                        </div>
+                                    </div>
+
+                                    <template v-else>
+                                        <button
+                                            v-if="row.quote.quoted_lead_time"
+                                            class="text-sm text-blue-500 underline italic"
+                                            @click="toggleShowInput(row,'quoted_lead_time')"
+                                        >
+                                            {{ row.quote.quoted_lead_time }} days
+                                        </button>
+                                        <button
+                                            v-else
+                                            class="text-xs text-blue-500 underline"
+                                            @click="toggleShowInput(row,'quoted_lead_time')"
+                                        >
+                                            Add
+                                        </button>
+                                    </template>
+                                </div>
+                                <!-- Quote reference -->
+                                <div class="col-span-2">
+                                    <div class="italic text-sm">
+                                        <div v-if="showSupplierQuoteReference(row.supplier.id)">
+                                            <input
+                                                v-model="row.quote.supplier_quote_reference"
+                                                required
+                                                type="text"
+                                                class="w-full text-sm rounded"
+                                                style="width:60px"
+                                                minlength="1"
+                                            />
+                                            <div class="flex gap-x-1 justify-center">
+                                                <template v-if="formQuoteUpdate.processing">
+                                                    <span class="text-xs text-green-500 font-bold">Saving...</span>
+                                                </template>
+                                                <template v-else>
+                                                    <button @click="saveInput(row,true)" class="text-xs underline text-green-500 font-bold">Save</button>
+                                                    <button @click="hideInput()" class="text-xs underline">Cancel</button>
+                                                </template>
+                                            </div>
+                                        </div>
+
+                                        <template v-else>
+                                            <button
+                                                v-if="row.quote.supplier_quote_reference"
+                                                class="text-sm text-blue-500 underline italic"
+                                                @click="toggleShowInput(row,'supplier_quote_reference')"
+                                            >
+                                                {{ shared.cropText(row.quote.supplier_quote_reference,8) }}
+                                            </button>
+                                            <button
+                                                v-else
+                                                class="text-xs text-blue-500 underline"
+                                                @click="toggleShowInput(row,'supplier_quote_reference')"
+                                            >
+                                                Add
+                                            </button>
+                                        </template>
+                                    </div>
+                                </div>
+                                <!-- Sent order -->
+                                <div>
+                                    <input
+                                        v-model="row.isOrdered"
+                                        type="radio"
+                                        name="isOrdered"
+                                        :style="row.isOrdered === row.quote.id ? '' : 'bg-red-500'"
+                                        :value="row.quote.id"
+                                        @change="orderSentCheckbox(row)"
+                                    />
+                                    [{{row.isOrdered}}]
+                                </div>
+                                <!-- delivered -->
+                                <div>
+                                    <input
+                                        v-model="data.categoryLevel.delivered"
+                                        v-if="row.isOrdered"
+                                        true-value="1"
+                                        false-value="0"
+                                        @change="quoteSentCheckbox(row.quote)"
+                                        type="checkbox"
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    </Modal>
 </template>

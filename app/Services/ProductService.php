@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\MeasurementUnitEnums;
 use App\Enums\ProductEnums;
+use App\Enums\SupplierGroupEnums;
 use App\Models\Business;
 use App\Models\Product;
 use Illuminate\Support\Collection;
@@ -115,6 +116,9 @@ class ProductService
          * 2) Price book exact match
          * 3) price book partial match (requires confirmation)
          */
+
+        $include = false;
+
         $result = null;
 
         /**
@@ -159,11 +163,24 @@ class ProductService
              * 2) Price book exact match
              */
             if(count($decodedGeneralProducts) === 1){
-                $result = [
-                    "status" => "EXACT",
-                    "decodedOption" => $decodedGeneralProducts[0],
-                    "supplierGroup" => $decodedGeneralProductsRaw["supplierGroup"],
-                ];
+                //Upgraded (shows custom options)
+                if($business->upgraded){
+                    $result = [
+                        "status" => "EXACT",
+                        "decodedOption" => $decodedGeneralProducts[0],
+                        "supplierGroup" => $decodedGeneralProductsRaw["supplierGroup"],
+                    ];
+                }
+                //Standard
+                else{
+                    if($decodedGeneralProductsRaw["supplierGroup"] === SupplierGroupEnums::STEEL_MERCHANT->value){
+                        $result = [
+                            "status" => "EXACT",
+                            "decodedOption" => $decodedGeneralProducts[0],
+                            "supplierGroup" => $decodedGeneralProductsRaw["supplierGroup"],
+                        ];
+                    }
+                }
             }
 
             /**
@@ -179,11 +196,13 @@ class ProductService
             }
             //If no results, it's user-custom
             if(count($decodedGeneralProducts) === 0 && count($decodedCustomProducts) === 0){
-                $result = [
-                    "status" => "CUSTOM",
-                    "decodedOptions" => null,
-                    "supplierGroup" => $decodedGeneralProductsRaw["supplierGroup"],
-                ];
+                if($business->upgraded){
+                    $result = [
+                        "status" => "CUSTOM",
+                        "decodedOptions" => null,
+                        "supplierGroup" => $decodedGeneralProductsRaw["supplierGroup"],
+                    ];
+                }
             }
         }
 

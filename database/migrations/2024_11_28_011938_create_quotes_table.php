@@ -21,6 +21,8 @@ return new class extends Migration
             $table->string("supplier_category")->nullable();
             $table->string("supplier_quote_reference")->nullable();
             $table->boolean("quote_sent")->default(false);
+            $table->float("quoted_price")->nullable();
+            $table->integer("quoted_lead_time")->nullable();
         });
     }
 

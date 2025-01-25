@@ -8,6 +8,9 @@
 
     //Methods
     function onClickAway(event) {
+
+        console.log("click away");
+
         //if(props.showModal){
             //This is to exclude initial button click
             clickCount.value = clickCount.value + 1;
@@ -16,7 +19,7 @@
                 clickCount.value = 0;
 
                 //Close modal
-                emit('closeModal');
+                //emit('closeModal'); //todo reinstate
             }
         //}
     }

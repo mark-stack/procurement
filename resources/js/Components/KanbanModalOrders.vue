@@ -88,16 +88,16 @@
 
                 <div v-else class="mt-3">
                     <div class="w-full grid grid-cols-1 gap-y-3">
-                        <div class="grid grid-cols-6">
+                        <div class="grid grid-cols-7">
                             <div class="col-span-2 font-semibold">Procurement Category</div>
                             <div class="col-span-1 font-semibold text-center">Quotes</div>
-                            <div class="col-span-2 font-semibold text-left">Preferred Quote/Supplier</div>
-<!--                            <div class="col-span-1 font-semibold text-center">Email Tables</div>-->
+                            <div class="col-span-2 font-semibold text-left">Preferred Supplier</div>
+                            <div class="col-span-1 font-semibold text-center">Email Tables</div>
                             <div class="col-span-1 font-semibold text-center">Sent Order?</div>
                         </div>
                         <div
                             v-for="(data,supplierCategory) in ordersData[0]?.data.currentQuoteCoverage"
-                            class="grid grid-cols-6"
+                            class="grid grid-cols-7"
                         >
                             <div class="col-span-2">
                                 <h3>{{supplierCategory}}</h3>
@@ -136,15 +136,15 @@
                                 </div>
 
                             </div>
-<!--                            <div class="col-span-1 text-center">-->
-<!--                                <button-->
-<!--                                    v-if="data.qtyQuotes === 0"-->
-<!--                                    @click="shared.sendSupplierBatchEmail(data.batchGroup)"-->
-<!--                                    class="bg-green-50 rounded px-1 border-2 border-green-100 hover:bg-green-100"-->
-<!--                                >-->
-<!--                                    <i class="fa-regular fa-envelope text-2xl"></i>-->
-<!--                                </button>-->
-<!--                            </div>-->
+                            <div class="col-span-1 text-center">
+                                <button
+                                    v-if="data.qtyQuotes === 0"
+                                    @click="shared.sendSupplierBatchEmail(data.batchGroup)"
+                                    class="bg-green-50 rounded px-1 border-2 border-green-100 hover:bg-green-100"
+                                >
+                                    <i class="fa-regular fa-envelope text-2xl"></i>
+                                </button>
+                            </div>
                             <div class="col-span-1 text-center">
                                 <input
                                     v-model="formOrderUpdate[supplierCategory].order_sent"

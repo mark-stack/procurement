@@ -29,6 +29,7 @@ use App\Models\Quote;
 use App\Services\DataClassificationService;
 use App\Services\NestingService;
 use App\Services\ProductService;
+use App\Services\RawMaterialQuoteService;
 use App\Services\SupplierService;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
@@ -89,7 +90,6 @@ Route::middleware(['auth','verified'])->group(function () {
             //Services
             $nestingService = new NestingService();
             $productService = new ProductService();
-            $dataClassificationService = new DataClassificationService();
 
             //Prerequisite variables
             $user = $project->user;
@@ -110,10 +110,9 @@ Route::middleware(['auth','verified'])->group(function () {
 
             //Loop user's material rows
             foreach($project->rawMaterialQuotes as $rawMaterialQuote){
-                $include = false;
+                //$include = false;
 
                 $getProductMatchOptions = $productService->getProductMatchOptions($business,$rawMaterialQuote);
-
 
                 if($getProductMatchOptions){
                     /**
@@ -122,7 +121,7 @@ Route::middleware(['auth','verified'])->group(function () {
                      */
                     if($getProductMatchOptions["status"] === "CUSTOM"){
                         if($business->upgraded){
-                            $include = true;
+                            //$include = true;
 
                             $requiresCustom[] = [
                                 "selected" => [
@@ -161,13 +160,13 @@ Route::middleware(['auth','verified'])->group(function () {
                         //Upgraded (shows custom options)
                         if($business->upgraded){
                             $rawMaterialQuote["product"] = $getProductMatchOptions['decodedOption'];
-                            $include = true;
+                            //$include = true;
                         }
                         //Standard
                         else{
                             if($getProductMatchOptions["supplierGroup"] === SupplierGroupEnums::STEEL_MERCHANT->value){
                                 $rawMaterialQuote["product"] = $getProductMatchOptions['decodedOption'];
-                                $include = true;
+                                //$include = true;
                             }
                         }
                     }
@@ -217,7 +216,7 @@ Route::middleware(['auth','verified'])->group(function () {
                 }
 
                 //Append Array
-                if($include){
+                //if($include){
                     $nesting_algo = ($rawMaterialQuote->product_category && $nestingService->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category))
                         ? $nestingService->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category)[0]
                         : null;
@@ -226,7 +225,7 @@ Route::middleware(['auth','verified'])->group(function () {
                     $rawMaterialQuote->baseline_unit_rate = $baseline_unit_rate;
                     $rawMaterialQuote->baseline_unit_rate_comparison = $productService->getBaselineUnitRateHighLowComparison($rawMaterialQuote->unit_rate,$baseline_unit_rate);
                     $materialListRows[] = $rawMaterialQuote;
-                }
+                //}
             }
 
             /**
@@ -300,21 +299,22 @@ Route::middleware(['auth','verified'])->group(function () {
         Route::get("download-quotes-data/{batch}",function(Request $request, Batch $batch){
             //Services
             $nestingService = new NestingService();
+            $supplierService = new SupplierService();
 
             //Prerequisite variables
             $user = auth()->user();
             $business = $user->business;
 
             /**
-             * "Add Quote Requests"
+             * "Quotes and orders"
              * 1) Assign a letter to each project. A, B, C, etc
              * 2) Get all nested pieces
              * 3) Group nested pieces by nesting algorithm. e.g "meterage"
-             * 4) For each supplier, identify what category of products they offer. e,g "steel merchant"
-             * 5) If the supplier offers the product category matching nested pieces, then find or create an Order object
+             * 4) get list of supplier categories available to the business
+             * 5) filter out categories not features in the nesting list
              */
 
-            $addQuoteRequests = [];
+            $quotesAndOrders = [];
 
             //1) Assign a letter to each project. A, B, C, etc
             $lettersProjectArray = $nestingService->getLetterProjectArray($batch->pieces);
@@ -325,23 +325,27 @@ Route::middleware(['auth','verified'])->group(function () {
             //3) Group nested pieces by nesting algorithm. e.g "meterage"
             $batchGroups = $nestingService->batchGroups($piecesNested, $business);
 
-            foreach($business->suppliers as $supplier){
+            //4) get list of supplier categories available to the business
+            $supplierGroupsAvailableToBusiness = $supplierService->supplierGroupsAvailableToBusiness($business);
 
-                //4) For each supplier, identify what category of products they offer. e,g "steel merchant"
-                $supplierCategories = unserialize($supplier->supplier_categories);
+            //5) filter out categories not features in the nesting list
+            foreach($supplierGroupsAvailableToBusiness as $supplierGroup => $includedProducts){
 
-                foreach($supplierCategories as $supplierCategory => $isUsed){
-                    //5) If the supplier offers the product category matching nested pieces, then find or create an Order object
-                    $batchGroup = $batchGroups["assigned"][$supplierCategory] ?? null;
+                //has pieces for this supplier group
+                $batchGroup = $batchGroups["assigned"][$supplierGroup] ?? null;
 
-                    if($isUsed && $batchGroup){
+                if($batchGroup){
 
+                    $rows = [];
+                    $suppliers = $supplierService->suppliersForSupplierGroup($supplierGroup, $business);
+
+                    foreach($suppliers as $supplier){
                         $quote = Quote::firstOrCreate(
                             [
                                 'user_id' => $user->id,
                                 "batch_id" => $batch->id,
                                 'supplier_id' => $supplier->id,
-                                "supplier_category" => $supplierCategory,
+                                "supplier_category" => $supplierGroup,
                             ],
                             [
                                 "supplier_quote_reference" => null,
@@ -349,59 +353,36 @@ Route::middleware(['auth','verified'])->group(function () {
                             ]
                         );
 
-                        $addQuoteRequests[] = [
-                            "supplierName" => $supplier->name,
-                            "supplierCategory" => $supplierCategory,
-                            "batchGroup" => $batchGroup,
+                        $rows[] = [
+                            "supplier" => $supplier,
                             "quote" => $quote,
+                            "order" => 999,//todo placeholder
+                            "isOrdered" => true, //todo placeholder
                         ];
                     }
+
+                    $quotesAndOrders[$supplierGroup] = [
+                        "categoryLevel" => [
+                            "batchGroup" => $batchGroup,
+                            "includedProducts" => $includedProducts,
+                            "purchaseOrderNumber" => "123-TEST", //todo
+                            "qtyQuotes" => $batch->quotes()
+                                ->where("supplier_category",$supplierGroup)
+                                ->where("quote_sent",true)
+                                ->count(),
+                            "delivered" => true, //todo placeholder
+                        ],
+                        "rows" => $rows,
+                    ];
                 }
             }
-
-            /**
-             * "current quote coverage"
-             * 1) Get list of all supplier categories with contained products. e.g "steel merchant" contains "PFC, UB, etc"
-             * 2) Build an array that includes a string of included products. e.g "PFC, UB, UC..."
-             * 3) Check if the supplier category matching nested pieces
-             * 4) Build an array that contains "included products" and "qty quotes"
-             */
-            $currentQuoteCoverage = [];
-
-            //1) Get list of all supplier categories with contained products. e.g "steel merchant" contains "PFC, UB, etc"
-            $supplierCategoriesWithIncludedProducts = (new SupplierService())->supplierGroups($business);
-
-            //2) Build an array that includes a string of included products. e.g "PFC, UB, UC..."
-            $supplierCategoriesFormatted = [];
-            foreach($supplierCategoriesWithIncludedProducts as $supplierCategory => $includedProducts){
-                $supplierCategoriesFormatted[$supplierCategory] = [
-                    "includedProducts" => [
-                        "array" => $includedProducts,
-                        "string" => implode(", ",$includedProducts),
-                    ],
-                ];
-            }
-
-            //3) Check if the supplier category matching nested pieces
-            foreach($supplierCategoriesFormatted as $supplierCategory => $data){
-                //4) Build an array that contains "included products" and "qty quotes"
-                $batchGroup = $batchGroups["assigned"][$supplierCategory] ?? null;
-                if($batchGroup){
-                    $appended = $data;
-                    $appended["qtyQuotes"] = $batch->quotes()
-                        ->where("supplier_category",$supplierCategory)
-                        ->where("quote_sent",true)
-                        ->count();
-                    $currentQuoteCoverage[$supplierCategory] = $appended;
-                }
-            }
+            //dd($quotesAndOrders);
 
             return response()->json([
                 'downloadedQuotesData' => [
                     "batch_id" => $batch->id,
                     "data" => [
-                        "addQuoteRequests" => $addQuoteRequests,
-                        "currentQuoteCoverage" => $currentQuoteCoverage,
+                        "quotesAndOrders" => $quotesAndOrders,
                     ],
                 ],
             ]);
@@ -479,7 +460,6 @@ Route::middleware(['auth','verified'])->group(function () {
                         ->where("order_sent",true)
                         ->first();
 
-                    //dd(1,$batch->orders);
                     $appended["selectedSupplierId"] = $orderedOrder ? $orderedOrder->supplier_id : null;
                     $appended["orderSent"] = (bool) $orderedOrder;
 

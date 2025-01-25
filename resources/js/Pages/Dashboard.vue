@@ -927,7 +927,8 @@
 
     <!-- Modals -->
     <KanbanModalQuotes
-        :showModal="showQuotesModal"
+        v-show="showQuotesModal"
+        :width="900"
         :allData="batches['QUOTED']"
         :modalSelectedBatchId="modalSelectedBatchId"
         :refreshModalQuotes="refreshModalQuotes"
@@ -936,7 +937,7 @@
     />
     <KanbanModalOrders
         v-show="showOrdersModal"
-        width="700"
+        width="800"
         :allData="batches['ORDERED']"
         :modalSelectedBatchId="modalSelectedBatchId"
         :refreshModalOrders="refreshModalOrders"
