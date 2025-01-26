@@ -110,7 +110,8 @@ class QuoteController extends Controller
     public function update(Request $request, Quote $quote): RedirectResponse
     {
         $validated = $request->validate([
-            'quote_sent' => 'nullable',
+            "batch_id" => 'required',
+            'quote_sent' => 'required',
             'supplier_quote_reference' => 'nullable',
             "quoted_price" => 'nullable',
             "quoted_lead_time" => 'nullable',

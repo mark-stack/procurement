@@ -144,6 +144,14 @@
     <AuthenticatedLayout>
         <div class="py-12">
             <div class="mx-auto max-w-5xl sm:px-6 lg:px-8">
+                <div class="mb-3">
+                    <Link
+                        class="font-semibold px-3 py-2 text-gray-800 transition-colors duration-300 transform rounded-lg hover:text-deep-purple-accent-400"
+                        :href="route('projects.index')"
+                    >
+                        <i class="fa-regular fa-hand-point-left pr-2"></i> All Projects
+                    </Link>
+                </div>
                 <section
                     class="dark:bg-gray-900 rounded-xl"
                     :class="editSupplier ? 'bg-yellow-50' : 'bg-white'"

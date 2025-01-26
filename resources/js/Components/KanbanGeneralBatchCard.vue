@@ -33,7 +33,7 @@
     //...
 
     //Variables
-    const emit = defineEmits(['toggleArchive','editMode','showQuotesModal','showOrdersModal','pageLoadingOn','pageLoadingOff','orderNow','showBom','showNesting']);
+    const emit = defineEmits(['toggleArchive','editMode','showQuotesModal','showOrdersModal','pageLoadingOn','pageLoadingOff','showBom','showNesting']);
     const user = computed(() => usePage().props.auth.user);
 
     //Shared methods
@@ -74,20 +74,20 @@
         });
     }
 
-    function cancelBatchOrders(orders,batch){
-        let url = route("cancel.batch.orders",batch.id);
-
-        formCancelBatchOrders.orders = orders;
-        formCancelBatchOrders.post(url, {
-            preserveScroll: true,
-            onSuccess: () => {
-                console.log('success');
-            },
-            onError: errors => {
-                console.log('errors',errors);
-            },
-        });
-    }
+    // function cancelBatchOrders(orders,batch){
+    //     let url = route("cancel.batch.orders",batch.id);
+    //
+    //     formCancelBatchOrders.orders = orders;
+    //     formCancelBatchOrders.post(url, {
+    //         preserveScroll: true,
+    //         onSuccess: () => {
+    //             console.log('success');
+    //         },
+    //         onError: errors => {
+    //             console.log('errors',errors);
+    //         },
+    //     });
+    // }
 
     function approveAllProjectManagers(batch){
         let url = route("approve.all.project.managers",batch.id);
@@ -135,6 +135,10 @@
                 console.log('errors',errors);
             },
         });
+    }
+
+    function allOrdersSent(otherData){
+        return otherData.sentOrdersQty === otherData.totalOrdersQty;
     }
 </script>
 
@@ -236,11 +240,6 @@
                 @click="$emit('pageLoadingOn',3);breakBatch(batch)"
                 label="Re-nest"
             />
-            <CardButtonYellow
-                v-if="type === 'QUOTES' && otherData.totalQuotesQty > 0"
-                @click="$emit('orderNow')"
-                label="Order"
-            />
             <CardButtonGreen
                 v-if="type === 'QUOTES'"
                 @click="$emit('showQuotesModal',batch.id)"
@@ -250,11 +249,11 @@
             />
 
             <!-- Order actions -->
-            <CardButtonRed
-                v-if="type === 'ORDERS'"
-                @click="$emit('pageLoadingOn',3); cancelBatchOrders(otherData.orders,batch)"
-                label="Back to quotes"
-            />
+<!--            <CardButtonRed-->
+<!--                v-if="type === 'ORDERS'"-->
+<!--                @click="$emit('pageLoadingOn',3); cancelBatchOrders(otherData.orders,batch)"-->
+<!--                label="Back to quotes"-->
+<!--            />-->
             <CardButtonGreen
                 v-if="type === 'ORDERS' && !otherData.all_project_manager_approvals"
                 @click="$emit('pageLoadingOn',null); approveAllProjectManagers(batch)"
@@ -275,7 +274,7 @@
             class="w-full mt-2 text-xs block text-center text-orange-300"
         >
             <span v-if="type === 'QUOTES'">{{ shared.quoteDeadlineMessage(projects) }}</span>
-            <span v-if="type === 'ORDERS'">{{ shared.orderDeadlineMessage(projects) }}</span>
+            <span v-if="type === 'ORDERS'">{{ shared.orderDeadlineMessage(projects, allOrdersSent(otherData))}}</span>
         </p>
     </div>
 

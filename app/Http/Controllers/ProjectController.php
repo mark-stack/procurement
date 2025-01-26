@@ -51,7 +51,7 @@ class ProjectController extends Controller
          */
         $quoted = [];
         $batchesForQuoting = $business->batches()
-            ->doesntHave('orders')
+            ->hasNoSentOrder()
             ->get();
 
         //Sort
@@ -87,7 +87,7 @@ class ProjectController extends Controller
          */
         $ordered = [];
         $batchesForOrdering = $business->batches()
-            ->has('orders')
+            ->hasAtLeastOneSentOrder()
             ->get();
 
         //Sort

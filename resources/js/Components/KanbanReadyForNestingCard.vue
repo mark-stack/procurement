@@ -130,7 +130,7 @@
         >
             <CardButtonGreen
                 @click="$emit('pageLoadingOn',null);$emit('quoteNow')"
-                label="Quote now"
+                label="Start quoting/ordering"
                 :highlight="true"
                 :icon="false"
             />

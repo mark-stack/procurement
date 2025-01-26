@@ -1,7 +1,7 @@
 <script setup>
     //General Imports
-    import {Head, useForm, usePage} from '@inertiajs/vue3';
-    import {computed, ref} from "vue";
+    import {Head, useForm} from '@inertiajs/vue3';
+    import {ref} from "vue";
     import axios from 'axios';
 
     //Component Imports
@@ -10,7 +10,7 @@
     import KanbanReadyForNestingCard from "@/Components/KanbanReadyForNestingCard.vue";
     import KanbanGeneralBatchCard from "@/Components/KanbanGeneralBatchCard.vue";
     import KanbanModalQuotes from "@/Components/KanbanModalQuotes.vue";
-    import KanbanModalOrders from "@/Components/KanbanModalOrders.vue";
+    //import KanbanModalOrders from "@/Components/KanbanModalOrders.vue";
     import NewProjectModal from "@/Components/NewProjectModal.vue";
     import BomEditModal from "@/Components/BomEditModal.vue";
     import PageLoadingOverlay from "@/Components/PageLoadingOverlay.vue";
@@ -39,7 +39,7 @@
     const selectedNestingBatchId = ref(null);
     const showArchivedProjects = ref(false);
     const showQuotesModal = ref(false);
-    const showOrdersModal = ref(false);
+    //const showOrdersModal = ref(false);
     const showNewProjectModal = ref(false);
     const showBomEditModal = ref(false);
     const showNestingModal = ref(false);
@@ -170,7 +170,7 @@
     function addProject(){
         //Modal visibility
         showNewProjectModal.value = true;
-        showOrdersModal.value  = false;
+        //showOrdersModal.value  = false;
         showQuotesModal.value  = false;
 
         //Disable edit mode
@@ -202,7 +202,7 @@
     function showQuotes(batchId){
 
         //Close orders modal (if open)
-        showOrdersModal.value = false;
+        //showOrdersModal.value = false;
 
         //Set selected batch
         modalSelectedBatchId.value = batchId;
@@ -216,7 +216,7 @@
 
     function showOrders(batchId){
         //Close quotes modal (if open)
-        showQuotesModal.value = false;
+        //showQuotesModal.value = false;
 
         //Set selected batch
         modalSelectedBatchId.value = batchId;
@@ -225,7 +225,7 @@
         pageLoading.value = true;
 
         //Download
-        downloadOrdersModalData(batchId);
+        downloadQuotesModalData(batchId);
     }
 
     function showNesting(batchId){
@@ -695,7 +695,6 @@
                                     @showOrdersModal="batchId => showOrders(batchId)"
                                     @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
                                     @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
-                                    @orderNow="orderNow(batch['batch']['id'])"
                                     @showBom="p => showBom(p)"
                                     @showNesting="batchId => showNesting(batchId)"
                                 />
@@ -740,7 +739,7 @@
                             <!-- header -->
                             <div>
                                 <h2 class="text-xl font-bold text-center">
-                                    <span class="text-indigo-300 text-base">5.</span> Delivered
+                                    <span class="text-indigo-300 text-base">5.</span> Delivering
                                 </h2>
                             </div>
                             <!-- body -->
@@ -922,7 +921,6 @@
 <!--                </section>-->
             </div>
         </div>
-
     </AuthenticatedLayout>
 
     <!-- Modals -->
@@ -935,15 +933,15 @@
         :quotesData="quotesData"
         @closeModal="showQuotesModal = false"
     />
-    <KanbanModalOrders
-        v-show="showOrdersModal"
-        width="800"
-        :allData="batches['ORDERED']"
-        :modalSelectedBatchId="modalSelectedBatchId"
-        :refreshModalOrders="refreshModalOrders"
-        :ordersData="ordersData"
-        @closeModal="showOrdersModal = false"
-    />
+<!--    <KanbanModalOrders-->
+<!--        v-show="showOrdersModal"-->
+<!--        width="800"-->
+<!--        :allData="batches['ORDERED']"-->
+<!--        :modalSelectedBatchId="modalSelectedBatchId"-->
+<!--        :refreshModalOrders="refreshModalOrders"-->
+<!--        :ordersData="ordersData"-->
+<!--        @closeModal="showOrdersModal = false"-->
+<!--    />-->
     <NewProjectModal
         v-show="showNewProjectModal"
         width="400"

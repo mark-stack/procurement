@@ -99,21 +99,21 @@ export default {
 
         return message;
     },
-    orderDeadlineMessage(projects){
+    orderDeadlineMessage(projects,allOrdersSent){
         let message = "";
 
         let daysUntilNearestOrderDeadline = this.daysUntilNearestOrderDeadline(projects);
 
         //In the past
-        if(daysUntilNearestOrderDeadline < 0){
+        if(daysUntilNearestOrderDeadline < 0 && !allOrdersSent){
             message = "The order deadline was " + (0-daysUntilNearestOrderDeadline) + " day"+ (daysUntilNearestOrderDeadline > 1 ? 's' : '') +" ago. You need to order these materials today.";
         }
         //Today
-        else if(daysUntilNearestOrderDeadline === 0){
+        else if(daysUntilNearestOrderDeadline === 0 && !allOrdersSent){
             message = "The order deadline is today";
         }
         //Future
-        if(daysUntilNearestOrderDeadline > 0){
+        if(daysUntilNearestOrderDeadline > 0 && !allOrdersSent){
             message = "Place these orders today";
         }
 

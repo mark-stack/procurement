@@ -339,6 +339,11 @@ Route::middleware(['auth','verified'])->group(function () {
                     $rows = [];
                     $suppliers = $supplierService->suppliersForSupplierGroup($supplierGroup, $business);
 
+                    $orderedOrder = $batch->orders()
+                        ->where("order_sent",true)
+                        ->first();
+                    //dd(1,$orderedOrder);
+
                     foreach($suppliers as $supplier){
                         $quote = Quote::firstOrCreate(
                             [
@@ -353,23 +358,54 @@ Route::middleware(['auth','verified'])->group(function () {
                             ]
                         );
 
+
+                        $order = Order::firstOrCreate(
+                            [
+                                "quote_id" => $quote->id,
+                            ],
+                            [
+                                "user_id" => $quote->user_id,
+                                "batch_id" => $quote->batch_id,
+                                "supplier_id" => $quote->supplier_id,
+                                "order_sent" => false,
+                            ]
+                        );
+
                         $rows[] = [
-                            "supplier" => $supplier,
-                            "quote" => $quote,
-                            "order" => 999,//todo placeholder
-                            "isOrdered" => true, //todo placeholder
+                            "info" => [
+                                "supplier" => $supplier,
+                                "thisOrderIsSent" => $order->order_sent,
+                            ],
+                            "formQuoteUpdate" => [
+                                "batch_id" => $batch->id,
+                                "quote_id" => $quote->id,
+                                "quote_sent" => $quote->quote_sent,
+                                "supplier_quote_reference" => $quote->supplier_quote_reference,
+                                "quoted_price" => $quote->quoted_price,
+                                "quoted_lead_time" => $quote->quoted_lead_time,
+                            ],
+                            "formOrderUpdate" => [
+                                "batch_id" => $batch->id,
+                                "order_id" => $order->id,
+                                "supplier_group" => $supplierGroup,
+                                "ordered_quote_id" => $orderedOrder ? $orderedOrder->quote->id : null,
+                            ],
                         ];
                     }
 
                     $quotesAndOrders[$supplierGroup] = [
-                        "categoryLevel" => [
+                        "info" => [
+                            "supplierGroup" => $supplierGroup,
                             "batchGroup" => $batchGroup,
                             "includedProducts" => $includedProducts,
-                            "purchaseOrderNumber" => "123-TEST", //todo
                             "qtyQuotes" => $batch->quotes()
                                 ->where("supplier_category",$supplierGroup)
                                 ->where("quote_sent",true)
                                 ->count(),
+//                            "orderSent" => $batch->orders()
+//                                ->where("order_sent",true)
+//                                ->exists(),
+                            "purchaseOrderNumber" => "123-TEST", //todo
                             "delivered" => true, //todo placeholder
                         ],
                         "rows" => $rows,
@@ -521,47 +557,68 @@ Route::middleware(['auth','verified'])->group(function () {
         Route::post("approve-all-project-managers/{batch}", ApproveAllProjectManagersController::class)->name("approve.all.project.managers");
         Route::post("mark-as-ordered/{order}", MarkAsOrderedController::class)->name("mark.as.ordered");
         Route::post("mark-order-confirmation-received/{order}", MarkOrderConfirmationReceivedController::class)->name("mark.order.confirmation.received");
-        Route::post("cancel-batch-orders/{batch}", CancelBatchOrdersController::class)->name("cancel.batch.orders");
-        Route::post("order-sent-checkbox/{batch}",function(Request $request, Batch $batch){
+//        Route::post("cancel-batch-orders/{batch}", CancelBatchOrdersController::class)->name("cancel.batch.orders");
+        Route::post("order-sent/{batch}",function(Request $request, Batch $batch){
             /**
              * Update or create quote & order based on BATCH and SUPPLIER_CATEGORY
              */
+            $validated = $request->validate([
+                "batch_id" => ['required'],
+                'order_id' => ['required'],
+                'supplier_group' => ['required'],
+                "ordered_quote_id" => ['required'],
+            ]);
 
-            foreach($request->all() as $supplierCategory => $data){
-                //Find existing quote based on BATCH and SUPPLIER_CATEGORY
-                $quoteMatch = $batch->quotes()
-                    ->where("supplier_category",$supplierCategory)
-                    ->first();
-
-                //Has Quote
-                if($quoteMatch){
-                    $order = $quoteMatch->order;
-                    $order->order_sent = $data["order_sent"];
-                    $order->batch_id = $batch->id;
-                    $order->supplier_id = $quoteMatch->supplier_id;
+            //Update orders
+            foreach($batch->orders as $order){
+                //This order
+                if($order->id == $validated["order_id"]){
+                    $order->order_sent = true;
                     $order->save();
                 }
-                //NO Quote
+                //Other orders (mark order NOT sent because might be changing radio button)
                 else{
-                    $quote = Quote::create([
-                        "user_id" => auth()->user()->id,
-                        "batch_id" => $batch->id,
-                        "supplier_id" => $data["supplier_id"],
-                        "supplier_category" => $supplierCategory,
-                    ]);
-
-                    $order = Order::create([
-                        "user_id" => $quote->user_id,
-                        "batch_id" => $quote->batch_id,
-                        "supplier_id" => $quote->supplier_id,
-                        "quote_id" => $quote->id,
-                        "order_sent" => $data["order_sent"],
-                    ]);
+                    $order->order_sent = false;
+                    $order->save();
                 }
             }
 
+
+//            foreach($request->all() as $supplierCategory => $data){
+//                //Find existing quote based on BATCH and SUPPLIER_CATEGORY
+//                $quoteMatch = $batch->quotes()
+//                    ->where("supplier_category",$supplierCategory)
+//                    ->first();
+//
+//                //Has Quote
+//                if($quoteMatch){
+//                    $order = $quoteMatch->order;
+//                    $order->order_sent = $data["order_sent"];
+//                    $order->batch_id = $batch->id;
+//                    $order->supplier_id = $quoteMatch->supplier_id;
+//                    $order->save();
+//                }
+//                //NO Quote
+//                else{
+//                    $quote = Quote::create([
+//                        "user_id" => auth()->user()->id,
+//                        "batch_id" => $batch->id,
+//                        "supplier_id" => $data["supplier_id"],
+//                        "supplier_category" => $supplierCategory,
+//                    ]);
+//
+//                    $order = Order::create([
+//                        "user_id" => $quote->user_id,
+//                        "batch_id" => $quote->batch_id,
+//                        "supplier_id" => $quote->supplier_id,
+//                        "quote_id" => $quote->id,
+//                        "order_sent" => $data["order_sent"],
+//                    ]);
+//                }
+//            }
+
             return back();
-        })->name("order.sent.checkbox");
+        })->name("order.sent");
 
 
         //Suggested Nesting

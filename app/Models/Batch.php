@@ -55,4 +55,19 @@ class Batch extends Model
             ->whereIn("id",$uniqueProjectIds)
             ->get();
     }
+
+    //Local scope
+    public function scopeHasAtLeastOneSentOrder($query)
+    {
+        return $query->whereHas('orders', function ($query) {
+            $query->where('order_sent', true);
+        });
+    }
+
+    public function scopeHasNoSentOrder($query)
+    {
+        return $query->whereDoesntHave('orders', function ($query) {
+            $query->where('order_sent', true);
+        });
+    }
 }

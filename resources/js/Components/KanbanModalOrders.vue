@@ -43,7 +43,7 @@
     }
 
     function orderSentCheckbox(){
-        let url = route("order.sent.checkbox",props.modalSelectedBatchId);
+        let url = route("order.sent",props.modalSelectedBatchId);
 
         formOrderUpdate.post(url, {
             preserveScroll: true,

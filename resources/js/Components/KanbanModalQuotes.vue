@@ -17,10 +17,18 @@
 
     //Forms
     const formQuoteUpdate = useForm({
+        batch_id: null,
         quote_sent: null,
         supplier_quote_reference: null,
         quoted_price: null,
         quoted_lead_time: null,
+    });
+
+    const formOrderUpdate = useForm({
+        batch_id: null,
+        order_id: null,
+        supplier_group: null,
+        ordered_quote_id: null,
     });
 
     //Shared data
@@ -37,15 +45,17 @@
     function setupShowInputs(){
         let resultArray = [];
 
-        Object.values(props.quotesData[0]?.data.quotesAndOrders).forEach(data => {
-            Object.values(data.rows).forEach(row => {
-                resultArray[row.supplier.id] = {
-                    quoted_price: false,
-                    quoted_lead_time: false,
-                    supplier_quote_reference: false,
-                };
+        if(props.quotesData.length > 0){
+            Object.values(props.quotesData[0]?.data.quotesAndOrders).forEach(data => {
+                Object.values(data.rows).forEach(row => {
+                    resultArray[row.info.supplier.id] = {
+                        quoted_price: false,
+                        quoted_lead_time: false,
+                        supplier_quote_reference: false,
+                    };
+                });
             });
-        });
+        }
 
         return resultArray;
     }
@@ -96,17 +106,17 @@
 
         //quoted_lead_time
         if(type === 'quoted_lead_time'){
-            showInputs.value[row.supplier.id].quoted_lead_time = true;
+            showInputs.value[row.info.supplier.id].quoted_lead_time = true;
         }
 
         //quotedPrice
         if(type === 'quoted_price'){
-            showInputs.value[row.supplier.id].quoted_price = true;
+            showInputs.value[row.info.supplier.id].quoted_price = true;
         }
 
         //supplierQuoteReference
         if(type === 'supplier_quote_reference'){
-            showInputs.value[row.supplier.id].supplier_quote_reference = true;
+            showInputs.value[row.info.supplier.id].supplier_quote_reference = true;
         }
     }
 
@@ -120,12 +130,12 @@
     }
 
     function saveInput(row,autoCloseAll){
-        let url = route("quotes.update",row.quote.id);
+        let url = route("quotes.update",row.formQuoteUpdate.quote_id);
 
-        formQuoteUpdate.quote_sent = row.quote.quote_sent === "0" ? false : true;
-        formQuoteUpdate.supplier_quote_reference = row.quote.supplier_quote_reference;
-        formQuoteUpdate.quoted_price = row.quote.quoted_price;
-        formQuoteUpdate.quoted_lead_time = row.quote.quoted_lead_time;
+        formQuoteUpdate.quote_sent = row.formQuoteUpdate.quote_sent === "0" ? false : true;
+        formQuoteUpdate.supplier_quote_reference = row.formQuoteUpdate.supplier_quote_reference;
+        formQuoteUpdate.quoted_price = row.formQuoteUpdate.quoted_price;
+        formQuoteUpdate.quoted_lead_time = row.formQuoteUpdate.quoted_lead_time;
 
         formQuoteUpdate.put(url, {
             preserveScroll: true,
@@ -149,12 +159,12 @@
     }
 
     function quoteSentCheckbox(row){
-        let url = route("quotes.update",row.quote.id);
+        let url = route("quotes.update",row.formQuoteUpdate.quote_id);
 
-        formQuoteUpdate.quote_sent = row.quote.quote_sent === "0" ? false : true;
-        formQuoteUpdate.supplier_quote_reference = row.row.quote.supplier_quote_reference;
-        formQuoteUpdate.quoted_price = row.quote.quoted_price;
-        formQuoteUpdate.quoted_lead_time = row.quote.quoted_lead_time;
+        formQuoteUpdate.quote_sent = row.formQuoteUpdate.quote_sent === "0" ? false : true;
+        formQuoteUpdate.supplier_quote_reference = row.formQuoteUpdate.supplier_quote_reference;
+        formQuoteUpdate.quoted_price = row.formQuoteUpdate.quoted_price;
+        formQuoteUpdate.quoted_lead_time = row.formQuoteUpdate.quoted_lead_time;
 
         formQuoteUpdate.put(url, {
             preserveScroll: true,
@@ -167,12 +177,51 @@
         });
     }
 
-    function orderSentCheckbox(row){
-        console.log("orderSentCheckbox: quote id = ",row.isOrdered); //todo
+    function orderSentCheckbox(row,data){
+        let url = route("order.sent",row.formOrderUpdate.batch_id);
+
+        //make other rows 'ordered_quote_id' = null (to avoid multiple highlighted rows)
+        Object.values(data.rows).forEach(r => {
+            //This row
+            if(r.formQuoteUpdate.quote_id == row.formQuoteUpdate.quote_id){
+                r.info.thisOrderIsSent = true;
+            }
+            //Other rows
+            else{
+                r.info.thisOrderIsSent = false;
+            }
+        });
+
+        formOrderUpdate.batch_id = row.formOrderUpdate.batch_id;
+        formOrderUpdate.order_id = row.formOrderUpdate.order_id;
+        formOrderUpdate.supplier_group = row.formOrderUpdate.supplier_group;
+        formOrderUpdate.ordered_quote_id = row.formOrderUpdate.ordered_quote_id;
+
+        formOrderUpdate.post(url, {
+            preserveScroll: true,
+            onSuccess: () => {
+                console.log('success');
+            },
+            onError: errors => {
+                console.log('errors',errors);
+            },
+        });
     }
 
-    function isLoaded(){
-        return Object.values(props.quotesData).length === 0
+    function isLoading(){
+        return Object.values(props.quotesData).length === 0;
+    }
+
+    function isOrdered(data){
+        let isOrdered = false;
+
+        Object.values(data.rows).forEach(row => {
+            if(row.formOrderUpdate.ordered_quote_id){
+               isOrdered = true;
+            }
+        });
+
+        return isOrdered;
     }
 
     //Watcher
@@ -207,7 +256,7 @@
 
                 <!-- Loading -->
                 <div
-                    v-if="isLoaded()"
+                    v-if="isLoading()"
                     class="p-20 text-gray-700 italic"
                 >
                     <span class="block font-bold text-xl">Loading...</span>
@@ -223,10 +272,12 @@
                         <div class="grid grid-cols-2">
                             <div>
                                 <h2 class="font-semibold">{{supplierGroup}}</h2>
-                                <p class="text-sm text-gray-400">{{data.categoryLevel.includedProducts.string}}</p>
+                                <p class="text-sm text-gray-400">{{data.info.includedProducts.string}}</p>
                             </div>
                             <div class="text-right">
-                                PO: <span class="font-semibold">{{data.categoryLevel.purchaseOrderNumber}}</span>
+                                <span v-if="isOrdered(data)" class="block text-green-500 font-semibold text-lg">ORDERED</span>
+                                <span v-else class="block text-orange-500 font-semibold text-lg">NOT ORDERED</span>
+                                <span class="text-sm text-red-500">PO: <span class="font-semibold">{{data.info.purchaseOrderNumber}}</span></span>
                             </div>
                         </div>
 
@@ -262,25 +313,27 @@
                             <!-- rows -->
                             <div
                                 v-for="row in data.rows"
-                                class="grid grid-cols-10 text-center mb-2"
+                                :class="row.info.thisOrderIsSent ? 'bg-green-50' : ''"
+                                class="grid grid-cols-10 text-center mb-2 p-1 rounded"
                             >
                                 <!-- supplier -->
-                                <div class="col-span-2 text-left">
-                                    {{ shared.cropText(row.supplier.name,20) }}
+                                <div class="col-span-2 text-left pt-1">
+                                    {{ shared.cropText(row.info.supplier.name,20) }}
                                 </div>
                                 <!-- email button -->
                                 <div>
                                     <button
-                                        @click="shared.sendSupplierBatchEmail(data.categoryLevel.batchGroup)"
+                                        @click="shared.sendSupplierBatchEmail(data.info.batchGroup)"
                                         class="bg-green-50 rounded px-1 border-2 border-green-100 hover:bg-green-100"
                                     >
                                         <i class="fa-regular fa-envelope text-2xl"></i>
                                     </button>
                                 </div>
                                 <!-- is quoted -->
-                                <div>
+                                <div class="pt-1">
+                                    <!-- formQuoteUpdate -->
                                     <input
-                                        v-model="row.quote.quote_sent"
+                                        v-model="row.formQuoteUpdate.quote_sent"
                                         true-value="1"
                                         false-value="0"
                                         @change="quoteSentCheckbox(row)"
@@ -288,11 +341,12 @@
                                     />
                                 </div>
                                 <!-- Price -->
-                                <div>
+                                <div class="pt-1">
                                     <!-- has quote details -->
-                                    <div v-if="showQuotedPrice(row.supplier.id)">
+                                    <div v-if="showQuotedPrice(row.info.supplier.id)">
+                                        <!-- formQuoteUpdate -->
                                         <input
-                                            v-model="row.quote.quoted_price"
+                                            v-model="row.formQuoteUpdate.quoted_price"
                                             type="number"
                                             class="w-full text-sm rounded"
                                             style="width:80px"
@@ -311,12 +365,13 @@
                                     </div>
 
                                     <template v-else>
+                                        <!-- formQuoteUpdate -->
                                         <button
-                                            v-if="row.quote.quoted_price"
+                                            v-if="row.formQuoteUpdate.quoted_price"
                                             class="text-sm text-blue-500 underline italic"
                                             @click="toggleShowInput(row,'quoted_price')"
                                         >
-                                            ${{ row.quote.quoted_price.toFixed(2) }}
+                                            ${{ row.formQuoteUpdate.quoted_price.toFixed(2) }}
                                         </button>
                                         <button
                                             v-else
@@ -329,10 +384,11 @@
                                 </div>
 
                                 <!-- Lead time -->
-                                <div>
-                                    <div v-if="showQuotedLeadTime(row.supplier.id)">
+                                <div class="pt-1">
+                                    <div v-if="showQuotedLeadTime(row.info.supplier.id)">
+                                        <!-- formQuoteUpdate -->
                                         <input
-                                            v-model="row.quote.quoted_lead_time"
+                                            v-model="row.formQuoteUpdate.quoted_lead_time"
                                             required
                                             type="number"
                                             class="w-full text-sm rounded"
@@ -352,12 +408,13 @@
                                     </div>
 
                                     <template v-else>
+                                        <!-- formQuoteUpdate -->
                                         <button
-                                            v-if="row.quote.quoted_lead_time"
+                                            v-if="row.formQuoteUpdate.quoted_lead_time"
                                             class="text-sm text-blue-500 underline italic"
                                             @click="toggleShowInput(row,'quoted_lead_time')"
                                         >
-                                            {{ row.quote.quoted_lead_time }} days
+                                            {{ row.formQuoteUpdate.quoted_lead_time }} days
                                         </button>
                                         <button
                                             v-else
@@ -369,15 +426,16 @@
                                     </template>
                                 </div>
                                 <!-- Quote reference -->
-                                <div class="col-span-2">
+                                <div class="col-span-2 pt-1">
                                     <div class="italic text-sm">
-                                        <div v-if="showSupplierQuoteReference(row.supplier.id)">
+                                        <!-- formQuoteUpdate -->
+                                        <div v-if="showSupplierQuoteReference(row.info.supplier.id)">
                                             <input
-                                                v-model="row.quote.supplier_quote_reference"
+                                                v-model="row.formQuoteUpdate.supplier_quote_reference"
                                                 required
                                                 type="text"
                                                 class="w-full text-sm rounded"
-                                                style="width:60px"
+                                                style="width:90px"
                                                 minlength="1"
                                             />
                                             <div class="flex gap-x-1 justify-center">
@@ -391,13 +449,14 @@
                                             </div>
                                         </div>
 
+                                        <!-- formQuoteUpdate -->
                                         <template v-else>
                                             <button
-                                                v-if="row.quote.supplier_quote_reference"
+                                                v-if="row.formQuoteUpdate.supplier_quote_reference"
                                                 class="text-sm text-blue-500 underline italic"
                                                 @click="toggleShowInput(row,'supplier_quote_reference')"
                                             >
-                                                {{ shared.cropText(row.quote.supplier_quote_reference,8) }}
+                                                {{ shared.cropText(row.formQuoteUpdate.supplier_quote_reference,8) }}
                                             </button>
                                             <button
                                                 v-else
@@ -410,25 +469,24 @@
                                     </div>
                                 </div>
                                 <!-- Sent order -->
-                                <div>
+                                <div class="pt-1">
+                                    <!-- formOrderUpdate -->
                                     <input
-                                        v-model="row.isOrdered"
+                                        v-model="row.formOrderUpdate.ordered_quote_id"
                                         type="radio"
                                         name="isOrdered"
-                                        :style="row.isOrdered === row.quote.id ? '' : 'bg-red-500'"
-                                        :value="row.quote.id"
-                                        @change="orderSentCheckbox(row)"
+                                        :value="row.formQuoteUpdate.quote_id"
+                                        @change="orderSentCheckbox(row,data)"
                                     />
-                                    [{{row.isOrdered}}]
                                 </div>
                                 <!-- delivered -->
                                 <div>
                                     <input
-                                        v-model="data.categoryLevel.delivered"
+                                        v-model="data.info.delivered"
                                         v-if="row.isOrdered"
                                         true-value="1"
                                         false-value="0"
-                                        @change="quoteSentCheckbox(row.quote)"
+                                        @change="quoteSentCheckbox(row)"
                                         type="checkbox"
                                     />
                                 </div>
