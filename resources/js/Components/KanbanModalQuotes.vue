@@ -9,7 +9,6 @@
     //Props
     const props = defineProps({
         width: Number,
-        allData: Object,
         modalSelectedBatchId: Number|null,
         refreshModalQuotes: Boolean,
         quotesData: Object,
@@ -31,6 +30,8 @@
         ordered_quote_id: null,
     });
 
+    const formUndoOrderSent = useForm({});
+
     //Shared data
     const business = usePage().props.auth.business;
 
@@ -46,8 +47,8 @@
         let resultArray = [];
 
         if(props.quotesData.length > 0){
-            Object.values(props.quotesData[0]?.data.quotesAndOrders).forEach(data => {
-                Object.values(data.rows).forEach(row => {
+            Object.values(props.quotesData).forEach(data => {
+                Object.values(data.supplierGroupCards.rows).forEach(row => {
                     resultArray[row.info.supplier.id] = {
                         quoted_price: false,
                         quoted_lead_time: false,
@@ -132,6 +133,7 @@
     function saveInput(row,autoCloseAll){
         let url = route("quotes.update",row.formQuoteUpdate.quote_id);
 
+        formQuoteUpdate.batch_id = row.formQuoteUpdate.batch_id;
         formQuoteUpdate.quote_sent = row.formQuoteUpdate.quote_sent === "0" ? false : true;
         formQuoteUpdate.supplier_quote_reference = row.formQuoteUpdate.supplier_quote_reference;
         formQuoteUpdate.quoted_price = row.formQuoteUpdate.quoted_price;
@@ -161,6 +163,7 @@
     function quoteSentCheckbox(row){
         let url = route("quotes.update",row.formQuoteUpdate.quote_id);
 
+        formQuoteUpdate.batch_id = row.formQuoteUpdate.batch_id;
         formQuoteUpdate.quote_sent = row.formQuoteUpdate.quote_sent === "0" ? false : true;
         formQuoteUpdate.supplier_quote_reference = row.formQuoteUpdate.supplier_quote_reference;
         formQuoteUpdate.quoted_price = row.formQuoteUpdate.quoted_price;
@@ -177,11 +180,12 @@
         });
     }
 
-    function orderSentCheckbox(row,data){
+    function orderSentCheckbox(row,rows){
+        console.log("row",row);
         let url = route("order.sent",row.formOrderUpdate.batch_id);
 
         //make other rows 'ordered_quote_id' = null (to avoid multiple highlighted rows)
-        Object.values(data.rows).forEach(r => {
+        Object.values(rows).forEach(r => {
             //This row
             if(r.formQuoteUpdate.quote_id == row.formQuoteUpdate.quote_id){
                 r.info.thisOrderIsSent = true;
@@ -224,6 +228,39 @@
         return isOrdered;
     }
 
+    function undoOrderSent(row,data){
+        let url = route("order.undo.sent",row.formUndoOrderSent.order_id);
+
+        formUndoOrderSent.post(url, {
+            preserveScroll: true,
+            onSuccess: () => {
+                console.log('success');
+
+                //Update rows to reflect undoing order_sent
+                Object.values(data.rows).forEach(row => {
+                    row.formOrderUpdate.ordered_quote_id = null;
+                    row.info.thisOrderIsSent = false;
+                });
+            },
+            onError: errors => {
+                console.log('errors',errors);
+            },
+        });
+    }
+
+    function projectManagersApprovalBeforeOrderSent(row,data) {
+        // Show the confirmation dialog
+        const isConfirmed = confirm(props.quotesData.info.projectManagerApprovalMessage);
+        if (isConfirmed) {
+            row.formOrderUpdate.ordered_quote_id = row.formQuoteUpdate.quote_id;
+
+            orderSentCheckbox(row,data.rows);
+        }
+        else{
+            row.formOrderUpdate.ordered_quote_id = null;
+        }
+    }
+
     //Watcher
     const { refreshModalQuotes } = toRefs(props);
     watch(refreshModalQuotes, (newVal) => {
@@ -244,13 +281,13 @@
                             Quotes / Orders
                         </h3>
                     </div>
-                    <div class="text-right">
-                        <Link
-                            :href="route('suppliers.index',business.id)"
-                            class="underline text-blue-500"
-                        >
-                            Add/Edit suppliers
-                        </Link>
+                    <div v-if="!isLoading()" class="text-right">
+                        <p>
+                            Quote coverage: <b>{{ quotesData.info.sentQuotesQty }}/{{ quotesData.info.totalQuotesQty }}</b>
+                        </p>
+                        <p>
+                            Order coverage: <b>{{ quotesData.info.sentOrdersQty }}/{{ quotesData.info.totalOrdersQty }}</b>
+                        </p>
                     </div>
                 </div>
 
@@ -265,7 +302,7 @@
                 <div v-else class="mt-3">
 
                     <div
-                        v-for="(data,supplierGroup) in quotesData[0]?.data.quotesAndOrders"
+                        v-for="(data,supplierGroup) in quotesData?.supplierGroupCards"
                         class="border-2 border-gray-200 rounded-lg p-3 mb-2"
                     >
                         <!-- header -->
@@ -426,7 +463,7 @@
                                     </template>
                                 </div>
                                 <!-- Quote reference -->
-                                <div class="col-span-2 pt-1">
+                                <div class="col-span-2 pt-2">
                                     <div class="italic text-sm">
                                         <!-- formQuoteUpdate -->
                                         <div v-if="showSupplierQuoteReference(row.info.supplier.id)">
@@ -472,12 +509,25 @@
                                 <div class="pt-1">
                                     <!-- formOrderUpdate -->
                                     <input
-                                        v-model="row.formOrderUpdate.ordered_quote_id"
-                                        type="radio"
-                                        name="isOrdered"
-                                        :value="row.formQuoteUpdate.quote_id"
-                                        @change="orderSentCheckbox(row,data)"
+                                        v-if="row.info.thisOrderIsSent"
+                                        @click.prevent="projectManagersApprovalBeforeOrderSent(row,data)"
+                                        type="checkbox"
+                                        checked
                                     />
+                                    <input
+                                        v-else
+                                        @click.prevent="projectManagersApprovalBeforeOrderSent(row,data)"
+                                        type="checkbox"
+                                    />
+
+                                    <br>
+                                    <button
+                                        v-if="row.info.thisOrderIsSent"
+                                        @click="undoOrderSent(row,data)"
+                                        class="text-xs underline text-blue-500"
+                                    >
+                                        undo
+                                    </button>
                                 </div>
                                 <!-- delivered -->
                                 <div>
@@ -492,6 +542,15 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+                    <!-- add suppliers -->
+                    <div class="pl-2">
+                        <Link
+                            :href="route('suppliers.index',business.id)"
+                            class="underline text-blue-500"
+                        >
+                            Add/Edit suppliers
+                        </Link>
                     </div>
                 </div>
             </div>

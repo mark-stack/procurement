@@ -139,7 +139,7 @@
             v-if="shared.atLeastOneProjectIsYours(projects,user.id)"
             class="w-full mt-1 text-xs block text-center text-orange-300"
         >
-            {{ shared.quoteDeadlineMessage(projects) }}
+            {{ shared.quoteDeadlineMessage(projects,true) }}
         </p>
     </div>
 

@@ -1,10 +1,8 @@
 <?php
 
 use App\Enums\SupplierGroupEnums;
-use App\Http\Controllers\ApproveAllProjectManagersController;
 use App\Http\Controllers\BatchController;
 use App\Http\Controllers\BatchNestingController;
-use App\Http\Controllers\CancelBatchOrdersController;
 use App\Http\Controllers\MarkAsOrderedController;
 use App\Http\Controllers\MarkNotificationStatusController;
 use App\Http\Controllers\MarkOrderConfirmationReceivedController;
@@ -26,10 +24,10 @@ use App\Models\Batch;
 use App\Models\Order;
 use App\Models\Project;
 use App\Models\Quote;
-use App\Services\DataClassificationService;
+use App\Services\BatchService;
 use App\Services\NestingService;
+use App\Services\OrderService;
 use App\Services\ProductService;
-use App\Services\RawMaterialQuoteService;
 use App\Services\SupplierService;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
@@ -298,6 +296,7 @@ Route::middleware(['auth','verified'])->group(function () {
 
         Route::get("download-quotes-data/{batch}",function(Request $request, Batch $batch){
             //Services
+            $batchService = new BatchService();
             $nestingService = new NestingService();
             $supplierService = new SupplierService();
 
@@ -314,7 +313,7 @@ Route::middleware(['auth','verified'])->group(function () {
              * 5) filter out categories not features in the nesting list
              */
 
-            $quotesAndOrders = [];
+            $supplierGroupCards = [];
 
             //1) Assign a letter to each project. A, B, C, etc
             $lettersProjectArray = $nestingService->getLetterProjectArray($batch->pieces);
@@ -342,17 +341,16 @@ Route::middleware(['auth','verified'])->group(function () {
                     $orderedOrder = $batch->orders()
                         ->where("order_sent",true)
                         ->first();
-                    //dd(1,$orderedOrder);
 
                     foreach($suppliers as $supplier){
                         $quote = Quote::firstOrCreate(
                             [
-                                'user_id' => $user->id,
                                 "batch_id" => $batch->id,
                                 'supplier_id' => $supplier->id,
                                 "supplier_category" => $supplierGroup,
                             ],
                             [
+                                'user_id' => $user->id,
                                 "supplier_quote_reference" => null,
                                 "quote_sent" => false,
                             ]
@@ -390,10 +388,13 @@ Route::middleware(['auth','verified'])->group(function () {
                                 "supplier_group" => $supplierGroup,
                                 "ordered_quote_id" => $orderedOrder ? $orderedOrder->quote->id : null,
                             ],
+                            "formUndoOrderSent" => [
+                                "order_id" => $order->id,
+                            ],
                         ];
                     }
 
-                    $quotesAndOrders[$supplierGroup] = [
+                    $supplierGroupCards[$supplierGroup] = [
                         "info" => [
                             "supplierGroup" => $supplierGroup,
                             "batchGroup" => $batchGroup,
@@ -402,9 +403,6 @@ Route::middleware(['auth','verified'])->group(function () {
                                 ->where("supplier_category",$supplierGroup)
                                 ->where("quote_sent",true)
                                 ->count(),
-//                            "orderSent" => $batch->orders()
-//                                ->where("order_sent",true)
-//                                ->exists(),
                             "purchaseOrderNumber" => "123-TEST", //todo
                             "delivered" => true, //todo placeholder
                         ],
@@ -412,106 +410,119 @@ Route::middleware(['auth','verified'])->group(function () {
                     ];
                 }
             }
-            //dd($quotesAndOrders);
+
+            //Total orders qty
+            $orders = $batch->orders;
+            $supplierCategories = [];
+            foreach($orders as $order){
+                $supplierCategories[] = $order->quote->supplier_category;
+            }
+            $totalOrdersQty = count(array_unique($supplierCategories));
+
+            $quotesAndOrders = [
+                "info" => [
+                    "totalQuotesQty" => $batch->quotes()->count(),
+                    "sentQuotesQty" => $batch->quotes()->where("quote_sent",true)->count(),
+                    "totalOrdersQty" => $totalOrdersQty,
+                    "sentOrdersQty" => $batch->orders()->where("order_sent",true)->count(),
+                    "projectManagerApprovalMessage" => $batchService->projectManagerApprovalMessage($batch),
+                ],
+                "supplierGroupCards" => $supplierGroupCards,
+            ];
 
             return response()->json([
-                'downloadedQuotesData' => [
-                    "batch_id" => $batch->id,
-                    "data" => [
-                        "quotesAndOrders" => $quotesAndOrders,
-                    ],
-                ],
+                'downloadedQuotesData' => $quotesAndOrders,
             ]);
         })->name("download.quotes.data");
 
-        Route::get("download-orders-data/{batch}",function(Request $request, Batch $batch){
-            //Services
-            $nestingService = new NestingService();
-
-            //Prerequisite variables
-            $user = auth()->user();
-            $business = $user->business;
-
-            /**
-             * "Add Quote Requests"
-             * 1) Assign a letter to each project. A, B, C, etc
-             * 2) Get all nested pieces
-             * 3) Group nested pieces by nesting algorithm. e.g "meterage"
-             */
-
-            //1) Assign a letter to each project. A, B, C, etc
-            $lettersProjectArray = $nestingService->getLetterProjectArray($batch->pieces);
-
-            //2) Get all nested pieces
-            $piecesNested = $nestingService->piecesNested($batch->pieces,$lettersProjectArray);
-
-            //3) Group nested pieces by nesting algorithm. e.g "meterage"
-            $batchGroups = $nestingService->batchGroups($piecesNested, $business);
-
-            /**
-             * "current quote coverage"
-             * 1) Get list of all supplier categories with contained products. e.g "steel merchant" contains "PFC, UB, etc"
-             * 2) Build an array that includes a string of included products. e.g "PFC, UB, UC..."
-             * 3) Check if the supplier category matching nested pieces
-             * 4) Build an array that contains "included products" and "qty quotes"
-             */
-            $currentQuoteCoverage = [];
-
-            //1) Get list of all supplier categories with contained products. e.g "steel merchant" contains "PFC, UB, etc"
-            $supplierCategoriesWithIncludedProducts = (new SupplierService())->supplierGroups($business);
-
-            //2) Build an array that includes a string of included products. e.g "PFC, UB, UC..."
-            $supplierCategoriesFormatted = [];
-            foreach($supplierCategoriesWithIncludedProducts as $supplierCategory => $includedProducts){
-                $supplierCategoriesFormatted[$supplierCategory] = [
-                    "includedProducts" => [
-                        "array" => $includedProducts,
-                        "string" => implode(", ",$includedProducts),
-                    ],
-                ];
-            }
-
-            //3) Check if the supplier category matching nested pieces
-            foreach($supplierCategoriesFormatted as $supplierCategory => $data){
-                //4) Build an array that contains "included products" and "qty quotes"
-                $batchGroup = $batchGroups["assigned"][$supplierCategory] ?? null;
-
-                if($batchGroup){
-                    $appended = $data;
-                    $appended["quotes"] = $batch->quotes()
-                        ->with("supplier")
-                        ->where("supplier_category",$supplierCategory)
-                        ->where("quote_sent",true)
-                        ->get();
-                    $appended["qtyQuotes"] = $batch->quotes()
-                        ->where("supplier_category",$supplierCategory)
-                        ->where("quote_sent",true)
-                        ->count();
-                    $appended["batchGroup"] = $batchGroup;
-                    $appended["orders"] = $batch->orders;
-                    $appended["supplier_category"] = $supplierCategory;
-
-                    $orderedOrder = $batch->orders()
-                        ->whereRelation("quote","quote_sent","=",true)
-                        ->where("order_sent",true)
-                        ->first();
-
-                    $appended["selectedSupplierId"] = $orderedOrder ? $orderedOrder->supplier_id : null;
-                    $appended["orderSent"] = (bool) $orderedOrder;
-
-                    $currentQuoteCoverage[$supplierCategory] = $appended;
-                }
-            }
-
-            return response()->json([
-                'downloadedOrdersData' => [
-                    "batch_id" => $batch->id,
-                    "data" => [
-                        "currentQuoteCoverage" => $currentQuoteCoverage,
-                    ],
-                ],
-            ]);
-        })->name("download.orders.data");
+//        Route::get("download-orders-data/{batch}",function(Request $request, Batch $batch){
+//            //Services
+//            $nestingService = new NestingService();
+//
+//            //Prerequisite variables
+//            $user = auth()->user();
+//            $business = $user->business;
+//
+//            /**
+//             * "Add Quote Requests"
+//             * 1) Assign a letter to each project. A, B, C, etc
+//             * 2) Get all nested pieces
+//             * 3) Group nested pieces by nesting algorithm. e.g "meterage"
+//             */
+//
+//            //1) Assign a letter to each project. A, B, C, etc
+//            $lettersProjectArray = $nestingService->getLetterProjectArray($batch->pieces);
+//
+//            //2) Get all nested pieces
+//            $piecesNested = $nestingService->piecesNested($batch->pieces,$lettersProjectArray);
+//
+//            //3) Group nested pieces by nesting algorithm. e.g "meterage"
+//            $batchGroups = $nestingService->batchGroups($piecesNested, $business);
+//
+//            /**
+//             * "current quote coverage"
+//             * 1) Get list of all supplier categories with contained products. e.g "steel merchant" contains "PFC, UB, etc"
+//             * 2) Build an array that includes a string of included products. e.g "PFC, UB, UC..."
+//             * 3) Check if the supplier category matching nested pieces
+//             * 4) Build an array that contains "included products" and "qty quotes"
+//             */
+//            $currentQuoteCoverage = [];
+//
+//            //1) Get list of all supplier categories with contained products. e.g "steel merchant" contains "PFC, UB, etc"
+//            $supplierCategoriesWithIncludedProducts = (new SupplierService())->supplierGroups($business);
+//
+//            //2) Build an array that includes a string of included products. e.g "PFC, UB, UC..."
+//            $supplierCategoriesFormatted = [];
+//            foreach($supplierCategoriesWithIncludedProducts as $supplierCategory => $includedProducts){
+//                $supplierCategoriesFormatted[$supplierCategory] = [
+//                    "includedProducts" => [
+//                        "array" => $includedProducts,
+//                        "string" => implode(", ",$includedProducts),
+//                    ],
+//                ];
+//            }
+//
+//            //3) Check if the supplier category matching nested pieces
+//            foreach($supplierCategoriesFormatted as $supplierCategory => $data){
+//                //4) Build an array that contains "included products" and "qty quotes"
+//                $batchGroup = $batchGroups["assigned"][$supplierCategory] ?? null;
+//
+//                if($batchGroup){
+//                    $appended = $data;
+//                    $appended["quotes"] = $batch->quotes()
+//                        ->with("supplier")
+//                        ->where("supplier_category",$supplierCategory)
+//                        ->where("quote_sent",true)
+//                        ->get();
+//                    $appended["qtyQuotes"] = $batch->quotes()
+//                        ->where("supplier_category",$supplierCategory)
+//                        ->where("quote_sent",true)
+//                        ->count();
+//                    $appended["batchGroup"] = $batchGroup;
+//                    $appended["orders"] = $batch->orders;
+//                    $appended["supplier_category"] = $supplierCategory;
+//
+//                    $orderedOrder = $batch->orders()
+//                        ->whereRelation("quote","quote_sent","=",true)
+//                        ->where("order_sent",true)
+//                        ->first();
+//
+//                    $appended["selectedSupplierId"] = $orderedOrder ? $orderedOrder->supplier_id : null;
+//                    $appended["orderSent"] = (bool) $orderedOrder;
+//
+//                    $currentQuoteCoverage[$supplierCategory] = $appended;
+//                }
+//            }
+//
+//            return response()->json([
+//                'downloadedOrdersData' => [
+//                    "batch_id" => $batch->id,
+//                    "data" => [
+//                        "currentQuoteCoverage" => $currentQuoteCoverage,
+//                    ],
+//                ],
+//            ]);
+//        })->name("download.orders.data");
 
         Route::get("download-usage-data",function(Request $request){
             $nestingService = new NestingService();
@@ -554,10 +565,6 @@ Route::middleware(['auth','verified'])->group(function () {
 
         //Orders
         Route::resource('orders', OrderController::class);
-        Route::post("approve-all-project-managers/{batch}", ApproveAllProjectManagersController::class)->name("approve.all.project.managers");
-        Route::post("mark-as-ordered/{order}", MarkAsOrderedController::class)->name("mark.as.ordered");
-        Route::post("mark-order-confirmation-received/{order}", MarkOrderConfirmationReceivedController::class)->name("mark.order.confirmation.received");
-//        Route::post("cancel-batch-orders/{batch}", CancelBatchOrdersController::class)->name("cancel.batch.orders");
         Route::post("order-sent/{batch}",function(Request $request, Batch $batch){
             /**
              * Update or create quote & order based on BATCH and SUPPLIER_CATEGORY
@@ -583,43 +590,27 @@ Route::middleware(['auth','verified'])->group(function () {
                 }
             }
 
-
-//            foreach($request->all() as $supplierCategory => $data){
-//                //Find existing quote based on BATCH and SUPPLIER_CATEGORY
-//                $quoteMatch = $batch->quotes()
-//                    ->where("supplier_category",$supplierCategory)
-//                    ->first();
-//
-//                //Has Quote
-//                if($quoteMatch){
-//                    $order = $quoteMatch->order;
-//                    $order->order_sent = $data["order_sent"];
-//                    $order->batch_id = $batch->id;
-//                    $order->supplier_id = $quoteMatch->supplier_id;
-//                    $order->save();
-//                }
-//                //NO Quote
-//                else{
-//                    $quote = Quote::create([
-//                        "user_id" => auth()->user()->id,
-//                        "batch_id" => $batch->id,
-//                        "supplier_id" => $data["supplier_id"],
-//                        "supplier_category" => $supplierCategory,
-//                    ]);
-//
-//                    $order = Order::create([
-//                        "user_id" => $quote->user_id,
-//                        "batch_id" => $quote->batch_id,
-//                        "supplier_id" => $quote->supplier_id,
-//                        "quote_id" => $quote->id,
-//                        "order_sent" => $data["order_sent"],
-//                    ]);
-//                }
-//            }
+            //All project managers approve
+            foreach($batch->orderApprovals as $orderApproval){
+                $orderApproval->project_manager_approved = true;
+                $orderApproval->save();
+            }
 
             return back();
         })->name("order.sent");
 
+        Route::post("order-undo-sent/{order}",function(Order $order){
+            /**
+             * Undo order sent
+             */
+            //todo other actions required? notifications, delivery, nesting?
+
+            $order->order_sent = false;
+            $order->save();
+
+            return back();
+
+        })->name("order.undo.sent");
 
         //Suggested Nesting
         Route::get("suggested-nesting", SuggestedNestingController::class)->name("suggested.nesting");

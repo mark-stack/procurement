@@ -47,7 +47,7 @@
                             <div class="mt-3">
                                 <h3 class="font-semibold">Your project quoting template:</h3>
                                 <ul>
-                                    <li>- From wherever you do quoting (often spreadsheets), download an export in CSV format.</li>
+                                    <li>- From wherever you do quoting (often spreadsheets), download an export in Excel format.</li>
                                     <li>- You might have multiple templates for different staff members. That's ok.</li>
                                     <li>- We configure the software so it auto detects any quoting template your company uses and extracts all the materials.</li>
                                 </ul>
@@ -71,7 +71,7 @@
                             </a>
                         </p>
                         <p class="mt-5">
-                            We take around 2 days to process, then we'll notify you by email that everything is ready.
+                            We take maximum 2 business days to process, then we'll notify you by email that everything is ready.
                         </p>
                     </div>
                 </section>

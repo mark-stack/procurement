@@ -79,7 +79,7 @@ export default {
 
         return earliestDate.startOf('day').diff(moment().startOf('day'), 'days');
     },
-    quoteDeadlineMessage(projects){
+    quoteDeadlineMessage(projects,nestingStage){
         let message = "";
 
         let daysUntilNearestQuoteDeadline = this.daysUntilNearestQuoteDeadline(projects);
@@ -94,7 +94,9 @@ export default {
         }
         //Future
         if(daysUntilNearestQuoteDeadline > 0){
-            message = "Wait " + daysUntilNearestQuoteDeadline + " days to allow for more possible materials (Earliest quote deadline)";
+            if(nestingStage){
+                message = "Wait " + daysUntilNearestQuoteDeadline + " days to allow for more possible materials (Earliest quote deadline)";
+            }
         }
 
         return message;

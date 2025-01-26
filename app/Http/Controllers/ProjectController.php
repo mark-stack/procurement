@@ -64,15 +64,17 @@ class ProjectController extends Controller
              * e.g "ABC Steel" who does 'fasteners' and 'steel merchant' is 2 rows
              */
 
+            $orders = $batch->orders;
+
             $quoted[$batch->id] = [
-                "batch" => [
-                    "id" => $batch->id,
-                    "totalMaterial" => 999, //todo
-                    "totalUsage" => 999, //todo
-                    "totalWaste" => 999, //todo
-                ],
-                "projects" => ProjectResource::collection($batch->projects()),
-                "otherData" => [
+                "info" => [
+                    "batch" => [
+                        "id" => $batch->id,
+                        "totalMaterial" => 999, //todo
+                        "totalUsage" => 999, //todo
+                        "totalWaste" => 999, //todo
+                    ],
+                    "projects" => ProjectResource::collection($batch->projects()),
                     "quotes" => $batch->quotes,
                     "totalQuotesQty" => $batch->quotes()->count(),
                     "sentQuotesQty" => $batch->quotes()->where("quote_sent",true)->count(),
@@ -94,9 +96,8 @@ class ProjectController extends Controller
         $batchesForOrdering = $batchService->sortByUserAndLatest($batchesForOrdering,$business);
 
         foreach($batchesForOrdering as $batch){
-            $orders = $batch->orders;
-
             //Total orders qty
+            $orders = $batch->orders;
             $supplierCategories = [];
             foreach($orders as $order){
                 $supplierCategories[] = $order->quote->supplier_category;
@@ -104,17 +105,17 @@ class ProjectController extends Controller
             $totalOrdersQty = count(array_unique($supplierCategories));
 
             $ordered[$batch->id] = [
-                "batch" => [
-                    "id" => $batch->id,
-                    "totalMaterial" => 999, //todo
-                    "totalUsage" => 999, //todo
-                    "totalWaste" => 999, //todo
-                ],
-                "projects" => ProjectResource::collection($batch->projects()),
-                "otherData" => [
+                "info" => [
+                    "batch" => [
+                        "id" => $batch->id,
+                        "totalMaterial" => 999, //todo
+                        "totalUsage" => 999, //todo
+                        "totalWaste" => 999, //todo
+                    ],
+                    "projects" => ProjectResource::collection($batch->projects()),
                     "orders" => $orders,
                     "approxDueDate" => null, //todo actual - derived from earliest project
-                    "totalOrdersQty" => $totalOrdersQty, //todo qty of supplier categories
+                    "totalOrdersQty" => $totalOrdersQty,
                     "sentOrdersQty" => $batch->orders()->where("order_sent",true)->count(),
                     "all_project_manager_approvals" => (new OrderService())->allProjectManagersApproved($batch),
                 ],
@@ -128,19 +129,18 @@ class ProjectController extends Controller
             "ORDERED" => $ordered,
             "DELIVERED" => [
                 [
-                    "batch" => [
-                        "id" => 1,
-                        "totalMaterial" => 999,
-                        "totalUsage" => 999,
-                        "totalWaste" => 999,
-                    ],
-                    "projects" => ProjectResource::collection(Project::query()
-                        ->thisBusiness($business)
-                        ->active()
-                        ->latest()
-                        ->get()),
-                    "otherData" => [
-
+                    "info" => [
+                        "batch" => [
+                            "id" => 1,
+                            "totalMaterial" => 999,
+                            "totalUsage" => 999,
+                            "totalWaste" => 999,
+                        ],
+                        "projects" => ProjectResource::collection(Project::query()
+                            ->thisBusiness($business)
+                            ->active()
+                            ->latest()
+                            ->get()),
                     ],
                 ],
             ],

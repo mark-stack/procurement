@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Batch;
 use App\Models\Business;
 use Illuminate\Support\Collection;
 
@@ -69,6 +70,39 @@ class BatchService
 
             //No batch IDs for this user (order by batch only)
             : $batches->sortByDesc("id");
+    }
+
+    function projectManagerApprovalMessage(Batch $batch): string
+    {
+        /**
+         * A string like "Bruce, Matt, and yourself";
+         */
+        $message = "";
+
+        //Get all projects for this batch
+        $otherProjectManagers = [];
+        $projects = $batch->projects();
+        foreach($projects as $project){
+            //Not yourself
+            if($project->user->id !== auth()->user()->id){
+                //Not already in array
+                if(!in_array($project->user->name,$otherProjectManagers)){
+                    $otherProjectManagers[] = $project->user->name;
+                }
+            }
+
+        }
+
+        //Has others
+        if(count($otherProjectManagers) > 0){
+            $message = "Do ".implode(",",$otherProjectManagers)." and yourself approve ordering materials?";
+        }
+        //Just you
+        else{
+            $message = "Do you approve ordering materials?";
+        }
+
+        return $message;
     }
 }
 

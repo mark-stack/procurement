@@ -10,7 +10,6 @@
     import KanbanReadyForNestingCard from "@/Components/KanbanReadyForNestingCard.vue";
     import KanbanGeneralBatchCard from "@/Components/KanbanGeneralBatchCard.vue";
     import KanbanModalQuotes from "@/Components/KanbanModalQuotes.vue";
-    //import KanbanModalOrders from "@/Components/KanbanModalOrders.vue";
     import NewProjectModal from "@/Components/NewProjectModal.vue";
     import BomEditModal from "@/Components/BomEditModal.vue";
     import PageLoadingOverlay from "@/Components/PageLoadingOverlay.vue";
@@ -39,7 +38,6 @@
     const selectedNestingBatchId = ref(null);
     const showArchivedProjects = ref(false);
     const showQuotesModal = ref(false);
-    //const showOrdersModal = ref(false);
     const showNewProjectModal = ref(false);
     const showBomEditModal = ref(false);
     const showNestingModal = ref(false);
@@ -320,7 +318,7 @@
                 console.log("delete existing downloaded data");
 
                 //Create
-                quotesData.value.push(response.data.downloadedQuotesData);
+                quotesData.value = response.data.downloadedQuotesData;
                 console.log("pushed new download data",quotesData.value);
 
                 //Refresh modal QUOTES signal
@@ -341,41 +339,41 @@
         }
     }
 
-    async function downloadOrdersModalData(batchId){
-        /**
-         Axios
-         */
-        try {
-            const response = await axios.get(route("download.orders.data",batchId));
-
-            if(response.data.downloadedOrdersData){
-                console.log("existing array",quotesData.value);
-
-                //Delete if exists
-                ordersData.value = Object.values(ordersData.value).filter(item => item.batch_id != batchId);
-                console.log("delete existing downloaded data");
-
-                //Create
-                ordersData.value.push(response.data.downloadedOrdersData);
-                console.log("pushed new download data",ordersData.value);
-
-                //Refresh modal QUOTES signal
-                sendRefreshModalOrders();
-            }
-        } catch (error) {
-            console.error('Error fetching data:', error);
-
-            //Remove page loader
-            pageLoading.value = false;
-        } finally {
-            //Show modal
-            showOrdersModal.value = true;
-            console.log("show modal");
-
-            //Remove page loader
-            pageLoading.value = false;
-        }
-    }
+    // async function downloadOrdersModalData(batchId){
+    //     /**
+    //      Axios
+    //      */
+    //     try {
+    //         const response = await axios.get(route("download.orders.data",batchId));
+    //
+    //         if(response.data.downloadedOrdersData){
+    //             console.log("existing array",quotesData.value);
+    //
+    //             //Delete if exists
+    //             ordersData.value = Object.values(ordersData.value).filter(item => item.batch_id != batchId);
+    //             console.log("delete existing downloaded data");
+    //
+    //             //Create
+    //             ordersData.value.push(response.data.downloadedOrdersData);
+    //             console.log("pushed new download data",ordersData.value);
+    //
+    //             //Refresh modal QUOTES signal
+    //             sendRefreshModalOrders();
+    //         }
+    //     } catch (error) {
+    //         console.error('Error fetching data:', error);
+    //
+    //         //Remove page loader
+    //         pageLoading.value = false;
+    //     } finally {
+    //         //Show modal
+    //         showOrdersModal.value = true;
+    //         console.log("show modal");
+    //
+    //         //Remove page loader
+    //         pageLoading.value = false;
+    //     }
+    // }
 
     async function downloadNestingData(batchId){
         /**
@@ -682,11 +680,8 @@
                                 <!-- card -->
                                 <KanbanGeneralBatchCard
                                     v-for="batch in batches['QUOTED']"
-                                    :key="batch['batch']['id']"
-                                    :batch="batch['batch']"
-                                    :projects="batch['projects'].data"
-                                    :otherData="batch['otherData']"
-                                    :modalData="batch['modalData']"
+                                    :key="batch.info.batch.id"
+                                    :info="batch.info"
                                     type="QUOTES"
                                     class="mb-3"
                                     @toggleArchive="p => toggleArchive(p)"
@@ -716,10 +711,8 @@
                                 <!-- card -->
                                 <KanbanGeneralBatchCard
                                     v-for="batch in batches['ORDERED']"
-                                    :key="batch['batch']['id']"
-                                    :batch="batch['batch']"
-                                    :projects="batch['projects'].data"
-                                    :otherData="batch['otherData']"
+                                    :key="batch.info.batch.id"
+                                    :info="batch.info"
                                     type="ORDERS"
                                     class="mb-3"
                                     @toggleArchive="p => toggleArchive(p)"
@@ -788,137 +781,6 @@
 <!--                        </div>-->
 <!--                    </div>-->
                 </section>
-
-
-<!--                <section class="container mx-auto mt-5">-->
-<!--                    <div class="flex items-center gap-x-3">-->
-<!--                        <h2 class="text-lg font-medium text-gray-800 dark:text-white">Projects</h2>-->
-
-<!--                        <span class="px-3 py-1 text-xs text-blue-600 bg-blue-100 rounded-full dark:bg-gray-800 dark:text-blue-400">{{projects["BOM_REQUIRED"].data.length}} projects</span>-->
-<!--                    </div>-->
-
-<!--                    <div class="flex flex-col mt-6">-->
-<!--                        <div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">-->
-<!--                            <div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">-->
-<!--                                <div class="overflow-y-auto border border-gray-200 dark:border-gray-700 md:rounded-lg">-->
-<!--                                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">-->
-<!--                                        <thead class="bg-gray-50 dark:bg-gray-800">-->
-<!--                                            <tr>-->
-<!--                                                <th scope="col" class="py-3.5 px-4 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400">-->
-<!--                                                    Project-->
-<!--                                                </th>-->
-
-<!--                                                <th scope="col" class="px-12 py-3.5 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400">-->
-<!--                                                    Awarded-->
-<!--                                                </th>-->
-
-<!--                                                <th scope="col" class="px-12 py-3.5 text-sm font-normal text-center text-gray-500 dark:text-gray-400">-->
-<!--                                                    Imported Materials-->
-<!--                                                </th>-->
-
-<!--                                                <th scope="col" class="px-12 py-3.5 text-sm font-normal text-center text-gray-500 dark:text-gray-400">-->
-<!--                                                    Quoted-->
-<!--                                                </th>-->
-
-<!--                                                <th scope="col" class="px-12 py-3.5 text-sm font-normal text-center text-gray-500 dark:text-gray-400">-->
-<!--                                                    Ordered-->
-<!--                                                </th>-->
-
-<!--                                                <th scope="col" class="px-12 py-3.5 text-sm font-normal text-center text-gray-500 dark:text-gray-400">-->
-<!--                                                    Actions-->
-<!--                                                </th>-->
-<!--                                            </tr>-->
-<!--                                        </thead>-->
-<!--                                        <tbody class="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-gray-900">-->
-<!--                                            <template v-for="project in projects['BOM_REQUIRED'].data">-->
-<!--                                                <tr v-if="showRow(project)" :class="project.archive ? 'bg-red-50' : ''">-->
-<!--                                                    <td class="px-4 py-4 text-sm font-medium text-gray-700 whitespace-nowrap">-->
-<!--                                                        <div class="inline-flex items-center gap-x-3">-->
-<!--                                                            <div class="flex items-center gap-x-2">-->
-<!--                                                                <div>-->
-<!--                                                                    <h2 class="font-medium text-gray-800 dark:text-white ">{{ project.name }}</h2>-->
-<!--                                                                    <small>Ref: {{project.reference}}</small>-->
-<!--                                                                </div>-->
-<!--                                                            </div>-->
-<!--                                                        </div>-->
-<!--                                                    </td>-->
-<!--                                                    <td class="px-8 py-4 text-sm font-medium text-gray-700 whitespace-nowrap">-->
-<!--                                                        <div-->
-<!--                                                            :class="project.archive ? 'bg-gray-100/60' : (project.awarded ? 'bg-emerald-100/60' : 'bg-yellow-200/60')"-->
-<!--                                                            class="inline-flex items-center px-3 py-1 rounded-full gap-x-2 dark:bg-gray-800"-->
-<!--                                                        >-->
-<!--                                                        <span-->
-<!--                                                            :class="project.archive ? 'bg-gray-500' : (project.awarded ? 'bg-emerald-500' : 'bg-yellow-500')"-->
-<!--                                                            class="h-1.5 w-1.5 rounded-full"-->
-<!--                                                        ></span>-->
-
-<!--                                                            <h2-->
-<!--                                                                :class="project.archive ? 'text-gray-500' : (project.awarded ? 'text-emerald-500' : 'text-yellow-800')"-->
-<!--                                                                class="text-sm font-semibold"-->
-<!--                                                            >-->
-<!--                                                                {{project.awarded ? 'Awarded' : 'Tender'}}-->
-<!--                                                            </h2>-->
-<!--                                                        </div>-->
-<!--                                                    </td>-->
-<!--                                                    <td class="px-4 py-4 text-sm whitespace-nowrap">-->
-<!--                                                        <div class="flex justify-center items-center gap-x-6">-->
-<!--                                                            <p-->
-<!--                                                                v-if="project.archive"-->
-<!--                                                                class="px-2 py-1 rounded border-2 bg-gray-300 border-gray-500"-->
-<!--                                                            >-->
-<!--                                                                {{project.hasRawMaterialQuotes ? 'Imported Materials' : 'Import Materials'}}-->
-<!--                                                            </p>-->
-<!--                                                            <Link-->
-<!--                                                                v-else-->
-<!--                                                                :href="route('products.store',project.id)"-->
-<!--                                                                :class="project.hasRawMaterialQuotes ? 'text-emerald-500 bg-emerald-100 border-emerald-300 hover:bg-emerald-200' : 'text-orange-500 bg-orange-50 border-orange-300 hover:bg-orange-100'"-->
-<!--                                                                class="px-2 py-1 rounded border-2 font-semibold"-->
-<!--                                                            >-->
-<!--                                                                {{project.hasRawMaterialQuotes ? 'Imported Materials' : 'Import Materials'}}-->
-<!--                                                            </Link>-->
-<!--                                                        </div>-->
-<!--                                                    </td>-->
-<!--                                                    <td-->
-<!--                                                        class="font-bold px-4 py-4 text-sm whitespace-nowrap text-center"-->
-<!--                                                        :class="project.percentageOfMaterialsQuoted < 70 ? 'text-orange-500' : ''"-->
-<!--                                                    >-->
-<!--                                                        {{project.percentageOfMaterialsQuoted}}%-->
-<!--                                                    </td>-->
-<!--                                                    <td-->
-<!--                                                        class="font-bold px-4 py-4 text-sm whitespace-nowrap text-center"-->
-<!--                                                        :class="project.percentageOfMaterialsOrdered < 70 ? 'text-orange-500' : ''"-->
-<!--                                                    >-->
-<!--                                                        {{project.percentageOfMaterialsOrdered}}%-->
-<!--                                                    </td>-->
-<!--                                                    <td class="px-4 py-4 text-sm whitespace-nowrap">-->
-<!--                                                        <div class="flex justify-center items-center gap-x-6">-->
-<!--                                                            <button-->
-<!--                                                                @click="toggleArchive(project)"-->
-<!--                                                                class="text-gray-500 transition-colors duration-200 dark:hover:text-red-500 dark:text-gray-300 hover:text-red-500 focus:outline-none"-->
-<!--                                                            >-->
-<!--                                                                {{project.archive ? 'Restore' : 'Archive'}}-->
-<!--                                                            </button>-->
-<!--                                                            <button v-if="!project.archive" @click="editMode(project)">-->
-<!--                                                                Edit-->
-<!--                                                            </button>-->
-<!--                                                        </div>-->
-<!--                                                    </td>-->
-<!--                                                </tr>-->
-<!--                                            </template>-->
-<!--                                        </tbody>-->
-<!--                                    </table>-->
-<!--                                </div>-->
-<!--                                <div-->
-<!--                                    v-if="countArchivedProjects > 0"-->
-<!--                                    @click="showArchivedProjects = !showArchivedProjects"-->
-<!--                                    class="text-center text-blue-500 underline mt-3"-->
-<!--                                >-->
-<!--                                    {{showArchivedProjects ? 'Hide' : 'Show'}} {{countArchivedProjects}} Archived Project{{countArchivedProjects > 1 ? 's' : ''}}-->
-<!--                                </div>-->
-<!--                            </div>-->
-<!--                        </div>-->
-<!--                    </div>-->
-<!--                </section>-->
             </div>
         </div>
     </AuthenticatedLayout>
@@ -927,21 +789,11 @@
     <KanbanModalQuotes
         v-show="showQuotesModal"
         :width="900"
-        :allData="batches['QUOTED']"
         :modalSelectedBatchId="modalSelectedBatchId"
         :refreshModalQuotes="refreshModalQuotes"
         :quotesData="quotesData"
         @closeModal="showQuotesModal = false"
     />
-<!--    <KanbanModalOrders-->
-<!--        v-show="showOrdersModal"-->
-<!--        width="800"-->
-<!--        :allData="batches['ORDERED']"-->
-<!--        :modalSelectedBatchId="modalSelectedBatchId"-->
-<!--        :refreshModalOrders="refreshModalOrders"-->
-<!--        :ordersData="ordersData"-->
-<!--        @closeModal="showOrdersModal = false"-->
-<!--    />-->
     <NewProjectModal
         v-show="showNewProjectModal"
         width="400"
