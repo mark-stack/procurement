@@ -12,8 +12,8 @@ class NotificationService
         $notifications = [];
 
         if($user){
+            //dd(1,$user->unreadNotifications);
             foreach ($user->unreadNotifications as $notification) {
-
                 //Loop through all interface implementations
                 foreach($implementations as $implementation){
                     $className = 'App\\Services\\NotificationImplementations\\'.$implementation;
@@ -29,7 +29,6 @@ class NotificationService
                         }
                     }
                 }
-
 
 
                 /**

@@ -23,7 +23,6 @@ class MarkNotificationStatusController extends Controller
         ]);
 
         $notification = DatabaseNotification::findOrFail($validated["id"]); // Replace with the actual notification ID
-        $return = back();
 
         $implementations = (new NotificationService())->getImplementations();
         foreach($implementations as $implementation){

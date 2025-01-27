@@ -39,7 +39,7 @@ class QuoteDueEmail extends Notification implements ShouldQueue
     {
         //Go to quotes page which has notifications for actioning
         $action = new LoginAction($this->recipient);
-        $action->response(redirect()->route("quotes.index"));
+        $action->response(redirect()->route("dashboard"));
         $magicLink = MagicLink::create($action);
 
         //MagicLink is being weird making default "localhost" instead of "http://127.0.0.1:8000"

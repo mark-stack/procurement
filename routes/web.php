@@ -1,10 +1,12 @@
 <?php
 
 //todo: experimental
+use App\Jobs\HourlyNotificationsJob;
 use App\Models\Project;
 use App\Models\User;
 use App\Services\DataClassificationService;
 use App\Services\NestingService;
+use App\Services\NotificationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -37,6 +39,16 @@ Route::get("test",function(){
 
     $generalProductMatches = $dataClassificationService->findGeneralProductMatchesFromText($description,auth()->user());
     dd("web",$description,$generalProductMatches);
+});
+//todo temporary
+Route::get("notifications",function(){
+    $user = auth()->user();
+
+    //generate notifications
+    HourlyNotificationsJob::dispatchSync();
+
+    $notifications = (new NotificationService())->getNotifications($user);
+    dd("notifications",$notifications);
 });
 
 require __DIR__.'/auth.php';

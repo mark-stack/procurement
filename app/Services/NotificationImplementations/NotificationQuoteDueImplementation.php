@@ -29,7 +29,7 @@ class NotificationQuoteDueImplementation implements NotificationInterface
          * 2) Project is awarded
          * 3) Expected or default lead time + 2 days before material received date
          * 4) At least 1 day since last reminder
-         * 5) Not all materials quotes
+         * 5) Not all materials quoted yet
          */
 
         $quoteDueProjects = Project::query()
@@ -39,7 +39,7 @@ class NotificationQuoteDueImplementation implements NotificationInterface
             ->get();
 
         foreach($quoteDueProjects as $project) {
-            //5) Not all materials quotes
+            //5) Not all materials
             if($project->percentageOfMaterialsQuoted() < 100){
                 $projectManager = $project->user;
 
@@ -119,8 +119,7 @@ class NotificationQuoteDueImplementation implements NotificationInterface
         //Mark as read
         $notification->markAsRead();
 
-        //Go to quote index
-        return redirect()->route('quotes.index');
+        return back();
     }
 
     public function markRed(DatabaseNotification $notification): RedirectResponse

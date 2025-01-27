@@ -24,7 +24,6 @@ class HourlyNotificationsJob implements ShouldQueue
          * Don't stack up notifications.
          * To “re-remind”, mark the previous as read and create new one
          */
-
         $implementations = (new NotificationService())->getImplementations();
         foreach($implementations as $implementation){
             $className = 'App\\Services\\NotificationImplementations\\'.$implementation;

@@ -153,9 +153,6 @@ class ProjectController extends Controller
             ->latest()
             ->get());
 
-        /*
-         * Modal data
-         */
         return Inertia::render('Dashboard',[
             "projects" => $projects,
             "batches" => $batches,
@@ -181,6 +178,7 @@ class ProjectController extends Controller
             'awarded' => 'required|boolean',
             "reference" => 'nullable|required_if:awarded,true',
             'date_materials_required' => 'nullable|required_if:awarded,true|date|after:today',
+            "tentative" => 'required',
         ]);
 
         //Clear reference and date if not awarded
@@ -190,11 +188,12 @@ class ProjectController extends Controller
         }
 
         Project::create([
-            "name" => $validated["name"],
             "user_id" => auth()->user()->id,
+            "name" => $validated["name"],
             "awarded" => $validated["awarded"],
             "reference" => $validated["reference"],
             "date_materials_required" => $validated["date_materials_required"],
+            "tentative" => $validated["tentative"],
         ]);
 
         return back();

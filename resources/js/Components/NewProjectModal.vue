@@ -16,9 +16,9 @@
     const formProjectCreate = useForm({
         name: null,
         awarded: true,
-        date_materials_required: null,
         reference: null,
-        tentative: true,
+        date_materials_required: null,
+        tentative: false,
     });
 
     //Shared data
