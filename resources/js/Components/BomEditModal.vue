@@ -361,7 +361,7 @@
 </script>
 
 <template>
-    <Modal>
+    <Modal :fakeModal="false">
         <div :style="'width:'+width+'px'">
 
             <div class="dark:bg-gray-900 rounded-xl">

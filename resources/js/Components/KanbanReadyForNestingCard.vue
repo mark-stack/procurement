@@ -39,7 +39,7 @@
             class="w-full mb-2 text-center"
         >
             <p
-                v-if="usageStats"
+                v-if="usageStats && usageStats.efficiency > 0"
                 class="text-sm text-green-500"
             >
                 <b>{{usageStats.efficiency}}%</b> efficiency

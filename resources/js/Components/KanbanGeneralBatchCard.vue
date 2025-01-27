@@ -1,7 +1,8 @@
 <script setup>
     //General Imports
-    import {useForm, usePage} from "@inertiajs/vue3";
+    import {useForm, usePage, Link} from "@inertiajs/vue3";
     import moment from "moment/moment.js";
+    import {computed} from "vue";
 
     //Component Imports
     import CardButtonGreen from "@/Components/CardButtonGreen.vue";
@@ -26,7 +27,6 @@
 
     //Shared methods
     import shared from "@/Shared/shared.js";
-    import {computed} from "vue";
 
     //Methods
     function breakBatch(){
@@ -145,22 +145,46 @@
                 @click="$emit('pageLoadingOn',3); breakBatch()"
                 label="Re-nest"
             />
-            <CardButtonGreen
+
+<!--            <CardButtonGreen-->
+<!--                v-if="type === 'QUOTES'"-->
+<!--                @click="$emit('showQuotesModal',info.batch.id)"-->
+<!--                label="Quotes"-->
+<!--                :highlight="true"-->
+<!--                :icon="false"-->
+<!--            />-->
+            <Link
                 v-if="type === 'QUOTES'"
-                @click="$emit('showQuotesModal',info.batch.id)"
-                label="Quotes"
-                :highlight="true"
-                :icon="false"
-            />
+                :href="route('quote.order.management',props.info.batch.id)"
+                class="w-full"
+            >
+                <CardButtonGreen
+                    label="Quotes"
+                    :highlight="true"
+                    :icon="false"
+                />
+            </Link>
 
             <!-- Order actions -->
-            <CardButtonGreen
+<!--            <CardButtonGreen-->
+<!--                v-if="type === 'ORDERS'"-->
+<!--                @click="$emit('showOrdersModal',info.batch.id)"-->
+<!--                label="Orders"-->
+<!--                :highlight="true"-->
+<!--                :icon="false"-->
+<!--            />-->
+
+            <Link
                 v-if="type === 'ORDERS'"
-                @click="$emit('showOrdersModal',info.batch.id)"
-                label="Orders"
-                :highlight="true"
-                :icon="false"
-            />
+                :href="route('quote.order.management',props.info.batch.id)"
+                class="w-full"
+            >
+                <CardButtonGreen
+                    label="Orders"
+                    :highlight="true"
+                    :icon="false"
+                />
+            </Link>
         </div>
         <p
             v-if="shared.atLeastOneProjectIsYours(info.projects.data,user.id)"

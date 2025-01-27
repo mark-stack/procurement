@@ -64,8 +64,6 @@ class ProjectController extends Controller
              * e.g "ABC Steel" who does 'fasteners' and 'steel merchant' is 2 rows
              */
 
-            $orders = $batch->orders;
-
             $quoted[$batch->id] = [
                 "info" => [
                     "batch" => [

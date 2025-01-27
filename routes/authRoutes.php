@@ -13,6 +13,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\QuoteController;
+use App\Http\Controllers\QuoteOrderManagementController;
 use App\Http\Controllers\RawMaterialListBulkDeleteController;
 use App\Http\Controllers\RawMaterialListClarificationsController;
 use App\Http\Controllers\RawMaterialListCustomisationsController;
@@ -294,6 +295,11 @@ Route::middleware(['auth','verified'])->group(function () {
             ]);
         })->name("download.nesting");
 
+        Route::get("quote-order-management/{batch}", QuoteOrderManagementController::class)->name("quote.order.management");
+
+        /**
+         * @deprecated
+         */
         Route::get("download-quotes-data/{batch}",function(Request $request, Batch $batch){
             //Services
             $batchService = new BatchService();
@@ -372,7 +378,7 @@ Route::middleware(['auth','verified'])->group(function () {
                         $rows[] = [
                             "info" => [
                                 "supplier" => $supplier,
-                                "thisOrderIsSent" => $order->order_sent,
+                                "order_sent" => $order->order_sent,
                             ],
                             "formQuoteUpdate" => [
                                 "batch_id" => $batch->id,
@@ -387,6 +393,7 @@ Route::middleware(['auth','verified'])->group(function () {
                                 "order_id" => $order->id,
                                 "supplier_group" => $supplierGroup,
                                 "ordered_quote_id" => $orderedOrder ? $orderedOrder->quote->id : null,
+                                "purchase_order_number" => $orderedOrder ? $orderedOrder->purchase_order_number : null,
                             ],
                             "formUndoOrderSent" => [
                                 "order_id" => $order->id,

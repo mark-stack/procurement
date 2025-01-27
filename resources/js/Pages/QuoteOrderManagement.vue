@@ -1,6 +1,6 @@
 <script setup>
     //General Imports
-    import {ref, toRefs, watch} from "vue";
+    import {ref} from "vue";
     import {Link, useForm, usePage} from "@inertiajs/vue3";
 
     //Component Imports
@@ -37,7 +37,7 @@
     const business = usePage().props.auth.business;
 
     //Variables
-    let showInputs = ref(null);
+    let showInputs = ref(setupShowInputs());
     const currentInputEditRow = ref(null);
     const countSentQuotes = ref(0);
     const countSentOrders = ref(0);
@@ -49,18 +49,17 @@
     function setupShowInputs(){
         let resultArray = [];
 
-        if(props.quotesData.length > 0){
-            Object.values(props.quotesData).forEach(data => {
-                Object.values(data.supplierGroupCards.rows).forEach(row => {
-                    resultArray[row.info.supplier.id] = {
-                        quoted_price: false,
-                        quoted_lead_time: false,
-                        supplier_quote_reference: false,
-                        add_purchase_order: false,
-                    };
-                });
+        Object.values(props.quotesData.supplierGroupCards).forEach(data => {
+            Object.values(data.rows).forEach(row => {
+                resultArray[row.info.supplier.id] = {
+                    quoted_price: false,
+                    quoted_lead_time: false,
+                    supplier_quote_reference: false,
+                    add_purchase_order: false,
+                };
             });
-        }
+        });
+
 
         return resultArray;
     }
@@ -183,7 +182,7 @@
         let url = route("quotes.update",row.formQuoteUpdate.quote_id);
 
         formQuoteUpdate.batch_id = row.formQuoteUpdate.batch_id;
-        formQuoteUpdate.quote_sent = row.formQuoteUpdate.quote_sent === "0" ? false : true;
+        formQuoteUpdate.quote_sent = row.formQuoteUpdate.quote_sent === 0 ? false : true;
         formQuoteUpdate.supplier_quote_reference = row.formQuoteUpdate.supplier_quote_reference;
         formQuoteUpdate.quoted_price = row.formQuoteUpdate.quoted_price;
         formQuoteUpdate.quoted_lead_time = row.formQuoteUpdate.quoted_lead_time;
@@ -192,9 +191,6 @@
             preserveScroll: true,
             onSuccess: (page) => {
                 console.log('success',page);
-
-                //Count sent quotes
-                //countSentQuotes.value = countSentQuotesCalculate();
             },
             onError: errors => {
                 console.log('errors',errors);
@@ -202,21 +198,8 @@
         });
     }
 
-    function orderSentCheckbox(row,rows){
-        console.log("row",row);
+    function orderSentCheckbox(row){
         let url = route("order.sent",row.formOrderUpdate.batch_id);
-
-        //make other rows 'ordered_quote_id' = null (to avoid multiple highlighted rows)
-        Object.values(rows).forEach(r => {
-            //This row
-            if(r.formQuoteUpdate.quote_id == row.formQuoteUpdate.quote_id){
-                r.info.order_sent = true;
-            }
-            //Other rows
-            else{
-                r.info.order_sent = false;
-            }
-        });
 
         formOrderUpdate.batch_id = row.formOrderUpdate.batch_id;
         formOrderUpdate.order_id = row.formOrderUpdate.order_id;
@@ -228,8 +211,6 @@
             preserveScroll: true,
             onSuccess: () => {
                 console.log('success');
-
-                countSentOrders.value = countSentOrdersCalculate();
             },
             onError: errors => {
                 console.log('errors',errors);
@@ -237,20 +218,8 @@
         });
     }
 
-    function isLoading(){
-        return Object.values(props.quotesData).length === 0;
-    }
-
-    function isOrdered(data){
-        let isOrdered = false;
-
-        Object.values(data.rows).forEach(row => {
-            if(row.formOrderUpdate.ordered_quote_id){
-               isOrdered = true;
-            }
-        });
-
-        return isOrdered;
+    function deliveredCheckbox(row){
+        console.log("delivered checkbox");
     }
 
     function undoOrderSent(row,data){
@@ -260,14 +229,6 @@
             preserveScroll: true,
             onSuccess: () => {
                 console.log('success');
-
-                //Update rows to reflect undoing order_sent
-                Object.values(data.rows).forEach(row => {
-                    row.formOrderUpdate.ordered_quote_id = null;
-                    row.info.order_sent = false;
-                });
-
-                countSentOrders.value = countSentOrdersCalculate();
             },
             onError: errors => {
                 console.log('errors',errors);
@@ -275,69 +236,22 @@
         });
     }
 
-    function projectManagersApprovalBeforeOrderSent(row,data) {
+    function projectManagersApprovalBeforeOrderSent(row) {
         // Show the confirmation dialog
         const isConfirmed = confirm(props.quotesData.info.projectManagerApprovalMessage);
         if (isConfirmed) {
             row.formOrderUpdate.ordered_quote_id = row.formQuoteUpdate.quote_id;
 
-            orderSentCheckbox(row,data.rows);
+            orderSentCheckbox(row);
         }
         else{
             row.formOrderUpdate.ordered_quote_id = null;
         }
     }
-
-    function countSentQuotesCalculate(){
-        let countSentQuotes = 0;
-
-        if(!isLoading()){
-            Object.values(props.quotesData.supplierGroupCards).forEach(data => {
-                Object.values(data.rows).forEach(row => {
-                    //Quotes sent
-                    if(row.formQuoteUpdate.quote_sent){
-                        countSentQuotes = countSentQuotes + 1;
-                    }
-                });
-            });
-        }
-
-        return countSentQuotes;
-    }
-
-    function countSentOrdersCalculate(){
-        let countSentOrders = 0;
-
-        if(!isLoading()){
-            Object.values(props.quotesData.supplierGroupCards).forEach(data => {
-                Object.values(data.rows).forEach(row => {
-                    //Quotes sent
-                    if(row.info.order_sent){
-                        countSentOrders = countSentOrders + 1;
-                    }
-                });
-            });
-        }
-
-        return countSentOrders;
-    }
-
-    //Watcher
-    const { refreshModalQuotes } = toRefs(props);
-    watch(refreshModalQuotes, (newVal) => {
-        console.log('refreshModalQuotes changed:', newVal);
-
-        //Initialise 'show inputs'
-        showInputs.value = setupShowInputs();
-
-        //Count sent quotes
-        countSentQuotes.value = countSentQuotesCalculate();
-        countSentOrders.value = countSentOrdersCalculate();
-    });
 </script>
 
 <template>
-    <Modal :fakeModal="false">
+    <Modal :fakeModal="true">
         <div :style="'width:'+width+'px'">
             <div class="p-5">
                 <div class="grid grid-cols-3">
@@ -346,27 +260,17 @@
                             Quotes / Orders
                         </h3>
                     </div>
-                    <div v-if="!isLoading()" class="text-right">
+                    <div class="text-right">
                         <p>
-                            [{{quotesData.info.sentQuotesQty}}]
-                            Quote coverage: <b>{{ countSentQuotes }}/{{ quotesData.info.totalQuotesQty }}</b>
+                            Quote coverage: <b>{{ quotesData.info.sentQuotesQty }}/{{ quotesData.info.totalQuotesQty }}</b>
                         </p>
                         <p>
-                            Order coverage: <b>{{ countSentOrders }}/{{ quotesData.info.totalOrdersQty }}</b>
+                            Order coverage: <b>{{ quotesData.info.sentOrdersQty }}/{{ quotesData.info.totalOrdersQty }}</b>
                         </p>
                     </div>
                 </div>
 
-                <!-- Loading -->
-                <div
-                    v-if="isLoading()"
-                    class="p-20 text-gray-700 italic"
-                >
-                    <span class="block font-bold text-xl">Loading...</span>
-                </div>
-
-                <div v-else class="mt-3">
-
+                <div class="mt-3">
                     <div
                         v-for="(data,supplierGroup) in quotesData?.supplierGroupCards"
                         class="border-2 border-gray-200 rounded-lg p-3 mb-2"
@@ -378,7 +282,7 @@
                                 <p class="text-sm text-gray-400">{{data.info.includedProducts.string}}</p>
                             </div>
                             <div class="text-right">
-                                <span v-if="isOrdered(data)" class="block text-green-500 font-semibold text-lg">ORDERED</span>
+                                <span v-if="quotesData.info.sentOrdersQty > 0" class="block text-green-500 font-semibold text-lg">ORDERED</span>
                                 <span v-else class="block text-orange-500 font-semibold text-lg">NOT ORDERED</span>
                                 <span class="text-sm text-red-500">PO: <span class="font-semibold">{{data.info.purchaseOrderNumber}}</span></span>
                             </div>
@@ -582,7 +486,7 @@
                                     />
                                     <input
                                         v-else
-                                        @click.prevent="projectManagersApprovalBeforeOrderSent(row,data)"
+                                        @click.prevent="projectManagersApprovalBeforeOrderSent(row)"
                                         type="checkbox"
                                     />
 
@@ -619,10 +523,9 @@
                                 <div>
                                     <input
                                         v-model="data.info.delivered"
-                                        v-if="row.isOrdered"
-                                        true-value="1"
-                                        false-value="0"
-                                        @change="quoteSentCheckbox(row)"
+                                        :true-value="1"
+                                        :false-value="0"
+                                        @change="deliveredCheckbox(row)"
                                         type="checkbox"
                                     />
                                 </div>
