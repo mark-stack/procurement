@@ -60,7 +60,7 @@
                                 :href="route('dashboard')"
                                 @click="loadingButton = true"
                             >
-                                {{ loadingButton ? 'On the way...' : 'Back to projects'}}
+                                {{ loadingButton ? 'Closing...' : 'Back to projects'}}
                             </Link>
 
                             <button

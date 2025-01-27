@@ -156,9 +156,10 @@
                 v-if="type === 'QUOTES'"
                 :href="route('quote.order.management',props.info.batch.id)"
                 class="w-full"
+                @click="loadingButton = 'QUOTES'"
             >
                 <CardButtonGreen
-                    label="Quotes"
+                    :label="loadingButton === 'QUOTES' ? 'Opening...' : 'Quotes'"
                     :highlight="true"
                     :icon="false"
                 />

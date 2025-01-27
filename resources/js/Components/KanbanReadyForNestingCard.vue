@@ -1,13 +1,14 @@
 <script setup>
     //General Imports
-    import {usePage} from "@inertiajs/vue3";
-    import {computed} from "vue";
+    import {Link, usePage} from "@inertiajs/vue3";
+    import {computed, ref} from "vue";
     import moment from "moment/moment.js";
 
     //Component Imports
     import CardButtonRed from "@/Components/CardButtonRed.vue";
     import CardButtonYellow from "@/Components/CardButtonYellow.vue";
     import CardButtonGreen from "@/Components/CardButtonGreen.vue";
+    import CardButtonBlue from "@/Components/CardButtonBlue.vue";
 
     //Props
     const props = defineProps({
@@ -21,10 +22,10 @@
     //Variables
     const emit = defineEmits(['toggleArchive','editMode','quoteNow','orderNow','showBom','pageLoadingOn','showNesting']);
     const user = computed(() => usePage().props.auth.user);
+    const loadingButton = ref(null);
 
     //Shared methods
     import shared from '@/Shared/shared';
-    import CardButtonBlue from "@/Components/CardButtonBlue.vue";
 </script>
 
 <template>
@@ -116,11 +117,16 @@
             v-if="shared.atLeastOneProjectIsYours(projects,user.id)"
             class="flex w-full justify-center mt-2"
         >
-            <CardButtonBlue
-                @click="$emit('pageLoadingOn',null);$emit('showNesting',0)"
-                label="Nesting details"
-                :highlight="false"
-            />
+            <Link
+                :href="route('suggested.nesting')"
+                class="w-full"
+                @click="loadingButton = 'NESTING_DETAILS'"
+            >
+                <CardButtonBlue
+                    :label="loadingButton === 'NESTING_DETAILS' ? 'Opening...' : 'Nesting details'"
+                    :highlight="false"
+                />
+            </Link>
         </div>
 
         <!-- Actions -->
