@@ -9,8 +9,6 @@
     //Props
     const props = defineProps({
         width: Number,
-        modalSelectedBatchId: Number|null,
-        refreshModalQuotes: Boolean,
         quotesData: Object,
     });
 
@@ -39,11 +37,11 @@
     //Variables
     let showInputs = ref(setupShowInputs());
     const currentInputEditRow = ref(null);
-    const countSentQuotes = ref(0);
-    const countSentOrders = ref(0);
+    const height = window.innerHeight - 250;
 
     //Shared Methods
     import shared from '@/Shared/shared';
+    import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 
     //Methods
     function setupShowInputs(){
@@ -108,12 +106,11 @@
         //Save any currently open
         if(currentInputEditRow.value){
             console.log("has open input. Save it.",currentInputEditRow.value);
-            saveInput(currentInputEditRow.value,false);
+            updateQuote(currentInputEditRow.value,false);
         }
 
         //Set current row
         currentInputEditRow.value = row;
-        console.log("currentInputEditRow",currentInputEditRow.value);
 
         //hide any currently open
         showInputs.value = setupShowInputs();
@@ -148,7 +145,7 @@
         console.log("cancel. current row",currentInputEditRow.value);
     }
 
-    function saveInput(row,autoCloseAll){
+    function updateQuote(row,autoCloseAll){
         let url = route("quotes.update",row.formQuoteUpdate.quote_id);
 
         formQuoteUpdate.batch_id = row.formQuoteUpdate.batch_id;
@@ -170,7 +167,28 @@
 
                 //Clear current input selection
                 currentInputEditRow.value = null;
-                console.log("saved completed. current row",currentInputEditRow.value);
+            },
+            onError: errors => {
+                console.log('errors',errors);
+            },
+        });
+    }
+
+    function updateOrder(row){
+        let url = route("orders.update",row.formOrderUpdate.order_id);
+
+        formOrderUpdate.purchase_order_number = row.formOrderUpdate.purchase_order_number;
+
+        formOrderUpdate.put(url, {
+            preserveScroll: true,
+            onSuccess: () => {
+                console.log('success');
+
+                //Close all inputs
+                showInputs.value = setupShowInputs();
+
+                //Clear current input selection
+                currentInputEditRow.value = null;
             },
             onError: errors => {
                 console.log('errors',errors);
@@ -201,12 +219,7 @@
     function orderSentCheckbox(row){
         let url = route("order.sent",row.formOrderUpdate.batch_id);
 
-        formOrderUpdate.batch_id = row.formOrderUpdate.batch_id;
         formOrderUpdate.order_id = row.formOrderUpdate.order_id;
-        formOrderUpdate.supplier_group = row.formOrderUpdate.supplier_group;
-        formOrderUpdate.ordered_quote_id = row.formOrderUpdate.ordered_quote_id;
-        formOrderUpdate.purchase_order_number = row.formOrderUpdate.purchase_order_number;
-
         formOrderUpdate.post(url, {
             preserveScroll: true,
             onSuccess: () => {
@@ -251,25 +264,26 @@
 </script>
 
 <template>
-    <Modal :fakeModal="true">
-        <div :style="'width:'+width+'px'">
-            <div class="p-5">
-                <div class="grid grid-cols-3">
-                    <div class="col-span-2">
-                        <h3 class="text-2xl leading-6 font-medium text-gray-900 mb-5" id="modal-title">
-                            Quotes / Orders
-                        </h3>
-                    </div>
-                    <div class="text-right">
-                        <p>
-                            Quote coverage: <b>{{ quotesData.info.sentQuotesQty }}/{{ quotesData.info.totalQuotesQty }}</b>
-                        </p>
-                        <p>
-                            Order coverage: <b>{{ quotesData.info.sentOrdersQty }}/{{ quotesData.info.totalOrdersQty }}</b>
-                        </p>
-                    </div>
+    <AuthenticatedLayout>
+        <Modal :fakeModal="true">
+            <!-- header -->
+            <div class="grid grid-cols-3 pt-2 pr-5 pb-2 pl-5">
+                <div class="col-span-2">
+                    <h3 class="text-2xl leading-6 font-medium text-gray-900 mb-5" id="modal-title">
+                        Quotes / Orders
+                    </h3>
                 </div>
-
+                <div class="text-right">
+                    <p>
+                        Quote coverage: <b>{{ quotesData.info.sentQuotesQty }}/{{ quotesData.info.totalQuotesQty }}</b>
+                    </p>
+                    <p>
+                        Order coverage: <b>{{ quotesData.info.sentOrdersQty }}/{{ quotesData.info.totalOrdersQty }}</b>
+                    </p>
+                </div>
+            </div>
+            <!-- body -->
+            <div :style="'width:'+width+'px; height:'+height+'px'" class="overflow-y-auto pt-2 pr-5 pb-5 pl-5">
                 <div class="mt-3">
                     <div
                         v-for="(data,supplierGroup) in quotesData?.supplierGroupCards"
@@ -284,7 +298,7 @@
                             <div class="text-right">
                                 <span v-if="quotesData.info.sentOrdersQty > 0" class="block text-green-500 font-semibold text-lg">ORDERED</span>
                                 <span v-else class="block text-orange-500 font-semibold text-lg">NOT ORDERED</span>
-                                <span class="text-sm text-red-500">PO: <span class="font-semibold">{{data.info.purchaseOrderNumber}}</span></span>
+                                <span v-if="data.info.purchaseOrderNumber" class="text-sm">PO: <span class="font-semibold">{{data.info.purchaseOrderNumber}}</span></span>
                             </div>
                         </div>
 
@@ -365,7 +379,7 @@
                                                 <span class="text-xs text-green-500 font-bold">Saving...</span>
                                             </template>
                                             <template v-else>
-                                                <button @click="saveInput(row,true)" class="text-xs underline text-green-500 font-bold">Save</button>
+                                                <button @click="updateQuote(row,true)" class="text-xs underline text-green-500 font-bold">Save</button>
                                                 <button @click="hideInput()" class="text-xs underline">Cancel</button>
                                             </template>
                                         </div>
@@ -408,7 +422,7 @@
                                                 <span class="text-xs text-green-500 font-bold">Saving...</span>
                                             </template>
                                             <template v-else>
-                                                <button @click="saveInput(row,true)" class="text-xs underline text-green-500 font-bold">Save</button>
+                                                <button @click="updateQuote(row,true)" class="text-xs underline text-green-500 font-bold">Save</button>
                                                 <button @click="hideInput()" class="text-xs underline">Cancel</button>
                                             </template>
                                         </div>
@@ -450,7 +464,7 @@
                                                     <span class="text-xs text-green-500 font-bold">Saving...</span>
                                                 </template>
                                                 <template v-else>
-                                                    <button @click="saveInput(row,true)" class="text-xs underline text-green-500 font-bold">Save</button>
+                                                    <button @click="updateQuote(row,true)" class="text-xs underline text-green-500 font-bold">Save</button>
                                                     <button @click="hideInput()" class="text-xs underline">Cancel</button>
                                                 </template>
                                             </div>
@@ -478,25 +492,26 @@
                                 <!-- Sent order -->
                                 <div class="pt-1">
                                     <!-- formOrderUpdate -->
-                                    <input
-                                        v-if="row.info.order_sent"
-                                        @click="undoOrderSent(row,data)"
-                                        type="checkbox"
-                                        checked
-                                    />
-                                    <input
-                                        v-else
-                                        @click.prevent="projectManagersApprovalBeforeOrderSent(row)"
-                                        type="checkbox"
-                                    />
+                                    <template v-if="!showAddPurchaseOrder(row.info.supplier.id)">
+                                        <input
+                                            v-if="row.info.order_sent"
+                                            @click="undoOrderSent(row,data)"
+                                            type="checkbox"
+                                            checked
+                                        />
+                                        <input
+                                            v-else
+                                            @click.prevent="projectManagersApprovalBeforeOrderSent(row)"
+                                            type="checkbox"
+                                        />
+                                    </template>
 
-                                    <br>
                                     <button
-                                        v-if="row.info.order_sent"
+                                        v-if="row.info.order_sent && !showAddPurchaseOrder(row.info.supplier.id)"
                                         @click="toggleShowInput(row,'add_purchase_order')"
                                         class="text-xs underline text-blue-500"
                                     >
-                                        Add PO number
+                                        {{row.formOrderUpdate.purchase_order_number ? 'Edit PO number' :'Add PO number'}}
                                     </button>
 
                                     <div v-if="showAddPurchaseOrder(row.info.supplier.id)">
@@ -509,11 +524,11 @@
                                             minlength="1"
                                         />
                                         <div class="flex gap-x-1 justify-center">
-                                            <template v-if="formQuoteUpdate.processing">
+                                            <template v-if="formOrderUpdate.processing">
                                                 <span class="text-xs text-green-500 font-bold">Saving...</span>
                                             </template>
                                             <template v-else>
-                                                <button @click="saveInput(row,true)" class="text-xs underline text-green-500 font-bold">Save</button>
+                                                <button @click="updateOrder(row)" class="text-xs underline text-green-500 font-bold">Save</button>
                                                 <button @click="hideInput()" class="text-xs underline">Cancel</button>
                                             </template>
                                         </div>
@@ -543,6 +558,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-    </Modal>
+        </Modal>
+    </AuthenticatedLayout>
 </template>

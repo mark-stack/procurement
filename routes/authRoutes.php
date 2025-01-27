@@ -27,7 +27,6 @@ use App\Models\Project;
 use App\Models\Quote;
 use App\Services\BatchService;
 use App\Services\NestingService;
-use App\Services\OrderService;
 use App\Services\ProductService;
 use App\Services\SupplierService;
 use Illuminate\Support\Facades\Gate;
@@ -266,6 +265,9 @@ Route::middleware(['auth','verified'])->group(function () {
             ]);
         })->name("download.bom");
 
+        /**
+         * @deprecated
+         */
         Route::get("download-nesting/{batch_id}",function(Request $request, int $batch_id){
             /**
              * batch_id = 0 represents "ready to nest" which has no batch object created yet
@@ -577,10 +579,7 @@ Route::middleware(['auth','verified'])->group(function () {
              * Update or create quote & order based on BATCH and SUPPLIER_CATEGORY
              */
             $validated = $request->validate([
-                "batch_id" => ['required'],
                 'order_id' => ['required'],
-                'supplier_group' => ['required'],
-                "ordered_quote_id" => ['required'],
             ]);
 
             //Update orders

@@ -26,6 +26,12 @@ class BatchNestingController extends Controller
         //View data
         $batchData = $nestingService->getBatchDataForView("BATCH",$business,$batch);
 
-        return Inertia::render('QuoteIndex',$batchData);
+        $viewData = array_merge($batchData,[
+            "width" => 900,
+        ]);
+
+        //dd(1,$viewData);
+
+        return Inertia::render('QuoteIndex',$viewData);
     }
 }

@@ -9,11 +9,9 @@
     import KanbanNeedsImportingCard from "@/Components/KanbanNeedsImportingCard.vue";
     import KanbanReadyForNestingCard from "@/Components/KanbanReadyForNestingCard.vue";
     import KanbanGeneralBatchCard from "@/Components/KanbanGeneralBatchCard.vue";
-    import KanbanModalQuotes from "@/Components/KanbanModalQuotes.vue";
     import NewProjectModal from "@/Components/NewProjectModal.vue";
     import BomEditModal from "@/Components/BomEditModal.vue";
     import PageLoadingOverlay from "@/Components/PageLoadingOverlay.vue";
-    import NestingModal from "@/Components/NestingModal.vue";
 
     //Props
     const props = defineProps({
@@ -35,42 +33,21 @@
     //Variables
     const editProject = ref(null);
     const bomProject = ref(null);
-    const selectedNestingBatchId = ref(null);
     const showArchivedProjects = ref(false);
-    const showQuotesModal = ref(false);
     const showNewProjectModal = ref(false);
     const showBomEditModal = ref(false);
-    const showNestingModal = ref(false);
-    const modalSelectedBatchId = ref(null);
-    const refreshModalQuotes = ref(false);
-    const refreshModalOrders = ref(false);
     const refreshModalBom = ref(false);
-    const refreshModalNesting = ref(false);
     const bomData = ref([]);
-    const quotesData = ref([]);
-    const nestingData = ref([]);
     const pageLoading = ref(false);
     const usageData = ref(null);
     const underNavScreenHeight = window.innerHeight - 68;
     const kanbanHeight = underNavScreenHeight - 50;
 
-    //Shared Methods
-    //...
 
     //Methods
     function sendRefreshModalBom(){
         refreshModalBom.value = !refreshModalBom.value; // Toggle refreshModalBom
     }
-    function sendRefreshModalNesting(){
-        refreshModalNesting.value = !refreshModalNesting.value; // Toggle refreshModalBom
-    }
-    function sendRefreshModalQuotes(){
-        refreshModalQuotes.value = !refreshModalQuotes.value; // Toggle refreshModalQuotes
-    }
-    function sendRefreshModalOrders(){
-        refreshModalOrders.value = !refreshModalOrders.value; // Toggle refreshModalOrders
-    }
-
 
     function submitArchiveToggle(id){
         //page loader ON
@@ -112,13 +89,6 @@
         editProject.value = project;
 
         showNewProjectModal.value = true;
-
-        // //Populate form
-        // formProjectCreate.name = project.name;
-        // formProjectCreate.awarded = project.awarded === 1;
-        // formProjectCreate.date_materials_required = project.date_materials_required;
-        // formProjectCreate.reference = project.reference;
-        // formProjectCreate.tentative = project.tentative;
     }
 
     function quoteNow(){
@@ -128,8 +98,6 @@
             preserveScroll: true,
             onSuccess: () => {
                 console.log('success');
-                //todo trigger orders card form reset
-                sendRefreshModalQuotes();
 
                 //Remove page loader
                 pageLoading.value = false;
@@ -167,8 +135,6 @@
     function addProject(){
         //Modal visibility
         showNewProjectModal.value = true;
-        //showOrdersModal.value  = false;
-        showQuotesModal.value  = false;
 
         //Disable edit mode
         editProject.value = null;
@@ -193,60 +159,6 @@
             //Show modal
             showBomEditModal.value = true;
             console.log("already downloaded. show modal");
-        }
-    }
-
-    function showQuotes(batchId){
-
-        //Close orders modal (if open)
-        //showOrdersModal.value = false;
-
-        //Set selected batch
-        modalSelectedBatchId.value = batchId;
-
-        //Page loader
-        pageLoading.value = true;
-
-        //Download
-        downloadQuotesModalData(batchId);
-    }
-
-    function showOrders(batchId){
-        //Close quotes modal (if open)
-        //showQuotesModal.value = false;
-
-        //Set selected batch
-        modalSelectedBatchId.value = batchId;
-
-        //Page loader
-        pageLoading.value = true;
-
-        //Download
-        downloadQuotesModalData(batchId);
-    }
-
-    function showNesting(batchId){
-
-        console.log("batch",batchId);
-
-        //Set batch
-        selectedNestingBatchId.value = batchId;
-        console.log("Set project");
-
-        /**
-         Only download new data if hasn't already
-         */
-        let existingDownload = undefined; //todo Object.values(bomData.value).find(item => item.project_id == selectedNestingBatchId.value.id);
-        console.log("existingDownload",existingDownload);
-
-        if(existingDownload === undefined){
-            console.log("not already downloaded. Proceed to download data");
-            downloadNestingData(batchId);
-        }
-        else{
-            //Show modal
-            showNestingModal.value = true;
-            console.log("already downloaded. show nesting modal");
         }
     }
 
@@ -302,75 +214,6 @@
         }
     }
 
-    async function downloadQuotesModalData(batchId){
-        /**
-         Axios
-         */
-        try {
-            const response = await axios.get(route("download.quotes.data",batchId));
-
-            if(response.data.downloadedQuotesData){
-                console.log("existing array",quotesData.value);
-
-                //Delete if exists
-                quotesData.value = Object.values(quotesData.value).filter(item => item.batch_id != batchId);
-                console.log("delete existing downloaded data");
-
-                //Create
-                quotesData.value = response.data.downloadedQuotesData;
-                console.log("pushed new download data",quotesData.value);
-
-                //Refresh modal QUOTES signal
-                sendRefreshModalQuotes();
-            }
-        } catch (error) {
-            console.error('Error fetching data:', error);
-
-            //Remove page loader
-            pageLoading.value = false;
-        } finally {
-            //Show modal
-            showQuotesModal.value = true;
-            console.log("show modal");
-
-            //Remove page loader
-            pageLoading.value = false;
-        }
-    }
-
-    async function downloadNestingData(batchId){
-        /**
-         Axios
-         */
-        try {
-            const response = await axios.get(route("download.nesting",batchId));
-
-            if(response.data.downloadedNestingData){
-                //Delete if exists
-                nestingData.value = Object.values(nestingData.value).filter(item => item.batch_id != batchId);
-                console.log("delete existing downloaded data");
-
-                //Create
-                nestingData.value.push(response.data.downloadedNestingData);
-                console.log("pushed new download data",nestingData.value);
-
-                //Refresh modal BOM signal
-                sendRefreshModalNesting();
-            }
-        } catch (error) {
-            console.error('Error fetching data:', error);
-
-            //Remove page loader
-            pageLoading.value = false;
-        } finally {
-            //Show modal
-            showNestingModal.value = true;
-
-            //Remove page loader
-            pageLoading.value = false;
-        }
-    }
-
     function pageLoaderTimer(seconds){
         pageLoading.value = true;
 
@@ -398,104 +241,9 @@
         <PageLoadingOverlay
             v-if="pageLoading"
         />
-<!--  class="overflow-y-hidden" :style="'height:'+underNavScreenHeight+'px'" -->
+
         <div>
             <div class="mx-auto max-w-screen">
-<!--                <section-->
-<!--                    class="dark:bg-gray-900 rounded-xl"-->
-<!--                    :class="editProject ? 'bg-yellow-50' : 'bg-white'"-->
-<!--                >-->
-<!--                    <div class="px-6 pt-4 pb-4 mx-auto text-center shadow-xl">-->
-<!--                        <h1 class="text-3xl font-semibold text-gray-800 dark:text-gray-100">-->
-<!--                            {{editProject ? ('Edit "' + formProjectCreate.name + '" ') : 'New'}} Project-->
-<!--                        </h1>-->
-<!--                        <p-->
-<!--                            v-if="editProject"-->
-<!--                            @click="backToNewProject()"-->
-<!--                            class="text-blue-500 text-sm underline mt-2"-->
-<!--                            style="cursor: pointer;"-->
-<!--                        >-->
-<!--                            Back to New Project-->
-<!--                        </p>-->
-
-
-<!--                        <div class="max-w-5xl pb-2 mx-auto">-->
-<!--                            <form @submit.prevent="submit()" class="text-left">-->
-<!--                                <div class="grid grid-cols-1 sm:grid-cols-10 gap-6 mt-4">-->
-<!--                                    &lt;!&ndash; Name &ndash;&gt;-->
-<!--                                    <div class="col-span-4">-->
-<!--                                        <label class="text-gray-700 dark:text-gray-200 ml-2">Project Name</label>-->
-<!--                                        <input-->
-<!--                                            v-model="formProjectCreate.name"-->
-<!--                                            type="text"-->
-<!--                                            class="w-full px-4 py-2 text-gray-700 bg-white border rounded-md sm:mx-2 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-600 focus:border-blue-400 dark:focus:border-blue-300 focus:outline-none focus:ring focus:ring-blue-300 focus:ring-opacity-40"-->
-<!--                                            placeholder="Name"-->
-<!--                                            required-->
-<!--                                        >-->
-<!--                                        <div v-if="formProjectCreate.errors.name" class="text-sm text-red-500">{{ formProjectCreate.errors.name }}</div>-->
-<!--                                    </div>-->
-
-<!--                                    &lt;!&ndash; Awarded? &ndash;&gt;-->
-<!--&lt;!&ndash;                                    <div class="pt-7">&ndash;&gt;-->
-<!--&lt;!&ndash;                                        <label for="awarded" class="ml-2">You've been awarded the project?</label>&ndash;&gt;-->
-<!--&lt;!&ndash;                                        <input&ndash;&gt;-->
-<!--&lt;!&ndash;                                            id="awarded"&ndash;&gt;-->
-<!--&lt;!&ndash;                                            v-model="formProjectCreate.awarded"&ndash;&gt;-->
-<!--&lt;!&ndash;                                            type="checkbox"&ndash;&gt;-->
-<!--&lt;!&ndash;                                            class="ml-2"&ndash;&gt;-->
-<!--&lt;!&ndash;                                            @click="checkBoxActions()"&ndash;&gt;-->
-<!--&lt;!&ndash;                                        >&ndash;&gt;-->
-<!--&lt;!&ndash;                                    </div>&ndash;&gt;-->
-
-<!--                                    &lt;!&ndash; Project reference &ndash;&gt;-->
-<!--                                    <div-->
-<!--                                        v-if="formProjectCreate.awarded"-->
-<!--                                        class="col-span-2"-->
-<!--                                    >-->
-<!--                                        <label class="text-gray-700 dark:text-gray-200 ml-2">Project reference</label>-->
-<!--                                        <input-->
-<!--                                            v-model="formProjectCreate.reference"-->
-<!--                                            type="text"-->
-<!--                                            class="w-full px-4 py-2 text-gray-700 bg-white border rounded-md sm:mx-2 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-600 focus:border-blue-400 dark:focus:border-blue-300 focus:outline-none focus:ring focus:ring-blue-300 focus:ring-opacity-40"-->
-<!--                                            placeholder="Reference ID"-->
-<!--                                            required-->
-<!--                                        >-->
-<!--                                        <div v-if="formProjectCreate.errors.reference" class="text-sm text-red-500">{{ formProjectCreate.errors.reference }}</div>-->
-<!--                                    </div>-->
-
-<!--                                    &lt;!&ndash; Date materials required &ndash;&gt;-->
-<!--                                    <div-->
-<!--                                        v-if="formProjectCreate.awarded"-->
-<!--                                        class="col-span-2"-->
-<!--                                    >-->
-<!--                                        <label class="text-gray-700 dark:text-gray-200 ml-2">Materials required by</label>-->
-<!--                                        <input-->
-<!--                                            v-model="formProjectCreate.date_materials_required"-->
-<!--                                            type="date"-->
-<!--                                            class="w-full px-4 py-2 text-gray-700 bg-white border rounded-md sm:mx-2 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-600 focus:border-blue-400 dark:focus:border-blue-300 focus:outline-none focus:ring focus:ring-blue-300 focus:ring-opacity-40"-->
-<!--                                            required-->
-<!--                                        >-->
-<!--                                        <div v-if="formProjectCreate.errors.date_materials_required" class="text-sm text-red-500">{{ formProjectCreate.errors.date_materials_required }}</div>-->
-<!--                                    </div>-->
-
-<!--                                    &lt;!&ndash; submit button &ndash;&gt;-->
-<!--                                    <div class="col-span-2">-->
-<!--                                        <button-->
-<!--                                            type="submit"-->
-<!--                                            :disabled="formProjectCreate.processing"-->
-<!--                                            style="height:40px"-->
-<!--                                            class="w-full mt-6 px-4 py-2 text-sm font-medium tracking-wide text-white capitalize transition-colors duration-300 transform bg-blue-700 rounded-md sm:mx-2 hover:bg-blue-600 focus:outline-none focus:bg-blue-600"-->
-<!--                                        >-->
-<!--                                            {{editProject ? 'Update' : 'Create'}}-->
-<!--                                        </button>-->
-<!--                                    </div>-->
-
-<!--                                </div>-->
-<!--                            </form>-->
-<!--                        </div>-->
-<!--                    </div>-->
-<!--                </section>-->
-
                 <section>
 
                     <!-- kanban -->
@@ -564,7 +312,6 @@
                                     @showBom="p => showBom(p)"
                                     @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
                                     @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
-                                    @showNesting="batchId => showNesting(batchId)"
                                 />
                             </div>
                         </div>
@@ -581,7 +328,7 @@
                                 class="pt-3 overflow-y-auto"
                                 :style="'height:'+kanbanHeight+'px'"
                             >
-                                <!-- card -->
+                                <!-- card-->
                                 <KanbanGeneralBatchCard
                                     v-for="batch in batches['QUOTED']"
                                     :key="batch.info.batch.id"
@@ -590,12 +337,9 @@
                                     class="mb-3"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
-                                    @showQuotesModal="batchId => showQuotes(batchId)"
-                                    @showOrdersModal="batchId => showOrders(batchId)"
                                     @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
                                     @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
                                     @showBom="p => showBom(p)"
-                                    @showNesting="batchId => showNesting(batchId)"
                                 />
                             </div>
                         </div>
@@ -621,13 +365,10 @@
                                     class="mb-3"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
-                                    @showQuotesModal="batchId => showQuotes(batchId)"
-                                    @showOrdersModal="batchId => showOrders(batchId)"
                                     @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
                                     @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
                                     @orderNow="orderNow(batch['batch']['id'])"
                                     @showBom="p => showBom(p)"
-                                    @showNesting="batchId => showNesting(batchId)"
                                 />
                             </div>
                         </div>
@@ -690,14 +431,6 @@
     </AuthenticatedLayout>
 
     <!-- Modals -->
-    <KanbanModalQuotes
-        v-show="showQuotesModal"
-        :width="900"
-        :modalSelectedBatchId="modalSelectedBatchId"
-        :refreshModalQuotes="refreshModalQuotes"
-        :quotesData="quotesData"
-        @closeModal="showQuotesModal = false"
-    />
     <NewProjectModal
         v-show="showNewProjectModal"
         width="400"
@@ -714,14 +447,6 @@
         @closeModal="showBomEditModal = false"
         @closeModalOnSuccess="showBomEditModal = false"
         @redownload="projectId => downloadProjectBomData(projectId)"
-    />
-    <NestingModal
-        v-if="showNestingModal"
-        width="900"
-        :nestingData="nestingData"
-        :refreshModalNesting="refreshModalNesting"
-        :batchId="selectedNestingBatchId"
-        @closeModal="showNestingModal = false"
     />
 </template>
 

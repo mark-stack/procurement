@@ -127,7 +127,7 @@ class QuoteOrderManagementController extends Controller
                             ->where("supplier_category",$supplierGroup)
                             ->where("quote_sent",true)
                             ->count(),
-                        "purchaseOrderNumber" => "123-TEST", //todo
+                        "purchaseOrderNumber" => $orderedOrder ? $orderedOrder->purchase_order_number : null,
                         "delivered" => true, //todo placeholder
                     ],
                     "rows" => $rows,
@@ -156,8 +156,6 @@ class QuoteOrderManagementController extends Controller
 
         return Inertia::render('QuoteOrderManagement',[
             "width" => 900,
-            "modalSelectedBatchId" => $batch->id,
-            "refreshModalQuotes" => false, //todo delete
             "quotesData" => $quotesAndOrders,
         ]);
     }

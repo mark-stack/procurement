@@ -11,6 +11,7 @@
     //Variables
     const emit = defineEmits(['closeModal']);
     const clickCount = ref(0);
+    const loadingButton = ref(false);
 
     //Methods
     function onClickAway(event) {
@@ -47,8 +48,6 @@
                         v-click-away="onClickAway"
                         class="relative bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8"
                     >
-<!--                        <slot/>-->
-
                         <div class="bg-white pt-5 pb-4 sm:pb-4">
                             <!-- content -->
                             <slot/>
@@ -59,8 +58,9 @@
                                 type="button"
                                 class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
                                 :href="route('dashboard')"
+                                @click="loadingButton = true"
                             >
-                                Back to projects
+                                {{ loadingButton ? 'On the way...' : 'Back to projects'}}
                             </Link>
 
                             <button

@@ -114,9 +114,15 @@ class OrderController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Order $order)
+    public function update(Request $request, Order $order): RedirectResponse
     {
+        $validated = $request->validate([
+            "purchase_order_number" => ['nullable'],
+        ]);
 
+        $order->update($validated);
+
+        return back();
     }
 
     /**

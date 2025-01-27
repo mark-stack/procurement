@@ -2,7 +2,7 @@
     //General Imports
     import {useForm, usePage, Link} from "@inertiajs/vue3";
     import moment from "moment/moment.js";
-    import {computed} from "vue";
+    import {computed, ref} from "vue";
 
     //Component Imports
     import CardButtonGreen from "@/Components/CardButtonGreen.vue";
@@ -22,8 +22,9 @@
     //...
 
     //Variables
-    const emit = defineEmits(['toggleArchive','editMode','showQuotesModal','showOrdersModal','pageLoadingOn','pageLoadingOff','showBom','showNesting']);
+    const emit = defineEmits(['toggleArchive','editMode','pageLoadingOn','pageLoadingOff','showBom','showNesting']);
     const user = computed(() => usePage().props.auth.user);
+    const loadingButton = ref(null);
 
     //Shared methods
     import shared from "@/Shared/shared.js";
@@ -128,11 +129,16 @@
             v-if="shared.atLeastOneProjectIsYours(info.projects.data,user.id)"
             class="flex w-full justify-center mt-2"
         >
-            <CardButtonBlue
-                @click="$emit('pageLoadingOn',null);$emit('showNesting',info.batch.id)"
-                label="Nesting details"
-                :highlight="false"
-            />
+            <Link
+                :href="route('batch.nesting',props.info.batch.id)"
+                class="w-full"
+                @click="loadingButton = 'NESTING_DETAILS'"
+            >
+                <CardButtonBlue
+                    :label="loadingButton === 'NESTING_DETAILS' ? 'Opening...' : 'Nesting details'"
+                    :highlight="false"
+                />
+            </Link>
         </div>
 
         <div
@@ -146,13 +152,6 @@
                 label="Re-nest"
             />
 
-<!--            <CardButtonGreen-->
-<!--                v-if="type === 'QUOTES'"-->
-<!--                @click="$emit('showQuotesModal',info.batch.id)"-->
-<!--                label="Quotes"-->
-<!--                :highlight="true"-->
-<!--                :icon="false"-->
-<!--            />-->
             <Link
                 v-if="type === 'QUOTES'"
                 :href="route('quote.order.management',props.info.batch.id)"
@@ -165,22 +164,15 @@
                 />
             </Link>
 
-            <!-- Order actions -->
-<!--            <CardButtonGreen-->
-<!--                v-if="type === 'ORDERS'"-->
-<!--                @click="$emit('showOrdersModal',info.batch.id)"-->
-<!--                label="Orders"-->
-<!--                :highlight="true"-->
-<!--                :icon="false"-->
-<!--            />-->
-
+            <!-- order actions -->
             <Link
                 v-if="type === 'ORDERS'"
                 :href="route('quote.order.management',props.info.batch.id)"
                 class="w-full"
+                @click="loadingButton = 'ORDERS'"
             >
                 <CardButtonGreen
-                    label="Orders"
+                    :label="loadingButton === 'ORDERS' ? 'Opening...' : 'Orders'"
                     :highlight="true"
                     :icon="false"
                 />
