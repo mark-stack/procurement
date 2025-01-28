@@ -74,7 +74,7 @@
                         <i class="fa-regular fa-calendar-days text-base"></i>
                         <div>
                             <span class="ml-1 text-xs">Quote by:</span>
-                            <span class="block ml-1 leading-none text-xs">{{ moment(project.quoteRequestDeadline).format("DD-MM-YYYY")}}</span>
+                            <span class="block ml-1 leading-none text-xs">{{ moment(project.criticalPathDeadline).format("DD-MM-YYYY")}}</span>
                         </div>
                     </div>
                     <div
@@ -145,7 +145,7 @@
             v-if="shared.atLeastOneProjectIsYours(projects,user.id)"
             class="w-full mt-1 text-xs block text-center text-orange-300"
         >
-            {{ shared.quoteDeadlineMessage(projects,true) }}
+            {{ shared.criticalPathDeadlineMessage(projects,true) }}
         </p>
     </div>
 

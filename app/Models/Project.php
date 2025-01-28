@@ -86,9 +86,10 @@ class Project extends Model
             $piece = $rawMaterialQuote->piece;
             if($piece){
                 //PIECE might not have quote objects yet
-                $quotes = $piece->quotes;
-                if($quotes){
-                    $percentageOfMaterialsQuoted++;
+                foreach($piece->quotes as $quote){
+                    if($quote->quote_sent){
+                        $percentageOfMaterialsQuoted++;
+                    }
                 }
             }
         }
@@ -110,7 +111,7 @@ class Project extends Model
             if($piece){
                 //PIECE might not have order object yet
                 $order = $piece->order;
-                if($order){
+                if($order && $order->order_sent){
                     $percentageOfMaterialsOrdered++;
                 }
             }
@@ -121,33 +122,31 @@ class Project extends Model
             : 0;
     }
 
-    public function orderDays(): int
-    {
-        return 3; //todo: derive from material data for better accuracy with fallback value of 3 days
-    }
-
     public function longestDeliveryDays(): int
     {
         return 4; //todo derive from actual materials. Fallback = 3 days
     }
 
-    public function fromQuoteRequestToReceivedDays(): int
+    public function criticalPathDays(): int
     {
-        $longestDeliveryDays = $this->longestDeliveryDays();
+        /**
+         * Critical path is quoting time + delivery time
+         */
         $materialQuotingDays = 2;
+        $longestDeliveryDays = $this->longestDeliveryDays();
 
-        return $longestDeliveryDays + $materialQuotingDays;
+        return $materialQuotingDays + $longestDeliveryDays;
     }
 
-    public function daysUntilQuoteRequestDeadline(): string
+    public function daysUntilCriticalPathDeadline(): string
     {
-        return $this->quoteRequestDeadline()->diffForHumans();
+        return $this->criticalPathDeadline()->diffForHumans();
     }
 
     //Datetime
-    public function quoteRequestDeadline(): Carbon
+    public function criticalPathDeadline(): Carbon
     {
-        return Carbon::parse($this->date_materials_required)->subDays($this->fromQuoteRequestToReceivedDays());
+        return Carbon::parse($this->date_materials_required)->subDays($this->criticalPathDays());
     }
 
     public function orderDeadline(): Carbon
@@ -156,7 +155,7 @@ class Project extends Model
     }
 
     //Local scopes
-    public function dueForQuotingAndOrdering(Builder $query): void
+    public function scopeDueForQuotingAndOrdering(Builder $query): void
     {
         /**
          * Between [critical path + 1 day] and [critical path] days before planned project material received date
@@ -164,11 +163,11 @@ class Project extends Model
         //todo
         $query->whereBetween('date_materials_required', [
             Carbon::now(),
-            Carbon::now()->addDays($this->fromQuoteRequestToReceivedDays())->toDateString()
+            Carbon::now()->addDays($this->criticalPathDays())->toDateString()
         ]);
     }
 
-    public function overdueForQuotingAndOrdering(Builder $query): void
+    public function scopeDverdueForQuotingAndOrdering(Builder $query): void
     {
         /**
          * Less than [critical path] before planned project material received date
@@ -176,7 +175,7 @@ class Project extends Model
         //todo:
         $query->whereBetween('date_materials_required', [
             Carbon::now(),
-            Carbon::now()->addDays($this->fromQuoteRequestToReceivedDays())->toDateString()
+            Carbon::now()->addDays($this->criticalPathDays())->toDateString()
         ]);
     }
 

@@ -101,15 +101,14 @@
                         <!-- Quote by -->
                         <div v-if="type === 'QUOTES'">
                             <span class="ml-1 text-xs">Quote by:</span>
-                            <span class="block ml-1 leading-none text-xs">{{ moment(project.quoteRequestDeadline).format("DD-MM-YYYY")}}</span>
+                            <span class="block ml-1 leading-none text-xs">{{ moment(project.criticalPathDeadline).format("DD-MM-YYYY")}}</span>
                         </div>
-                        <!-- Order by -->
-                        <div v-if="type === 'ORDERS'">
-                            <span class="ml-1 text-xs">Order by:</span>
-                            <span class="block ml-1 leading-none text-xs">{{ moment(project.orderDeadline).format("DD-MM-YYYY")}}</span>
-                        </div>
+<!--                        &lt;!&ndash; Order by &ndash;&gt;-->
+<!--                        <div v-if="type === 'ORDERS'">-->
+<!--                            <span class="ml-1 text-xs">Order by:</span>-->
+<!--                            <span class="block ml-1 leading-none text-xs">{{ moment(project.orderDeadline).format("DD-MM-YYYY")}}</span>-->
+<!--                        </div>-->
                     </div>
-
                     <div
                         v-if="shared.isYourProject(project,user.id)"
                         class="flex items-center ml-4"
@@ -121,6 +120,14 @@
                             :icon="true"
                         />
                     </div>
+                </div>
+                <div class="mt-2 flex justify-between">
+                    <p>
+                        Quoted: {{project.percentageOfMaterialsQuoted}}%
+                    </p>
+                    <p>
+                        Ordered: {{project.percentageOfMaterialsOrdered}}%
+                    </p>
                 </div>
             </div>
         </div>
@@ -183,8 +190,8 @@
             v-if="shared.atLeastOneProjectIsYours(info.projects.data,user.id)"
             class="w-full mt-2 text-xs block text-center text-orange-300"
         >
-            <span v-if="type === 'QUOTES'">{{ shared.quoteDeadlineMessage(info.projects.data,false) }}</span>
-            <span v-if="type === 'ORDERS'">{{ shared.orderDeadlineMessage(info.projects.data, allOrdersSent())}}</span>
+            <span v-if="type === 'QUOTES'">{{ shared.criticalPathDeadlineMessage(info.projects.data,false) }}</span>
+            <span v-if="type === 'ORDERS'">{{ shared.criticalPathDeadlineMessage(info.projects.data, allOrdersSent())}}</span>
         </p>
     </div>
 </template>

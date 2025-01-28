@@ -49,14 +49,14 @@ export default {
         }
         return text;
     },
-    daysUntilNearestQuoteDeadline(projects){
+    daysUntilNearestCriticalPathDeadline(projects){
         /**
          Integer days until quote deadline of earliest project.
          Can be negative if it's passed.
          */
         let arrayOfTimestamps = [];
         Object.values(projects).forEach(project => {
-            arrayOfTimestamps.push(project.quoteRequestDeadline);
+            arrayOfTimestamps.push(project.criticalPathDeadline);
         });
 
         const moments = arrayOfTimestamps.map(ts => moment(ts));
@@ -79,44 +79,24 @@ export default {
 
         return earliestDate.startOf('day').diff(moment().startOf('day'), 'days');
     },
-    quoteDeadlineMessage(projects,nestingStage){
+    criticalPathDeadlineMessage(projects,nestingStage){
         let message = "";
 
-        let daysUntilNearestQuoteDeadline = this.daysUntilNearestQuoteDeadline(projects);
+        let daysUntilNearestCriticalPathDeadline = this.daysUntilNearestCriticalPathDeadline(projects);
 
         //In the past
-        if(daysUntilNearestQuoteDeadline < 0){
-            message = "The quote deadline was " + (0 - daysUntilNearestQuoteDeadline) + " day"+ (daysUntilNearestQuoteDeadline > 1 ? 's' : '') +" ago. You need to quote these materials today.";
+        if(daysUntilNearestCriticalPathDeadline < 0){
+            message = "The critical path deadline was " + (0 - daysUntilNearestCriticalPathDeadline) + " day"+ (daysUntilNearestCriticalPathDeadline > 1 ? 's' : '') +" ago. You should quote/order these materials today.";
         }
         //Today
-        else if(daysUntilNearestQuoteDeadline === 0){
-            message = "The quote deadline is today";
+        else if(daysUntilNearestCriticalPathDeadline === 0){
+            message = "The critical path deadline is today";
         }
         //Future
-        if(daysUntilNearestQuoteDeadline > 0){
+        if(daysUntilNearestCriticalPathDeadline > 0){
             if(nestingStage){
-                message = "Wait " + daysUntilNearestQuoteDeadline + " days to allow for more possible materials (Earliest quote deadline)";
+                message = "Wait " + daysUntilNearestCriticalPathDeadline + " days to allow for more possible materials (Wait for critical path)";
             }
-        }
-
-        return message;
-    },
-    orderDeadlineMessage(projects,allOrdersSent){
-        let message = "";
-
-        let daysUntilNearestOrderDeadline = this.daysUntilNearestOrderDeadline(projects);
-
-        //In the past
-        if(daysUntilNearestOrderDeadline < 0 && !allOrdersSent){
-            message = "The order deadline was " + (0-daysUntilNearestOrderDeadline) + " day"+ (daysUntilNearestOrderDeadline > 1 ? 's' : '') +" ago. You need to order these materials today.";
-        }
-        //Today
-        else if(daysUntilNearestOrderDeadline === 0 && !allOrdersSent){
-            message = "The order deadline is today";
-        }
-        //Future
-        if(daysUntilNearestOrderDeadline > 0 && !allOrdersSent){
-            message = "Place these orders today";
         }
 
         return message;

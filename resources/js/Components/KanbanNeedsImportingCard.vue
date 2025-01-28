@@ -54,7 +54,7 @@
                 <i class="fa-regular fa-calendar-days text-2xl"></i>
                 <div>
                     <span class="ml-1 text-xs">Quote by:</span>
-                    <span class="block ml-1 leading-none text-xs">{{ moment(project.quoteRequestDeadline).format("DD-MM-YYYY")}}</span>
+                    <span class="block ml-1 leading-none text-xs">{{ moment(project.criticalPathDeadline).format("DD-MM-YYYY")}}</span>
                 </div>
             </div>
             <div class="flex items-center ml-4">

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\ProductService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -51,5 +52,15 @@ class Piece extends Model
             ->where("nominal_width",$this->nominal_width)
             ->where("nominal_height",$this->nominal_height)
             ->first();
+    }
+
+    //String
+    public function supplierGroup(): string
+    {
+        $implementation = (new ProductService())->getImplementationFromProductCategory($this->product_category);
+        $config = $implementation->config();
+        $supplierGroupEnum = $config["supplierGroup"];
+
+        return $supplierGroupEnum->value;
     }
 }

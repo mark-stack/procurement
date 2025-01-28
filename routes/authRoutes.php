@@ -1,11 +1,12 @@
 <?php
 
+use App\Actions\Order\SetOrderSentForBatchSupplierGroup;
+use App\Actions\OrderApproval\UpdateOrderApprovalStatus;
+use App\Actions\Piece\AttachPiecesToOrder;
 use App\Enums\SupplierGroupEnums;
 use App\Http\Controllers\BatchController;
 use App\Http\Controllers\BatchNestingController;
-use App\Http\Controllers\MarkAsOrderedController;
 use App\Http\Controllers\MarkNotificationStatusController;
-use App\Http\Controllers\MarkOrderConfirmationReceivedController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PricebookController;
@@ -572,30 +573,25 @@ Route::middleware(['auth','verified'])->group(function () {
         Route::post("order-sent/{batch}",function(Request $request, Batch $batch){
             /**
              * Update or create quote & order based on BATCH and SUPPLIER_CATEGORY
+             * Action 1: SetOrderSentForBatchSupplierGroup
+             *   Action 1A: UpdateOrderSentStatus
+             * Action 2: AttachPiecesToOrder
+             * Action 3: UpdateOrderApprovalsForBatch
              */
             $validated = $request->validate([
                 'order_id' => ['required'],
             ]);
 
-            //Update orders
-            foreach($batch->orders as $order){
-                //This order
-                if($order->id == $validated["order_id"]){
-                    $order->order_sent = true;
-                    $order->save();
-                }
-                //Other orders (mark order NOT sent because might be changing radio button)
-                else{
-                    $order->order_sent = false;
-                    $order->save();
-                }
-            }
+            $orderedOrder = Order::findOrFail($validated["order_id"]);
 
-            //All project managers approve
-            foreach($batch->orderApprovals as $orderApproval){
-                $orderApproval->project_manager_approved = true;
-                $orderApproval->save();
-            }
+            //Only 1 order in the batch supplier group can be TRUE
+            SetOrderSentForBatchSupplierGroup::run($orderedOrder,$batch);
+
+            //Attach pieces to order
+            AttachPiecesToOrder::run($batch,$orderedOrder);
+
+            //All project managers approve ordering materials
+            UpdateOrderApprovalStatus::run($batch,true);
 
             return back();
         })->name("order.sent");
