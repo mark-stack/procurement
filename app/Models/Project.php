@@ -122,6 +122,11 @@ class Project extends Model
             : 0;
     }
 
+    public function quotingDays(): int
+    {
+        return 2;
+    }
+
     public function longestDeliveryDays(): int
     {
         return 4; //todo derive from actual materials. Fallback = 3 days
@@ -132,7 +137,7 @@ class Project extends Model
         /**
          * Critical path is quoting time + delivery time
          */
-        $materialQuotingDays = 2;
+        $materialQuotingDays = $this->quotingDays();
         $longestDeliveryDays = $this->longestDeliveryDays();
 
         return $materialQuotingDays + $longestDeliveryDays;
@@ -144,39 +149,57 @@ class Project extends Model
     }
 
     //Datetime
-    public function criticalPathDeadline(): Carbon
+    public function quotingDeadline(): Carbon
     {
-        return Carbon::parse($this->date_materials_required)->subDays($this->criticalPathDays());
+        $materialQuotingDays = $this->quotingDays();
+        $longestDeliveryDays = $this->longestDeliveryDays();
+        $totalDays = $materialQuotingDays + $longestDeliveryDays;
+
+        return Carbon::parse($this->date_materials_required)->subDays($totalDays);
     }
 
-    public function orderDeadline(): Carbon
+    public function orderingDeadline(): Carbon
     {
-        return Carbon::parse($this->date_materials_required)->subDays($this->longestDeliveryDays());
+        $longestDeliveryDays = $this->longestDeliveryDays();
+        $totalDays = $longestDeliveryDays;
+
+        return Carbon::parse($this->date_materials_required)->subDays($totalDays);
+    }
+
+    public function deliveryDeadline(): Carbon
+    {
+        return Carbon::parse($this->date_materials_required);
+    }
+
+    public function criticalPathDeadline(): Carbon
+    {
+        return $this->quotingDeadline();
     }
 
     //Local scopes
     public function scopeDueForQuotingAndOrdering(Builder $query): void
     {
         /**
+         * Critical path = quoting time + delivery time
          * Between [critical path + 1 day] and [critical path] days before planned project material received date
          */
-        //todo
-        $query->whereBetween('date_materials_required', [
-            Carbon::now(),
-            Carbon::now()->addDays($this->criticalPathDays())->toDateString()
-        ]);
+
+        $startRange = Carbon::now()->addDays($this->criticalPathDays())->startOfDay();
+        $endRange = Carbon::now()->addDays($this->criticalPathDays() + 1)->endOfDay();
+
+        $query->whereBetween('date_materials_required', [$startRange, $endRange]);
     }
 
-    public function scopeDverdueForQuotingAndOrdering(Builder $query): void
+    public function scopeOverdueForQuotingAndOrdering(Builder $query): void
     {
         /**
+         * Critical path = quoting time + delivery time
          * Less than [critical path] before planned project material received date
          */
-        //todo:
-        $query->whereBetween('date_materials_required', [
-            Carbon::now(),
-            Carbon::now()->addDays($this->criticalPathDays())->toDateString()
-        ]);
+        $deadline = Carbon::now()->addDays($this->criticalPathDays())->endOfDay();
+
+        // Query the database
+        $query->where('date_materials_required', '<', $deadline);
     }
 
     public function scopeThisBusiness(Builder $query, Business $business): void

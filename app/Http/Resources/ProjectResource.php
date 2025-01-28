@@ -31,7 +31,9 @@ class ProjectResource extends JsonResource
             "percentageOfMaterialsOrdered" => $this->percentageOfMaterialsOrdered(),
             "daysUntilCriticalPathDeadline" => $project->daysUntilCriticalPathDeadline(),
             "criticalPathDeadline" => $project->criticalPathDeadline(),
-            "orderDeadline" => $project->orderDeadline(),
+            "quotingDeadline" => $project->criticalPathDeadline(),
+            "orderingDeadline" => $project->orderingDeadline(),
+            "deliveryDeadline" => $project->deliveryDeadline(),
             "projectManager" => $project->user,
             "qtyMaterialRows" => $project->rawMaterialQuotes()->count(), //todo needs to reflect plan
         ];

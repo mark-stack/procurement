@@ -71,11 +71,27 @@
                     class="flex justify-between mt-2"
                 >
                     <div class="flex items-center">
-                        <i class="fa-regular fa-calendar-days text-base"></i>
                         <div>
-                            <span class="ml-1 text-xs">Quote by:</span>
-                            <span class="block ml-1 leading-none text-xs">{{ moment(project.criticalPathDeadline).format("DD-MM-YYYY")}}</span>
+                            <table>
+                                <tr>
+                                    <td>Quote by:</td>
+                                    <td><b>{{ moment(project.quotingDeadline).format("D MMM YY")}}</b></td>
+                                </tr>
+                                <tr>
+                                    <td>Order by:</td>
+                                    <td><b>{{ moment(project.orderingDeadline).format("D MMM YY")}}</b></td>
+                                </tr>
+                                <tr>
+                                    <td>Deliver by:</td>
+                                    <td><b>{{ moment(project.deliveryDeadline).format("D MMM YY")}}</b></td>
+                                </tr>
+                            </table>
                         </div>
+<!--                        <i class="fa-regular fa-calendar-days text-base"></i>-->
+<!--                        <div>-->
+<!--                            <span class="ml-1 text-xs">Quote by:</span>-->
+<!--                            <span class="block ml-1 leading-none text-xs">{{ moment(project.criticalPathDeadline).format("D MMM YY")}}</span>-->
+<!--                        </div>-->
                     </div>
                     <div
                         v-if="shared.isYourProject(project,user.id)"

@@ -3,11 +3,12 @@
 namespace App\Services\NotificationImplementations;
 
 use App\Models\Project;
-use App\Notifications\QuoteDueEmail;
+use App\Notifications\QuoteOverdueEmail;
 use App\Services\Interfaces\NotificationInterface;
+use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Notifications\DatabaseNotification;
-use Illuminate\Support\Carbon;
+use Carbon\Carbon;
 
 class NotificationQuotingOrderingOverDueImplementation implements NotificationInterface
 {
@@ -43,25 +44,34 @@ class NotificationQuotingOrderingOverDueImplementation implements NotificationIn
             ->overdueForQuotingAndOrdering()  //3) Less than [critical path] before planned project material received date
             ->get();
 
-        foreach($quoteDueProjects as $project) {
-            //Prerequisite variables
-            $projectManager = $project->user;
+        //Has notifications
+        if($quoteDueProjects->count() > 0){
+            foreach($quoteDueProjects as $project) {
+                //Prerequisite variables
+                $projectManager = $project->user;
 
-            //5) Order coverage < 100%
-            if($project->percentageOfMaterialsOrdered() === 100){
-                break;
+                //5) Order coverage < 100%
+                if($project->percentageOfMaterialsOrdered() === 100){
+                    break;
+                }
+
+                //6) Not notified already
+                if ($this->hasBeenNotified($projectManager,$project->id)){
+                    break;
+                }
+
+                //Mark all previous as read
+                $this->markPreviousAsRead($projectManager,$project);
+
+                //Send notification
+                $this->sendNotification($projectManager,$project);
             }
-
-            //6) Not notified already
-            if ($this->hasBeenNotified($projectManager,$project->id)){
-                break;
-            }
-
-            //Mark all previous as read
-            $this->markPreviousAsRead($projectManager,$project);
-
-            //Send notification
-            $this->sendNotification($projectManager,$project);
+        }
+        //NO notifications
+        else{
+            //Clear old notifications
+            $class = $this->getNotificationClass();
+            (new NotificationService())->clearPreviousNotifications($class);
         }
     }
 
@@ -83,7 +93,7 @@ class NotificationQuotingOrderingOverDueImplementation implements NotificationIn
     {
         $project = $otherObject;
         $message = $this->message($project->date_materials_required, $project->name);
-        $recipient->notify(new QuoteDueEmail($project, $recipient, $message));
+        $recipient->notify(new QuoteOverdueEmail($project, $recipient, $message));
     }
 
     public function checkProjectChanges(Project $project): void
@@ -95,7 +105,7 @@ class NotificationQuotingOrderingOverDueImplementation implements NotificationIn
 
     public function getNotificationClass(): string
     {
-        return "QuoteDueEmail";
+        return "QuoteOverdueEmail";
     }
 
     public function markPreviousAsRead(object $recipient, object $otherObject): void
@@ -159,7 +169,10 @@ class NotificationQuotingOrderingOverDueImplementation implements NotificationIn
         $notificationData = null;
 
         if($this->isCorrectClass($notification)){
-            $materialsDate = $notification->data["date_materials_required"] ?? null;
+            $materialsDate = $notification->data["date_materials_required"]
+                ? Carbon::parse($notification->data["date_materials_required"])->format('j M y')
+                : null;
+
             $projectName = $notification->data["project_name"] ?? null;
 
             $message = $this->message($materialsDate,$projectName);
@@ -184,6 +197,6 @@ class NotificationQuotingOrderingOverDueImplementation implements NotificationIn
         $materialsDate = $string_1;
         $projectName = $string_2;
 
-        return 'The materials for "'.$projectName.'" are due to be quoted so they can be received before '.$materialsDate;
+        return 'The procurement critical path deadline for the batch containing "'.$projectName.'" has passed. You should quote/order this batch today.';
     }
 }

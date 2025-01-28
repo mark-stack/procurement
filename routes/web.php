@@ -47,10 +47,10 @@ Route::get("notifications",function(){
     //generate notifications
     //HourlyNotificationsJob::dispatchSync();
 
-    //$notifications = (new NotificationService())->getUnreadNotifications($user);
-
+    $notifications = (new NotificationService())->getUnreadNotifications($user);
+    //dd(3,$notifications);
     //Find Notification implementation
-    $desiredNotificationClassName = "App\Services\NotificationImplementations\NotificationQuotingOrderingDueImplementation";
+    $desiredNotificationClassName = "App\Services\NotificationImplementations\NotificationQuotingOrderingOverDueImplementation";
     $desiredNotificationClass = null;
 
     $implementations = (new NotificationService())->getImplementations();
@@ -67,7 +67,7 @@ Route::get("notifications",function(){
         }
     }
 
-    dd(3,$desiredNotificationClass,$desiredNotificationClass->hourlyCheck());
+    dd(3,$desiredNotificationClass->hourlyCheck());
 
     dd("notifications",$notifications,$desiredNotificationClass);
 });

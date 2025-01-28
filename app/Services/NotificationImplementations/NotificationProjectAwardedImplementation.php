@@ -5,6 +5,7 @@ namespace App\Services\NotificationImplementations;
 use App\Models\Project;
 use App\Notifications\ProjectAwardedCheckEmail;
 use App\Services\Interfaces\NotificationInterface;
+use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Carbon;
@@ -35,16 +36,25 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
             ->whereBetween('created_at', [Carbon::now()->$subInterval(2), Carbon::now()]) //3)
             ->get();
 
-        foreach($nonAwardedProjects as $project) {
-            $projectManager = $project->user;
+        //Has notifications
+        if($nonAwardedProjects->count() > 0){
+            foreach($nonAwardedProjects as $project) {
+                $projectManager = $project->user;
 
-            if (!$this->hasBeenNotified($projectManager, $project->id)) {
-                //Mark all previous as read
-                $this->markPreviousAsRead($projectManager, $project);
+                if (!$this->hasBeenNotified($projectManager, $project->id)) {
+                    //Mark all previous as read
+                    $this->markPreviousAsRead($projectManager, $project);
 
-                //Send notification
-                $this->sendNotification($projectManager,$project);
+                    //Send notification
+                    $this->sendNotification($projectManager,$project);
+                }
             }
+        }
+        //NO notifications
+        else{
+            //Clear old notifications
+            $class = $this->getNotificationClass();
+            (new NotificationService())->clearPreviousNotifications($class);
         }
     }
 

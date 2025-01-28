@@ -5,9 +5,11 @@ namespace App\Services\NotificationImplementations;
 use App\Models\Project;
 use App\Notifications\QuoteDueEmail;
 use App\Services\Interfaces\NotificationInterface;
+use App\Services\NestingService;
+use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Notifications\DatabaseNotification;
-use Illuminate\Support\Carbon;
+use Carbon\Carbon;
 
 class NotificationQuotingOrderingDueImplementation implements NotificationInterface
 {
@@ -43,25 +45,34 @@ class NotificationQuotingOrderingDueImplementation implements NotificationInterf
             ->dueForQuotingAndOrdering()     //3) Between [critical path + 1 day] and [critical path] days before planned project material received date
             ->get();
 
-        foreach($quoteDueProjects as $project) {
-            //Prerequisite variables
-            $projectManager = $project->user;
+        //Has notifications
+        if($quoteDueProjects->count() > 0){
+            foreach($quoteDueProjects as $project) {
+                //Prerequisite variables
+                $projectManager = $project->user;
 
-            //5) Order coverage < 100%
-            if($project->percentageOfMaterialsOrdered() === 100){
-                break;
+                //5) Order coverage < 100%
+                if($project->percentageOfMaterialsOrdered() === 100){
+                    break;
+                }
+
+                //6) Not notified already
+                if ($this->hasBeenNotified($projectManager,$project->id)){
+                    break;
+                }
+
+                //Mark all previous as read
+                $this->markPreviousAsRead($projectManager,$project);
+
+                //Send notification
+                $this->sendNotification($projectManager,$project);
             }
-
-            //6) Not notified already
-            if ($this->hasBeenNotified($projectManager,$project->id)){
-                break;
-            }
-
-            //Mark all previous as read
-            $this->markPreviousAsRead($projectManager,$project);
-
-            //Send notification
-            $this->sendNotification($projectManager,$project);
+        }
+        //NO notifications
+        else{
+            //Clear old notifications
+            $class = $this->getNotificationClass();
+            (new NotificationService())->clearPreviousNotifications($class);
         }
     }
 
@@ -159,7 +170,10 @@ class NotificationQuotingOrderingDueImplementation implements NotificationInterf
         $notificationData = null;
 
         if($this->isCorrectClass($notification)){
-            $materialsDate = $notification->data["date_materials_required"] ?? null;
+            $materialsDate = $notification->data["date_materials_required"]
+                ? Carbon::parse($notification->data["date_materials_required"])->format('j M y')
+                : null;
+
             $projectName = $notification->data["project_name"] ?? null;
 
             $message = $this->message($materialsDate,$projectName);

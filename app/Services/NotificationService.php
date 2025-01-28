@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\File;
 
 class NotificationService
@@ -9,6 +10,7 @@ class NotificationService
     public function getUnreadNotifications(object $user = null): array
     {
         $implementations = (new NotificationService())->getImplementations();
+
         $notifications = [];
 
         if($user){
@@ -102,5 +104,15 @@ class NotificationService
             })
             ->values()
             ->toArray();
+    }
+
+    public function clearPreviousNotifications(string $class): void
+    {
+        $classWithPath = "App\Notifications\\".$class;
+
+        DatabaseNotification::query()
+            ->where("type",$classWithPath)
+            ->where("notifiable_type","App\Models\User")
+            ->update(['read_at' => now()]);
     }
 }

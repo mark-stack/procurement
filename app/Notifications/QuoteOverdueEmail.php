@@ -9,7 +9,7 @@ use Illuminate\Notifications\Notification;
 use MagicLink\Actions\LoginAction;
 use MagicLink\MagicLink;
 
-class QuoteDueEmail extends Notification implements ShouldQueue
+class QuoteOverdueEmail extends Notification implements ShouldQueue
 {
     use Queueable;
 

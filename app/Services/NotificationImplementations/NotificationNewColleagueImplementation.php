@@ -6,6 +6,7 @@ use App\Models\Project;
 use App\Models\User;
 use App\Notifications\NewUserEmail;
 use App\Services\Interfaces\NotificationInterface;
+use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Carbon;
@@ -32,17 +33,26 @@ class NotificationNewColleagueImplementation implements NotificationInterface
             ->whereBetween('created_at', [Carbon::now()->$subInterval(2), Carbon::now()])
             ->get();
 
-        foreach($newUsers as $newUser){
-            $colleagues = $newUser->business->users()->where("id","!=",$newUser->id)->get();
-            foreach($colleagues as $colleague){
-                if(!$this->hasBeenNotified($colleague, $newUser->id)){
-                    //Mark all previous as read
-                    $this->markPreviousAsRead($colleague, $newUser);
+        //Has notifications
+        if($newUsers->count() > 0){
+            foreach($newUsers as $newUser){
+                $colleagues = $newUser->business->users()->where("id","!=",$newUser->id)->get();
+                foreach($colleagues as $colleague){
+                    if(!$this->hasBeenNotified($colleague, $newUser->id)){
+                        //Mark all previous as read
+                        $this->markPreviousAsRead($colleague, $newUser);
 
-                    //Send notification
-                    $this->sendNotification($colleague,$newUser);
+                        //Send notification
+                        $this->sendNotification($colleague,$newUser);
+                    }
                 }
             }
+        }
+        //NO notifications
+        else{
+            //Clear old notifications
+            $class = $this->getNotificationClass();
+            (new NotificationService())->clearPreviousNotifications($class);
         }
     }
 

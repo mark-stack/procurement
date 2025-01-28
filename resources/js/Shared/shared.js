@@ -64,21 +64,6 @@ export default {
 
         return earliestDate.startOf('day').diff(moment().startOf('day'), 'days');
     },
-    daysUntilNearestOrderDeadline(projects){
-        /**
-         Integer days until order deadline of earliest project.
-         Can be negative if it's passed.
-         */
-        let arrayOfTimestamps = [];
-        Object.values(projects).forEach(project => {
-            arrayOfTimestamps.push(project.orderDeadline);
-        });
-
-        const moments = arrayOfTimestamps.map(ts => moment(ts));
-        const earliestDate = moment.min(moments);
-
-        return earliestDate.startOf('day').diff(moment().startOf('day'), 'days');
-    },
     criticalPathDeadlineMessage(projects,nestingStage){
         let message = "";
 
@@ -86,11 +71,11 @@ export default {
 
         //In the past
         if(daysUntilNearestCriticalPathDeadline < 0){
-            message = "The critical path deadline was " + (0 - daysUntilNearestCriticalPathDeadline) + " day"+ (daysUntilNearestCriticalPathDeadline > 1 ? 's' : '') +" ago. You should quote/order these materials today.";
+            message = "The critical path deadline was " + (0 - daysUntilNearestCriticalPathDeadline) + " day"+ (daysUntilNearestCriticalPathDeadline > 1 ? 's' : '') +" ago. You should quote/order this batch today.";
         }
         //Today
         else if(daysUntilNearestCriticalPathDeadline === 0){
-            message = "The critical path deadline is today";
+            message = "The critical path deadline is today. Quote/order this batch.";
         }
         //Future
         if(daysUntilNearestCriticalPathDeadline > 0){
