@@ -136,12 +136,7 @@ class QuoteOrderManagementController extends Controller
         }
 
         //Total orders qty
-        $orders = $batch->orders;
-        $supplierCategories = [];
-        foreach($orders as $order){
-            $supplierCategories[] = $order->quote->supplier_category;
-        }
-        $totalOrdersQty = count(array_unique($supplierCategories));
+        $totalOrdersQty = $batchService->totalOrdersQty($batch);
 
         $quotesAndOrders = [
             "info" => [

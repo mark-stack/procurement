@@ -9,7 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Carbon;
 
-class NotificationQuoteDueImplementation implements NotificationInterface
+class NotificationQuotingOrderingDueImplementation implements NotificationInterface
 {
     public string $subInterval;
     public string $addInterval;
@@ -24,37 +24,48 @@ class NotificationQuoteDueImplementation implements NotificationInterface
     public function hourlyCheck(): void
     {
         /**
-         * Quote due
+         * Quoting/Ordering "Due"
+         *
+         * The critical path = quote time + delivery time.
+         * "Due" is when there's [critical path + 1 day] until planned project material received date
+         *
          * 1) Project is active
          * 2) Project is awarded
-         * 3) Expected or default lead time + 2 days before material received date
+         * 3) Between [critical path + 1 day] and [critical path] days before planned project material received date
          * 4) At least 1 day since last reminder
-         * 5) Not all materials quoted yet
+         * 5) Order coverage < 100%
+         * 6) Not notified already
          */
 
         $quoteDueProjects = Project::query()
-            ->active()                          //1) Project is active (not archived)
-            ->awarded()                         //2) Project "awarded" = true
-            ->beforeMaterialsQuotingDeadline()  //3) Expected or default lead time + 2 days before material received date
+            ->active()                       //1) Project is active (not archived)
+            ->awarded()                      //2) Project "awarded" = true
+            ->dueForQuotingAndOrdering()     //3) Between [critical path + 1 day] and [critical path] days before planned project material received date
             ->get();
 
         foreach($quoteDueProjects as $project) {
-            //5) Not all materials
-            if($project->percentageOfMaterialsQuoted() < 100){
-                $projectManager = $project->user;
+            //Prerequisite variables
+            $projectManager = $project->user;
 
-                if (!$this->notifiedAlready($projectManager,$project->id)) {
-                    //Mark all previous as read
-                    $this->markPreviousAsRead($projectManager,$project);
-
-                    //Send notification
-                    $this->sendNotification($projectManager,$project);
-                }
+            //5) Order coverage < 100%
+            if($project->percentageOfMaterialsOrdered() === 100){
+                break;
             }
+
+            //6) Not notified already
+            if ($this->hasBeenNotified($projectManager,$project->id)){
+                break;
+            }
+
+            //Mark all previous as read
+            $this->markPreviousAsRead($projectManager,$project);
+
+            //Send notification
+            $this->sendNotification($projectManager,$project);
         }
     }
 
-    public function notifiedAlready(object $recipient, int $uniqueModelId): bool
+    public function hasBeenNotified(object $recipient, int $uniqueModelId): bool
     {
         $class = $this->getNotificationClass();
 
@@ -95,7 +106,7 @@ class NotificationQuoteDueImplementation implements NotificationInterface
         $recipient->notifications()
             ->where("type",$classWithPath)
             ->where("notifiable_type","App\Models\User")
-            ->where("data->project_id",$otherObject)
+            ->where("data->project_id",$otherObject->id)
             ->update(['read_at' => now()]);
     }
 

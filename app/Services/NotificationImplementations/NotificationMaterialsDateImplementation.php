@@ -38,7 +38,7 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
         foreach($tentativeProjects as $project) {
             $projectManager = $project->user;
 
-            if (!$this->notifiedAlready($projectManager,$project->id)) {
+            if (!$this->hasBeenNotified($projectManager,$project->id)) {
                 //Mark all previous as read
                 $this->markPreviousAsRead($projectManager,$project);
 
@@ -48,7 +48,7 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
         }
     }
 
-    public function notifiedAlready(object $recipient, int $uniqueModelId): bool
+    public function hasBeenNotified(object $recipient, int $uniqueModelId): bool
     {
         $class = $this->getNotificationClass();
 
@@ -107,7 +107,7 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
         $recipient->notifications()
             ->where("type",$classWithPath)
             ->where("notifiable_type","App\Models\User")
-            ->where("data->project_id",$otherObject)
+            ->where("data->project_id",$otherObject->id)
             ->update(['read_at' => now()]);
     }
 

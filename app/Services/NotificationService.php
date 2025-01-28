@@ -6,13 +6,12 @@ use Illuminate\Support\Facades\File;
 
 class NotificationService
 {
-    public function getNotifications(object $user = null): array
+    public function getUnreadNotifications(object $user = null): array
     {
         $implementations = (new NotificationService())->getImplementations();
         $notifications = [];
 
         if($user){
-            //dd(1,$user->unreadNotifications);
             foreach ($user->unreadNotifications as $notification) {
                 //Loop through all interface implementations
                 foreach($implementations as $implementation){

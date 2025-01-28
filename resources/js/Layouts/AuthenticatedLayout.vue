@@ -69,7 +69,7 @@
 
                             <!-- Dropdown menu -->
                             <div v-if="showNotifications && notifications.length > 0"
-                                 style="max-height:300px; width:250px"
+                                 style="width:250px"
                                  class="absolute right-0 z-20 mt-2 origin-top-right bg-white rounded-md shadow-lg dark:bg-gray-800"
                             >
                                 <Notifications2

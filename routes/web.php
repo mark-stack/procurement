@@ -45,10 +45,31 @@ Route::get("notifications",function(){
     $user = auth()->user();
 
     //generate notifications
-    HourlyNotificationsJob::dispatchSync();
+    //HourlyNotificationsJob::dispatchSync();
 
-    $notifications = (new NotificationService())->getNotifications($user);
-    dd("notifications",$notifications);
+    //$notifications = (new NotificationService())->getUnreadNotifications($user);
+
+    //Find Notification implementation
+    $desiredNotificationClassName = "App\Services\NotificationImplementations\NotificationQuotingOrderingDueImplementation";
+    $desiredNotificationClass = null;
+
+    $implementations = (new NotificationService())->getImplementations();
+    foreach($implementations as $implementation){
+        $className = 'App\\Services\\NotificationImplementations\\'.$implementation;
+
+        // Check if the class exists
+        if (class_exists($className)) {
+            $service = new $className();
+
+            if($className === $desiredNotificationClassName){
+                $desiredNotificationClass = $service;
+            }
+        }
+    }
+
+    dd(3,$desiredNotificationClass,$desiredNotificationClass->hourlyCheck());
+
+    dd("notifications",$notifications,$desiredNotificationClass);
 });
 
 require __DIR__.'/auth.php';

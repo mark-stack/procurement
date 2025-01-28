@@ -52,7 +52,7 @@
 <template>
     <div class="">
         <!-- Dropdown menu -->
-        <div class="w-full mt-2 bg-white rounded-md shadow-lg dark:bg-gray-800">
+        <div class="w-full mt-2 bg-white rounded-md shadow-lg dark:bg-gray-800 overflow-y-auto" style="max-height:300px">
             <div v-if="hasNotifications" class="py-2">
                 <div
                     v-for="(notification,index) in notifications"

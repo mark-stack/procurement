@@ -17,7 +17,7 @@ return new class extends Migration
 
             $table->foreignId('project_id')->constrained();
             $table->foreignId('raw_material_quote_id')->constrained();
-            $table->foreignId('quote_id')->nullable()->constrained();
+            $table->foreignId('order_id')->nullable()->constrained();
             $table->foreignId('batch_id')->nullable()->constrained();
 
             $table->text("product_category");               //PFC

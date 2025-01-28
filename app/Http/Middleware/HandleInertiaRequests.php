@@ -38,7 +38,7 @@ class HandleInertiaRequests extends Middleware
                 "business" => $request->user() ? $request->user()->business : null,
                 "isAdmin" => $request->user() && $request->user()->isAdmin(),
                 "onboarded" => $request->user() && $request->user()->business->admin_setup_complete,
-                "notifications" => (new NotificationService())->getNotifications($request->user()),
+                "notifications" => (new NotificationService())->getUnreadNotifications($request->user()),
             ],
             "hasSeedImport" => Product::count() > 0,
             'flash' => [

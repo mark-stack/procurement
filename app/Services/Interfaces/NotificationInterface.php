@@ -9,7 +9,7 @@ use Illuminate\Notifications\DatabaseNotification;
 interface NotificationInterface
 {
     public function hourlyCheck(): void;
-    public function notifiedAlready(object $recipient, int $uniqueModelId): bool;
+    public function hasBeenNotified(object $recipient, int $uniqueModelId): bool;
     public function sendNotification(object $recipient, object $otherObject): void;
     public function checkProjectChanges(Project $project): void;
     public function getNotificationClass(): string;

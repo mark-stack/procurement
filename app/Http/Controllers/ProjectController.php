@@ -96,11 +96,7 @@ class ProjectController extends Controller
         foreach($batchesForOrdering as $batch){
             //Total orders qty
             $orders = $batch->orders;
-            $supplierCategories = [];
-            foreach($orders as $order){
-                $supplierCategories[] = $order->quote->supplier_category;
-            }
-            $totalOrdersQty = count(array_unique($supplierCategories));
+            $totalOrdersQty = $batchService->totalOrdersQty($batch);
 
             $ordered[$batch->id] = [
                 "info" => [

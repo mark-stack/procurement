@@ -35,7 +35,7 @@ class NotificationNewColleagueImplementation implements NotificationInterface
         foreach($newUsers as $newUser){
             $colleagues = $newUser->business->users()->where("id","!=",$newUser->id)->get();
             foreach($colleagues as $colleague){
-                if(!$this->notifiedAlready($colleague, $newUser->id)){
+                if(!$this->hasBeenNotified($colleague, $newUser->id)){
                     //Mark all previous as read
                     $this->markPreviousAsRead($colleague, $newUser);
 
@@ -46,7 +46,7 @@ class NotificationNewColleagueImplementation implements NotificationInterface
         }
     }
 
-    public function notifiedAlready(object $recipient, int $uniqueModelId): bool
+    public function hasBeenNotified(object $recipient, int $uniqueModelId): bool
     {
         $class = $this->getNotificationClass();
         $classWithPath = "App\Notifications\\".$class;

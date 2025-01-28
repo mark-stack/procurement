@@ -73,6 +73,11 @@ class Project extends Model
     public function percentageOfMaterialsQuoted(): int {
         /**
          * Based on raw material quote > piece > quote
+         *
+         * Note: if used batch orders as reference, these aren't actually created
+         * until the user moves the cards along the kanban. So if the user has only
+         * created a project and imported materials, but done nothing else, there
+         * will be no batch objects.
          */
         $percentageOfMaterialsQuoted = 0;
         $materialListRows = $this->rawMaterialQuotes()->count();
@@ -80,6 +85,7 @@ class Project extends Model
         foreach($this->rawMaterialQuotes as $rawMaterialQuote){
             $piece = $rawMaterialQuote->piece;
             if($piece){
+                //PIECE might not have quote objects yet
                 $quotes = $piece->quotes;
                 if($quotes){
                     $percentageOfMaterialsQuoted++;
@@ -94,7 +100,7 @@ class Project extends Model
 
     public function percentageOfMaterialsOrdered(): int {
         /**
-         * Based on raw material quote > piece > order
+         * Based on raw_material_quote > piece > order
          */
         $percentageOfMaterialsOrdered = 0;
         $materialListRows = $this->rawMaterialQuotes()->count();
@@ -102,6 +108,7 @@ class Project extends Model
         foreach($this->rawMaterialQuotes as $rawMaterialQuote){
             $piece = $rawMaterialQuote->piece;
             if($piece){
+                //PIECE might not have order object yet
                 $order = $piece->order;
                 if($order){
                     $percentageOfMaterialsOrdered++;
@@ -149,8 +156,24 @@ class Project extends Model
     }
 
     //Local scopes
-    public function scopeBeforeMaterialsQuotingDeadline(Builder $query): void
+    public function dueForQuotingAndOrdering(Builder $query): void
     {
+        /**
+         * Between [critical path + 1 day] and [critical path] days before planned project material received date
+         */
+        //todo
+        $query->whereBetween('date_materials_required', [
+            Carbon::now(),
+            Carbon::now()->addDays($this->fromQuoteRequestToReceivedDays())->toDateString()
+        ]);
+    }
+
+    public function overdueForQuotingAndOrdering(Builder $query): void
+    {
+        /**
+         * Less than [critical path] before planned project material received date
+         */
+        //todo:
         $query->whereBetween('date_materials_required', [
             Carbon::now(),
             Carbon::now()->addDays($this->fromQuoteRequestToReceivedDays())->toDateString()

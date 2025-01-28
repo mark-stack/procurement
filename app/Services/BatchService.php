@@ -104,5 +104,20 @@ class BatchService
 
         return $message;
     }
+
+    public function totalOrdersQty(Batch $batch): int
+    {
+        /**
+         * Count total orders required for this batch.
+         * Note: not all order objects are actually ordered, so count the unique supplier categories. e,g steel merchant, fasteners
+         */
+        $orders = $batch->orders;
+        $supplierCategories = [];
+        foreach($orders as $order){
+            $supplierCategories[] = $order->quote->supplier_category;
+        }
+
+        return count(array_unique($supplierCategories));
+    }
 }
 
