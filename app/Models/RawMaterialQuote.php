@@ -23,4 +23,32 @@ class RawMaterialQuote extends Model
     {
         return $this->hasOne(Piece::class);
     }
+
+    /**
+     * Strings
+     */
+    public function status(): ?string
+    {
+        $piece = $this->piece;
+        $orderedOrder = false;
+        $sentQuotes = false;
+
+        if($piece){
+            $orderedOrder = $piece->order ? $piece->order->order_sent === 1 : null;
+
+            $sentQuotes = $piece->quotes()
+                ->where("quote_sent",true)
+                ->exists();
+        }
+
+        $status = null;
+        if($sentQuotes){
+            $status = "QUOTED";
+        }
+        if($orderedOrder){
+            $status = "ORDERED";
+        }
+
+        return $status;
+    }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Models\Project;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Services\ProductService;
 
 class ProjectResource extends JsonResource
 {
@@ -16,6 +17,17 @@ class ProjectResource extends JsonResource
     public function toArray(Request $request): array
     {
         $project = Project::query()->findOrFail($this->id);
+
+        $productService = new ProductService();
+
+        $qtyMaterialRows = 0;
+        $business = $project->user->business;
+        foreach($project->rawMaterialQuotes as $rawMaterialQuote){
+            $getProductMatchOptions = $productService->getProductMatchOptions($business,$rawMaterialQuote);
+            if($getProductMatchOptions && $getProductMatchOptions["status"] === "EXACT"){
+                $qtyMaterialRows++;
+            }
+        }
 
         return [
             'created_at' => $project->created_at,
@@ -35,7 +47,7 @@ class ProjectResource extends JsonResource
             "orderingDeadline" => $project->orderingDeadline(),
             "deliveryDeadline" => $project->deliveryDeadline(),
             "projectManager" => $project->user,
-            "qtyMaterialRows" => $project->rawMaterialQuotes()->count(), //todo needs to reflect plan
+            "qtyMaterialRows" => $qtyMaterialRows,
         ];
     }
 }

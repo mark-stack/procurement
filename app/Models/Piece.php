@@ -18,6 +18,11 @@ class Piece extends Model
         return $this->belongsTo(Project::class);
     }
 
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class);
+    }
+
     public function quotes(): BelongsToMany
     {
         return $this->belongsToMany(Quote::class);

@@ -47,15 +47,18 @@
     function setupShowInputs(){
         let resultArray = [];
 
+        //hasSuppliersForThisGroup
         Object.values(props.quotesData.supplierGroupCards).forEach(data => {
-            Object.values(data.rows).forEach(row => {
-                resultArray[row.info.supplier.id] = {
-                    quoted_price: false,
-                    quoted_lead_time: false,
-                    supplier_quote_reference: false,
-                    add_purchase_order: false,
-                };
-            });
+            if(data.rows !== undefined){
+                Object.values(data.rows).forEach(row => {
+                    resultArray[row.info.supplier.id] = {
+                        quoted_price: false,
+                        quoted_lead_time: false,
+                        supplier_quote_reference: false,
+                        add_purchase_order: false,
+                    };
+                });
+            }
         });
 
 
@@ -293,7 +296,7 @@
                         <div class="grid grid-cols-2">
                             <div>
                                 <h2 class="font-semibold">{{supplierGroup}}</h2>
-                                <p class="text-sm text-gray-400">{{data.info.includedProducts.string}}</p>
+                                <p class="text-sm text-gray-400">{{data.info.includedProducts}}</p>
                             </div>
                             <div class="text-right">
                                 <span v-if="data.info.order" class="block text-green-500 font-semibold text-lg">ORDERED</span>
@@ -303,7 +306,7 @@
                         </div>
 
                         <!-- Main-->
-                        <div class="mt-3">
+                        <div v-if="data.hasSuppliersForThisGroup" class="mt-3">
                             <!-- heading row -->
                             <div class="grid grid-cols-10 text-xs text-gray-500 text-center mb-2 font-semibold">
                                 <div class="col-span-2 text-left">
@@ -546,9 +549,18 @@
                                 </div>
                             </div>
                         </div>
+                        <!-- need to add suppliers -->
+                        <div v-else class="mt-3">
+                            <Link
+                                :href="route('suppliers.index',business.id)"
+                                class="underline text-blue-500"
+                            >
+                                Add/Edit suppliers
+                            </Link>
+                        </div>
                     </div>
                     <!-- add suppliers -->
-                    <div class="pl-2">
+                    <div class="pl-2 mt-5">
                         <Link
                             :href="route('suppliers.index',business.id)"
                             class="underline text-blue-500"

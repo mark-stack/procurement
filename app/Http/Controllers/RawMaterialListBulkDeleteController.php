@@ -19,12 +19,53 @@ class RawMaterialListBulkDeleteController extends Controller
          */
         $ids = $request->selectedRawMaterialQuoteIds;
 
-        //PIECE objects
+        $rawMaterialQuotes = RawMaterialQuote::query()
+            ->whereIn("id",$ids)
+            ->get();
+
+
+        //Detach pieces from quote
+        $allAssociatedQuotes = [];
+        $allAssociatedOrders = [];
+        foreach($rawMaterialQuotes as $rawMaterialQuote){
+            $piece = $rawMaterialQuote->piece;
+            if($piece){
+                //Associated quotes
+                foreach($piece->quotes as $quote){
+                    //if sent
+                    if($quote->quote_sent){
+                        $allAssociatedQuotes = $quote;
+                    }
+                }
+                //Associated orders
+                if($piece->order){
+                    //if sent
+                    if($piece->order->order_sent){
+                        $allAssociatedOrders[] = $piece->order;
+                    }
+                }
+
+                $piece->quotes()->detach();
+            }
+        }
+
+//        dd([
+//            "allAssociatedQuotes" => $allAssociatedQuotes,
+//            "allAssociatedOrders" => $allAssociatedOrders,
+//        ]);
+
+        //todo if all items/pieces from a supplier category were deleted, then delete the associated quote and order
+
+        /*
+         * PIECE's have a QUOTE and ORDER that may not be sent. e.g order->order_sent = false.
+         *
+         */
+        //Delete pieces
         Piece::query()
             ->whereIn("raw_material_quote_id",$ids)
             ->delete();
 
-        //Material list
+        //Delete Material list
         RawMaterialQuote::query()
             ->whereIn("id",$ids)
             ->delete();

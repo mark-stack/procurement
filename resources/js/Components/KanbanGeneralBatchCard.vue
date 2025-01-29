@@ -196,7 +196,7 @@
             class="w-full mt-2 text-xs block text-center text-orange-300"
         >
             <span v-if="type === 'QUOTES'">{{ shared.criticalPathDeadlineMessage(info.projects.data,false) }}</span>
-            <span v-if="type === 'ORDERS'">{{ shared.criticalPathDeadlineMessage(info.projects.data, allOrdersSent())}}</span>
+            <span v-if="type === 'ORDERS'">{{ shared.criticalPathDeadlineMessage(info.projects.data,false)}}</span>
         </p>
     </div>
 </template>

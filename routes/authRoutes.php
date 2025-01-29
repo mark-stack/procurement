@@ -119,7 +119,7 @@ Route::middleware(['auth','verified'])->group(function () {
                 $baseline_unit_rate = $productService->getBaseLineUnitRateFromGeneral($getProductMatchOptions["decodedOption"] ?? null);
                 $rawMaterialQuote->baseline_unit_rate = $baseline_unit_rate;
                 $rawMaterialQuote->baseline_unit_rate_comparison = $productService->getBaselineUnitRateHighLowComparison($rawMaterialQuote->unit_rate,$baseline_unit_rate);
-
+                $rawMaterialQuote->status = $rawMaterialQuote->status();
 
                 //If should include row based on plan. e.g only "steel merchant" supplier group
                 $include = false;
@@ -255,6 +255,8 @@ Route::middleware(['auth','verified'])->group(function () {
                 'downloadedBomData' => [
                     "project_id" => $project->id,
                     "data" => [
+                        "percentageOfMaterialsQuoted" => $project->percentageOfMaterialsQuoted(),
+                        "percentageOfMaterialsOrdered" => $project->percentageOfMaterialsOrdered(),
                         "project" => $project,
                         "materialListRows" => $materialListRows,
                         "senseChecks" => $senseChecks,

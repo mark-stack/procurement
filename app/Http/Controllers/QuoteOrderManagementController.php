@@ -60,25 +60,14 @@ class QuoteOrderManagementController extends Controller
             //Business has a supplier for this supplier group
             if(isset($supplierGroupsAvailableToBusiness[$supplierGroup])){
 
-            }
-            //NO suppliers for this supplier group
-            else{
-                //todo notify user needs to add suppliers
-            }
-        }
+                $includedProductsString = $supplierGroupsAvailableToBusiness[$supplierGroup]["string"];
 
-        //5) filter out categories not featured in the nesting list
-        foreach($supplierGroupsAvailableToBusiness as $supplierGroup => $includedProducts){
+                $orderOfSupplierGroup = $batch->orders()
+                    ->whereRelation("quote","supplier_category","=",$supplierGroup)
+                    ->where("order_sent",true)
+                    ->first();
 
-            //has pieces for this supplier group
-            $batchGroup = $batchGroups["assigned"][$supplierGroup] ?? null;
 
-            $orderOfSupplierGroup = $batch->orders()
-                ->whereRelation("quote","supplier_category","=",$supplierGroup)
-                ->where("order_sent",true)
-                ->first();
-
-            if($batchGroup){
                 $rows = [];
                 $suppliers = $supplierService->suppliersForSupplierGroup($supplierGroup, $business);
 
@@ -145,10 +134,11 @@ class QuoteOrderManagementController extends Controller
                 }
 
                 $supplierGroupCards[$supplierGroup] = [
+                    "hasSuppliersForThisGroup" => true,
                     "info" => [
                         "supplierGroup" => $supplierGroup,
-                        "batchGroup" => $batchGroup,
-                        "includedProducts" => $includedProducts,
+                        "batchGroup" => $batchGroups["assigned"][$supplierGroup],
+                        "includedProducts" => $includedProductsString,
                         "qtyQuotes" => $batch->quotes()
                             ->where("supplier_category",$supplierGroup)
                             ->where("quote_sent",true)
@@ -160,7 +150,118 @@ class QuoteOrderManagementController extends Controller
                     "rows" => $rows,
                 ];
             }
+            //NO suppliers for this supplier group
+            else{
+                /*
+                 * Included products string
+                 */
+                $productCategories = collect($includedProducts)->pluck("product_category")->toArray();
+                $includedProductsString = implode(", ",array_unique($productCategories));
+
+                $supplierGroupCards[$supplierGroup] = [
+                    "hasSuppliersForThisGroup" => false,
+                    "info" => [
+                        "supplierGroup" => $supplierGroup,
+                        "includedProducts" => $includedProductsString,
+                    ],
+                ];
+            }
         }
+
+//        //5) filter out categories not featured in the nesting list
+//        foreach($supplierGroupsAvailableToBusiness as $supplierGroup => $includedProducts){
+//
+//            //has pieces for this supplier group
+//            $batchGroup = $batchGroups["assigned"][$supplierGroup] ?? null;
+//
+//            $orderOfSupplierGroup = $batch->orders()
+//                ->whereRelation("quote","supplier_category","=",$supplierGroup)
+//                ->where("order_sent",true)
+//                ->first();
+//
+//            if($batchGroup){
+//                $rows = [];
+//                $suppliers = $supplierService->suppliersForSupplierGroup($supplierGroup, $business);
+//
+//                foreach($suppliers as $supplier){
+//                    $quote = Quote::query()
+//                        ->where("batch_id",$batch->id)
+//                        ->where('supplier_id',$supplier->id)
+//                        ->where("supplier_category",$supplierGroup)
+//                        ->first();
+//
+//                    //Need to Create
+//                    if(!$quote){
+//                        $quote = Quote::create(
+//                            [
+//                                "batch_id" => $batch->id,
+//                                'supplier_id' => $supplier->id,
+//                                "supplier_category" => $supplierGroup,
+//                                'user_id' => $user->id,
+//                                "supplier_quote_reference" => null,
+//                                "quote_sent" => false,
+//                            ]
+//                        );
+//
+//                        //Attach pieces to quote
+//                        AttachPiecesToQuote::run($batch,$quote);
+//                    }
+//
+//                    $order = Order::firstOrCreate(
+//                        [
+//                            "quote_id" => $quote->id,
+//                        ],
+//                        [
+//                            "user_id" => $quote->user_id,
+//                            "batch_id" => $quote->batch_id,
+//                            "supplier_id" => $quote->supplier_id,
+//                            "order_sent" => false,
+//                        ]
+//                    );
+//
+//                    $rows[] = [
+//                        "info" => [
+//                            "supplier" => $supplier,
+//                            "order_sent" => $order->order_sent,
+//                        ],
+//                        "formQuoteUpdate" => [
+//                            "batch_id" => $batch->id,
+//                            "quote_id" => $quote->id,
+//                            "quote_sent" => $quote->quote_sent,
+//                            "supplier_quote_reference" => $quote->supplier_quote_reference,
+//                            "quoted_price" => $quote->quoted_price,
+//                            "quoted_lead_time" => $quote->quoted_lead_time,
+//                        ],
+//                        "formOrderUpdate" => [
+//                            "batch_id" => $batch->id,
+//                            "order_id" => $order->id,
+//                            "supplier_group" => $supplierGroup,
+//                            "ordered_quote_id" => $orderOfSupplierGroup ? $orderOfSupplierGroup->quote->id : null,
+//                            "purchase_order_number" => $orderOfSupplierGroup ? $orderOfSupplierGroup->purchase_order_number : null,
+//                        ],
+//                        "formUndoOrderSent" => [
+//                            "order_id" => $order->id,
+//                        ],
+//                    ];
+//                }
+//
+//                $supplierGroupCards[$supplierGroup] = [
+//                    "info" => [
+//                        "supplierGroup" => $supplierGroup,
+//                        "batchGroup" => $batchGroup,
+//                        "includedProducts" => $includedProducts,
+//                        "qtyQuotes" => $batch->quotes()
+//                            ->where("supplier_category",$supplierGroup)
+//                            ->where("quote_sent",true)
+//                            ->count(),
+//                        "order" => $orderOfSupplierGroup,
+//                        "purchaseOrderNumber" => $orderOfSupplierGroup ? $orderOfSupplierGroup->purchase_order_number : null,
+//                        "delivered" => true, //todo placeholder
+//                    ],
+//                    "rows" => $rows,
+//                ];
+//            }
+//        }
 
         //Total orders qty
         $totalOrdersQty = $batchService->totalOrdersQty($batch);
@@ -175,7 +276,6 @@ class QuoteOrderManagementController extends Controller
             ],
             "supplierGroupCards" => $supplierGroupCards,
         ];
-        dd(1,$quotesAndOrders);
 
         return Inertia::render('QuoteOrderManagement',[
             "width" => 900,

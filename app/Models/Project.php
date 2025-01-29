@@ -111,6 +111,7 @@ class Project extends Model
             if($piece){
                 //PIECE might not have order object yet
                 $order = $piece->order;
+
                 if($order && $order->order_sent){
                     $percentageOfMaterialsOrdered++;
                 }

@@ -254,15 +254,18 @@
                                 <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">
                                     By Category
                                 </h1>
-                                <div v-for="(data,label) in byCategory" class="mb-4">
+                                <div v-for="(data,label) in byCategory" class="mb-4 border-2 border-gray-200 p-3 rounded-xl">
                                     <div>
                                         <h3 class="font-semibold">{{label}}</h3>
                                         <small class="text-gray-500">{{data.includedProductsString}}</small>
                                     </div>
-                                    <div class="grid grid-cols-3">
+                                    <div v-if="data.suppliersArray.length > 0" class="grid grid-cols-3">
                                         <div v-for="supplier in data.suppliersArray">
                                             {{supplier}}
                                         </div>
+                                    </div>
+                                    <div v-else class="text-orange-500">
+                                        Need to add suppliers
                                     </div>
                                 </div>
                             </div>
@@ -272,9 +275,9 @@
                                 <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">
                                     By Supplier
                                 </h1>
-                                <div v-for="supplier in suppliers.data" class="mb-3 grid grid-cols-3">
+                                <div v-for="supplier in suppliers.data" class="mb-3 grid grid-cols-3 border-2 border-gray-200 p-3 rounded-xl">
                                     <div class="col-span-2">
-                                        <span class="block">{{supplier.name}}</span>
+                                        <h3 class="font-semibold">{{supplier.name}}</h3>
                                         <span class="block text-xs">{{supplier.categoriesAsCommaString}}</span>
                                     </div>
                                     <div class="flex gap-x-2">

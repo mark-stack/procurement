@@ -143,7 +143,6 @@
     function showBom(project){
         //Set project
         bomProject.value = project;
-        console.log("Set project");
 
         /**
          Only download new data if hasn't already
@@ -440,7 +439,7 @@
     />
     <BomEditModal
         v-if="showBomEditModal"
-        width="900"
+        width="1000"
         :project="bomProject"
         :bomData="bomData"
         :refreshModalBom="refreshModalBom"
