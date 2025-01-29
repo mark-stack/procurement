@@ -14,7 +14,7 @@ use ReflectionClass;
 
 class ProductService
 {
-    public function getProductConfigs(bool $fasteners, Business $business): array
+    public function getProductConfigs(bool $fasteners): array
     {
         $productConfigs = [];
 

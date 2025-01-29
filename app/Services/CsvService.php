@@ -101,7 +101,7 @@ class CsvService
                  * Description (Use derived if no description column provided)
                  */
                 if(!$row["description"]){
-                    $productConfig = $dataClassificationService->findProductConfigFromText($row["description"],$business);
+                    $productConfig = $dataClassificationService->findProductConfigFromText($row["description"]);
                     $productCategory = $productConfig ? $productConfig["productCategory"] : null;
 
                     $row["description"] = $productService->generateProductLabel(
@@ -448,7 +448,7 @@ class CsvService
         $materialList = [];
 
         foreach($rows as $row){
-            $productConfig = $dataClassificationService->findProductConfigFromText($row["description"],$business);
+            $productConfig = $dataClassificationService->findProductConfigFromText($row["description"]);
             $productCategory = $productConfig
                 ? $productConfig["productCategory"]
                 : null;

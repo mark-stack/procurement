@@ -36,7 +36,7 @@ it('would be a disaster if a project with awarded status has no materials availa
     $pieces = createPieces($sampleBOM,$project,$dataClassificationService);
     expect(count($pieces))->toBeGreaterThan(0);
 
-    $response = $this->get(route("quotes.index"));
+    $response = $this->get(route("suggested.nesting"));
     $response->assertStatus(200);
 
     $response->assertInertia(fn (Assert $page) => $page
@@ -75,7 +75,7 @@ it('would be a disaster if a project with non-awarded status has materials avail
         $pieces = createPieces($sampleBOM,$project,$dataClassificationService);
         expect(count($pieces))->toBeGreaterThan(0);
 
-        $response = $this->get(route("quotes.index"));
+        $response = $this->get(route("suggested.nesting"));
         $response->assertStatus(200);
 
         $response->assertInertia(fn (Assert $page) => $page

@@ -80,7 +80,7 @@ class Project extends Model
          * will be no batch objects.
          */
         $percentageOfMaterialsQuoted = 0;
-        $materialListRows = $this->rawMaterialQuotes()->count();
+        $materialListRowsCount = $this->rawMaterialQuotes()->count();
 
         foreach($this->rawMaterialQuotes as $rawMaterialQuote){
             $piece = $rawMaterialQuote->piece;
@@ -95,7 +95,7 @@ class Project extends Model
         }
 
         return $percentageOfMaterialsQuoted > 0
-            ? ceil($percentageOfMaterialsQuoted/$materialListRows*100)
+            ? ceil($percentageOfMaterialsQuoted/$materialListRowsCount*100)
             : 0;
     }
 

@@ -3,6 +3,7 @@
 use App\Actions\Order\SetOrderSentForBatchSupplierGroup;
 use App\Actions\OrderApproval\UpdateOrderApprovalStatus;
 use App\Actions\Piece\AttachPiecesToOrder;
+use App\Actions\Piece\DetachPiecesFromOrder;
 use App\Enums\SupplierGroupEnums;
 use App\Http\Controllers\BatchController;
 use App\Http\Controllers\BatchNestingController;
@@ -109,7 +110,19 @@ Route::middleware(['auth','verified'])->group(function () {
 
             //Loop user's material rows
             foreach($project->rawMaterialQuotes as $rawMaterialQuote){
-                //$include = false;
+
+                //Append Array
+                $nesting_algo = ($rawMaterialQuote->product_category && $nestingService->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category))
+                    ? $nestingService->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category)[0]
+                    : null;
+                $rawMaterialQuote->nesting_algo = $nesting_algo;
+                $baseline_unit_rate = $productService->getBaseLineUnitRateFromGeneral($getProductMatchOptions["decodedOption"] ?? null);
+                $rawMaterialQuote->baseline_unit_rate = $baseline_unit_rate;
+                $rawMaterialQuote->baseline_unit_rate_comparison = $productService->getBaselineUnitRateHighLowComparison($rawMaterialQuote->unit_rate,$baseline_unit_rate);
+
+
+                //If should include row based on plan. e.g only "steel merchant" supplier group
+                $include = false;
 
                 $getProductMatchOptions = $productService->getProductMatchOptions($business,$rawMaterialQuote);
 
@@ -120,7 +133,7 @@ Route::middleware(['auth','verified'])->group(function () {
                      */
                     if($getProductMatchOptions["status"] === "CUSTOM"){
                         if($business->upgraded){
-                            //$include = true;
+                            $include = true;
 
                             $requiresCustom[] = [
                                 "selected" => [
@@ -159,13 +172,13 @@ Route::middleware(['auth','verified'])->group(function () {
                         //Upgraded (shows custom options)
                         if($business->upgraded){
                             $rawMaterialQuote["product"] = $getProductMatchOptions['decodedOption'];
-                            //$include = true;
+                            $include = true;
                         }
                         //Standard
                         else{
                             if($getProductMatchOptions["supplierGroup"] === SupplierGroupEnums::STEEL_MERCHANT->value){
                                 $rawMaterialQuote["product"] = $getProductMatchOptions['decodedOption'];
-                                //$include = true;
+                                $include = true;
                             }
                         }
                     }
@@ -178,7 +191,7 @@ Route::middleware(['auth','verified'])->group(function () {
                         if($business->upgraded){
                             $partialProductMatches[] = [
                                 "selected" => null,
-                                "data" => $rawMaterialQuote,
+                                "data" => $rawMaterialQuote, //todo needs "nesting_algo"
                                 "options" => $getProductMatchOptions['decodedOptions'],
                                 "custom" => $getProductMatchOptions['custom'],
                             ];
@@ -188,7 +201,7 @@ Route::middleware(['auth','verified'])->group(function () {
                             if($getProductMatchOptions["supplierGroup"] === SupplierGroupEnums::STEEL_MERCHANT->value){
                                 $partialProductMatches[] = [
                                     "selected" => null,
-                                    "data" => $rawMaterialQuote,
+                                    "data" => $rawMaterialQuote, //todo needs "nesting_algo"
                                     "options" => $getProductMatchOptions['decodedOptions'],
                                     "custom" => $getProductMatchOptions['custom'],
                                 ];
@@ -215,16 +228,9 @@ Route::middleware(['auth','verified'])->group(function () {
                 }
 
                 //Append Array
-                //if($include){
-                    $nesting_algo = ($rawMaterialQuote->product_category && $nestingService->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category))
-                        ? $nestingService->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category)[0]
-                        : null;
-                    $rawMaterialQuote->nesting_algo = $nesting_algo;
-                    $baseline_unit_rate = $productService->getBaseLineUnitRateFromGeneral($getProductMatchOptions["decodedOption"] ?? null);
-                    $rawMaterialQuote->baseline_unit_rate = $baseline_unit_rate;
-                    $rawMaterialQuote->baseline_unit_rate_comparison = $productService->getBaselineUnitRateHighLowComparison($rawMaterialQuote->unit_rate,$baseline_unit_rate);
+                if($include){
                     $materialListRows[] = $rawMaterialQuote;
-                //}
+                }
             }
 
             /**
@@ -245,8 +251,13 @@ Route::middleware(['auth','verified'])->group(function () {
              */
             $nestingGroups = $nestingService->getNestingGroups();
 
+//            dd([
+//                "thing" => 8,
+//                "partialProductMatches" => $partialProductMatches,
+//                "requiresCustom" => $requiresCustom,
+//                "materialListRows" => $materialListRows,
+//            ]);
 
-            //dd(1,$materialListRows);
             return response()->json([
                 'downloadedBomData' => [
                     "project_id" => $project->id,
@@ -604,6 +615,9 @@ Route::middleware(['auth','verified'])->group(function () {
 
             $order->order_sent = false;
             $order->save();
+
+            //Attach pieces to order
+            DetachPiecesFromOrder::run($order->batch,$order);
 
             return back();
 

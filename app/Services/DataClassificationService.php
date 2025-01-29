@@ -539,7 +539,7 @@ class DataClassificationService
             "supplierGroup" => null,
         ];
 
-        $productConfig = $this->findProductConfigFromText($text,$user->business);
+        $productConfig = $this->findProductConfigFromText($text);
 
         if($productConfig){
             //MATERIAL
@@ -600,7 +600,7 @@ class DataClassificationService
         return $generalProductMatches;
     }
 
-    public function findProductConfigFromText(?string $text, Business $business): ?array
+    public function findProductConfigFromText(?string $text): ?array
     {
         /**
          * Single purpose: extract a 'product_category' from text. e.g "PFC".
@@ -616,7 +616,7 @@ class DataClassificationService
          * UPGRADED can do fasteners
          */
         //if($business->upgraded){
-            $fastenersConfig = $this->findFastenersConfigFromText($text,$business);
+            $fastenersConfig = $this->findFastenersConfigFromText($text);
             if($fastenersConfig){
                 $resultProductConfigs[] = $fastenersConfig;
             }
@@ -629,7 +629,7 @@ class DataClassificationService
          * 2) Regex match (one mandatory?)
          */
         if(!$resultProductConfigs){
-            $regularConfigs = $productService->getProductConfigs(false,$business);
+            $regularConfigs = $productService->getProductConfigs(false);
             foreach($regularConfigs as $regularConfig){
                 //negative keywords
                 $containsNegativeKeywords = false;
@@ -664,7 +664,7 @@ class DataClassificationService
         return $resultProductConfig;
     }
 
-    public function findFastenersConfigFromText(?string $text, Business $business): ?array
+    public function findFastenersConfigFromText(?string $text): ?array
     {
         $resultFastenerConfig = null;
 
@@ -677,7 +677,7 @@ class DataClassificationService
         //Second pass
         if($fastenersFound){
             $resultFastenerConfigs = [];
-            $fastenerConfigs = $productService->getProductConfigs(true,$business);
+            $fastenerConfigs = $productService->getProductConfigs(true);
 
             foreach($fastenerConfigs as $fastenerConfig){
                 //negative keywords

@@ -161,7 +161,7 @@ it('would be a disaster if materials misidentified', function () {
 
     foreach($data as $material => $descriptions){
         foreach($descriptions as $description){
-            $productConfig = $dataClassificationService->findProductConfigFromText($description,$business);
+            $productConfig = $dataClassificationService->findProductConfigFromText($description);
             expect($productConfig)->toBeArray();
 
             $materialEnum = $dataClassificationService->findMaterial($productConfig,$description);
