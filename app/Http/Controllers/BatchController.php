@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Piece\DetachPiecesFromBatch;
 use App\Models\Batch;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -54,13 +55,16 @@ class BatchController extends Controller
             //Delete orders
             $batch->orders()->delete();
 
+            //Detach pieces from quote
+            foreach($batch->pieces as $piece){
+                $piece->quotes()->detach();
+            }
+
             //Delete quotes
             $batch->quotes()->delete();
 
-            //Detach batch reference from pieces
-            $batch->pieces()->update([
-                "batch_id" => null,
-            ]);
+            //Detach pieces from batch
+            DetachPiecesFromBatch::run($batch);
 
             //Delete order approvals
             $batch->orderApprovals()->delete();

@@ -251,13 +251,6 @@ Route::middleware(['auth','verified'])->group(function () {
              */
             $nestingGroups = $nestingService->getNestingGroups();
 
-//            dd([
-//                "thing" => 8,
-//                "partialProductMatches" => $partialProductMatches,
-//                "requiresCustom" => $requiresCustom,
-//                "materialListRows" => $materialListRows,
-//            ]);
-
             return response()->json([
                 'downloadedBomData' => [
                     "project_id" => $project->id,
@@ -611,12 +604,10 @@ Route::middleware(['auth','verified'])->group(function () {
             /**
              * Undo order sent
              */
-            //todo other actions required? notifications, delivery, nesting?
-
             $order->order_sent = false;
             $order->save();
 
-            //Attach pieces to order
+            //Detach pieces to order
             DetachPiecesFromOrder::run($order->batch,$order);
 
             return back();

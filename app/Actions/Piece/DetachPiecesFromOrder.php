@@ -12,7 +12,7 @@ class DetachPiecesFromOrder
     public function handle(Batch $batch, Order $orderedOrder): void
     {
         /**
-         * Detach PIECE from BATCH.
+         * Detach PIECE from ORDER.
          */
         $supplierGroupOfOrderedOrder = $orderedOrder->quote->supplier_category;
 

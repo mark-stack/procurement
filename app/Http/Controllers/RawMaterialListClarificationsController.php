@@ -122,20 +122,6 @@ class RawMaterialListClarificationsController extends Controller
 
                                 $algo = $formData["data"]["nesting_algo"];
 
-//                                dd([
-//                                    $productCategory,
-//                                    $material,
-//                                    $grade,
-//                                    $surface,
-//                                    $nominalUnits,
-//                                    $uncertainLengthFloat,
-//                                    $uncertainWidthFloat,
-//                                    $uncertainHeightFloat,
-//                                    $wall,
-//                                    $kg_per_m,
-//                                    $algo
-//                                ]);
-
                                 $productSpec = $generalProductMatches["results"][0];
                                 $piece = $pieceService->createPieceFromProductSpec($productSpec,$rawMaterialQuote,$algo);
                             }
@@ -145,7 +131,6 @@ class RawMaterialListClarificationsController extends Controller
             }
         }
 
-        //todo possibility: return data to the view
         return back();
     }
 }

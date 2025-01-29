@@ -12,7 +12,7 @@ class AttachPiecesToOrder
     public function handle(Batch $batch, Order $orderedOrder): void
     {
         /**
-         * Attach PIECE to BATCH.
+         * Attach PIECE to ORDER.
          */
         $supplierGroupOfOrderedOrder = $orderedOrder->quote->supplier_category;
 

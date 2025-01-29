@@ -235,7 +235,7 @@
         console.log("delivered checkbox");
     }
 
-    function undoOrderSent(row,data){
+    function undoOrderSent(row){
         let url = route("order.undo.sent",row.formUndoOrderSent.order_id);
 
         formUndoOrderSent.post(url, {
@@ -296,7 +296,7 @@
                                 <p class="text-sm text-gray-400">{{data.info.includedProducts.string}}</p>
                             </div>
                             <div class="text-right">
-                                <span v-if="quotesData.info.sentOrdersQty > 0" class="block text-green-500 font-semibold text-lg">ORDERED</span>
+                                <span v-if="data.info.order" class="block text-green-500 font-semibold text-lg">ORDERED</span>
                                 <span v-else class="block text-orange-500 font-semibold text-lg">NOT ORDERED</span>
                                 <span v-if="data.info.purchaseOrderNumber" class="text-sm">PO: <span class="font-semibold">{{data.info.purchaseOrderNumber}}</span></span>
                             </div>
@@ -495,7 +495,7 @@
                                     <template v-if="!showAddPurchaseOrder(row.info.supplier.id)">
                                         <input
                                             v-if="row.info.order_sent"
-                                            @click="undoOrderSent(row,data)"
+                                            @click="undoOrderSent(row)"
                                             type="checkbox"
                                             checked
                                         />

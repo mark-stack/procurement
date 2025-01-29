@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\OrderApproval\CreatePendingOrderApprovals;
+use App\Actions\Piece\AttachPiecesToBatch;
+use App\Actions\Piece\AttachPiecesToQuote;
 use App\Http\Resources\ProjectResource;
 use App\Models\Batch;
 use App\Models\Order;
@@ -44,11 +47,6 @@ class QuoteController extends Controller
         ]);
 
         /*
-         * Services
-         */
-        $nestingService = new NestingService();
-
-        /*
          * Prerequisite variables
          */
         $user = auth()->user();
@@ -63,27 +61,15 @@ class QuoteController extends Controller
             "total_used_length" => 999, //todo
         ]);
 
-        /*
-         * Assign all PIECE objects to BATCH
-         */
-        $projectsReadyForBatching = $business->projectsReadyForBatching(); //Note get this before updating pieces
-        $piecesReadyForBatching = $nestingService->piecesReadyForBatching($business);
-        Piece::query()
-            ->whereIn("id",$piecesReadyForBatching->pluck("id"))
-            ->update([
-                "batch_id" => $batch->id,
-            ]);
+        //Prerequisite variables
+        $projectsReadyForBatching = $business->projectsReadyForBatching(); //Note get this before updating pieces because it gets modified
+        $piecesReadyForBatching = (new NestingService())->piecesReadyForBatching($business);
 
-        /*
-         * Create pending order approvals
-         */
-        foreach($projectsReadyForBatching as $project){
-            OrderApproval::create([
-                'batch_id' => $batch->id,
-                'project_id' => $project->id,
-                'project_manager_approved' => false,
-            ]);
-        }
+        //Attach pieces to batch
+        AttachPiecesToBatch::run($piecesReadyForBatching, $batch);
+
+        //Create pending order approvals
+        CreatePendingOrderApprovals:: run($projectsReadyForBatching, $batch);
 
         return back();
     }

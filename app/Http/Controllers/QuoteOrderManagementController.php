@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Piece\AttachPiecesToQuote;
 use App\Models\Batch;
 use App\Models\Order;
 use App\Models\Quote;
@@ -47,38 +48,63 @@ class QuoteOrderManagementController extends Controller
         //3) Group nested pieces by nesting algorithm. e.g "meterage"
         $batchGroups = $nestingService->batchGroups($piecesNested, $business);
 
-        //4) get list of supplier categories available to the business
+        /*
+         * 4A) get list of supplier categories available to the business
+         * Note this might not have full coverage of this batch
+         */
         $supplierGroupsAvailableToBusiness = $supplierService->supplierGroupsAvailableToBusiness($business);
 
-        //5) filter out categories not features in the nesting list
+        //4B) get list of required supplier groups for this batch (note business might not have all suppliers added yet)
+        $requiredSupplierGroups = [];
+        foreach($batchGroups["assigned"] as $supplierGroup => $includedProducts){
+            //Business has a supplier for this supplier group
+            if(isset($supplierGroupsAvailableToBusiness[$supplierGroup])){
+
+            }
+            //NO suppliers for this supplier group
+            else{
+                //todo notify user needs to add suppliers
+            }
+        }
+
+        //5) filter out categories not featured in the nesting list
         foreach($supplierGroupsAvailableToBusiness as $supplierGroup => $includedProducts){
 
             //has pieces for this supplier group
             $batchGroup = $batchGroups["assigned"][$supplierGroup] ?? null;
 
-            if($batchGroup){
+            $orderOfSupplierGroup = $batch->orders()
+                ->whereRelation("quote","supplier_category","=",$supplierGroup)
+                ->where("order_sent",true)
+                ->first();
 
+            if($batchGroup){
                 $rows = [];
                 $suppliers = $supplierService->suppliersForSupplierGroup($supplierGroup, $business);
 
-                $orderedOrder = $batch->orders()
-                    ->where("order_sent",true)
-                    ->first();
-
                 foreach($suppliers as $supplier){
-                    $quote = Quote::firstOrCreate(
-                        [
-                            "batch_id" => $batch->id,
-                            'supplier_id' => $supplier->id,
-                            "supplier_category" => $supplierGroup,
-                        ],
-                        [
-                            'user_id' => $user->id,
-                            "supplier_quote_reference" => null,
-                            "quote_sent" => false,
-                        ]
-                    );
+                    $quote = Quote::query()
+                        ->where("batch_id",$batch->id)
+                        ->where('supplier_id',$supplier->id)
+                        ->where("supplier_category",$supplierGroup)
+                        ->first();
 
+                    //Need to Create
+                    if(!$quote){
+                        $quote = Quote::create(
+                            [
+                                "batch_id" => $batch->id,
+                                'supplier_id' => $supplier->id,
+                                "supplier_category" => $supplierGroup,
+                                'user_id' => $user->id,
+                                "supplier_quote_reference" => null,
+                                "quote_sent" => false,
+                            ]
+                        );
+
+                        //Attach pieces to quote
+                        AttachPiecesToQuote::run($batch,$quote);
+                    }
 
                     $order = Order::firstOrCreate(
                         [
@@ -109,8 +135,8 @@ class QuoteOrderManagementController extends Controller
                             "batch_id" => $batch->id,
                             "order_id" => $order->id,
                             "supplier_group" => $supplierGroup,
-                            "ordered_quote_id" => $orderedOrder ? $orderedOrder->quote->id : null,
-                            "purchase_order_number" => $orderedOrder ? $orderedOrder->purchase_order_number : null,
+                            "ordered_quote_id" => $orderOfSupplierGroup ? $orderOfSupplierGroup->quote->id : null,
+                            "purchase_order_number" => $orderOfSupplierGroup ? $orderOfSupplierGroup->purchase_order_number : null,
                         ],
                         "formUndoOrderSent" => [
                             "order_id" => $order->id,
@@ -127,7 +153,8 @@ class QuoteOrderManagementController extends Controller
                             ->where("supplier_category",$supplierGroup)
                             ->where("quote_sent",true)
                             ->count(),
-                        "purchaseOrderNumber" => $orderedOrder ? $orderedOrder->purchase_order_number : null,
+                        "order" => $orderOfSupplierGroup,
+                        "purchaseOrderNumber" => $orderOfSupplierGroup ? $orderOfSupplierGroup->purchase_order_number : null,
                         "delivered" => true, //todo placeholder
                     ],
                     "rows" => $rows,
@@ -148,6 +175,7 @@ class QuoteOrderManagementController extends Controller
             ],
             "supplierGroupCards" => $supplierGroupCards,
         ];
+        dd(1,$quotesAndOrders);
 
         return Inertia::render('QuoteOrderManagement',[
             "width" => 900,

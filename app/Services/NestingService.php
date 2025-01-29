@@ -1232,7 +1232,6 @@ class NestingService
             $newResult[] = $bar["stock_length"];
         }
 
-        //dd($newResult);
         // Step 1: Serialize each array
         $serialized = array_map('serialize', $newResult);
 
@@ -1263,7 +1262,6 @@ class NestingService
             ->toArray();
         $nestingGroups[NestingEnums::METERAGE->value] = array_values($products);
 
-
         //Area
         $products = Product::query()
             ->where("nesting_algo",NestingEnums::AREA->value)
@@ -1271,7 +1269,6 @@ class NestingService
             ->unique()
             ->toArray();
         $nestingGroups[NestingEnums::AREA->value] = array_values($products);
-
 
         //Bundle
         $products = Product::query()
