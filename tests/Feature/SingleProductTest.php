@@ -30,7 +30,7 @@ function createAdmin(): User
     ]);
 }
 
-function findProducts(string $description): Collection
+function findProducts(string $description): array
 {
     $dataClassificationService = new DataClassificationService;
 
@@ -95,7 +95,7 @@ function findProducts(string $description): Collection
         );
     }
 
-    return $generalProductMatches;
+    return $generalProductMatches["results"];
 }
 
 test('that master_files.csv successfully seeds products', function () {
@@ -228,7 +228,7 @@ test('that "M12 Allthread" finds exact product', function () {
     $products = findProducts('M12 Allthread');
 
     //1 result
-    expect($products->count())->toBe(1);
+    expect(count($products))->toBe(1);
 
     //Product specs
     $product = $products[0];
@@ -304,7 +304,7 @@ test('that "M16 4.6S 45mm" finds exact product', function () {
     $products = findProducts('M16 4.6S 45mm');
 
     //1 result
-    expect($products->count())->toBe(1);
+    expect(count($products))->toBe(1);
 
     //Product specs
     $product = $products[0];
@@ -330,7 +330,7 @@ test('that "M20 12.9_CSK 45mm" finds exact product', function () {
     $products = findProducts('M20 12.9_CSK 45mm');
 
     //1 result
-    expect($products->count())->toBe(1);
+    expect(count($products))->toBe(1);
 
     //Product specs
     $product = $products[0];
@@ -356,7 +356,7 @@ test('that "M20x500 D20 ANCHOR ROD" finds exact product', function () {
     $products = findProducts('M20x500 D20 ANCHOR ROD');
 
     //1 result
-    expect($products->count())->toBe(1);
+    expect(count($products))->toBe(1);
 
     //Product specs
     $product = $products[0];
@@ -382,7 +382,7 @@ test('that "M20 M20_NUT NUT" finds exact product', function () {
     $products = findProducts('M20 M20_NUT NUT');
 
     //1 result
-    expect($products->count())->toBe(1);
+    expect(count($products))->toBe(1);
 
     //Product specs
     $product = $products[0];

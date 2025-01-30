@@ -365,10 +365,10 @@ class NestingFormatter
 
     public function piecesNested(Collection $pieces, array $lettersProjectArray): array
     {
-        $byAlgo = $pieces->groupBy('nesting_algo');
+        $groupedByAlgo = $pieces->groupBy('nesting_algo');
 
         $piecesNested = [];
-        foreach ($byAlgo as $nestingAlgoLabel => $pieces) {
+        foreach ($groupedByAlgo as $nestingAlgoLabel => $pieces) {
             $piecesNested[] = $this->nesting($nestingAlgoLabel, $pieces, $lettersProjectArray);
         }
 
@@ -530,63 +530,50 @@ class NestingFormatter
     public function meterageAlgorithm(array $cutLengths, array $stockLengths, array $lettersProjectArray): array
     {
         // Sort cut lengths in descending order (FFD heuristic)
-        //rsort($cutLengths);
-
-        usort($cutLengths, function ($a, $b) {
-            return $b['length'] <=> $a['length']; //descending order
-        });
+        $cutLengths = $this->sortCutLengthsDescending($cutLengths);
 
         // Initialize an array to represent the used stock bars
         $usedStockBars = [];
         $unfitCuts = []; // Cuts that cannot be placed in any stock bar
-
         $totalMaterial = 0;
         $totalUsedMaterial = 0;
         $totalWaste = 0;
 
         // Process each cut length
         foreach ($cutLengths as $cut) {
-            $placed = false;
+            /*
+             * Try to place the cut into an existing stock bar
+             * Note that '&$stock' means that '$usedStockBars' is updating itself
+             */
+            $tryPlaceCutIntoExistingStockBar = $this->tryPlaceCutIntoExistingStock($cut, $usedStockBars,$lettersProjectArray);
+            $usedStockBars = $tryPlaceCutIntoExistingStockBar["usedStockBars"];
+            $placed = $tryPlaceCutIntoExistingStockBar["placed"];
 
-            // Try to place the cut into an existing stock bar
-            foreach ($usedStockBars as &$stock) {
-                $cutLength = (int) $cut['length'];
-
-                if ($stock['waste'] >= $cutLength) {
-                    $stock['pieces'][] = [
-                        'cutLength' => $cutLength,
-                        'projectId' => $cut['project'],
-                        'letter' => $lettersProjectArray[$cut['project']],
-                    ];
-                    $stock['waste'] -= $cutLength;
-                    $placed = true;
-                    break;
-                }
-            }
-
-            // If the cut doesn't fit into any existing stock bar, use a new one
+            /*
+             * If the cut doesn't fit into any existing stock bar, use a new one
+             */
             if (! $placed) {
                 $newStockPlaced = false;
                 foreach ($stockLengths as $stockLength) {
                     if ($stockLength >= $cut['length']) {
+                        //new stock placed
+                        $newStockPlaced = true;
+
+                        //Add new stock bar
+                        $usedStockBars = $this->addNewStockBar(
+                            $cut,
+                            $stockLength,
+                            $usedStockBars,
+                            $lettersProjectArray
+                        );
+
+                        //Sums
                         $cutLength = (int) $cut['length'];
-
-                        $usedStockBars[] = [
-                            'stock_length' => $stockLength,
-                            'waste' => $stockLength - $cutLength,
-                            'pieces' => [[
-                                'cutLength' => $cutLength,
-                                'projectId' => $cut['project'],
-                                'letter' => $lettersProjectArray[$cut['project']],
-                            ]],
-                        ];
-
-                        //Totals
                         $totalMaterial = $totalMaterial + $stockLength;
                         $totalUsedMaterial = $totalUsedMaterial + $cutLength;
                         $totalWaste = $totalWaste + ($stockLength - $cutLength);
 
-                        $newStockPlaced = true;
+                        //Exit the loop
                         break;
                     }
                 }
@@ -617,6 +604,59 @@ class NestingFormatter
                 'totalUsedMaterial' => $totalUsedMaterial,
                 'totalWaste' => $totalWaste,
             ],
+        ];
+    }
+
+    private function sortCutLengthsDescending(array $cutLengths): array
+    {
+        usort($cutLengths, function ($a, $b) {
+            return $b['length'] <=> $a['length']; //descending order
+        });
+
+        return $cutLengths;
+    }
+
+    private function addNewStockBar(array $cut, int $stockLength, array $usedStockBars, array $lettersProjectArray): array
+    {
+        $cutLength = (int) $cut['length'];
+        $projectId = $cut['project'];
+
+        $usedStockBars[] = [
+            'stock_length' => $stockLength,
+            'waste' => $stockLength - $cutLength,
+            'pieces' => [[
+                'cutLength' => $cutLength,
+                'projectId' => $projectId,
+                'letter' => $lettersProjectArray[$projectId],
+            ]],
+        ];
+
+        return $usedStockBars;
+    }
+
+    private function tryPlaceCutIntoExistingStock(array $cut, array $usedStockBars, array $lettersProjectArray): array
+    {
+        $placed = false;
+
+        $cutLength = (int) $cut['length'];
+        $projectId = (int) $cut['project'];
+
+        foreach ($usedStockBars as &$stock) {
+            if ($stock['waste'] >= $cutLength) {
+                $stock['pieces'][] = [
+                    'cutLength' => $cutLength,
+                    'projectId' => $projectId,
+                    'letter' => $lettersProjectArray[$projectId],
+                ];
+                $stock['waste'] -= $cutLength;
+                $placed = true;
+                break;
+            }
+        }
+
+        return [
+            "usedStockBars" => $usedStockBars,
+            "placed" => $placed,
         ];
     }
 
@@ -874,54 +914,77 @@ class NestingFormatter
 
             //Loop each unique piece specs
             foreach ($uniquePieceSpecs as $uniquePieceSpec) {
-                /*
-                 * Get pieces that match spec
-                 */
-                $pieces = $allPieces;
-                foreach ($uniquePieceSpec as $field => $value) {
-                    $pieces = $pieces->where($field, $value);
-                }
-                $pieces->sortBy('actual_length');
-
-                //Piece spec
-                $appended = (object) $uniquePieceSpec;
-
-                //Derived product label. e.g "200PFC SS316"
-                $appended->product_derived_label = $productService->getDerivedProductLabel($uniquePieceSpec);
-
-                //Nesting algorithm
-                $appended->algo = NestingEnums::METERAGE->value;
-
-                //Pieces array
-                $piecesArray = [];
-                $cutLengths = [];
-                foreach ($pieces as $piece) {
-                    $piecesArray[] = [
-                        'project' => $piece->project()->first(),
-                        'length' => $piece->actual_length,
-                        'nominal_units' => $piece->nominal_units,
-                        'quantity' => $piece->actual_qty,
-                    ];
-                    for ($i = 0; $i < (int) $piece->actual_qty; $i++) {
-                        $cutLengths[] = [
-                            'project' => $piece->project()->first()->id,
-                            'length' => $piece->actual_length,
-                        ];
-                    }
-                }
-
-                //Purchasables
-                $purchasableVariations = $this->getPurchasableVariations($uniquePieceSpec, NestingEnums::METERAGE->value);
-
-                $appended->pieces = $piecesArray;
-                $appended->purchasable = $purchasableVariations;
-                $appended->nested = $this->meterageAlgorithm($cutLengths, $purchasableVariations, $lettersProjectArray);
-
-                $result[] = $appended;
+                $result[] = $this->buildMeterageProductSpec($allPieces,$uniquePieceSpec,$lettersProjectArray);
             }
         }
 
         return $result;
+    }
+
+    private function buildMeterageProductSpec($pieces,$uniquePieceSpec,$lettersProjectArray): object
+    {
+        /**
+         * Build a piece/product spec
+         */
+
+        //Services
+        $productService = new ProductService;
+
+        /*
+         * New Piece spec
+         */
+        $newPieceSpec = (object) $uniquePieceSpec;
+
+        /*
+         * Derived product label. e.g "200PFC SS316"
+         */
+        $newPieceSpec->product_derived_label = $productService->getDerivedProductLabel($uniquePieceSpec);
+
+        /*
+         * Nesting algorithm
+         */
+        $newPieceSpec->algo = NestingEnums::METERAGE->value;
+
+        /*
+         * Get pieces that match spec
+         */
+        foreach ($uniquePieceSpec as $field => $value) {
+            $pieces = $pieces->where($field, $value);
+        }
+        $pieces->sortBy('actual_length');
+
+        $piecesArray = [];
+        foreach ($pieces as $piece) {
+            $piecesArray[] = [
+                'project' => $piece->project()->first(),
+                'length' => $piece->actual_length,
+                'nominal_units' => $piece->nominal_units,
+                'quantity' => $piece->actual_qty,
+            ];
+        }
+        $newPieceSpec->pieces = $piecesArray;
+
+        /*
+         * Purchasables
+         */
+        $purchasableVariations = $this->getPurchasableVariations($uniquePieceSpec, NestingEnums::METERAGE->value);
+        $newPieceSpec->purchasable = $purchasableVariations;
+
+        /*
+         * Nesting
+         */
+        $cutLengths = [];
+        foreach ($pieces as $piece) {
+            for ($i = 0; $i < (int) $piece->actual_qty; $i++) {
+                $cutLengths[] = [
+                    'project' => $piece->project()->first()->id,
+                    'length' => $piece->actual_length,
+                ];
+            }
+        }
+        $newPieceSpec->nested = $this->meterageAlgorithm($cutLengths, $purchasableVariations, $lettersProjectArray);
+
+        return $newPieceSpec;
     }
 
     private function nestingAreaAlgo(Collection $allPieces): array
