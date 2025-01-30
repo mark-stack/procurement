@@ -17,7 +17,7 @@
     const props = defineProps({
         pieces: Object,
         projectsReadyForBatching: Object,
-        batchGroups: Object,
+        piecesGroupedBySupplierGroup: Object,
         usage: Object,
         type: String,
         width: Number,
@@ -30,7 +30,7 @@
     // });
 
     //Variables
-    const currentBatch = ref(Object.keys(props.batchGroups.assigned)[0]);
+    const currentBatch = ref(Object.keys(props.piecesGroupedBySupplierGroup.assigned)[0]);
     const height = window.innerHeight - 250;
 
     //Shared data
@@ -88,7 +88,7 @@
 
                         <div class="flex gap-x-3">
                             <button
-                                v-for="(batchGroup,batchLabel) in batchGroups.assigned"
+                                v-for="(batchGroup,batchLabel) in piecesGroupedBySupplierGroup.assigned"
                                 class="rounded px-2 py-1 text-green-900"
                                 :class="batchLabel === currentBatch ? 'bg-green-300 border-2 border-green-900' : 'bg-green-200'"
                                 @click="currentBatch = batchLabel"
@@ -98,7 +98,7 @@
                         </div>
 
 
-                        <template v-for="(batchGroup,batchLabel) in batchGroups.assigned">
+                        <template v-for="(batchGroup,batchLabel) in piecesGroupedBySupplierGroup.assigned">
                             <div v-if="batchLabel === currentBatch" class="pt-5">
 
                                 <div class="grid grid-cols-1 gap-5">

@@ -4,6 +4,8 @@ use App\Actions\Order\SetOrderSentForBatchSupplierGroup;
 use App\Actions\OrderApproval\UpdateOrderApprovalStatus;
 use App\Actions\Piece\AttachPiecesToOrder;
 use App\Actions\Piece\DetachPiecesFromOrder;
+use App\Formatters\NestingFormatter;
+use App\Formatters\SupplierFormatter;
 use App\Http\Controllers\BatchController;
 use App\Http\Controllers\BatchNestingController;
 use App\Http\Controllers\MarkNotificationStatusController;
@@ -27,9 +29,7 @@ use App\Models\Order;
 use App\Models\Project;
 use App\Models\Quote;
 use App\Services\BatchService;
-use App\Services\NestingService;
 use App\Services\ProductService;
-use App\Services\SupplierService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
@@ -86,9 +86,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
              */
             Gate::authorize('owned', $project);
 
-            //Services
-            $nestingService = new NestingService;
-            $productService = new ProductService;
+            //Formatter
+            $nestingFormatter = new NestingFormatter();
+            $productService = new ProductService();
 
             //Prerequisite variables
             $user = $project->user;
@@ -103,7 +103,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             $materialListRows = [];
             $productCategories = [];
             $partialProductMatches = [];
-            $allCertificateProductLabels = $nestingService->getCertificateProductLabels();
+            $allCertificateProductLabels = $nestingFormatter->getCertificateProductLabels();
             $hasCertificateProducts = []; //todo: get from master_materials
             $requiresCustom = [];
 
@@ -111,8 +111,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             foreach ($project->rawMaterialQuotes as $rawMaterialQuote) {
 
                 //Append Array
-                $nesting_algo = ($rawMaterialQuote->product_category && $nestingService->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category))
-                    ? $nestingService->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category)[0]
+                $nesting_algo = ($rawMaterialQuote->product_category && $nestingFormatter->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category))
+                    ? $nestingFormatter->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category)[0]
                     : null;
                 $rawMaterialQuote->nesting_algo = $nesting_algo;
                 $baseline_unit_rate = $productService->getBaseLineUnitRateFromGeneral($getProductMatchOptions['decodedOption'] ?? null);
@@ -225,14 +225,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
             /**
              * Custom options (form select options)
              */
-            $allGrades = $nestingService->allGradeLabels();
-            $allMeasurements = $nestingService->allMeasurementUnitLabels();
-            $formDependentData = $nestingService->buildDependencyArray2();
+            $allGrades = (new nestingFormatters())->allGradeLabels();
+            $allMeasurements = $nestingFormatter->allMeasurementUnitLabels();
+            $formDependentData = $nestingFormatter->buildDependencyArray2();
 
             /**
              * Nesting groups
              */
-            $nestingGroups = $nestingService->getNestingGroups();
+            $nestingGroups = $nestingFormatter->getNestingGroups();
 
             return response()->json([
                 'downloadedBomData' => [
@@ -264,8 +264,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
              */
             $batch = $batch_id === 0 ? null : Batch::findOrFail($batch_id);
 
-            //Services
-            $nestingService = new NestingService;
+            //Formatter
+            $nestingFormatter = new NestingFormatter;
 
             //Prerequisite variables
             $user = auth()->user();
@@ -274,10 +274,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             //View data
             $batchData = $batch
                 //Batch nesting
-                ? $nestingService->getBatchDataForView('BATCH', $business, $batch)
+                ? $nestingFormatter->nestingViewData('BATCH', $business, $batch)
 
                 //Suggested
-                : $nestingService->getBatchDataForView('SUGGESTED', $business, null);
+                : $nestingFormatter->nestingViewData('SUGGESTED', $business, null);
 
             return response()->json([
                 'downloadedNestingData' => [
@@ -293,10 +293,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
          * @deprecated
          */
         Route::get('download-quotes-data/{batch}', function (Request $request, Batch $batch) {
-            //Services
+            //Formatter
             $batchService = new BatchService;
-            $nestingService = new NestingService;
-            $supplierService = new SupplierService;
+            $nestingFormatter = new NestingFormatter;
+            $supplierService = new SupplierFormatter;
 
             //Prerequisite variables
             $user = auth()->user();
@@ -313,13 +313,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
             $supplierGroupCards = [];
 
             //1) Assign a letter to each project. A, B, C, etc
-            $lettersProjectArray = $nestingService->getLetterProjectArray($batch->pieces);
+            $lettersProjectArray = $nestingFormatter->getLetterProjectArray($batch->pieces);
 
             //2) Get all nested pieces
-            $piecesNested = $nestingService->piecesNested($batch->pieces, $lettersProjectArray);
+            $piecesNested = $nestingFormatter->piecesNested($batch->pieces, $lettersProjectArray);
 
             //3) Group nested pieces by nesting algorithm. e.g "meterage"
-            $batchGroups = $nestingService->batchGroups($piecesNested, $business);
+            $piecesGroupedBySupplierGroup = $nestingFormatter->piecesGroupedBySupplierGroup($piecesNested, $business);
 
             //4) get list of supplier categories available to the business
             $supplierGroupsAvailableToBusiness = $supplierService->supplierGroupsAvailableToBusiness($business);
@@ -328,7 +328,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             foreach ($supplierGroupsAvailableToBusiness as $supplierGroup => $includedProducts) {
 
                 //has pieces for this supplier group
-                $batchGroup = $batchGroups['assigned'][$supplierGroup] ?? null;
+                $batchGroup = $piecesGroupedBySupplierGroup['assigned'][$supplierGroup] ?? null;
 
                 if ($batchGroup) {
 
@@ -429,7 +429,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         //        Route::get("download-orders-data/{batch}",function(Request $request, Batch $batch){
         //            //Services
-        //            $nestingService = new NestingService();
+        //            $nestingFormatter = new NestingService();
         //
         //            //Prerequisite variables
         //            $user = auth()->user();
@@ -443,13 +443,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         //             */
         //
         //            //1) Assign a letter to each project. A, B, C, etc
-        //            $lettersProjectArray = $nestingService->getLetterProjectArray($batch->pieces);
+        //            $lettersProjectArray = $nestingFormatter->getLetterProjectArray($batch->pieces);
         //
         //            //2) Get all nested pieces
-        //            $piecesNested = $nestingService->piecesNested($batch->pieces,$lettersProjectArray);
+        //            $piecesNested = $nestingFormatter->piecesNested($batch->pieces,$lettersProjectArray);
         //
         //            //3) Group nested pieces by nesting algorithm. e.g "meterage"
-        //            $batchGroups = $nestingService->batchGroups($piecesNested, $business);
+        //            $piecesGroupedBySupplierGroup = $nestingFormatter->piecesGroupedBySupplierGroup($piecesNested, $business);
         //
         //            /**
         //             * "current quote coverage"
@@ -477,7 +477,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         //            //3) Check if the supplier category matching nested pieces
         //            foreach($supplierCategoriesFormatted as $supplierCategory => $data){
         //                //4) Build an array that contains "included products" and "qty quotes"
-        //                $batchGroup = $batchGroups["assigned"][$supplierCategory] ?? null;
+        //                $batchGroup = $piecesGroupedBySupplierGroup["assigned"][$supplierCategory] ?? null;
         //
         //                if($batchGroup){
         //                    $appended = $data;
@@ -517,17 +517,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
         //        })->name("download.orders.data");
 
         Route::get('download-usage-data', function (Request $request) {
-            $nestingService = new NestingService;
+            //Formatter
+            $nestingFormatter = new NestingFormatter;
 
             $user = auth()->user();
             $business = $user->business;
 
-            $piecesReadyForBatching = $nestingService->piecesReadyForBatching($business);
-            $lettersProjectArray = $nestingService->getLetterProjectArray($piecesReadyForBatching);
-            $piecesNested = $nestingService->piecesNested($piecesReadyForBatching, $lettersProjectArray);
+            $piecesReadyForBatching = $nestingFormatter->piecesReadyForBatching($business);
+            $lettersProjectArray = $nestingFormatter->getLetterProjectArray($piecesReadyForBatching);
+            $piecesNested = $nestingFormatter->piecesNested($piecesReadyForBatching, $lettersProjectArray);
 
             return response()->json([
-                'usageData' => $nestingService->usage($piecesNested),
+                'usageData' => $nestingFormatter->usageStats($piecesNested),
             ]);
         })->name('download.usage.data');
 

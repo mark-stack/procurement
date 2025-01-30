@@ -4,10 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Actions\OrderApproval\CreatePendingOrderApprovals;
 use App\Actions\Piece\AttachPiecesToBatch;
+use App\Formatters\NestingFormatter;
 use App\Models\Batch;
-use App\Models\Order;
 use App\Models\Quote;
-use App\Services\NestingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -52,7 +51,7 @@ class QuoteController extends Controller
 
         //Prerequisite variables
         $projectsReadyForBatching = $business->projectsReadyForBatching(); //Note get this before updating pieces because it gets modified
-        $piecesReadyForBatching = (new NestingService)->piecesReadyForBatching($business);
+        $piecesReadyForBatching = (new NestingFormatter)->piecesReadyForBatching($business);
 
         //Attach pieces to batch
         AttachPiecesToBatch::run($piecesReadyForBatching, $batch);

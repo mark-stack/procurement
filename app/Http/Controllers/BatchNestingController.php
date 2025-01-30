@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Formatters\NestingFormatter;
 use App\Models\Batch;
-use App\Services\NestingService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -15,21 +15,19 @@ class BatchNestingController extends Controller
      */
     public function __invoke(Request $request, Batch $batch): Response
     {
-        //Services
-        $nestingService = new NestingService;
+        //Formatter
+        $nestingFormatter = new NestingFormatter();
 
         //Prerequisite variables
         $user = auth()->user();
         $business = $user->business;
 
         //View data
-        $batchData = $nestingService->getBatchDataForView('BATCH', $business, $batch);
+        $viewData = $nestingFormatter->nestingViewData('BATCH', $business, $batch);
 
-        $viewData = array_merge($batchData, [
+        $viewData = array_merge($viewData, [
             'width' => 900,
         ]);
-
-        //dd(1,$viewData);
 
         return Inertia::render('QuoteIndex', $viewData);
     }

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\MeasurementUnitEnums;
 use App\Enums\NestingEnums;
+use App\Formatters\NestingFormatter;
 use App\Models\Business;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
@@ -437,9 +438,9 @@ class CsvService
          * Single purpose: save BOM row
          */
 
-        //Services
+        //Formatter
         $dataClassificationService = new DataClassificationService;
-        $nestingService = new NestingService;
+        $nestingFormatter = new NestingFormatter();
         $pieceService = new PieceService;
 
         $materialList = [];
@@ -457,7 +458,7 @@ class CsvService
             }
 
             $algo = $productCategory
-                ? $nestingService->getNestingLabelsFromProductCategory($productCategory)[0] ?? null
+                ? $nestingFormatter->getNestingLabelsFromProductCategory($productCategory)[0] ?? null
                 : null;
 
             /**

@@ -1,14 +1,12 @@
 <?php
 
-namespace App\Services;
+namespace App\Formatters;
 
 use App\Models\Business;
+use App\Services\ProductService;
 
-class SupplierService
+class SupplierFormatter
 {
-    /**
-     * @deprecated
-     */
     public function supplierGroups(Business $business): array
     {
         /**
@@ -26,10 +24,6 @@ class SupplierService
                 $service = new $implementation;
                 $config = $service->config();
                 $supplierGroup = $config['supplierGroup']->value;
-
-                /*
-                 * Upgraded = find all supplier categories
-                 */
 
                 //Supplier group belongs to current plan
                 if ($business->supplierGroupIsCurrentPlan($supplierGroup)) {

@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Formatters\SupplierFormatter;
 use App\Http\Resources\SupplierResource;
 use App\Models\Business;
 use App\Models\Supplier;
-use App\Services\SupplierService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -21,7 +21,7 @@ class SupplierController extends Controller
         $suppliers = $business->suppliers()->orderBy('name')->get();
 
         //Category and included products
-        $categories = (new SupplierService)->supplierGroups($business);
+        $categories = (new SupplierFormatter)->supplierGroups($business);
 
         //Category, included products, user attached suppliers
         $byCategory = [];

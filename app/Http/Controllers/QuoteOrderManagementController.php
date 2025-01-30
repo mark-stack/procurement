@@ -3,26 +3,27 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Piece\AttachPiecesToQuote;
+use App\Formatters\NestingFormatter;
+use App\Formatters\SupplierFormatter;
 use App\Models\Batch;
 use App\Models\Order;
 use App\Models\Quote;
 use App\Services\BatchService;
-use App\Services\NestingService;
-use App\Services\SupplierService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class QuoteOrderManagementController extends Controller
 {
     /**
      * Handle the incoming request.
      */
-    public function __invoke(Request $request, Batch $batch)
+    public function __invoke(Request $request, Batch $batch): Response
     {
-        //Services
+        //Formatter
         $batchService = new BatchService;
-        $nestingService = new NestingService;
-        $supplierService = new SupplierService;
+        $nestingFormatter = new NestingFormatter();
+        $supplierService = new SupplierFormatter;
 
         //Prerequisite variables
         $user = auth()->user();
@@ -39,13 +40,13 @@ class QuoteOrderManagementController extends Controller
         $supplierGroupCards = [];
 
         //1) Assign a letter to each project. A, B, C, etc
-        $lettersProjectArray = $nestingService->getLetterProjectArray($batch->pieces);
+        $lettersProjectArray = $nestingFormatter->getLetterProjectArray($batch->pieces);
 
         //2) Get all nested pieces
-        $piecesNested = $nestingService->piecesNested($batch->pieces, $lettersProjectArray);
+        $piecesNested = $nestingFormatter->piecesNested($batch->pieces, $lettersProjectArray);
 
         //3) Group nested pieces by nesting algorithm. e.g "meterage"
-        $batchGroups = $nestingService->batchGroups($piecesNested, $business);
+        $piecesGroupedBySupplierGroup = $nestingFormatter->piecesGroupedBySupplierGroup($piecesNested, $business);
 
         /*
          * 4A) get list of supplier categories available to the business
@@ -55,7 +56,7 @@ class QuoteOrderManagementController extends Controller
 
         //4B) get list of required supplier groups for this batch (note business might not have all suppliers added yet)
         $requiredSupplierGroups = [];
-        foreach ($batchGroups['assigned'] as $supplierGroup => $includedProducts) {
+        foreach ($piecesGroupedBySupplierGroup['assigned'] as $supplierGroup => $includedProducts) {
             //Business has a supplier for this supplier group
             if (isset($supplierGroupsAvailableToBusiness[$supplierGroup])) {
 
@@ -139,7 +140,7 @@ class QuoteOrderManagementController extends Controller
                     'hasSuppliersForThisGroup' => true,
                     'info' => [
                         'supplierGroup' => $supplierGroup,
-                        'batchGroup' => $batchGroups['assigned'][$supplierGroup],
+                        'batchGroup' => $piecesGroupedBySupplierGroup['assigned'][$supplierGroup],
                         'includedProducts' => $includedProductsString,
                         'qtyQuotes' => $batch->quotes()
                             ->where('supplier_category', $supplierGroup)

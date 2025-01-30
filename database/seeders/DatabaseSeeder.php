@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Business;
+use App\Models\Offcut;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\Project;
@@ -22,10 +23,12 @@ class DatabaseSeeder extends Seeder
         /**
          * Admin
          */
+        //User
         $adminUser = User::factory()->create([
             'name' => 'Mark',
             'email' => config('env.admin_email'),
         ]);
+        //Business
         $adminBusiness = Business::create([
             'name' => null,
             'domain' => $adminUser->getDomainFromEmail(),
@@ -33,6 +36,22 @@ class DatabaseSeeder extends Seeder
         ]);
         $adminUser->business_id = $adminBusiness->id;
         $adminUser->save();
+
+        //Test project with offcuts of 75x50x2.5 RHS (as found in "minimal scope" Excel)
+        $testProject = Project::create([
+            'name' => "test project",
+            'user_id' => $adminUser->id,
+        ]);
+        $testOffcut1 = Offcut::factory()
+            ->withProject($testProject->id)
+            ->withLength(6000)
+            ->create();
+        $testOffcut2 = Offcut::factory()
+            ->withProject($testProject->id)
+            ->withLength(1500)
+            ->create();
+        //dd($testOffcut1);
+
 
         //        /**
         //         * User

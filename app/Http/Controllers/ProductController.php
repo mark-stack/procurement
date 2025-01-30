@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Formatters\NestingFormatter;
 use App\Imports\ExcelImport;
 use App\Models\Product;
 use App\Models\Project;
 use App\Services\CsvService;
-use App\Services\NestingService;
 use App\Services\ProductService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,9 +17,6 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class ProductController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index(Project $project): Response
     {
         /**
@@ -27,9 +24,9 @@ class ProductController extends Controller
          */
         Gate::authorize('owned', $project);
 
-        //Services
-        $nestingService = new NestingService;
-        $productService = new ProductService;
+        //Formatter
+        $nestingFormatter = new NestingFormatter();
+        $productService = new ProductService();
 
         //Prerequisite variables
         $user = $project->user;
@@ -44,7 +41,7 @@ class ProductController extends Controller
         $materialListRows = [];
         $productCategories = [];
         $partialProductMatches = [];
-        $allCertificateProductLabels = $nestingService->getCertificateProductLabels();
+        $allCertificateProductLabels = $nestingFormatter->getCertificateProductLabels();
         $hasCertificateProducts = []; //todo: get from master_materials
         $requiresCustom = [];
 
@@ -125,8 +122,8 @@ class ProductController extends Controller
             }
 
             //Append Array
-            $nesting_algo = ($rawMaterialQuote->product_category && $nestingService->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category))
-                ? $nestingService->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category)[0]
+            $nesting_algo = ($rawMaterialQuote->product_category && $nestingFormatter->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category))
+                ? $nestingFormatter->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category)[0]
                 : null;
             $rawMaterialQuote->nesting_algo = $nesting_algo;
             $baseline_unit_rate = $productService->getBaseLineUnitRateFromGeneral($getProductMatchOptions['decodedOption'] ?? null);
@@ -147,14 +144,14 @@ class ProductController extends Controller
         /**
          * Custom options (form select options)
          */
-        $allGrades = $nestingService->allGradeLabels();
-        $allMeasurements = $nestingService->allMeasurementUnitLabels();
-        $formDependentData = $nestingService->buildDependencyArray2();
+        $allGrades = $nestingFormatter->allGradeLabels();
+        $allMeasurements = $nestingFormatter->allMeasurementUnitLabels();
+        $formDependentData = $nestingFormatter->buildDependencyArray2();
 
         /**
          * Nesting groups
          */
-        $nestingGroups = $nestingService->getNestingGroups();
+        $nestingGroups = $nestingFormatter->getNestingGroups();
 
         return Inertia::render('ProductIndex', [
             'project' => $project,
