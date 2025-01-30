@@ -5,9 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Batch;
 use App\Models\Order;
 use App\Models\OrderApproval;
-use App\Models\Piece;
 use App\Models\Quote;
-use App\Services\NestingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -40,7 +38,7 @@ class OrderController extends Controller
          */
         //Validate
         $validated = $request->validate([
-            "batch_id" => 'nullable',
+            'batch_id' => 'nullable',
         ]);
 
         /*
@@ -48,9 +46,9 @@ class OrderController extends Controller
          */
         $user = auth()->user();
         $business = $user->business;
-        $batchId = $validated["batch_id"];
+        $batchId = $validated['batch_id'];
 
-        abort_if(!$batchId,401);
+        abort_if(! $batchId, 401);
 
         /*
          * Case #1: Batch exists - create & attach order to batch
@@ -63,7 +61,7 @@ class OrderController extends Controller
         $quotes = $batch->quotes;
 
         //Create pending orders (1:1 with quotes) and attach to batch
-        foreach($quotes as $quote){
+        foreach ($quotes as $quote) {
             $order = Order::firstOrCreate(
                 [
                     'batch_id' => $batch->id,
@@ -80,7 +78,7 @@ class OrderController extends Controller
          * Create pending order approvals
          */
         $projectsReadyForBatching = $business->projectsReadyForBatching();
-        foreach($projectsReadyForBatching as $project){
+        foreach ($projectsReadyForBatching as $project) {
             OrderApproval::firstOrCreate(
                 [
                     'batch_id' => $batch->id,
@@ -117,7 +115,7 @@ class OrderController extends Controller
     public function update(Request $request, Order $order): RedirectResponse
     {
         $validated = $request->validate([
-            "purchase_order_number" => ['nullable'],
+            'purchase_order_number' => ['nullable'],
         ]);
 
         $order->update($validated);
@@ -133,17 +131,16 @@ class OrderController extends Controller
         /**
          * 1) No order has been made
          */
-
-        if(!$order->order_sent){
+        if (! $order->order_sent) {
             //Create quote if doesn't exist
             $quote = Quote::firstOrCreate(
                 [
-                    "batch_id" => $order->batch_id,
+                    'batch_id' => $order->batch_id,
                 ],
                 [
                     'user_id' => $order->user_id,
-                    "quote_requests" => null,
-                    "quote_responses" => null,
+                    'quote_requests' => null,
+                    'quote_responses' => null,
                 ]
             );
 

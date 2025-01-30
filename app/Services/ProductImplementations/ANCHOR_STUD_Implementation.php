@@ -10,10 +10,7 @@ use App\Enums\SupplierGroupEnums;
 
 class ANCHOR_STUD_Implementation extends ProductBaseImplementation
 {
-    public function __construct()
-    {
-
-    }
+    public function __construct() {}
 
     public function productEnum(): ProductEnums
     {
@@ -23,52 +20,52 @@ class ANCHOR_STUD_Implementation extends ProductBaseImplementation
     public function config(): array
     {
         return [
-            "productCategory" => $this->productEnum()->value,
-            "isFastener" => true,
-            "negativeKeywords" => [
-//                "csk",
-//                "countersink",
-//                "countersunk",
+            'productCategory' => $this->productEnum()->value,
+            'isFastener' => true,
+            'negativeKeywords' => [
+                //                "csk",
+                //                "countersink",
+                //                "countersunk",
             ],
-            "productRegex" => [
-                "anchor",
+            'productRegex' => [
+                'anchor',
                 "chemical+\s+anchor",   //chemical anchor
                 "anchor+\s+rod",        //anchor rod
                 "hd+\s+bolt",           //hd bolt
             ],
-            "nominalLengthRegex" => [
+            'nominalLengthRegex' => [
                 "x(\d+)\b",     //x100
                 "(\d+)mm",      //20mm
                 "(\d+)\s+mm",   //20 mm
             ],
-            "nominalWidthRegex" => [
+            'nominalWidthRegex' => [
                 "M+(\d+)", //M16
             ],
-            "nominalHeightRegex" => [
+            'nominalHeightRegex' => [
                 //
             ],
-            "wallRegex" => [
+            'wallRegex' => [
 
             ],
-            "weightRegex" => [
+            'weightRegex' => [
 
             ],
-            "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
-            "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
+            'measurementUnit' => MeasurementUnitEnums::MILLIMETERS,
+            'defaultMaterial' => MaterialEnums::PLAIN_CARBON_STEEL,
             //"defaultGrade" => GradeEnums::NONE, //todo
-            "supplierGroup" => SupplierGroupEnums::FASTENERS,
+            'supplierGroup' => SupplierGroupEnums::FASTENERS,
         ];
     }
 
     public function getNominalSizeData(): array
     {
         return [
-            "length" => true,
-            "width" => true,
-            "height" => false,
-            "length_placeholder" => "Length (mm)",
-            "width_placeholder" => "Diameter (mm)",
-            "height_placeholder" => "",
+            'length' => true,
+            'width' => true,
+            'height' => false,
+            'length_placeholder' => 'Length (mm)',
+            'width_placeholder' => 'Diameter (mm)',
+            'height_placeholder' => '',
         ];
     }
 
@@ -85,55 +82,54 @@ class ANCHOR_STUD_Implementation extends ProductBaseImplementation
         ?float $wall,
         ?float $kg_per_m,
         ?string $material,
-    ): string
-    {
+    ): string {
         //Size
-        $actualSize = "";
+        $actualSize = '';
         if ($nominal_length) {
-            $actualSize = "M".$nominal_width."x".$nominal_length;
+            $actualSize = 'M'.$nominal_width.'x'.$nominal_length;
         } else {
-            $actualSize = "M".$nominal_width;
+            $actualSize = 'M'.$nominal_width;
         }
 
-        return $actualSize." Anchor Stud. ".$actualGrade." ".$actualSurface;
+        return $actualSize.' Anchor Stud. '.$actualGrade.' '.$actualSurface;
     }
 
     public function generalProductDefinition(): array
     {
-//        'product_category',
-//        'material',
-//        'grade',
-//        'surface',
-//        'nominal_units',
-//        "nominal_length",
-//        "precise_length",
-//        "nominal_width",
-//        "precise_width",
-//        'nominal_height',
-//        "precise_height",
-//        "wall",
-//        "kg_per_m"
+        //        'product_category',
+        //        'material',
+        //        'grade',
+        //        'surface',
+        //        'nominal_units',
+        //        "nominal_length",
+        //        "precise_length",
+        //        "nominal_width",
+        //        "precise_width",
+        //        'nominal_height',
+        //        "precise_height",
+        //        "wall",
+        //        "kg_per_m"
 
         //todo
         return [
-            "mandatory" => [
+            'mandatory' => [
                 'product_category',
                 'material',
                 'grade',
                 'surface',
                 'nominal_units',
-                "nominal_width",
+                'nominal_width',
                 'nominal_height',
-                "nominal_length",
+                'nominal_length',
             ],
-            "exclude" => [
-                "wall",
-                "kg_per_m",
-                "precise_length",
-                "precise_height",
-                "precise_width",
+            'exclude' => [
+                'wall',
+                'kg_per_m',
+                'precise_length',
+                'precise_height',
+                'precise_width',
             ],
-            "purchasableVariations" => [
+            'purchasableVariations' => [
 
             ],
         ];

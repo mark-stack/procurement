@@ -18,11 +18,11 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained();
             $table->foreignId('batch_id')->nullable()->constrained();
             $table->foreignId('supplier_id')->nullable()->constrained();
-            $table->string("supplier_category")->nullable();
-            $table->string("supplier_quote_reference")->nullable();
-            $table->boolean("quote_sent")->default(false);
-            $table->float("quoted_price")->nullable();
-            $table->integer("quoted_lead_time")->nullable();
+            $table->string('supplier_category')->nullable();
+            $table->string('supplier_quote_reference')->nullable();
+            $table->boolean('quote_sent')->default(false);
+            $table->float('quoted_price')->nullable();
+            $table->integer('quoted_lead_time')->nullable();
         });
     }
 

@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Batch\DeleteBatchesWithoutPieces;
+use App\Actions\Quote\DeleteQuotesWithoutPieces;
 use App\Models\Piece;
+use App\Models\Quote;
 use App\Models\RawMaterialQuote;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,55 +23,43 @@ class RawMaterialListBulkDeleteController extends Controller
         $ids = $request->selectedRawMaterialQuoteIds;
 
         $rawMaterialQuotes = RawMaterialQuote::query()
-            ->whereIn("id",$ids)
+            ->whereIn('id', $ids)
             ->get();
-
 
         //Detach pieces from quote
         $allAssociatedQuotes = [];
         $allAssociatedOrders = [];
-        foreach($rawMaterialQuotes as $rawMaterialQuote){
+        foreach ($rawMaterialQuotes as $rawMaterialQuote) {
             $piece = $rawMaterialQuote->piece;
-            if($piece){
+            if ($piece) {
                 //Associated quotes
-                foreach($piece->quotes as $quote){
-                    //if sent
-                    if($quote->quote_sent){
-                        $allAssociatedQuotes = $quote;
-                    }
+                foreach ($piece->quotes as $quote) {
+                    $allAssociatedQuotes[] = $quote;
                 }
                 //Associated orders
-                if($piece->order){
-                    //if sent
-                    if($piece->order->order_sent){
-                        $allAssociatedOrders[] = $piece->order;
-                    }
+                if ($piece->order) {
+                    $allAssociatedOrders[] = $piece->order;
                 }
 
                 $piece->quotes()->detach();
             }
         }
 
-//        dd([
-//            "allAssociatedQuotes" => $allAssociatedQuotes,
-//            "allAssociatedOrders" => $allAssociatedOrders,
-//        ]);
-
-        //todo if all items/pieces from a supplier category were deleted, then delete the associated quote and order
-
-        /*
-         * PIECE's have a QUOTE and ORDER that may not be sent. e.g order->order_sent = false.
-         *
-         */
         //Delete pieces
         Piece::query()
-            ->whereIn("raw_material_quote_id",$ids)
+            ->whereIn('raw_material_quote_id', $ids)
             ->delete();
+
+        //Delete any left-over quotes without pieces (and associated orders)
+        DeleteQuotesWithoutPieces::run($allAssociatedQuotes);
 
         //Delete Material list
         RawMaterialQuote::query()
-            ->whereIn("id",$ids)
+            ->whereIn('id', $ids)
             ->delete();
+
+        //Delete any left-over batches with no materials (and associated order approvals)
+        DeleteBatchesWithoutPieces::run();
 
         return back();
     }

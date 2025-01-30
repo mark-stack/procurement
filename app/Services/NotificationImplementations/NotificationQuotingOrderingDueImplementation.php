@@ -5,20 +5,20 @@ namespace App\Services\NotificationImplementations;
 use App\Models\Project;
 use App\Notifications\QuoteDueEmail;
 use App\Services\Interfaces\NotificationInterface;
-use App\Services\NestingService;
 use App\Services\NotificationService;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Notifications\DatabaseNotification;
-use Carbon\Carbon;
 
 class NotificationQuotingOrderingDueImplementation implements NotificationInterface
 {
     public string $subInterval;
+
     public string $addInterval;
 
     public function __construct()
     {
-        $testMode = config("env.test_mode");
+        $testMode = config('env.test_mode');
         $this->subInterval = $testMode ? 'subMinutes' : 'subDays';
         $this->addInterval = $testMode ? 'addMinutes' : 'addDays';
     }
@@ -38,7 +38,6 @@ class NotificationQuotingOrderingDueImplementation implements NotificationInterf
          * 5) Order coverage < 100%
          * 6) Not notified already
          */
-
         $quoteDueProjects = Project::query()
             ->active()                       //1) Project is active (not archived)
             ->awarded()                      //2) Project "awarded" = true
@@ -46,33 +45,33 @@ class NotificationQuotingOrderingDueImplementation implements NotificationInterf
             ->get();
 
         //Has notifications
-        if($quoteDueProjects->count() > 0){
-            foreach($quoteDueProjects as $project) {
+        if ($quoteDueProjects->count() > 0) {
+            foreach ($quoteDueProjects as $project) {
                 //Prerequisite variables
                 $projectManager = $project->user;
 
                 //5) Order coverage < 100%
-                if($project->percentageOfMaterialsOrdered() === 100){
+                if ($project->percentageOfMaterialsOrdered() === 100) {
                     break;
                 }
 
                 //6) Not notified already
-                if ($this->hasBeenNotified($projectManager,$project->id)){
+                if ($this->hasBeenNotified($projectManager, $project->id)) {
                     break;
                 }
 
                 //Mark all previous as read
-                $this->markPreviousAsRead($projectManager,$project);
+                $this->markPreviousAsRead($projectManager, $project);
 
                 //Send notification
-                $this->sendNotification($projectManager,$project);
+                $this->sendNotification($projectManager, $project);
             }
         }
         //NO notifications
-        else{
+        else {
             //Clear old notifications
             $class = $this->getNotificationClass();
-            (new NotificationService())->clearPreviousNotifications($class);
+            (new NotificationService)->clearPreviousNotifications($class);
         }
     }
 
@@ -82,10 +81,11 @@ class NotificationQuotingOrderingDueImplementation implements NotificationInterf
 
         $subInterval = $this->subInterval;
         $classWithPath = "App\Notifications\\".$class;
+
         return $recipient->notifications()
-            ->where("type",$classWithPath)
-            ->where("notifiable_type","App\Models\User")
-            ->where("data->project_id",$uniqueModelId)
+            ->where('type', $classWithPath)
+            ->where('notifiable_type', "App\Models\User")
+            ->where('data->project_id', $uniqueModelId)
             ->whereBetween('created_at', [Carbon::now()->$subInterval(1), Carbon::now()]) //At least 1 day since last reminder
             ->exists();
     }
@@ -106,7 +106,7 @@ class NotificationQuotingOrderingDueImplementation implements NotificationInterf
 
     public function getNotificationClass(): string
     {
-        return "QuoteDueEmail";
+        return 'QuoteDueEmail';
     }
 
     public function markPreviousAsRead(object $recipient, object $otherObject): void
@@ -115,20 +115,20 @@ class NotificationQuotingOrderingDueImplementation implements NotificationInterf
         $classWithPath = "App\Notifications\\".$class;
 
         $recipient->notifications()
-            ->where("type",$classWithPath)
-            ->where("notifiable_type","App\Models\User")
-            ->where("data->project_id",$otherObject->id)
+            ->where('type', $classWithPath)
+            ->where('notifiable_type', "App\Models\User")
+            ->where('data->project_id', $otherObject->id)
             ->update(['read_at' => now()]);
     }
 
-    public function trafficLight(DatabaseNotification $notification, string $status): null|RedirectResponse
+    public function trafficLight(DatabaseNotification $notification, string $status): ?RedirectResponse
     {
         $return = null;
-        if($this->isCorrectClass($notification)){
+        if ($this->isCorrectClass($notification)) {
             $return = match ($status) {
-                "GREEN" => $this->markGreen($notification),
-                "YELLOW" => $this->markYellow($notification),
-                "RED" => $this->markRed($notification),
+                'GREEN' => $this->markGreen($notification),
+                'YELLOW' => $this->markYellow($notification),
+                'RED' => $this->markRed($notification),
                 default => back(),
             };
         }
@@ -165,27 +165,27 @@ class NotificationQuotingOrderingDueImplementation implements NotificationInterf
         return $notification->type === $classWithPath;
     }
 
-    public function notificationData(DatabaseNotification $notification): null|array
+    public function notificationData(DatabaseNotification $notification): ?array
     {
         $notificationData = null;
 
-        if($this->isCorrectClass($notification)){
-            $materialsDate = $notification->data["date_materials_required"]
-                ? Carbon::parse($notification->data["date_materials_required"])->format('j M y')
+        if ($this->isCorrectClass($notification)) {
+            $materialsDate = $notification->data['date_materials_required']
+                ? Carbon::parse($notification->data['date_materials_required'])->format('j M y')
                 : null;
 
-            $projectName = $notification->data["project_name"] ?? null;
+            $projectName = $notification->data['project_name'] ?? null;
 
-            $message = $this->message($materialsDate,$projectName);
+            $message = $this->message($materialsDate, $projectName);
 
             $notificationData = [
-                "id" => $notification->id,
-                "message" => $message,
-                "timestamp" => $notification->created_at->diffForHumans(),
-                "trafficLights" => [
-                    "green" => ["Ok","(Go to)"],
-                    "yellow" => ["Wait","(Ask later)"],
-                    "red" => null,
+                'id' => $notification->id,
+                'message' => $message,
+                'timestamp' => $notification->created_at->diffForHumans(),
+                'trafficLights' => [
+                    'green' => ['Ok', '(Go to)'],
+                    'yellow' => ['Wait', '(Ask later)'],
+                    'red' => null,
                 ],
             ];
         }

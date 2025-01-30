@@ -17,19 +17,19 @@ return new class extends Migration
 
             $table->foreignId('project_id')->constrained();
 
-            $table->text("product_category");               //PFC
-            $table->text("material");                       //PLAIN CARBON STEEL
-            $table->text("grade");                          //GR250
-            $table->text("surface");                        //NONE
-            $table->string("nominal_length")->nullable();   //9000
-            $table->string("precise_length")->nullable();   //
-            $table->string("nominal_width")->nullable();    //
-            $table->string("precise_width")->nullable();    //
-            $table->string("nominal_height")->nullable();   //200
-            $table->string("precise_height")->nullable();   //
-            $table->float("wall")->nullable();              //
+            $table->text('product_category');               //PFC
+            $table->text('material');                       //PLAIN CARBON STEEL
+            $table->text('grade');                          //GR250
+            $table->text('surface');                        //NONE
+            $table->string('nominal_length')->nullable();   //9000
+            $table->string('precise_length')->nullable();   //
+            $table->string('nominal_width')->nullable();    //
+            $table->string('precise_width')->nullable();    //
+            $table->string('nominal_height')->nullable();   //200
+            $table->string('precise_height')->nullable();   //
+            $table->float('wall')->nullable();              //
 
-            $table->float("length");
+            $table->float('length');
         });
     }
 

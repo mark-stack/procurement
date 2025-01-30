@@ -15,7 +15,7 @@ class NewUserEmail extends Notification implements ShouldQueue
      * Create a new notification instance.
      */
     public function __construct(
-        public Object $user,
+        public object $user,
         public string $message,
     ) {}
 
@@ -26,7 +26,7 @@ class NewUserEmail extends Notification implements ShouldQueue
      */
     public function via(object $notifiable): array
     {
-        return ['mail','database'];
+        return ['mail', 'database'];
     }
 
     /**
@@ -35,8 +35,8 @@ class NewUserEmail extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-                    ->line($this->message)
-                    ->line($this->user->email);
+            ->line($this->message)
+            ->line($this->user->email);
     }
 
     /**
@@ -47,7 +47,7 @@ class NewUserEmail extends Notification implements ShouldQueue
     public function toArray(object $notifiable): array
     {
         return [
-            "user_id" => $this->user->id,
+            'user_id' => $this->user->id,
             'user_email' => $this->user->email,
             'user_name' => $this->user->name,
         ];

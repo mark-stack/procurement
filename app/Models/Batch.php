@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\BatchService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -45,24 +46,24 @@ class Batch extends Model
         $pieces = $this->pieces;
         $projectIds = [];
 
-        foreach($pieces as $piece){
+        foreach ($pieces as $piece) {
             $projectIds[] = $piece->project->id;
         }
 
         $uniqueProjectIds = array_unique($projectIds);
 
         return Project::query()
-            ->whereIn("id",$uniqueProjectIds)
+            ->whereIn('id', $uniqueProjectIds)
             ->get();
     }
 
     //Local scope
-    public function scopeHasAtLeastOneSentOrder($query)
-    {
-        return $query->whereHas('orders', function ($query) {
-            $query->where('order_sent', true);
-        });
-    }
+//    public function scopeHasAtLeastOneSentOrder($query)
+//    {
+//        return $query->whereHas('orders', function ($query) {
+//            $query->where('order_sent', true);
+//        });
+//    }
 
     public function scopeHasNoSentOrder($query)
     {

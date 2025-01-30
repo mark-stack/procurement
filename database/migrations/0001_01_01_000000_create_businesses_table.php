@@ -14,10 +14,10 @@ return new class extends Migration
         Schema::create('businesses', function (Blueprint $table) {
             $table->id();
             $table->timestamps();
-            $table->string("name")->nullable();
-            $table->string("domain");
-            $table->boolean("admin_setup_complete")->default(false);
-            $table->boolean("upgraded")->default(false);
+            $table->string('name')->nullable();
+            $table->string('domain');
+            $table->boolean('admin_setup_complete')->default(false);
+            $table->boolean('upgraded')->default(false);
         });
     }
 

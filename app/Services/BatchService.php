@@ -14,25 +14,24 @@ class BatchService
          * Put cards related to current user on top and in latest order.
          * Note it's not who created the batch, but who's a PM of a project inside the batch
          */
-
         $user = auth()->user();
 
         /*
          * batch ID's in this query
          */
-        $batchIdsThisQuery = $batches->pluck("id")->toArray();
+        $batchIdsThisQuery = $batches->pluck('id')->toArray();
 
         /*
          * Array of project user vs batch
          */
         $allInternalProjects = [];
-        foreach($business->batches as $batch){
-            foreach($batch->projects() as $project){
+        foreach ($business->batches as $batch) {
+            foreach ($batch->projects() as $project) {
                 //In this query
-                if(in_array($batch->id,$batchIdsThisQuery)){
+                if (in_array($batch->id, $batchIdsThisQuery)) {
                     $allInternalProjects[] = [
-                        "batch_id" => $batch->id, //The order of this is like 'created_at'
-                        "thisUser" => $project->user_id === $user->getKey(),
+                        'batch_id' => $batch->id, //The order of this is like 'created_at'
+                        'thisUser' => $project->user_id === $user->getKey(),
                     ];
                 }
             }
@@ -55,9 +54,9 @@ class BatchService
          * Get the unique batch ID in order from top to bottom.
          */
         $batchIdsInOrder = [];
-        foreach($allInternalProjects as $item){
-            $batchId = $item["batch_id"];
-            if(!in_array($batchId,$batchIdsInOrder)){
+        foreach ($allInternalProjects as $item) {
+            $batchId = $item['batch_id'];
+            if (! in_array($batchId, $batchIdsInOrder)) {
                 $batchIdsInOrder[] = $batchId;
             }
         }
@@ -69,24 +68,24 @@ class BatchService
             })->values()
 
             //No batch IDs for this user (order by batch only)
-            : $batches->sortByDesc("id");
+            : $batches->sortByDesc('id');
     }
 
-    function projectManagerApprovalMessage(Batch $batch): string
+    public function projectManagerApprovalMessage(Batch $batch): string
     {
         /**
          * A string like "Bruce, Matt, and yourself";
          */
-        $message = "";
+        $message = '';
 
         //Get all projects for this batch
         $otherProjectManagers = [];
         $projects = $batch->projects();
-        foreach($projects as $project){
+        foreach ($projects as $project) {
             //Not yourself
-            if($project->user->id !== auth()->user()->id){
+            if ($project->user->id !== auth()->user()->id) {
                 //Not already in array
-                if(!in_array($project->user->name,$otherProjectManagers)){
+                if (! in_array($project->user->name, $otherProjectManagers)) {
                     $otherProjectManagers[] = $project->user->name;
                 }
             }
@@ -94,12 +93,12 @@ class BatchService
         }
 
         //Has others
-        if(count($otherProjectManagers) > 0){
-            $message = "Do ".implode(",",$otherProjectManagers)." and yourself approve ordering materials?";
+        if (count($otherProjectManagers) > 0) {
+            $message = 'Do '.implode(',', $otherProjectManagers).' and yourself approve ordering materials?';
         }
         //Just you
-        else{
-            $message = "Do you approve ordering materials?";
+        else {
+            $message = 'Do you approve ordering materials?';
         }
 
         return $message;
@@ -113,11 +112,10 @@ class BatchService
          */
         $orders = $batch->orders;
         $supplierCategories = [];
-        foreach($orders as $order){
+        foreach ($orders as $order) {
             $supplierCategories[] = $order->quote->supplier_category;
         }
 
         return count(array_unique($supplierCategories));
     }
 }
-

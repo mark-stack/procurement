@@ -10,10 +10,7 @@ use App\Enums\SupplierGroupEnums;
 
 class LVL_Implementation extends ProductBaseImplementation
 {
-    public function __construct()
-    {
-
-    }
+    public function __construct() {}
 
     public function productEnum(): ProductEnums
     {
@@ -23,48 +20,47 @@ class LVL_Implementation extends ProductBaseImplementation
     public function config(): array
     {
         return [
-            "productCategory" => $this->productEnum()->value,
-            "isFastener" => false,
-            "negativeKeywords" => [
+            'productCategory' => $this->productEnum()->value,
+            'isFastener' => false,
+            'negativeKeywords' => [
                 //
             ],
-            "productRegex" => [
-                "LVL",
+            'productRegex' => [
+                'LVL',
             ],
-            "nominalLengthRegex" => [
+            'nominalLengthRegex' => [
 
             ],
-            "nominalWidthRegex" => [
+            'nominalWidthRegex' => [
                 "x+(\d+)",      //x100
                 "X+\s+(\d+)",   //x 100
             ],
-            "nominalHeightRegex" => [
+            'nominalHeightRegex' => [
                 "(\d+)+x",      //100x
                 "(\d+)+\s+X",   //100 x
             ],
-            "wallRegex" => [
+            'wallRegex' => [
 
             ],
-            "weightRegex" => [
+            'weightRegex' => [
 
             ],
-            "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
-            "defaultMaterial" => MaterialEnums::TIMBER,
+            'measurementUnit' => MeasurementUnitEnums::MILLIMETERS,
+            'defaultMaterial' => MaterialEnums::TIMBER,
             //"defaultGrade" => GradeEnums::NONE, //todo
-            "supplierGroup" => SupplierGroupEnums::TIMBER_MERCHANT,
+            'supplierGroup' => SupplierGroupEnums::TIMBER_MERCHANT,
         ];
     }
-
 
     public function getNominalSizeData(): array
     {
         return [
-            "length" => false,
-            "width" => true,
-            "height" => true,
-            "length_placeholder" => "",
-            "width_placeholder" => "Width (mm)",
-            "height_placeholder" => "Height (mm)",
+            'length' => false,
+            'width' => true,
+            'height' => true,
+            'length_placeholder' => '',
+            'width_placeholder' => 'Width (mm)',
+            'height_placeholder' => 'Height (mm)',
         ];
     }
 
@@ -81,48 +77,47 @@ class LVL_Implementation extends ProductBaseImplementation
         ?float $wall,
         ?float $kg_per_m,
         ?string $material,
-    ): string
-    {
-        $actualSize = $nominal_height."x".$nominal_width;
+    ): string {
+        $actualSize = $nominal_height.'x'.$nominal_width;
 
-        return $actualSize." ".$actualGrade.$actualSurface;
+        return $actualSize.' '.$actualGrade.$actualSurface;
     }
 
     public function generalProductDefinition(): array
     {
-//        'product_category',
-//        'material',
-//        'grade',
-//        'surface',
-//        'nominal_units',
-//        "nominal_length",
-//        "precise_length",
-//        "nominal_width",
-//        "precise_width",
-//        'nominal_height',
-//        "precise_height",
-//        "wall",
-//        "kg_per_m"
+        //        'product_category',
+        //        'material',
+        //        'grade',
+        //        'surface',
+        //        'nominal_units',
+        //        "nominal_length",
+        //        "precise_length",
+        //        "nominal_width",
+        //        "precise_width",
+        //        'nominal_height',
+        //        "precise_height",
+        //        "wall",
+        //        "kg_per_m"
 
         return [
-            "mandatory" => [
+            'mandatory' => [
                 'product_category',
                 'material',
                 'grade',
                 'surface',
                 'nominal_units',
-                "nominal_width",
+                'nominal_width',
                 'nominal_height',
             ],
-            "exclude" => [
-                "wall",
-                "kg_per_m",
-                "precise_length",
-                "precise_height",
-                "precise_width",
+            'exclude' => [
+                'wall',
+                'kg_per_m',
+                'precise_length',
+                'precise_height',
+                'precise_width',
             ],
-            "purchasableVariations" => [
-                "nominal_length",
+            'purchasableVariations' => [
+                'nominal_length',
             ],
         ];
     }

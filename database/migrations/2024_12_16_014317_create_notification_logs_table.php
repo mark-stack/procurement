@@ -1,6 +1,5 @@
 <?php
 
-use App\Enums\NotificationEnums;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -17,8 +16,8 @@ return new class extends Migration
             $table->timestamps();
 
             $table->integer('recipient_user_id');
-            $table->integer("unique_model_id");
-            $table->string("type");
+            $table->integer('unique_model_id');
+            $table->string('type');
         });
     }
 

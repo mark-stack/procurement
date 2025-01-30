@@ -7,30 +7,29 @@ use Illuminate\Support\Facades\File;
 
 class NotificationService
 {
-    public function getUnreadNotifications(object $user = null): array
+    public function getUnreadNotifications(?object $user = null): array
     {
-        $implementations = (new NotificationService())->getImplementations();
+        $implementations = (new NotificationService)->getImplementations();
 
         $notifications = [];
 
-        if($user){
+        if ($user) {
             foreach ($user->unreadNotifications as $notification) {
                 //Loop through all interface implementations
-                foreach($implementations as $implementation){
+                foreach ($implementations as $implementation) {
                     $className = 'App\\Services\\NotificationImplementations\\'.$implementation;
 
                     // Check if the class exists
                     if (class_exists($className)) {
-                        $service = new $className();
+                        $service = new $className;
 
                         $notificationData = $service->notificationData($notification);
 
-                        if($notificationData){
+                        if ($notificationData) {
                             $notifications[] = $notificationData;
                         }
                     }
                 }
-
 
                 /**
                  * Quotes
@@ -91,6 +90,7 @@ class NotificationService
         $exclude = 'ProductBaseImplementation';
 
         $directory = app_path('Services/NotificationImplementations');
+
         return collect(File::files($directory))
             ->map(function ($file) {
                 return $file->getFilename();
@@ -111,8 +111,8 @@ class NotificationService
         $classWithPath = "App\Notifications\\".$class;
 
         DatabaseNotification::query()
-            ->where("type",$classWithPath)
-            ->where("notifiable_type","App\Models\User")
+            ->where('type', $classWithPath)
+            ->where('notifiable_type', "App\Models\User")
             ->update(['read_at' => now()]);
     }
 }

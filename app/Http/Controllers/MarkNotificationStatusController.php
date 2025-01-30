@@ -22,18 +22,18 @@ class MarkNotificationStatusController extends Controller
             'status' => 'required',
         ]);
 
-        $notification = DatabaseNotification::findOrFail($validated["id"]); // Replace with the actual notification ID
+        $notification = DatabaseNotification::findOrFail($validated['id']); // Replace with the actual notification ID
 
-        $implementations = (new NotificationService())->getImplementations();
-        foreach($implementations as $implementation){
+        $implementations = (new NotificationService)->getImplementations();
+        foreach ($implementations as $implementation) {
             $className = 'App\\Services\\NotificationImplementations\\'.$implementation;
 
             // Check if the class exists
             if (class_exists($className)) {
-                $service = new $className();
+                $service = new $className;
 
-                $trafficLight = $service->trafficLight($notification,$validated["status"]);
-                if($trafficLight){
+                $trafficLight = $service->trafficLight($notification, $validated['status']);
+                if ($trafficLight) {
                     $return = $trafficLight;
                 }
             }

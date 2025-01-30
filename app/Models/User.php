@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Database\Factories\UserFactory;
-use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,7 +13,6 @@ use Illuminate\Support\Collection;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
-
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
@@ -69,8 +67,8 @@ class User extends Authenticatable implements MustVerifyEmail
     public function productsOrdered(): Collection
     {
         $products = [];
-        foreach($this->orders as $order){
-            foreach($order->products as $product){
+        foreach ($this->orders as $order) {
+            foreach ($order->products as $product) {
                 $products[] = $product;
             }
         }
@@ -81,7 +79,7 @@ class User extends Authenticatable implements MustVerifyEmail
     public function suppliersOrderedFrom(): Collection
     {
         $suppliers = [];
-        foreach($this->orders as $order){
+        foreach ($this->orders as $order) {
             $suppliers[] = $order->supplier;
         }
 
@@ -101,6 +99,7 @@ class User extends Authenticatable implements MustVerifyEmail
         if (preg_match($pattern, $this->email, $matches)) {
             return $matches[1]; // Domain is captured in the first group
         }
+
         return null; // Return null if no domain found
     }
 }

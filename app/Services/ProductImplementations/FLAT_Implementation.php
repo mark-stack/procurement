@@ -10,10 +10,7 @@ use App\Enums\SupplierGroupEnums;
 
 class FLAT_Implementation extends ProductBaseImplementation
 {
-    public function __construct()
-    {
-
-    }
+    public function __construct() {}
 
     public function productEnum(): ProductEnums
     {
@@ -23,12 +20,12 @@ class FLAT_Implementation extends ProductBaseImplementation
     public function config(): array
     {
         return [
-            "productCategory" => $this->productEnum()->value,
-            "isFastener" => false,
-            "negativeKeywords" => [
+            'productCategory' => $this->productEnum()->value,
+            'isFastener' => false,
+            'negativeKeywords' => [
                 //
             ],
-            "productRegex" => [
+            'productRegex' => [
                 "FL(\d+)",                      //"FL8*75"
                 "(\d+)x(\d+)+\sflatbar",        //"100x10 flatbar"
                 "(\d+)x(\d+)mm+\sflat+\sbar",   //"100x10mm flat bar"
@@ -41,45 +38,44 @@ class FLAT_Implementation extends ProductBaseImplementation
                 "FLAT(\d+)x(\d+)",              //"FLAT10x75"
                 "FLAT+\s(\d+)x(\d+)",           //"FLAT 10x75"
             ],
-            "nominalLengthRegex" => [
+            'nominalLengthRegex' => [
 
             ],
-            "nominalWidthRegex" => [
+            'nominalWidthRegex' => [
                 "\*(\d+)",      //*75     "FL8*75"
                 "x(\d+)",       //x75     "FL8x75"
                 "x(\d+)mm",     //x75mm   "FL8x75mm"
                 "x(\d+)+\smm",  //x75 mm  "FL8x75 mm"
                 "x+\s(\d+)mm",  //x 75mm  "FL8 x 75mm"
             ],
-            "nominalHeightRegex" => [
+            'nominalHeightRegex' => [
                 "FL(\d+)",              //FL8               "FL8*75"
                 "(\d+)FL\b",            //10FL              "10FL x 75mm"
                 "(\d+)mm+\s+flatbar",   //10mm flatbar      "10mm flatbar x 75mm"
                 "(\d+)FLx",             //10FLx             "10FLx75"
             ],
-            "wallRegex" => [
+            'wallRegex' => [
 
             ],
-            "weightRegex" => [
+            'weightRegex' => [
 
             ],
-            "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
-            "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
+            'measurementUnit' => MeasurementUnitEnums::MILLIMETERS,
+            'defaultMaterial' => MaterialEnums::PLAIN_CARBON_STEEL,
             //"defaultGrade" => GradeEnums::NONE, //todo
-            "supplierGroup" => SupplierGroupEnums::STEEL_MERCHANT,
+            'supplierGroup' => SupplierGroupEnums::STEEL_MERCHANT,
         ];
     }
-
 
     public function getNominalSizeData(): array
     {
         return [
-            "length" => false,
-            "width" => true,
-            "height" => true,
-            "length_placeholder" => "",
-            "width_placeholder" => "Width (mm)",
-            "height_placeholder" => "Thickness (mm)",
+            'length' => false,
+            'width' => true,
+            'height' => true,
+            'length_placeholder' => '',
+            'width_placeholder' => 'Width (mm)',
+            'height_placeholder' => 'Thickness (mm)',
         ];
     }
 
@@ -96,46 +92,45 @@ class FLAT_Implementation extends ProductBaseImplementation
         ?float $wall,
         ?float $kg_per_m,
         ?string $material,
-    ): string
-    {
-        return $nominal_width."x".$nominal_height."mm FLAT BAR";
+    ): string {
+        return $nominal_width.'x'.$nominal_height.'mm FLAT BAR';
     }
 
     public function generalProductDefinition(): array
     {
-//        'product_category',
-//        'material',
-//        'grade',
-//        'surface',
-//        'nominal_units',
-//        "nominal_length",
-//        "precise_length",
-//        "nominal_width",
-//        "precise_width",
-//        'nominal_height',
-//        "precise_height",
-//        "wall",
-//        "kg_per_m"
+        //        'product_category',
+        //        'material',
+        //        'grade',
+        //        'surface',
+        //        'nominal_units',
+        //        "nominal_length",
+        //        "precise_length",
+        //        "nominal_width",
+        //        "precise_width",
+        //        'nominal_height',
+        //        "precise_height",
+        //        "wall",
+        //        "kg_per_m"
 
         return [
-            "mandatory" => [
+            'mandatory' => [
                 'product_category',
                 'material',
                 'grade',
                 'surface',
                 'nominal_units',
-                "nominal_width",
+                'nominal_width',
                 'nominal_height',
             ],
-            "exclude" => [
-                "wall",
-                "kg_per_m",
-                "precise_length",
-                "precise_height",
-                "precise_width",
+            'exclude' => [
+                'wall',
+                'kg_per_m',
+                'precise_length',
+                'precise_height',
+                'precise_width',
             ],
-            "purchasableVariations" => [
-                "nominal_length",
+            'purchasableVariations' => [
+                'nominal_length',
             ],
         ];
     }

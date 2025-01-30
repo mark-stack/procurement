@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\ProjectResource;
 use App\Services\NestingService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -16,15 +15,15 @@ class SuggestedNestingController extends Controller
     public function __invoke(Request $request): Response
     {
         //Services
-        $nestingService = new NestingService();
+        $nestingService = new NestingService;
 
         //Prerequisite variables
         $user = auth()->user();
         $business = $user->business;
 
         //View data
-        $batchData = $nestingService->getBatchDataForView("SUGGESTED",$business,null);
+        $batchData = $nestingService->getBatchDataForView('SUGGESTED', $business, null);
 
-        return Inertia::render('QuoteIndex',$batchData);
+        return Inertia::render('QuoteIndex', $batchData);
     }
 }

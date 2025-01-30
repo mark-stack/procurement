@@ -15,13 +15,13 @@ return new class extends Migration
             $table->id();
             $table->timestamps();
 
-            $table->text("name");
+            $table->text('name');
             $table->foreignId('user_id')->constrained();
-            $table->boolean("awarded")->default(true);
-            $table->string("reference")->nullable();
-            $table->date("date_materials_required")->nullable();
-            $table->boolean("tentative")->default(true);
-            $table->boolean("archive")->default(false);
+            $table->boolean('awarded')->default(true);
+            $table->string('reference')->nullable();
+            $table->date('date_materials_required')->nullable();
+            $table->boolean('tentative')->default(true);
+            $table->boolean('archive')->default(false);
         });
     }
 

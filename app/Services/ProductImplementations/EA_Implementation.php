@@ -10,10 +10,7 @@ use App\Enums\SupplierGroupEnums;
 
 class EA_Implementation extends ProductBaseImplementation
 {
-    public function __construct()
-    {
-
-    }
+    public function __construct() {}
 
     public function productEnum(): ProductEnums
     {
@@ -23,50 +20,49 @@ class EA_Implementation extends ProductBaseImplementation
     public function config(): array
     {
         return [
-            "productCategory" => $this->productEnum()->value,
-            "isFastener" => false,
-            "negativeKeywords" => [
+            'productCategory' => $this->productEnum()->value,
+            'isFastener' => false,
+            'negativeKeywords' => [
                 //
             ],
-            "productRegex" => [
+            'productRegex' => [
                 "EA(\d+)",         //"EA100*100*10"
                 "x(\d+)+\s+EA",    //"100x100x10 EA"
                 "x(\d+)EA",        //"100x100x10 EA"
                 "\b(\d+)+\s+EA",   //"100 x 100 x 10 EA"
                 "\b(\d+)mm+\s+EA", //"100 x 100mm EA"
             ],
-            "nominalLengthRegex" => [
+            'nominalLengthRegex' => [
 
             ],
-            "nominalWidthRegex" => [
+            'nominalWidthRegex' => [
                 //uses special rule
             ],
-            "nominalHeightRegex" => [
+            'nominalHeightRegex' => [
                 //uses special rule
             ],
-            "wallRegex" => [
+            'wallRegex' => [
                 //uses special rule
             ],
-            "weightRegex" => [
+            'weightRegex' => [
 
             ],
-            "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
-            "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
+            'measurementUnit' => MeasurementUnitEnums::MILLIMETERS,
+            'defaultMaterial' => MaterialEnums::PLAIN_CARBON_STEEL,
             //"defaultGrade" => GradeEnums::NONE, //todo
-            "supplierGroup" => SupplierGroupEnums::STEEL_MERCHANT, //todo
+            'supplierGroup' => SupplierGroupEnums::STEEL_MERCHANT, //todo
         ];
     }
-
 
     public function getNominalSizeData(): array
     {
         return [
-            "length" => false,
-            "width" => true,
-            "height" => true,
-            "length_placeholder" => "",
-            "width_placeholder" => "Width (mm)",
-            "height_placeholder" => "Height (mm)",
+            'length' => false,
+            'width' => true,
+            'height' => true,
+            'length_placeholder' => '',
+            'width_placeholder' => 'Width (mm)',
+            'height_placeholder' => 'Height (mm)',
         ];
     }
 
@@ -83,46 +79,45 @@ class EA_Implementation extends ProductBaseImplementation
         ?float $wall,
         ?float $kg_per_m,
         ?string $material,
-    ): string
-    {
-        return $nominal_height."x".$nominal_width."x".$wall." EA";
+    ): string {
+        return $nominal_height.'x'.$nominal_width.'x'.$wall.' EA';
     }
 
     public function generalProductDefinition(): array
     {
-//        'product_category',
-//        'material',
-//        'grade',
-//        'surface',
-//        'nominal_units',
-//        "nominal_length",
-//        "precise_length",
-//        "nominal_width",
-//        "precise_width",
-//        'nominal_height',
-//        "precise_height",
-//        "wall",
-//        "kg_per_m"
+        //        'product_category',
+        //        'material',
+        //        'grade',
+        //        'surface',
+        //        'nominal_units',
+        //        "nominal_length",
+        //        "precise_length",
+        //        "nominal_width",
+        //        "precise_width",
+        //        'nominal_height',
+        //        "precise_height",
+        //        "wall",
+        //        "kg_per_m"
 
         return [
-            "mandatory" => [
+            'mandatory' => [
                 'product_category',
                 'material',
                 'grade',
                 'surface',
                 'nominal_units',
-                "nominal_width",
+                'nominal_width',
                 'nominal_height',
-                "wall",
+                'wall',
             ],
-            "exclude" => [
-                "kg_per_m",
-                "precise_length",
-                "precise_height",
-                "precise_width",
+            'exclude' => [
+                'kg_per_m',
+                'precise_length',
+                'precise_height',
+                'precise_width',
             ],
-            "purchasableVariations" => [
-                "nominal_length",
+            'purchasableVariations' => [
+                'nominal_length',
             ],
         ];
     }

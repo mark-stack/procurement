@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\SupplierGroupEnums;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -45,7 +46,7 @@ class Business extends Model
 
     public function batches(): HasManyThrough
     {
-        return $this->hasManyThrough(Batch::class, User::class,);
+        return $this->hasManyThrough(Batch::class, User::class);
     }
 
     //Local scopes
@@ -57,5 +58,24 @@ class Business extends Model
             ->awarded()
             ->unBatchedPieces()
             ->get();
+    }
+
+    //Boolean
+    public function supplierGroupIsCurrentPlan($supplierGroup): bool
+    {
+        $supplierGroupIsCurrentPlan = false;
+
+        //Upgraded has all supplier groups
+        if ($this->upgraded) {
+            $supplierGroupIsCurrentPlan = true;
+        }
+        //Lite plan is 'steel merchant' only
+        else {
+            if ($supplierGroup === SupplierGroupEnums::STEEL_MERCHANT->value) {
+                $supplierGroupIsCurrentPlan = true;
+            }
+        }
+
+        return $supplierGroupIsCurrentPlan;
     }
 }

@@ -4,7 +4,6 @@ namespace App\Observers;
 
 use App\Models\Project;
 use App\Services\NotificationService;
-use Illuminate\Support\Facades\Log;
 
 class ProjectObserver
 {
@@ -24,13 +23,13 @@ class ProjectObserver
         /*
          * Check if any notifications are now redundant because of this update
          */
-        $implementations = (new NotificationService())->getImplementations();
-        foreach($implementations as $implementation){
+        $implementations = (new NotificationService)->getImplementations();
+        foreach ($implementations as $implementation) {
             $className = 'App\\Services\\NotificationImplementations\\'.$implementation;
 
             // Check if the class exists
             if (class_exists($className)) {
-                $service = new $className();
+                $service = new $className;
                 $service->checkProjectChanges($project);
             }
         }

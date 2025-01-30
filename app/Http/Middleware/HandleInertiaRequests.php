@@ -35,16 +35,16 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user(),
-                "business" => $request->user() ? $request->user()->business : null,
-                "isAdmin" => $request->user() && $request->user()->isAdmin(),
-                "onboarded" => $request->user() && $request->user()->business->admin_setup_complete,
-                "notifications" => (new NotificationService())->getUnreadNotifications($request->user()),
+                'business' => $request->user() ? $request->user()->business : null,
+                'isAdmin' => $request->user() && $request->user()->isAdmin(),
+                'onboarded' => $request->user() && $request->user()->business->admin_setup_complete,
+                'notifications' => (new NotificationService)->getUnreadNotifications($request->user()),
             ],
-            "hasSeedImport" => Product::count() > 0,
+            'hasSeedImport' => Product::count() > 0,
             'flash' => [
                 'warning' => fn () => $request->session()->get('warning'),
             ],
-            "adminEmail" => config("env.admin_email"),
+            'adminEmail' => config('env.admin_email'),
         ];
     }
 }

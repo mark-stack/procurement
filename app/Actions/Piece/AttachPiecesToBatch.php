@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Actions\Piece;
 
 use App\Models\Batch;
@@ -16,9 +17,9 @@ class AttachPiecesToBatch
          * Attach PIECE to BATCH.
          */
         Piece::query()
-            ->whereIn("id",$piecesReadyForBatching->pluck("id"))
+            ->whereIn('id', $piecesReadyForBatching->pluck('id'))
             ->update([
-                "batch_id" => $batch->id,
+                'batch_id' => $batch->id,
             ]);
     }
 }

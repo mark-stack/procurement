@@ -4,9 +4,5 @@ namespace App\Services;
 
 class RawMaterialQuoteService
 {
-    public function xxx()
-    {
-
-    }
+    public function xxx() {}
 }
-

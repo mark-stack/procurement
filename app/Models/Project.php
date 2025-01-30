@@ -3,15 +3,14 @@
 namespace App\Models;
 
 use App\Observers\ProjectObserver;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Support\Facades\Auth;
 
 #[ObservedBy([ProjectObserver::class])]
@@ -49,7 +48,7 @@ class Project extends Model
     {
         $suppliers = [];
 
-        foreach($this->orders as $order){
+        foreach ($this->orders as $order) {
             $suppliers[] = $order->supplier;
         }
 
@@ -60,8 +59,8 @@ class Project extends Model
     {
         $products = [];
 
-        foreach($this->orders as $order){
-            foreach($order->products as $product){
+        foreach ($this->orders as $order) {
+            foreach ($order->products as $product) {
                 $products[] = $product;
             }
         }
@@ -70,7 +69,8 @@ class Project extends Model
     }
 
     //Integers
-    public function percentageOfMaterialsQuoted(): int {
+    public function percentageOfMaterialsQuoted(): int
+    {
         /**
          * Based on raw material quote > piece > quote
          *
@@ -82,12 +82,12 @@ class Project extends Model
         $percentageOfMaterialsQuoted = 0;
         $materialListRowsCount = $this->rawMaterialQuotes()->count();
 
-        foreach($this->rawMaterialQuotes as $rawMaterialQuote){
+        foreach ($this->rawMaterialQuotes as $rawMaterialQuote) {
             $piece = $rawMaterialQuote->piece;
-            if($piece){
+            if ($piece) {
                 //PIECE might not have quote objects yet
-                foreach($piece->quotes as $quote){
-                    if($quote->quote_sent){
+                foreach ($piece->quotes as $quote) {
+                    if ($quote->quote_sent) {
                         $percentageOfMaterialsQuoted++;
                     }
                 }
@@ -95,31 +95,32 @@ class Project extends Model
         }
 
         return $percentageOfMaterialsQuoted > 0
-            ? ceil($percentageOfMaterialsQuoted/$materialListRowsCount*100)
+            ? ceil($percentageOfMaterialsQuoted / $materialListRowsCount * 100)
             : 0;
     }
 
-    public function percentageOfMaterialsOrdered(): int {
+    public function percentageOfMaterialsOrdered(): int
+    {
         /**
          * Based on raw_material_quote > piece > order
          */
         $percentageOfMaterialsOrdered = 0;
         $materialListRows = $this->rawMaterialQuotes()->count();
 
-        foreach($this->rawMaterialQuotes as $rawMaterialQuote){
+        foreach ($this->rawMaterialQuotes as $rawMaterialQuote) {
             $piece = $rawMaterialQuote->piece;
-            if($piece){
+            if ($piece) {
                 //PIECE might not have order object yet
                 $order = $piece->order;
 
-                if($order && $order->order_sent){
+                if ($order && $order->order_sent) {
                     $percentageOfMaterialsOrdered++;
                 }
             }
         }
 
         return $percentageOfMaterialsOrdered > 0
-            ? ceil($percentageOfMaterialsOrdered/$materialListRows*100)
+            ? ceil($percentageOfMaterialsOrdered / $materialListRows * 100)
             : 0;
     }
 
@@ -184,7 +185,6 @@ class Project extends Model
          * Critical path = quoting time + delivery time
          * Between [critical path + 1 day] and [critical path] days before planned project material received date
          */
-
         $startRange = Carbon::now()->addDays($this->criticalPathDays())->startOfDay();
         $endRange = Carbon::now()->addDays($this->criticalPathDays() + 1)->endOfDay();
 
@@ -205,24 +205,24 @@ class Project extends Model
 
     public function scopeThisBusiness(Builder $query, Business $business): void
     {
-        $staffIds = $business->users()->get()->pluck("id")->toArray();
+        $staffIds = $business->users()->get()->pluck('id')->toArray();
 
-        $query->whereIn("user_id",$staffIds);
+        $query->whereIn('user_id', $staffIds);
     }
 
     public function scopeActive(Builder $query): void
     {
-        $query->where('archive',false);
+        $query->where('archive', false);
     }
 
     public function scopeAwarded(Builder $query): void
     {
-        $query->where('awarded',true);
+        $query->where('awarded', true);
     }
 
     public function scopeUnBatchedPieces(Builder $query): void
     {
-        $query->whereRelation("pieces","batch_id","=",null);
+        $query->whereRelation('pieces', 'batch_id', '=', null);
     }
 
     public function scopeSortByUserAndLatest(Builder $query): Builder

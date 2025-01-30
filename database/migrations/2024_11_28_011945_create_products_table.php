@@ -14,28 +14,28 @@ return new class extends Migration
         Schema::create('products', function (Blueprint $table) {
             $table->id();
             $table->timestamps();
-            $table->text("description");                    //200PFC
-            $table->text("product_category");               //PFC
-            $table->text("material");                       //PLAIN CARBON STEEL
-            $table->text("grade");                          //GR250
-            $table->text("surface");                        //NONE
-            $table->string("nesting_algo");                 //METERAGE
-            $table->string("certificates")->nullable();     //TRUE
-            $table->string("nominal_units")->nullable();    //MILLIMETERS
-            $table->string("nominal_length")->nullable();   //9000
-            $table->string("precise_length")->nullable();   //
-            $table->string("nominal_width")->nullable();    //
-            $table->string("precise_width")->nullable();    //
-            $table->string("nominal_height")->nullable();   //200
-            $table->string("precise_height")->nullable();   //
-            $table->float("wall")->nullable();              //
-            $table->string("pack_size_1")->nullable();      //1
-            $table->string("pack_size_2")->nullable();
-            $table->string("pack_size_3")->nullable();
-            $table->float("kg_per_m")->nullable();           //17.5
-            $table->text("baseline_unit_rate")->nullable(); //$13.54
+            $table->text('description');                    //200PFC
+            $table->text('product_category');               //PFC
+            $table->text('material');                       //PLAIN CARBON STEEL
+            $table->text('grade');                          //GR250
+            $table->text('surface');                        //NONE
+            $table->string('nesting_algo');                 //METERAGE
+            $table->string('certificates')->nullable();     //TRUE
+            $table->string('nominal_units')->nullable();    //MILLIMETERS
+            $table->string('nominal_length')->nullable();   //9000
+            $table->string('precise_length')->nullable();   //
+            $table->string('nominal_width')->nullable();    //
+            $table->string('precise_width')->nullable();    //
+            $table->string('nominal_height')->nullable();   //200
+            $table->string('precise_height')->nullable();   //
+            $table->float('wall')->nullable();              //
+            $table->string('pack_size_1')->nullable();      //1
+            $table->string('pack_size_2')->nullable();
+            $table->string('pack_size_3')->nullable();
+            $table->float('kg_per_m')->nullable();           //17.5
+            $table->text('baseline_unit_rate')->nullable(); //$13.54
             $table->foreignId('business_id')->nullable()->constrained(); //QSW (null means platform created)
-            $table->boolean("deprecated")->default(false);
+            $table->boolean('deprecated')->default(false);
         });
     }
 

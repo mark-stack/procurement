@@ -1,13 +1,12 @@
 <?php
 
-use App\Models\User;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\URL;
 
 test('email verification screen can be rendered', function () {
-    $business = createBusiness("admin", true);
-    $user = createUser(1, $business, false,false);
+    $business = createBusiness('admin', true);
+    $user = createUser(1, $business, false, false);
 
     $response = $this->actingAs($user)->get('/verify-email');
 
@@ -15,8 +14,8 @@ test('email verification screen can be rendered', function () {
 });
 
 test('email can be verified', function () {
-    $business = createBusiness("admin", true);
-    $user = createUser(1, $business, false,false);
+    $business = createBusiness('admin', true);
+    $user = createUser(1, $business, false, false);
 
     Event::fake();
 
@@ -34,8 +33,8 @@ test('email can be verified', function () {
 });
 
 test('email is not verified with invalid hash', function () {
-    $business = createBusiness("admin", true);
-    $user = createUser(1, $business, false,false);
+    $business = createBusiness('admin', true);
+    $user = createUser(1, $business, false, false);
 
     $verificationUrl = URL::temporarySignedRoute(
         'verification.verify',

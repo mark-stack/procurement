@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Actions\OrderApproval;
 
 use App\Models\Batch;
@@ -12,7 +13,7 @@ class CreatePendingOrderApprovals
 
     public function handle(Collection $projectsReadyForBatching, Batch $batch): void
     {
-        foreach($projectsReadyForBatching as $project){
+        foreach ($projectsReadyForBatching as $project) {
             OrderApproval::create([
                 'batch_id' => $batch->id,
                 'project_id' => $project->id,

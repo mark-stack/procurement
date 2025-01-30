@@ -27,7 +27,7 @@ class WelcomeActivatedUserEmail extends Notification implements ShouldQueue
      */
     public function via(object $notifiable): array
     {
-        return ['mail','database'];
+        return ['mail', 'database'];
     }
 
     /**
@@ -36,13 +36,13 @@ class WelcomeActivatedUserEmail extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         $action = new LoginAction($this->user);
-        $action->response(redirect()->route("projects.index"));
+        $action->response(redirect()->route('projects.index'));
         $magicLink = MagicLink::create($action)->url;
 
         return (new MailMessage)
-                    ->line('Your setup configuration is complete')
-                    ->action("Instant login",$magicLink)
-                    ->line('Thanks!');
+            ->line('Your setup configuration is complete')
+            ->action('Instant login', $magicLink)
+            ->line('Thanks!');
     }
 
     /**

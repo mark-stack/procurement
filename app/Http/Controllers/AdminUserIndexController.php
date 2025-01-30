@@ -15,8 +15,8 @@ class AdminUserIndexController extends Controller
      */
     public function __invoke(Request $request): Response
     {
-        return Inertia::render('AdminUsersIndex',[
-            "users" => UserResource::collection(User::all()),
+        return Inertia::render('AdminUsersIndex', [
+            'users' => UserResource::collection(User::all()),
         ]);
     }
 }

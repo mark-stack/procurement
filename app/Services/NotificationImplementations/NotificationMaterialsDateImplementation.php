@@ -13,9 +13,10 @@ use Illuminate\Support\Carbon;
 class NotificationMaterialsDateImplementation implements NotificationInterface
 {
     public string $subInterval;
+
     public function __construct()
     {
-        $testMode = config("env.test_mode");
+        $testMode = config('env.test_mode');
         $this->subInterval = $testMode ? 'subMinutes' : 'subDays';
     }
 
@@ -32,29 +33,29 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
 
         $tentativeProjects = Project::query()
             ->active()                             //1) Project is active (not archived)
-            ->where("tentative",true)              //2) Project tentative = true
+            ->where('tentative', true)              //2) Project tentative = true
             ->whereBetween('created_at', [Carbon::now()->$subInterval(2), Carbon::now()]) //3)
             ->get();
 
         //Has notifications
-        if($tentativeProjects->count() > 0){
-            foreach($tentativeProjects as $project) {
+        if ($tentativeProjects->count() > 0) {
+            foreach ($tentativeProjects as $project) {
                 $projectManager = $project->user;
 
-                if (!$this->hasBeenNotified($projectManager,$project->id)) {
+                if (! $this->hasBeenNotified($projectManager, $project->id)) {
                     //Mark all previous as read
-                    $this->markPreviousAsRead($projectManager,$project);
+                    $this->markPreviousAsRead($projectManager, $project);
 
                     //Send notification
-                    $this->sendNotification($projectManager,$project);
+                    $this->sendNotification($projectManager, $project);
                 }
             }
         }
         //NO notifications
-        else{
+        else {
             //Clear old notifications
             $class = $this->getNotificationClass();
-            (new NotificationService())->clearPreviousNotifications($class);
+            (new NotificationService)->clearPreviousNotifications($class);
         }
     }
 
@@ -64,10 +65,11 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
 
         $subInterval = $this->subInterval;
         $classWithPath = "App\Notifications\\".$class;
+
         return $recipient->notifications()
-            ->where("type",$classWithPath)
-            ->where("notifiable_type","App\Models\User")
-            ->where("data->project_id",$uniqueModelId)
+            ->where('type', $classWithPath)
+            ->where('notifiable_type', "App\Models\User")
+            ->where('data->project_id', $uniqueModelId)
             ->whereBetween('created_at', [Carbon::now()->$subInterval(2), Carbon::now()])
             ->exists();
     }
@@ -91,22 +93,22 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
          * Condition: tentative=false
          * enum: TENTATIVE_MATERIALS_DATE_CORRECT
          */
-        if($project->tentative === false){
+        if ($project->tentative === false) {
             $class = $this->getNotificationClass();
             $classWithPath = "App\Notifications\\".$class;
             $recipient = $project->user;
 
             $recipient->notifications()
-                ->where("type",$classWithPath)
-                ->where("notifiable_type","App\Models\User")
-                ->where("data->project_id",$project->id)
+                ->where('type', $classWithPath)
+                ->where('notifiable_type', "App\Models\User")
+                ->where('data->project_id', $project->id)
                 ->update(['read_at' => now()]);
         }
     }
 
     public function getNotificationClass(): string
     {
-        return "ProjectTentativeDateCheckEmail";
+        return 'ProjectTentativeDateCheckEmail';
     }
 
     public function markPreviousAsRead(object $recipient, object $otherObject): void
@@ -115,20 +117,20 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
         $classWithPath = "App\Notifications\\".$class;
 
         $recipient->notifications()
-            ->where("type",$classWithPath)
-            ->where("notifiable_type","App\Models\User")
-            ->where("data->project_id",$otherObject->id)
+            ->where('type', $classWithPath)
+            ->where('notifiable_type', "App\Models\User")
+            ->where('data->project_id', $otherObject->id)
             ->update(['read_at' => now()]);
     }
 
-    public function trafficLight(DatabaseNotification $notification, string $status): null|RedirectResponse
+    public function trafficLight(DatabaseNotification $notification, string $status): ?RedirectResponse
     {
         $return = null;
-        if($this->isCorrectClass($notification)){
+        if ($this->isCorrectClass($notification)) {
             $return = match ($status) {
-                "GREEN" => $this->markGreen($notification),
-                "YELLOW" => $this->markYellow($notification),
-                "RED" => $this->markRed($notification),
+                'GREEN' => $this->markGreen($notification),
+                'YELLOW' => $this->markYellow($notification),
+                'RED' => $this->markRed($notification),
                 default => back(),
             };
         }
@@ -142,7 +144,7 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
          * "Lock it in"
          * tentative=true
          */
-        $project = Project::findOrFail($notification->data["project_id"]);
+        $project = Project::findOrFail($notification->data['project_id']);
         $project->tentative = false;
         $project->save();
 
@@ -182,24 +184,24 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
         return $notification->type === $classWithPath;
     }
 
-    public function notificationData(DatabaseNotification $notification): null|array
+    public function notificationData(DatabaseNotification $notification): ?array
     {
         $notificationData = null;
 
-        if($this->isCorrectClass($notification)){
-            $materialsDate = $notification->data["date_materials_required"] ?? null;
-            $projectName = $notification->data["project_name"] ?? null;
+        if ($this->isCorrectClass($notification)) {
+            $materialsDate = $notification->data['date_materials_required'] ?? null;
+            $projectName = $notification->data['project_name'] ?? null;
 
-            $message = $this->message($materialsDate,$projectName);
+            $message = $this->message($materialsDate, $projectName);
 
             $notificationData = [
-                "id" => $notification->id,
-                "message" => $message,
-                "timestamp" => $notification->created_at->diffForHumans(),
-                "trafficLights" => [
-                    "green" => ["Lock it in","(Update)"],
-                    "yellow" => ["Same","(Ask later)"],
-                    "red" => ["No","(Edit)"],
+                'id' => $notification->id,
+                'message' => $message,
+                'timestamp' => $notification->created_at->diffForHumans(),
+                'trafficLights' => [
+                    'green' => ['Lock it in', '(Update)'],
+                    'yellow' => ['Same', '(Ask later)'],
+                    'red' => ['No', '(Edit)'],
                 ],
             ];
         }
@@ -212,6 +214,6 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
         $materialsDate = $string_1;
         $projectName = $string_2;
 
-        return "Is the tentative materials date of ".$materialsDate." for '".$projectName."' still correct?";
+        return 'Is the tentative materials date of '.$materialsDate." for '".$projectName."' still correct?";
     }
 }

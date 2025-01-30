@@ -28,8 +28,8 @@ class ProductController extends Controller
         Gate::authorize('owned', $project);
 
         //Services
-        $nestingService = new NestingService();
-        $productService = new ProductService();
+        $nestingService = new NestingService;
+        $productService = new ProductService;
 
         //Prerequisite variables
         $user = $project->user;
@@ -49,60 +49,60 @@ class ProductController extends Controller
         $requiresCustom = [];
 
         //Loop user's material rows
-        foreach($project->rawMaterialQuotes as $rawMaterialQuote){
-            $getProductMatchOptions = $productService->getProductMatchOptions($business,$rawMaterialQuote);
+        foreach ($project->rawMaterialQuotes as $rawMaterialQuote) {
+            $getProductMatchOptions = $productService->getProductMatchOptions($business, $rawMaterialQuote);
 
-            if($getProductMatchOptions){
+            if ($getProductMatchOptions) {
                 /**
                  * 1) Non-price book (will be user custom product)
                  * UPGRADED feature
                  */
-                if($getProductMatchOptions["status"] === "CUSTOM"){
+                if ($getProductMatchOptions['status'] === 'CUSTOM') {
                     $requiresCustom[] = [
-                        "selected" => [
-                            "product_category" => null,
-                            "material" => null,
-                            "grade" => null,
-                            "nominal_length" => null,
-                            "nominal_width" => null,
-                            "nominal_height" => null,
-                            "nesting_algo" => null,
-                            "purchasable_length_1" => null,
-                            "purchasable_length_2" => null,
-                            "purchasable_length_3" => null,
-                            "purchasable_width_1" => null,
-                            "purchasable_width_2" => null,
-                            "purchasable_width_3" => null,
-                            "suppliers" => [],
+                        'selected' => [
+                            'product_category' => null,
+                            'material' => null,
+                            'grade' => null,
+                            'nominal_length' => null,
+                            'nominal_width' => null,
+                            'nominal_height' => null,
+                            'nesting_algo' => null,
+                            'purchasable_length_1' => null,
+                            'purchasable_length_2' => null,
+                            'purchasable_length_3' => null,
+                            'purchasable_width_1' => null,
+                            'purchasable_width_2' => null,
+                            'purchasable_width_3' => null,
+                            'suppliers' => [],
                         ],
-                        "selected_other" => [
-                            "product_category" => null,
-                            "material" => null,
-                            "grade" => null,
-                            "surface" => null,
-                            "suppliers" => [],
+                        'selected_other' => [
+                            'product_category' => null,
+                            'material' => null,
+                            'grade' => null,
+                            'surface' => null,
+                            'suppliers' => [],
                         ],
-                        "data" => $rawMaterialQuote,
-                        "nominalSizeData" => $productService->getNominalSizeData(),
+                        'data' => $rawMaterialQuote,
+                        'nominalSizeData' => $productService->getNominalSizeData(),
                     ];
                 }
 
                 /**
                  * 2) Price book exact match
                  */
-                elseif($getProductMatchOptions["status"] === "EXACT"){
-                    $rawMaterialQuote["product"] = $getProductMatchOptions['decodedOption'];
+                elseif ($getProductMatchOptions['status'] === 'EXACT') {
+                    $rawMaterialQuote['product'] = $getProductMatchOptions['decodedOption'];
                 }
 
                 /**
                  * 3) Price book partial match (requires confirmation)
                  */
-                elseif($getProductMatchOptions["status"] === "PARTIAL"){
+                elseif ($getProductMatchOptions['status'] === 'PARTIAL') {
                     $partialProductMatches[] = [
-                        "selected" => null,
-                        "data" => $rawMaterialQuote,
-                        "options" => $getProductMatchOptions['decodedOptions'],
-                        "custom" => $getProductMatchOptions['custom'],
+                        'selected' => null,
+                        'data' => $rawMaterialQuote,
+                        'options' => $getProductMatchOptions['decodedOptions'],
+                        'custom' => $getProductMatchOptions['custom'],
                     ];
                 }
             }
@@ -110,16 +110,16 @@ class ProductController extends Controller
             /**
              * product categories
              */
-            $productCategories[] = $rawMaterialQuote["product_category"];
+            $productCategories[] = $rawMaterialQuote['product_category'];
 
             /**
              * Mill products //todo: get from master_materials
              */
-            foreach($allCertificateProductLabels as $mp){
+            foreach ($allCertificateProductLabels as $mp) {
                 //Could be enum or string
-                $value = gettype($mp) === "object" ? $mp->value : $mp;
+                $value = gettype($mp) === 'object' ? $mp->value : $mp;
 
-                if(strtoupper($rawMaterialQuote->product_category) == strtoupper($value)){
+                if (strtoupper($rawMaterialQuote->product_category) == strtoupper($value)) {
                     $hasCertificateProducts = true;
                 }
             }
@@ -129,7 +129,7 @@ class ProductController extends Controller
                 ? $nestingService->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category)[0]
                 : null;
             $rawMaterialQuote->nesting_algo = $nesting_algo;
-            $baseline_unit_rate = $productService->getBaseLineUnitRateFromGeneral($getProductMatchOptions["decodedOption"] ?? null);
+            $baseline_unit_rate = $productService->getBaseLineUnitRateFromGeneral($getProductMatchOptions['decodedOption'] ?? null);
             $rawMaterialQuote->baseline_unit_rate = $baseline_unit_rate;
             $rawMaterialQuote->baseline_unit_rate_comparison = $productService->getBaselineUnitRateHighLowComparison(
                 $rawMaterialQuote->unit_rate,
@@ -142,7 +142,7 @@ class ProductController extends Controller
          * Sense checks
          */
         $productCategories = array_filter(array_unique($productCategories));
-        $senseChecks = $productService->senseChecks($materialListRows,$productCategories,$hasCertificateProducts);
+        $senseChecks = $productService->senseChecks($materialListRows, $productCategories, $hasCertificateProducts);
 
         /**
          * Custom options (form select options)
@@ -157,16 +157,16 @@ class ProductController extends Controller
         $nestingGroups = $nestingService->getNestingGroups();
 
         return Inertia::render('ProductIndex', [
-            "project" => $project,
-            "materialListRows" => $materialListRows,
-            "senseChecks" => $senseChecks,
-            "partialProductMatches" => $partialProductMatches,
-            "requiresCustom" => $requiresCustom,
-            "allMeasurements" => $allMeasurements,
-            "formDependentData" => $formDependentData,
-            "allGrades" => $allGrades,
-            "business" => $project->user->business,
-            "nestingGroups" => $nestingGroups,
+            'project' => $project,
+            'materialListRows' => $materialListRows,
+            'senseChecks' => $senseChecks,
+            'partialProductMatches' => $partialProductMatches,
+            'requiresCustom' => $requiresCustom,
+            'allMeasurements' => $allMeasurements,
+            'formDependentData' => $formDependentData,
+            'allGrades' => $allGrades,
+            'business' => $project->user->business,
+            'nestingGroups' => $nestingGroups,
         ]);
     }
 
@@ -192,28 +192,26 @@ class ProductController extends Controller
         ]);
 
         //Services
-        $csvService = new CsvService();
+        $csvService = new CsvService;
 
         //Store the uploaded file temporarily
         $file = $request->file('excel');
         $path = $file->store('uploads');
 
         //Read the CSV
-        $csvArray = Excel::toArray(new ExcelImport(), $file)[0];
+        $csvArray = Excel::toArray(new ExcelImport, $file)[0];
 
         //Process the CSV
         $errorMsg = "The file didn't auto-detect properly. Did the template change? Please email the file to mark.laravel.coder@gmail to have it re-calibrated quickly.";
 
         //Users to get nice error message, admin to throw error.
-        if(auth()->user()->isAdmin()){
-            $return = $csvService->processCsv($csvArray,$project,$errorMsg);
-        }
-        else{
+        if (auth()->user()->isAdmin()) {
+            $return = $csvService->processCsv($csvArray, $project, $errorMsg);
+        } else {
             try {
-                $return = $csvService->processCsv($csvArray,$project,$errorMsg);
-            }
-            catch (\Exception $e) {
-                $return = back()->with("warning",$errorMsg);
+                $return = $csvService->processCsv($csvArray, $project, $errorMsg);
+            } catch (\Exception $e) {
+                $return = back()->with('warning', $errorMsg);
             }
         }
 

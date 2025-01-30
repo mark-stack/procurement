@@ -14,8 +14,8 @@ return new class extends Migration
         Schema::create('keywords', function (Blueprint $table) {
             $table->id();
             $table->timestamps();
-            $table->string("keyword");
-            $table->enum("type",["positive","negative"]);
+            $table->string('keyword');
+            $table->enum('type', ['positive', 'negative']);
             $table->foreignId('product_id')->constrained();
         });
     }

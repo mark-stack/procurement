@@ -17,7 +17,7 @@ class NotificationNewColleagueImplementation implements NotificationInterface
 
     public function __construct()
     {
-        $testMode = config("env.test_mode");
+        $testMode = config('env.test_mode');
         $this->subInterval = $testMode ? 'subMinutes' : 'subDays';
     }
 
@@ -34,25 +34,25 @@ class NotificationNewColleagueImplementation implements NotificationInterface
             ->get();
 
         //Has notifications
-        if($newUsers->count() > 0){
-            foreach($newUsers as $newUser){
-                $colleagues = $newUser->business->users()->where("id","!=",$newUser->id)->get();
-                foreach($colleagues as $colleague){
-                    if(!$this->hasBeenNotified($colleague, $newUser->id)){
+        if ($newUsers->count() > 0) {
+            foreach ($newUsers as $newUser) {
+                $colleagues = $newUser->business->users()->where('id', '!=', $newUser->id)->get();
+                foreach ($colleagues as $colleague) {
+                    if (! $this->hasBeenNotified($colleague, $newUser->id)) {
                         //Mark all previous as read
                         $this->markPreviousAsRead($colleague, $newUser);
 
                         //Send notification
-                        $this->sendNotification($colleague,$newUser);
+                        $this->sendNotification($colleague, $newUser);
                     }
                 }
             }
         }
         //NO notifications
-        else{
+        else {
             //Clear old notifications
             $class = $this->getNotificationClass();
-            (new NotificationService())->clearPreviousNotifications($class);
+            (new NotificationService)->clearPreviousNotifications($class);
         }
     }
 
@@ -60,19 +60,20 @@ class NotificationNewColleagueImplementation implements NotificationInterface
     {
         $class = $this->getNotificationClass();
         $classWithPath = "App\Notifications\\".$class;
+
         return $recipient->notifications()
-            ->where("type",$classWithPath)
-            ->where("notifiable_type","App\Models\User")
-            ->where("data->user_id",$uniqueModelId)
+            ->where('type', $classWithPath)
+            ->where('notifiable_type', "App\Models\User")
+            ->where('data->user_id', $uniqueModelId)
             ->exists();
     }
 
     public function sendNotification(object $recipient, object $otherObject): void
     {
         $newColleague = $otherObject;
-        $message = $this->message($newColleague->name,"");
+        $message = $this->message($newColleague->name, '');
 
-        $recipient->notify(new NewUserEmail($newColleague,$message));
+        $recipient->notify(new NewUserEmail($newColleague, $message));
     }
 
     public function checkProjectChanges(Project $project): void
@@ -84,7 +85,7 @@ class NotificationNewColleagueImplementation implements NotificationInterface
 
     public function getNotificationClass(): string
     {
-        return "NewUserEmail";
+        return 'NewUserEmail';
     }
 
     public function markPreviousAsRead(object $recipient, object $otherObject): void
@@ -93,20 +94,20 @@ class NotificationNewColleagueImplementation implements NotificationInterface
         $classWithPath = "App\Notifications\\".$class;
 
         $recipient->notifications()
-            ->where("type",$classWithPath)
-            ->where("notifiable_type","App\Models\User")
-            ->where("data->user_id",$otherObject)
+            ->where('type', $classWithPath)
+            ->where('notifiable_type', "App\Models\User")
+            ->where('data->user_id', $otherObject)
             ->update(['read_at' => now()]);
     }
 
-    public function trafficLight(DatabaseNotification $notification, string $status): null|RedirectResponse
+    public function trafficLight(DatabaseNotification $notification, string $status): ?RedirectResponse
     {
         $return = null;
-        if($this->isCorrectClass($notification)){
+        if ($this->isCorrectClass($notification)) {
             $return = match ($status) {
-                "GREEN" => $this->markGreen($notification),
-                "YELLOW" => $this->markYellow($notification),
-                "RED" => $this->markRed($notification),
+                'GREEN' => $this->markGreen($notification),
+                'YELLOW' => $this->markYellow($notification),
+                'RED' => $this->markRed($notification),
                 default => back(),
             };
         }
@@ -141,20 +142,20 @@ class NotificationNewColleagueImplementation implements NotificationInterface
         return $notification->type === $classWithPath;
     }
 
-    public function notificationData(DatabaseNotification $notification): null|array
+    public function notificationData(DatabaseNotification $notification): ?array
     {
         $notificationData = null;
 
-        if($this->isCorrectClass($notification)){
-            $userName = $notification->data["new_user_name"] ?? null;
-            if($userName){
-                $message = $this->message($userName,"");
+        if ($this->isCorrectClass($notification)) {
+            $userName = $notification->data['new_user_name'] ?? null;
+            if ($userName) {
+                $message = $this->message($userName, '');
 
                 $notificationData = [
-                    "id" => $notification->id,
-                    "message" => $message,
-                    "timestamp" => $notification->created_at->diffForHumans(),
-                    "trafficLights" => null,
+                    'id' => $notification->id,
+                    'message' => $message,
+                    'timestamp' => $notification->created_at->diffForHumans(),
+                    'trafficLights' => null,
                 ];
             }
         }
@@ -166,6 +167,6 @@ class NotificationNewColleagueImplementation implements NotificationInterface
     {
         $userName = $string_1;
 
-        return $userName." recently joined. You can now batch orders together.";
+        return $userName.' recently joined. You can now batch orders together.';
     }
 }

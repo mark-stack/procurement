@@ -7,9 +7,7 @@ use App\Enums\MaterialEnums;
 use App\Enums\MeasurementUnitEnums;
 use App\Enums\SurfaceEnums;
 use App\Models\Business;
-use App\Models\Piece;
 use App\Models\RawMaterialQuote;
-use App\Services\CsvService;
 use App\Services\DataClassificationService;
 use App\Services\PieceService;
 use Illuminate\Http\RedirectResponse;
@@ -30,40 +28,40 @@ class RawMaterialListClarificationsController extends Controller
         $user = auth()->user();
 
         //Services
-        $dataClassificationService = new DataClassificationService();
-        $pieceService = new PieceService();
+        $dataClassificationService = new DataClassificationService;
+        $pieceService = new PieceService;
 
-        foreach($request->all() as $index => $formData){
+        foreach ($request->all() as $index => $formData) {
             //Delete items
-            if($index === "deletedIds"){
+            if ($index === 'deletedIds') {
                 //Delete the "promised to delete" items
-                RawMaterialQuote::query()->whereIn("id",$formData)->delete();
+                RawMaterialQuote::query()->whereIn('id', $formData)->delete();
             }
             //Clarification items
-            else{
-                $id = isset($formData["data"]) ? $formData["data"]["id"] : null;
+            else {
+                $id = isset($formData['data']) ? $formData['data']['id'] : null;
 
-                if($id && !in_array($id,$request->deletedIds)){
-                    $rawMaterialQuote = RawMaterialQuote::findOrFail($formData["data"]["id"]);
+                if ($id && ! in_array($id, $request->deletedIds)) {
+                    $rawMaterialQuote = RawMaterialQuote::findOrFail($formData['data']['id']);
 
                     //Customise option (selected "other")
-                    if($formData["selected"] === "customise"){
+                    if ($formData['selected'] === 'customise') {
                         /**
                          * Custom product
                          */
-                        $custom = $formData["custom"];
-                        if($custom){
+                        $custom = $formData['custom'];
+                        if ($custom) {
                             $rawMaterialQuote->custom_product_matches = serialize([]);
                             $rawMaterialQuote->save();
                         }
                         /**
                          * Regular product
                          */
-                        else{
+                        else {
                             $empty = [
-                                "allFields" => false,
-                                "allFieldsIndividual" => [],
-                                "results" => [],
+                                'allFields' => false,
+                                'allFieldsIndividual' => [],
+                                'results' => [],
                             ];
 
                             $rawMaterialQuote->general_product_matches = serialize($empty);
@@ -71,15 +69,15 @@ class RawMaterialListClarificationsController extends Controller
                         }
                     }
                     //Selected a product
-                    else{
-                        $selectedProduct = $formData["options"][$formData["selected"]];
+                    else {
+                        $selectedProduct = $formData['options'][$formData['selected']];
 
                         /**
                          * Custom product (won't have a general match)
                          */
-                        $custom = $formData["custom"];
-                        if($custom){
-                            unset($selectedProduct["product_derived_label"]);
+                        $custom = $formData['custom'];
+                        if ($custom) {
+                            unset($selectedProduct['product_derived_label']);
                             $customProductMatches = [$selectedProduct];
 
                             $rawMaterialQuote->custom_product_matches = serialize($customProductMatches);
@@ -90,17 +88,17 @@ class RawMaterialListClarificationsController extends Controller
                         /**
                          * Regular product (must have a single general match)
                          */
-                        else{
-                            $productCategory = $selectedProduct["product_category"];
-                            $material = MaterialEnums::from($selectedProduct["material"]);
-                            $grade = [GradeEnums::from($selectedProduct["grade"])];
-                            $surface = SurfaceEnums::from($selectedProduct["surface"]);
-                            $nominalUnits = isset($selectedProduct["nominal_units"]) ? MeasurementUnitEnums::from($selectedProduct["nominal_units"]) : null;
-                            $uncertainLengthFloat = $selectedProduct["nominal_length"] ?? null;
-                            $uncertainWidthFloat = $selectedProduct["nominal_width"] ?? null;
-                            $uncertainHeightFloat = $selectedProduct["nominal_height"] ?? null;
-                            $wall = $selectedProduct["wall"] ?? null;
-                            $kg_per_m = $selectedProduct["kg_per_m"] ?? null;
+                        else {
+                            $productCategory = $selectedProduct['product_category'];
+                            $material = MaterialEnums::from($selectedProduct['material']);
+                            $grade = [GradeEnums::from($selectedProduct['grade'])];
+                            $surface = SurfaceEnums::from($selectedProduct['surface']);
+                            $nominalUnits = isset($selectedProduct['nominal_units']) ? MeasurementUnitEnums::from($selectedProduct['nominal_units']) : null;
+                            $uncertainLengthFloat = $selectedProduct['nominal_length'] ?? null;
+                            $uncertainWidthFloat = $selectedProduct['nominal_width'] ?? null;
+                            $uncertainHeightFloat = $selectedProduct['nominal_height'] ?? null;
+                            $wall = $selectedProduct['wall'] ?? null;
+                            $kg_per_m = $selectedProduct['kg_per_m'] ?? null;
 
                             $generalProductMatches = $dataClassificationService->findGeneralProductMatches(
                                 $user,
@@ -116,14 +114,14 @@ class RawMaterialListClarificationsController extends Controller
                                 $kg_per_m,
                             );
 
-                            if(count($generalProductMatches["results"]) === 1 && $generalProductMatches["allFields"]){
+                            if (count($generalProductMatches['results']) === 1 && $generalProductMatches['allFields']) {
                                 $rawMaterialQuote->general_product_matches = serialize($generalProductMatches);
                                 $rawMaterialQuote->save();
 
-                                $algo = $formData["data"]["nesting_algo"];
+                                $algo = $formData['data']['nesting_algo'];
 
-                                $productSpec = $generalProductMatches["results"][0];
-                                $piece = $pieceService->createPieceFromProductSpec($productSpec,$rawMaterialQuote,$algo);
+                                $productSpec = $generalProductMatches['results'][0];
+                                $piece = $pieceService->createPieceFromProductSpec($productSpec, $rawMaterialQuote, $algo);
                             }
                         }
                     }

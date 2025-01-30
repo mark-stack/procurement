@@ -19,10 +19,10 @@ class OrderFactory extends Factory
     public function definition(): array
     {
         return [
-            "user_id" => User::factory(),
-            "project_id" => null,
-            "quote_id" => null,
-            "supplier_id" => Supplier::factory(),
+            'user_id' => User::factory(),
+            'project_id' => null,
+            'quote_id' => null,
+            'supplier_id' => Supplier::factory(),
         ];
     }
 

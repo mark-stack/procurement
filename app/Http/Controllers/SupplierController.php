@@ -18,38 +18,38 @@ class SupplierController extends Controller
      */
     public function index(Business $business): Response
     {
-        $suppliers = $business->suppliers()->orderBy("name")->get();
+        $suppliers = $business->suppliers()->orderBy('name')->get();
 
         //Category and included products
-        $categories = (new SupplierService())->supplierGroups($business);
+        $categories = (new SupplierService)->supplierGroups($business);
 
         //Category, included products, user attached suppliers
         $byCategory = [];
-        foreach($categories as $categoryLabel => $includedProducts){
+        foreach ($categories as $categoryLabel => $includedProducts) {
 
             $suppliersWithThisCategory = [];
-            foreach($suppliers as $supplier){
+            foreach ($suppliers as $supplier) {
                 $supplierCategories = unserialize($supplier->supplier_categories);
-                foreach($supplierCategories as $thisCategoryLabel => $value){
+                foreach ($supplierCategories as $thisCategoryLabel => $value) {
                     //Is set
-                    if($value && $thisCategoryLabel === $categoryLabel){
+                    if ($value && $thisCategoryLabel === $categoryLabel) {
                         $suppliersWithThisCategory[] = $supplier->name;
                     }
                 }
             }
 
             $byCategory[$categoryLabel] = [
-                "includedProductsArray" => $includedProducts,
-                "includedProductsString" => implode(", ",$includedProducts),
-                "suppliersArray" => $suppliersWithThisCategory,
-                "suppliersString" => implode(", ",$suppliersWithThisCategory),
+                'includedProductsArray' => $includedProducts,
+                'includedProductsString' => implode(', ', $includedProducts),
+                'suppliersArray' => $suppliersWithThisCategory,
+                'suppliersString' => implode(', ', $suppliersWithThisCategory),
             ];
         }
 
-        return Inertia::render('AdminSuppliersIndex',[
-            "suppliers" => SupplierResource::collection($suppliers),
-            "byCategory" => $byCategory,
-            "business" => $business,
+        return Inertia::render('AdminSuppliersIndex', [
+            'suppliers' => SupplierResource::collection($suppliers),
+            'byCategory' => $byCategory,
+            'business' => $business,
         ]);
     }
 
@@ -64,28 +64,27 @@ class SupplierController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request,Business $business)
+    public function store(Request $request, Business $business)
     {
         /**
          * Find or create supplier
          */
-
         $validated = $request->validate([
             'name' => 'required|string',
             'supplier_categories' => [
                 'required',
                 'array',
                 function ($attribute, $value, $fail) {
-                    if (!in_array(true, $value, true)) {
+                    if (! in_array(true, $value, true)) {
                         $fail('Select at least ONE category');
                     }
-                }
+                },
             ],
         ]);
 
         $supplier = Supplier::query()->firstOrCreate(
             [
-                "name" => $validated['name'],
+                'name' => $validated['name'],
                 'supplier_categories' => serialize($validated['supplier_categories']),
             ],
         );
@@ -125,16 +124,16 @@ class SupplierController extends Controller
                 'required',
                 'array',
                 function ($attribute, $value, $fail) {
-                    if (!in_array(true, $value, true)) {
+                    if (! in_array(true, $value, true)) {
                         $fail('Select at least ONE category');
                     }
-                }
+                },
             ],
         ]);
 
         $supplier->update([
-            "name" => $validated["name"],
-            'supplier_categories' => serialize($validated["supplier_categories"])
+            'name' => $validated['name'],
+            'supplier_categories' => serialize($validated['supplier_categories']),
         ]);
 
         return back();
@@ -153,14 +152,14 @@ class SupplierController extends Controller
         $business = $user->business;
 
         //Admin
-        if($user->isAdmin()){
-            if(!$supplier->isUsed()){
+        if ($user->isAdmin()) {
+            if (! $supplier->isUsed()) {
                 $supplier->businesses()->detach();
                 $supplier->delete();
             }
         }
         //User
-        else{
+        else {
             $business->suppliers()->detach($supplier->id);
         }
 

@@ -16,7 +16,7 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
 
     public function __construct()
     {
-        $testMode = config("env.test_mode");
+        $testMode = config('env.test_mode');
         $this->subInterval = $testMode ? 'subMinutes' : 'subDays';
     }
 
@@ -32,29 +32,29 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
         $subInterval = $this->subInterval;
         $nonAwardedProjects = Project::query()
             ->active()                                                  //1) Project is active (not archived)
-            ->where("awarded",false)                                    //2) Project "awarded" = false
+            ->where('awarded', false)                                    //2) Project "awarded" = false
             ->whereBetween('created_at', [Carbon::now()->$subInterval(2), Carbon::now()]) //3)
             ->get();
 
         //Has notifications
-        if($nonAwardedProjects->count() > 0){
-            foreach($nonAwardedProjects as $project) {
+        if ($nonAwardedProjects->count() > 0) {
+            foreach ($nonAwardedProjects as $project) {
                 $projectManager = $project->user;
 
-                if (!$this->hasBeenNotified($projectManager, $project->id)) {
+                if (! $this->hasBeenNotified($projectManager, $project->id)) {
                     //Mark all previous as read
                     $this->markPreviousAsRead($projectManager, $project);
 
                     //Send notification
-                    $this->sendNotification($projectManager,$project);
+                    $this->sendNotification($projectManager, $project);
                 }
             }
         }
         //NO notifications
-        else{
+        else {
             //Clear old notifications
             $class = $this->getNotificationClass();
-            (new NotificationService())->clearPreviousNotifications($class);
+            (new NotificationService)->clearPreviousNotifications($class);
         }
     }
 
@@ -64,10 +64,11 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
 
         $subInterval = $this->subInterval;
         $classWithPath = "App\Notifications\\".$class;
+
         return $recipient->notifications()
-            ->where("type",$classWithPath)
-            ->where("notifiable_type","App\Models\User")
-            ->where("data->project_id",$uniqueModelId)
+            ->where('type', $classWithPath)
+            ->where('notifiable_type', "App\Models\User")
+            ->where('data->project_id', $uniqueModelId)
             ->whereBetween('created_at', [Carbon::now()->$subInterval(2), Carbon::now()]) //4)
             ->exists();
     }
@@ -75,7 +76,7 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
     public function sendNotification(object $recipient, object $otherObject): void
     {
         $project = $otherObject;
-        $message = $this->message($project->name,"");
+        $message = $this->message($project->name, '');
         $recipient->notify(new ProjectAwardedCheckEmail($project, $recipient, $message));
     }
 
@@ -90,22 +91,22 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
          * Condition: awarded=true
          * enum: HAS_THE_PROJECT_BEEN_AWARDED_TO_YOU
          */
-        if($project->awarded){
+        if ($project->awarded) {
             $class = $this->getNotificationClass();
             $classWithPath = "App\Notifications\\".$class;
             $recipient = $project->user()->first();
 
             $recipient->notifications()
-                ->where("type",$classWithPath)
-                ->where("notifiable_type","App\Models\User")
-                ->where("data->project_id",$project->id)
+                ->where('type', $classWithPath)
+                ->where('notifiable_type', "App\Models\User")
+                ->where('data->project_id', $project->id)
                 ->update(['read_at' => now()]);
         }
     }
 
     public function getNotificationClass(): string
     {
-        return "ProjectAwardedCheckEmail";
+        return 'ProjectAwardedCheckEmail';
     }
 
     public function markPreviousAsRead(object $recipient, object $otherObject): void
@@ -114,20 +115,20 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
         $classWithPath = "App\Notifications\\".$class;
 
         $recipient->notifications()
-            ->where("type",$classWithPath)
-            ->where("notifiable_type","App\Models\User")
-            ->where("data->project_id",$otherObject->id)
+            ->where('type', $classWithPath)
+            ->where('notifiable_type', "App\Models\User")
+            ->where('data->project_id', $otherObject->id)
             ->update(['read_at' => now()]);
     }
 
-    public function trafficLight(DatabaseNotification $notification, string $status): null|RedirectResponse
+    public function trafficLight(DatabaseNotification $notification, string $status): ?RedirectResponse
     {
         $return = null;
-        if($this->isCorrectClass($notification)){
+        if ($this->isCorrectClass($notification)) {
             $return = match ($status) {
-                "GREEN" => $this->markGreen($notification),
-                "YELLOW" => $this->markYellow($notification),
-                "RED" => $this->markRed($notification),
+                'GREEN' => $this->markGreen($notification),
+                'YELLOW' => $this->markYellow($notification),
+                'RED' => $this->markRed($notification),
                 default => back(),
             };
         }
@@ -150,8 +151,8 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
         $notification->markAsRead();
 
         //Archive project
-        if(isset($notification->data["project_id"])){
-            $project = Project::findOrFail($notification->data["project_id"]);
+        if (isset($notification->data['project_id'])) {
+            $project = Project::findOrFail($notification->data['project_id']);
             $project->archive = true;
             $project->save();
         }
@@ -174,22 +175,22 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
         return $notification->type === $classWithPath;
     }
 
-    public function notificationData(DatabaseNotification $notification): null|array
+    public function notificationData(DatabaseNotification $notification): ?array
     {
         $notificationData = null;
 
-        if($this->isCorrectClass($notification)){
-            $projectName = $notification->data["project_name"] ?? null;
-            $message = $this->message($projectName,"");
+        if ($this->isCorrectClass($notification)) {
+            $projectName = $notification->data['project_name'] ?? null;
+            $message = $this->message($projectName, '');
 
             $notificationData = [
-                "id" => $notification->id,
-                "message" => $message,
-                "timestamp" => $notification->created_at->diffForHumans(),
-                "trafficLights" => [
-                    "green" => ["Yes","(Edit)"],
-                    "yellow" => ["Not yet","(Ask later)"],
-                    "red" => ["Lost it","(Archive)"],
+                'id' => $notification->id,
+                'message' => $message,
+                'timestamp' => $notification->created_at->diffForHumans(),
+                'trafficLights' => [
+                    'green' => ['Yes', '(Edit)'],
+                    'yellow' => ['Not yet', '(Ask later)'],
+                    'red' => ['Lost it', '(Archive)'],
                 ],
             ];
         }

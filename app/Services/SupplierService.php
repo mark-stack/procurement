@@ -19,24 +19,21 @@ class SupplierService
         /**
          * Pre-group the 'supplierGroup' for each product implementation
          */
-        $implementations = (new ProductService())->getImplementations();
-        foreach($implementations as $implementation){
+        $implementations = (new ProductService)->getImplementations();
+        foreach ($implementations as $implementation) {
             // Check if the class exists
             if (class_exists($implementation)) {
-                $service = new $implementation();
+                $service = new $implementation;
                 $config = $service->config();
-                $supplierGroup = $config["supplierGroup"]->value;
+                $supplierGroup = $config['supplierGroup']->value;
 
                 /*
                  * Upgraded = find all supplier categories
                  */
-                if($business->upgraded){
-                    $output[$supplierGroup][] = $config["productCategory"];
-                }
-                else{
-                    if($supplierGroup === "STEEL_MERCHANT"){
-                        $output[$supplierGroup][] = $config["productCategory"];
-                    }
+
+                //Supplier group belongs to current plan
+                if ($business->supplierGroupIsCurrentPlan($supplierGroup)) {
+                    $output[$supplierGroup][] = $config['productCategory'];
                 }
             }
         }
@@ -53,22 +50,22 @@ class SupplierService
         $output = [];
         $supplierCategoriesWithIncludedProducts = [];
 
-        $implementations = (new ProductService())->getImplementations();
-        foreach($implementations as $implementation){
+        $implementations = (new ProductService)->getImplementations();
+        foreach ($implementations as $implementation) {
             // Check if the class exists
             if (class_exists($implementation)) {
-                $service = new $implementation();
+                $service = new $implementation;
                 $config = $service->config();
-                $supplierGroup = $config["supplierGroup"]->value;
-                $supplierCategoriesWithIncludedProducts[$supplierGroup][] = $config["productCategory"];
+                $supplierGroup = $config['supplierGroup']->value;
+                $supplierCategoriesWithIncludedProducts[$supplierGroup][] = $config['productCategory'];
             }
         }
 
         //2) Build an array that includes a string of included products. e.g "PFC, UB, UC..."
-        foreach($supplierCategoriesWithIncludedProducts as $supplierGroup => $includedProducts){
+        foreach ($supplierCategoriesWithIncludedProducts as $supplierGroup => $includedProducts) {
             $output[$supplierGroup] = [
-                "array" => $includedProducts,
-                "string" => implode(", ",$includedProducts),
+                'array' => $includedProducts,
+                'string' => implode(', ', $includedProducts),
             ];
         }
 
@@ -81,27 +78,19 @@ class SupplierService
          * Single purpose: get list of supplier categories available to the business
          * Includes plan limitations. e.g lite plan is STEEL_MERCHANT only
          */
-
         $supplierGroupsArray = [];
 
         //All supplier groups
         $allSupplierGroupsWithIncludedProducts = $this->allSupplierGroupsWithIncludedProducts();
 
         //This business's suppliers
-        foreach($business->suppliers as $supplier) {
+        foreach ($business->suppliers as $supplier) {
             //For each supplier, identify what category of products they offer. e,g "steel merchant"
             $supplierCategories = unserialize($supplier->supplier_categories);
             foreach ($supplierCategories as $supplierGroup => $activeForSupplier) {
-                /*
-                 * Upgraded = all supplier categories
-                 */
-                if($business->upgraded){
-                    if($activeForSupplier) {
-                        $supplierGroupsArray[$supplierGroup] = $allSupplierGroupsWithIncludedProducts[$supplierGroup];
-                    }
-                }
-                else{
-                    if($activeForSupplier && $supplierGroup === "STEEL_MERCHANT"){
+                //Supplier group belongs to current plan
+                if ($business->supplierGroupIsCurrentPlan($supplierGroup)) {
+                    if ($activeForSupplier) {
                         $supplierGroupsArray[$supplierGroup] = $allSupplierGroupsWithIncludedProducts[$supplierGroup];
                     }
                 }
@@ -116,11 +105,11 @@ class SupplierService
         $suppliersForSupplierGroup = [];
 
         //This business's suppliers
-        foreach($business->suppliers as $supplier) {
+        foreach ($business->suppliers as $supplier) {
             //For each supplier, identify what category of products they offer. e,g "steel merchant"
             $supplierGroups = unserialize($supplier->supplier_categories);
-            foreach($supplierGroups as $thisSupplierGroup => $activeForSupplier) {
-                if($activeForSupplier && $thisSupplierGroup === $supplierGroup){
+            foreach ($supplierGroups as $thisSupplierGroup => $activeForSupplier) {
+                if ($activeForSupplier && $thisSupplierGroup === $supplierGroup) {
                     $suppliersForSupplierGroup[] = $supplier;
                 }
             }
@@ -129,4 +118,3 @@ class SupplierService
         return $suppliersForSupplierGroup;
     }
 }
-

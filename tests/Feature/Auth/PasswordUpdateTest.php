@@ -1,11 +1,10 @@
 <?php
 
-use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 
 test('password can be updated', function () {
-    $business = createBusiness("admin", true);
-    $user = createUser(1, $business, false,true);
+    $business = createBusiness('admin', true);
+    $user = createUser(1, $business, false, true);
 
     $response = $this
         ->actingAs($user)
@@ -24,8 +23,8 @@ test('password can be updated', function () {
 });
 
 test('correct password must be provided to update password', function () {
-    $business = createBusiness("admin", true);
-    $user = createUser(1, $business, false,true);
+    $business = createBusiness('admin', true);
+    $user = createUser(1, $business, false, true);
 
     $response = $this
         ->actingAs($user)

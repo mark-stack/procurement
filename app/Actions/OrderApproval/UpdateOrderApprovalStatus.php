@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Actions\OrderApproval;
 
 use App\Models\Batch;
@@ -10,7 +11,7 @@ class UpdateOrderApprovalStatus
 
     public function handle(Batch $batch, bool $status): void
     {
-        foreach($batch->orderApprovals as $orderApproval){
+        foreach ($batch->orderApprovals as $orderApproval) {
             $orderApproval->project_manager_approved = $status;
             $orderApproval->save();
         }

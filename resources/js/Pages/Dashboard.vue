@@ -312,6 +312,9 @@
                                     @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
                                     @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
                                 />
+                                <div v-else class="text-center text-sm text-gray-500 mx-auto" style="width:200px">
+                                    Projects move to here after adding materials
+                                </div>
                             </div>
                         </div>
                         <!-- Quoted -->
@@ -329,6 +332,7 @@
                             >
                                 <!-- card-->
                                 <KanbanGeneralBatchCard
+                                    v-if="batches['QUOTED'].length > 0"
                                     v-for="batch in batches['QUOTED']"
                                     :key="batch.info.batch.id"
                                     :info="batch.info"
@@ -340,6 +344,9 @@
                                     @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
                                     @showBom="p => showBom(p)"
                                 />
+                                <div v-else class="text-center text-sm text-gray-500 mx-auto" style="width:250px">
+                                    Nested batches move to here after selecting <i>"Start quoting/ordering"</i>
+                                </div>
                             </div>
                         </div>
                         <!-- Ordered -->
@@ -357,6 +364,7 @@
                             >
                                 <!-- card -->
                                 <KanbanGeneralBatchCard
+                                    v-if="batches['ORDERED'].length > 0"
                                     v-for="batch in batches['ORDERED']"
                                     :key="batch.info.batch.id"
                                     :info="batch.info"
@@ -369,6 +377,9 @@
                                     @orderNow="orderNow(batch['batch']['id'])"
                                     @showBom="p => showBom(p)"
                                 />
+                                <div v-else class="text-center text-sm text-gray-500 mx-auto" style="width:200px">
+                                    Nested batches move to here after adding first order
+                                </div>
                             </div>
                         </div>
 
@@ -385,17 +396,23 @@
                                 :style="'height:'+kanbanHeight+'px'"
                             >
                                 <!-- card -->
-<!--                                <KanbanGeneralBatchCard-->
-<!--                                    v-for="batch in batches['DELIVERED']"-->
-<!--                                    :batch="batch['batch']"-->
-<!--                                    :projects="batch['projects'].data"-->
-<!--                                    :otherData="batch['otherData']"-->
-<!--                                    type="DELIVERED"-->
-<!--                                    @toggleArchive="p => toggleArchive(p)"-->
-<!--                                    @editMode="p => editMode(p)"-->
-<!--                                    @showQuotesModal="batchId => {modalSelectedBatchId = batchId; showQuotesModal = true; showOrdersModal = false;}"-->
-<!--                                    @showOrdersModal="batchId => {modalSelectedBatchId = batchId; showOrdersModal = true; showQuotesModal = false;}"-->
-<!--                                />-->
+                                <KanbanGeneralBatchCard
+                                    v-if="batches['DELIVERED'].length > 0"
+                                    v-for="batch in batches['DELIVERED']"
+                                    :key="batch.info.batch.id"
+                                    :info="batch.info"
+                                    type="DELIVERED"
+                                    class="mb-3"
+                                    @toggleArchive="p => toggleArchive(p)"
+                                    @editMode="p => editMode(p)"
+                                    @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
+                                    @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
+                                    @orderNow="orderNow(batch['batch']['id'])"
+                                    @showBom="p => showBom(p)"
+                                />
+                                <div v-else class="text-center text-sm text-gray-500 mx-auto" style="width:200px">
+                                    Nested batches move to here after all orders are complete
+                                </div>
                             </div>
                         </div>
                     </div>

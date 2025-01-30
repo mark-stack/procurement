@@ -45,18 +45,17 @@ class BatchController extends Controller
          * Break batch
          * 1) Not if used for order (order_sent = false)
          */
-
         $batchOrderedOrders = $batch->orders()
-            ->where("order_sent",true)
+            ->where('order_sent', true)
             ->get();
 
         //1) Not if used for order
-        if($batchOrderedOrders->count() === 0){
+        if ($batchOrderedOrders->count() === 0) {
             //Delete orders
             $batch->orders()->delete();
 
             //Detach pieces from quote
-            foreach($batch->pieces as $piece){
+            foreach ($batch->pieces as $piece) {
                 $piece->quotes()->detach();
             }
 

@@ -18,8 +18,8 @@ class PricebookController extends Controller
             ->availableFor(auth()->user())
             ->get();
 
-        return Inertia::render('PriceBook',[
-            "products" => $products,
+        return Inertia::render('PriceBook', [
+            'products' => $products,
         ]);
     }
 }

@@ -32,10 +32,10 @@ test('users can not authenticate with invalid password', function () {
 });
 
 test('users can logout', function () {
-    $business = createBusiness("admin", true);
-    $user = createUser(1, $business, false,true);
+    $business = createBusiness('admin', true);
+    $user = createUser(1, $business, false, true);
 
-    $response = $this->actingAs($user)->post(route("logout"));
+    $response = $this->actingAs($user)->post(route('logout'));
 
     $this->assertGuest();
     $response->assertRedirect('/');

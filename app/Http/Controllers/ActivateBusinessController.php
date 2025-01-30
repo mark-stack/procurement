@@ -20,7 +20,7 @@ class ActivateBusinessController extends Controller
         $business->save();
 
         //Send confirmation email
-        foreach($business->users as $user){
+        foreach ($business->users as $user) {
             Notification::send($user, new WelcomeActivatedUserEmail($user));
         }
 

@@ -22,24 +22,24 @@ class SupplierResource extends JsonResource
             'name' => $supplier->name,
             'category' => $supplier->category,
             'created_at' => $supplier->created_at,
-            "isUsed" => $supplier->isUsed(),
-            "categoriesAsCommaString" => $this->categoriesAsCommaString($this->supplier_categories),
-            "categoriesForm" => unserialize($supplier->supplier_categories),
+            'isUsed' => $supplier->isUsed(),
+            'categoriesAsCommaString' => $this->categoriesAsCommaString($this->supplier_categories),
+            'categoriesForm' => unserialize($supplier->supplier_categories),
         ];
     }
 
-    private function categoriesAsCommaString($supplier_categories): String
+    private function categoriesAsCommaString($supplier_categories): string
     {
         $resultArray = [];
 
         $categories = unserialize($supplier_categories);
-        foreach($categories as $categoryLabel => $value){
+        foreach ($categories as $categoryLabel => $value) {
             //Is set TRUE
-            if($value){
+            if ($value) {
                 $resultArray[] = $categoryLabel;
             }
         }
 
-        return implode(",",$resultArray);
+        return implode(',', $resultArray);
     }
 }

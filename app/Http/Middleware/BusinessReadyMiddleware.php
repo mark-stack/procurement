@@ -19,8 +19,8 @@ class BusinessReadyMiddleware
         $business = $user->business;
 
         //if business is not ready, redirect to onboarding
-        if(!$business->admin_setup_complete){
-            return redirect()->route("onboarding");
+        if (! $business->admin_setup_complete) {
+            return redirect()->route('onboarding');
         }
 
         return $next($request);

@@ -26,7 +26,7 @@ class AdminImportFinalised extends Notification implements ShouldQueue
      */
     public function via(object $notifiable): array
     {
-        return ['mail','database'];
+        return ['mail', 'database'];
     }
 
     /**
@@ -35,7 +35,7 @@ class AdminImportFinalised extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-                    ->line($this->message);
+            ->line($this->message);
 
     }
 

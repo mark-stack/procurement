@@ -4,30 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Actions\OrderApproval\CreatePendingOrderApprovals;
 use App\Actions\Piece\AttachPiecesToBatch;
-use App\Actions\Piece\AttachPiecesToQuote;
-use App\Http\Resources\ProjectResource;
 use App\Models\Batch;
 use App\Models\Order;
-use App\Models\OrderApproval;
-use App\Models\Piece;
-use App\Models\Project;
 use App\Models\Quote;
-use App\Models\Supplier;
 use App\Services\NestingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Inertia\Response;
 
 class QuoteController extends Controller
 {
     /**
      * @deprecated
      */
-    public function index()
-    {
-
-    }
+    public function index() {}
 
     /**
      * Show the form for creating a new resource.
@@ -57,19 +46,19 @@ class QuoteController extends Controller
          */
         $batch = Batch::create([
             'user_id' => $user->id,
-            "total_length" => 999, //todo
-            "total_used_length" => 999, //todo
+            'total_length' => 999, //todo
+            'total_used_length' => 999, //todo
         ]);
 
         //Prerequisite variables
         $projectsReadyForBatching = $business->projectsReadyForBatching(); //Note get this before updating pieces because it gets modified
-        $piecesReadyForBatching = (new NestingService())->piecesReadyForBatching($business);
+        $piecesReadyForBatching = (new NestingService)->piecesReadyForBatching($business);
 
         //Attach pieces to batch
         AttachPiecesToBatch::run($piecesReadyForBatching, $batch);
 
         //Create pending order approvals
-        CreatePendingOrderApprovals:: run($projectsReadyForBatching, $batch);
+        CreatePendingOrderApprovals::run($projectsReadyForBatching, $batch);
 
         return back();
     }
@@ -96,11 +85,11 @@ class QuoteController extends Controller
     public function update(Request $request, Quote $quote): RedirectResponse
     {
         $validated = $request->validate([
-            "batch_id" => 'required',
+            'batch_id' => 'required',
             'quote_sent' => 'required',
             'supplier_quote_reference' => 'nullable',
-            "quoted_price" => 'nullable',
-            "quoted_lead_time" => 'nullable',
+            'quoted_price' => 'nullable',
+            'quoted_lead_time' => 'nullable',
         ]);
 
         $quote->update($validated);

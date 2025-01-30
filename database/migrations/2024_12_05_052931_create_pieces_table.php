@@ -20,23 +20,23 @@ return new class extends Migration
             $table->foreignId('order_id')->nullable()->constrained();
             $table->foreignId('batch_id')->nullable()->constrained();
 
-            $table->text("product_category");               //PFC
-            $table->text("material");                       //STEEL
-            $table->text("grade");                          //GR250
-            $table->text("surface");                        //NONE
-            $table->string("nominal_units")->nullable();    //MILLIMETERS
-            $table->string("nesting_algo")->nullable();     //METERAGE
-            $table->string("nominal_length")->nullable();   //9000
-            $table->string("precise_length")->nullable();   //
-            $table->string("nominal_width")->nullable();    //
-            $table->string("precise_width")->nullable();    //
-            $table->string("nominal_height")->nullable();   //200
-            $table->string("precise_height")->nullable();   //
-            $table->string("wall")->nullable();             //
-            $table->float("kg_per_m")->nullable();          //17.5
-            $table->string("actual_length");                //9
-            $table->string("actual_width")->nullable();     //1
-            $table->string("actual_qty")->nullable();       //1
+            $table->text('product_category');               //PFC
+            $table->text('material');                       //STEEL
+            $table->text('grade');                          //GR250
+            $table->text('surface');                        //NONE
+            $table->string('nominal_units')->nullable();    //MILLIMETERS
+            $table->string('nesting_algo')->nullable();     //METERAGE
+            $table->string('nominal_length')->nullable();   //9000
+            $table->string('precise_length')->nullable();   //
+            $table->string('nominal_width')->nullable();    //
+            $table->string('precise_width')->nullable();    //
+            $table->string('nominal_height')->nullable();   //200
+            $table->string('precise_height')->nullable();   //
+            $table->string('wall')->nullable();             //
+            $table->float('kg_per_m')->nullable();          //17.5
+            $table->string('actual_length');                //9
+            $table->string('actual_width')->nullable();     //1
+            $table->string('actual_qty')->nullable();       //1
         });
     }
 

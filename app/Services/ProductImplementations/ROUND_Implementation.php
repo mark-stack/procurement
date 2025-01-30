@@ -10,10 +10,7 @@ use App\Enums\SupplierGroupEnums;
 
 class ROUND_Implementation extends ProductBaseImplementation
 {
-    public function __construct()
-    {
-
-    }
+    public function __construct() {}
 
     public function productEnum(): ProductEnums
     {
@@ -23,12 +20,12 @@ class ROUND_Implementation extends ProductBaseImplementation
     public function config(): array
     {
         return [
-            "productCategory" => $this->productEnum()->value,
-            "isFastener" => false,
-            "negativeKeywords" => [
+            'productCategory' => $this->productEnum()->value,
+            'isFastener' => false,
+            'negativeKeywords' => [
                 //
             ],
-            "productRegex" => [
+            'productRegex' => [
                 "D(\d+)\b",         //"D20"
                 "round\b",          //"20mm round", "20mm round bar"
                 "Ø(\d+)+\s+bar",    //"Ø20 bar"
@@ -36,41 +33,40 @@ class ROUND_Implementation extends ProductBaseImplementation
                 "Ø(\d+)mm+\s+bar",  //"Ø20mm bar"
                 "Ø(\d+)mm+\s+round",  //"Ø20mm bar"
             ],
-            "nominalLengthRegex" => [
+            'nominalLengthRegex' => [
 
             ],
-            "nominalWidthRegex" => [
+            'nominalWidthRegex' => [
                 "D(\d+)\b",         //"D20"
                 "round\b",          //"20mm round", "20mm round bar"
                 "Ø(\d+)+\s+bar",    //"Ø20 bar"
                 "Ø(\d+)+\s+round",  //"Ø20 round"
             ],
-            "nominalHeightRegex" => [
+            'nominalHeightRegex' => [
 
             ],
-            "wallRegex" => [
+            'wallRegex' => [
 
             ],
-            "weightRegex" => [
+            'weightRegex' => [
 
             ],
-            "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
-            "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
+            'measurementUnit' => MeasurementUnitEnums::MILLIMETERS,
+            'defaultMaterial' => MaterialEnums::PLAIN_CARBON_STEEL,
             //"defaultGrade" => GradeEnums::NONE, //todo
-            "supplierGroup" => SupplierGroupEnums::STEEL_MERCHANT,
+            'supplierGroup' => SupplierGroupEnums::STEEL_MERCHANT,
         ];
     }
-
 
     public function getNominalSizeData(): array
     {
         return [
-            "length" => false,
-            "width" => true,
-            "height" => false,
-            "length_placeholder" => "",
-            "width_placeholder" => "Diameter (mm)",
-            "height_placeholder" => "",
+            'length' => false,
+            'width' => true,
+            'height' => false,
+            'length_placeholder' => '',
+            'width_placeholder' => 'Diameter (mm)',
+            'height_placeholder' => '',
         ];
     }
 
@@ -87,48 +83,47 @@ class ROUND_Implementation extends ProductBaseImplementation
         ?float $wall,
         ?float $kg_per_m,
         ?string $material,
-    ): string
-    {
+    ): string {
         $actualSize = $nominal_width;
 
-        return $actualSize." ROUND BAR";
+        return $actualSize.' ROUND BAR';
     }
 
     public function generalProductDefinition(): array
     {
-//        'product_category',
-//        'material',
-//        'grade',
-//        'surface',
-//        'nominal_units',
-//        "nominal_length",
-//        "precise_length",
-//        "nominal_width",
-//        "precise_width",
-//        'nominal_height',
-//        "precise_height",
-//        "wall",
-//        "kg_per_m"
+        //        'product_category',
+        //        'material',
+        //        'grade',
+        //        'surface',
+        //        'nominal_units',
+        //        "nominal_length",
+        //        "precise_length",
+        //        "nominal_width",
+        //        "precise_width",
+        //        'nominal_height',
+        //        "precise_height",
+        //        "wall",
+        //        "kg_per_m"
 
         return [
-            "mandatory" => [
+            'mandatory' => [
                 'product_category',
                 'material',
                 'grade',
                 'surface',
                 'nominal_units',
-                "nominal_width",
+                'nominal_width',
             ],
-            "exclude" => [
+            'exclude' => [
                 'nominal_height',
-                "precise_length",
-                "precise_height",
-                "precise_width",
-                "wall",
-                "kg_per_m",
+                'precise_length',
+                'precise_height',
+                'precise_width',
+                'wall',
+                'kg_per_m',
             ],
-            "purchasableVariations" => [
-                "nominal_length",
+            'purchasableVariations' => [
+                'nominal_length',
             ],
         ];
     }

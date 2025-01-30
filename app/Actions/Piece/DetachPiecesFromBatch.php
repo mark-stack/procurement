@@ -1,8 +1,8 @@
 <?php
+
 namespace App\Actions\Piece;
 
 use App\Models\Batch;
-use App\Models\Order;
 use Lorisleiva\Actions\Concerns\AsAction;
 
 class DetachPiecesFromBatch
@@ -15,7 +15,7 @@ class DetachPiecesFromBatch
          * Detach PIECE from BATCH.
          */
         $batch->pieces()->update([
-            "batch_id" => null,
+            'batch_id' => null,
         ]);
     }
 }

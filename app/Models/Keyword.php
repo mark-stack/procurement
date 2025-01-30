@@ -8,8 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Keyword extends Model
 {
-//    /** @use HasFactory<\Database\Factories\KeywordFactory> */
-//    use HasFactory;
+    //    /** @use HasFactory<\Database\Factories\KeywordFactory> */
+    //    use HasFactory;
 
     protected $guarded = [];
 

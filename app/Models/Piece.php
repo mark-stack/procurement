@@ -41,30 +41,30 @@ class Piece extends Model
     //Local scopes
     public function scopeReadyToBatch(Builder $query): void
     {
-        $query->whereNull("batch_id");
+        $query->whereNull('batch_id');
     }
 
     //Collections
     public function product(): ?Product
     {
         return Product::query()
-            ->where("product_category",$this->product_category)
-            ->where("material",$this->material)
-            ->where("grade",$this->grade)
-            ->where("surface",$this->surface)
-            ->where("nominal_units",$this->nominal_units)
-            ->where("nominal_length",$this->nominal_length)
-            ->where("nominal_width",$this->nominal_width)
-            ->where("nominal_height",$this->nominal_height)
+            ->where('product_category', $this->product_category)
+            ->where('material', $this->material)
+            ->where('grade', $this->grade)
+            ->where('surface', $this->surface)
+            ->where('nominal_units', $this->nominal_units)
+            ->where('nominal_length', $this->nominal_length)
+            ->where('nominal_width', $this->nominal_width)
+            ->where('nominal_height', $this->nominal_height)
             ->first();
     }
 
     //String
     public function supplierGroup(): string
     {
-        $implementation = (new ProductService())->getImplementationFromProductCategory($this->product_category);
+        $implementation = (new ProductService)->getImplementationFromProductCategory($this->product_category);
         $config = $implementation->config();
-        $supplierGroupEnum = $config["supplierGroup"];
+        $supplierGroupEnum = $config['supplierGroup'];
 
         return $supplierGroupEnum->value;
     }

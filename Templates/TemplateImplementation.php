@@ -15,7 +15,7 @@ class TemplateImplementation implements NotificationInterface
 
     public function __construct()
     {
-        $testMode = config("env.test_mode");
+        $testMode = config('env.test_mode');
         $this->subInterval = $testMode ? 'subMinutes' : 'subDays';
     }
 
@@ -26,18 +26,17 @@ class TemplateImplementation implements NotificationInterface
          * 1) xxx
          * 2) xxx
          */
-
         $things = []; //todo
-        foreach($things as $thing) {
+        foreach ($things as $thing) {
             $recipient = 999; //todo
             $otherObject = 999; //todo
-            if (!$this->notifiedAlready($recipient, $otherObject)) {
+            if (! $this->notifiedAlready($recipient, $otherObject)) {
                 //Mark all previous as read
                 $this->markPreviousAsRead($recipient, $otherObject);
 
                 //Send notification
                 $otherObject = 999; //todo
-                $this->sendNotification($recipient,$otherObject);
+                $this->sendNotification($recipient, $otherObject);
             }
         }
     }
@@ -48,10 +47,11 @@ class TemplateImplementation implements NotificationInterface
 
         $subInterval = $this->subInterval;
         $classWithPath = "App\Notifications\\".$class;
+
         return $recipient->notifications()
-            ->where("type",$classWithPath)
-            ->where("notifiable_type","App\Models\User")
-            ->where("data->xxx_id",999)//todo unique model id
+            ->where('type', $classWithPath)
+            ->where('notifiable_type', "App\Models\User")
+            ->where('data->xxx_id', 999)//todo unique model id
             ->whereBetween('created_at', [Carbon::now()->$subInterval(1), Carbon::now()]) //todo At least 1 day since last reminder
             ->exists();
     }
@@ -76,7 +76,7 @@ class TemplateImplementation implements NotificationInterface
     public function getNotificationClass(): string
     {
         //todo change "QuoteDueEmail"
-        return "QuoteDueEmail";
+        return 'QuoteDueEmail';
     }
 
     public function markPreviousAsRead(object $recipient, object $otherObject): void
@@ -85,20 +85,20 @@ class TemplateImplementation implements NotificationInterface
         $classWithPath = "App\Notifications\\".$class;
 
         $recipient->notifications()
-            ->where("type",$classWithPath)
-            ->where("notifiable_type","App\Models\User")
-            ->where("data->xxx_id",$otherObject) //todo
+            ->where('type', $classWithPath)
+            ->where('notifiable_type', "App\Models\User")
+            ->where('data->xxx_id', $otherObject) //todo
             ->update(['read_at' => now()]);
     }
 
-    public function trafficLight(DatabaseNotification $notification, string $status): null|RedirectResponse
+    public function trafficLight(DatabaseNotification $notification, string $status): ?RedirectResponse
     {
         $return = null;
-        if($this->isCorrectClass($notification)){
+        if ($this->isCorrectClass($notification)) {
             $return = match ($status) {
-                "GREEN" => $this->markGreen($notification),
-                "YELLOW" => $this->markYellow($notification),
-                "RED" => $this->markRed($notification),
+                'GREEN' => $this->markGreen($notification),
+                'YELLOW' => $this->markYellow($notification),
+                'RED' => $this->markRed($notification),
             };
         }
 
@@ -137,24 +137,24 @@ class TemplateImplementation implements NotificationInterface
         return $notification->type === $classWithPath;
     }
 
-    public function notificationData(DatabaseNotification $notification): null|array
+    public function notificationData(DatabaseNotification $notification): ?array
     {
         $notificationData = null;
 
-        if($this->isCorrectClass($notification)){
-            $materialsDate = $notification->data["date_materials_required"] ?? null; //todo
-            $projectName = $notification->data["project_name"] ?? null; //todo
+        if ($this->isCorrectClass($notification)) {
+            $materialsDate = $notification->data['date_materials_required'] ?? null; //todo
+            $projectName = $notification->data['project_name'] ?? null; //todo
 
-            $message = $this->message($materialsDate,$projectName);
+            $message = $this->message($materialsDate, $projectName);
 
             $notificationData = [
-                "id" => $notification->id,
-                "message" => $message,
-                "timestamp" => $notification->created_at->diffForHumans(),
-                "trafficLights" => [
-                    "green" => ["Ok","(Go to)"], //todo
-                    "yellow" => ["Wait","(Ask later)"], //todo
-                    "red" => null,
+                'id' => $notification->id,
+                'message' => $message,
+                'timestamp' => $notification->created_at->diffForHumans(),
+                'trafficLights' => [
+                    'green' => ['Ok', '(Go to)'], //todo
+                    'yellow' => ['Wait', '(Ask later)'], //todo
+                    'red' => null,
                 ],
             ];
         }

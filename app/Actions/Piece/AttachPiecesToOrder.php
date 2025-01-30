@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Actions\Piece;
 
 use App\Models\Batch;
@@ -16,9 +17,9 @@ class AttachPiecesToOrder
          */
         $supplierGroupOfOrderedOrder = $orderedOrder->quote->supplier_category;
 
-        foreach($batch->pieces as $piece){
+        foreach ($batch->pieces as $piece) {
             //Pieces from batch belonging to this supplier group
-            if($piece->supplierGroup() === $supplierGroupOfOrderedOrder){
+            if ($piece->supplierGroup() === $supplierGroupOfOrderedOrder) {
                 $piece->order_id = $orderedOrder->id;
                 $piece->save();
             }

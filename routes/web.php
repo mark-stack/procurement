@@ -2,7 +2,6 @@
 
 //todo: experimental
 use App\Jobs\HourlyNotificationsJob;
-use App\Models\Project;
 use App\Models\User;
 use App\Services\DataClassificationService;
 use App\Services\NestingService;
@@ -11,65 +10,65 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 //todo temporary
-Route::get("pickles",function(){
+Route::get('pickles', function () {
     $admin = User::query()
-        ->where("email",env('ADMIN_EMAIL'))
+        ->where('email', env('ADMIN_EMAIL'))
         ->firstOrFail();
 
     Auth::login($admin);
 
-    return redirect()->route("admin.users.index");
+    return redirect()->route('admin.users.index');
 });
 
 //todo temporary
-Route::get("stock-cutting",function(){
+Route::get('stock-cutting', function () {
     // Example Usage:
-    $cutLengths = [1000,3000,4000,1000,5000,11000,4000,2000,2500,5000,13000];
-    $stockLengths = [9000,12000];
+    $cutLengths = [1000, 3000, 4000, 1000, 5000, 11000, 4000, 2000, 2500, 5000, 13000];
+    $stockLengths = [9000, 12000];
 
-    $result = (new NestingService())->meterageAlgorithm($cutLengths, $stockLengths);
+    $result = (new NestingService)->meterageAlgorithm($cutLengths, $stockLengths);
 
     dd($result);
 });
 //todo temporary
-Route::get("test",function(){
-    $description = "20mm plate GR350";
+Route::get('test', function () {
+    $description = '20mm plate GR350';
 
-    $dataClassificationService = new DataClassificationService();
+    $dataClassificationService = new DataClassificationService;
 
-    $generalProductMatches = $dataClassificationService->findGeneralProductMatchesFromText($description,auth()->user());
-    dd("web",$description,$generalProductMatches);
+    $generalProductMatches = $dataClassificationService->findGeneralProductMatchesFromText($description, auth()->user());
+    dd('web', $description, $generalProductMatches);
 });
 //todo temporary
-Route::get("notifications",function(){
+Route::get('notifications', function () {
     $user = auth()->user();
 
     //generate notifications
     //HourlyNotificationsJob::dispatchSync();
 
-    $notifications = (new NotificationService())->getUnreadNotifications($user);
+    $notifications = (new NotificationService)->getUnreadNotifications($user);
     //dd(3,$notifications);
     //Find Notification implementation
     $desiredNotificationClassName = "App\Services\NotificationImplementations\NotificationQuotingOrderingOverDueImplementation";
     $desiredNotificationClass = null;
 
-    $implementations = (new NotificationService())->getImplementations();
-    foreach($implementations as $implementation){
+    $implementations = (new NotificationService)->getImplementations();
+    foreach ($implementations as $implementation) {
         $className = 'App\\Services\\NotificationImplementations\\'.$implementation;
 
         // Check if the class exists
         if (class_exists($className)) {
-            $service = new $className();
+            $service = new $className;
 
-            if($className === $desiredNotificationClassName){
+            if ($className === $desiredNotificationClassName) {
                 $desiredNotificationClass = $service;
             }
         }
     }
 
-    dd(3,$desiredNotificationClass->hourlyCheck());
+    dd(3, $desiredNotificationClass->hourlyCheck());
 
-    dd("notifications",$notifications,$desiredNotificationClass);
+    dd('notifications', $notifications, $desiredNotificationClass);
 });
 
 require __DIR__.'/auth.php';

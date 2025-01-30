@@ -7,8 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class ProjectPhase extends Model
 {
-//    /** @use HasFactory<\Database\Factories\ProjectPhaseFactory> */
-//    use HasFactory;
+    //    /** @use HasFactory<\Database\Factories\ProjectPhaseFactory> */
+    //    use HasFactory;
 
     protected $guarded = [];
 }

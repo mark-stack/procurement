@@ -54,27 +54,38 @@
         :class="shared.atLeastOneProjectIsYours(info.projects.data,user.id) ? 'bg-white' : 'bg-gray-200'"
         class="relative flex flex-col items-start pt-2 pl-4 pr-4 pb-4 rounded-lg group"
     >
+        <!-- quoting card -->
         <div
             v-if="type === 'QUOTES' && shared.atLeastOneProjectIsYours(info.projects.data,user.id)"
             class="w-full mb-2 text-center"
         >
             <p class="text-sm text-gray-700">
-                Quote coverage: <b>{{ info.sentQuotesQty }}/{{ info.totalQuotesQty }}</b>
+                Quoted: <b>{{ info.sentQuotesQty }}/{{ info.totalQuotesQty }}</b>
             </p>
         </div>
 
+        <!-- ordering card -->
         <div
             v-if="type === 'ORDERS' && shared.atLeastOneProjectIsYours(info.projects.data,user.id)"
             class="w-full mb-2 text-center"
         >
             <p class="text-sm text-gray-700">
-                Order coverage: <b>{{ info.sentOrdersQty }}/{{ info.totalOrdersQty }}</b>
+                Ordered: <b>{{ info.sentOrdersQty }}/{{ info.totalOrdersQty }}</b>
             </p>
-            <p v-if="info.all_project_manager_approvals" class="text-sm text-green-700">
+            <p v-if="info.all_project_manager_approvals && type === 'ORDERS'" class="text-sm text-green-700">
                 All project managers approved
             </p>
         </div>
 
+        <!-- delivery card -->
+        <div
+            v-if="type === 'DELIVERED' && shared.atLeastOneProjectIsYours(info.projects.data,user.id)"
+            class="w-full mb-2 text-center"
+        >
+            <p class="text-sm text-gray-700">
+                Delivered: <b>{{ info.totalDeliveredQty }}/{{ info.totalOrdersQty }}</b>
+            </p>
+        </div>
 
         <div
             :class="shared.atLeastOneProjectIsYours(info.projects.data,user.id) ? '' : 'mt-2'"
@@ -100,15 +111,18 @@
                         <div>
                             <table>
                                 <tr>
-                                    <td>Quote by:</td>
+                                    <td colspan="2" class="text-xs text-gray-400">Target dates</td>
+                                </tr>
+                                <tr v-if="type === 'QUOTES' || type === 'ORDERS'">
+                                    <td>Quote:</td>
                                     <td><b>{{ moment(project.quotingDeadline).format("D MMM YY")}}</b></td>
                                 </tr>
-                                <tr>
-                                    <td>Order by:</td>
+                                <tr v-if="type === 'QUOTES' || type === 'ORDERS'">
+                                    <td>Order:</td>
                                     <td><b>{{ moment(project.orderingDeadline).format("D MMM YY")}}</b></td>
                                 </tr>
                                 <tr>
-                                    <td>Deliver by:</td>
+                                    <td>Delivery:</td>
                                     <td><b>{{ moment(project.deliveryDeadline).format("D MMM YY")}}</b></td>
                                 </tr>
                             </table>
@@ -126,7 +140,10 @@
                         />
                     </div>
                 </div>
-                <div class="mt-2 flex justify-between">
+                <div
+                    v-if="type === 'QUOTES' || type === 'ORDERS'"
+                    class="mt-2 flex justify-between"
+                >
                     <p>
                         Quoted: {{project.percentageOfMaterialsQuoted}}%
                     </p>
@@ -179,7 +196,7 @@
 
             <!-- order actions -->
             <Link
-                v-if="type === 'ORDERS'"
+                v-if="type === 'ORDERS' || type === 'DELIVERED'"
                 :href="route('quote.order.management',props.info.batch.id)"
                 class="w-full"
                 @click="loadingButton = 'ORDERS'"

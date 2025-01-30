@@ -74,15 +74,18 @@
                         <div>
                             <table>
                                 <tr>
-                                    <td>Quote by:</td>
+                                    <td colspan="2" class="text-xs text-gray-400">Target dates</td>
+                                </tr>
+                                <tr>
+                                    <td>Quote:</td>
                                     <td><b>{{ moment(project.quotingDeadline).format("D MMM YY")}}</b></td>
                                 </tr>
                                 <tr>
-                                    <td>Order by:</td>
+                                    <td>Order:</td>
                                     <td><b>{{ moment(project.orderingDeadline).format("D MMM YY")}}</b></td>
                                 </tr>
                                 <tr>
-                                    <td>Deliver by:</td>
+                                    <td>Delivery:</td>
                                     <td><b>{{ moment(project.deliveryDeadline).format("D MMM YY")}}</b></td>
                                 </tr>
                             </table>

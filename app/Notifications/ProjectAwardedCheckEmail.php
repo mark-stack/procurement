@@ -17,8 +17,8 @@ class ProjectAwardedCheckEmail extends Notification implements ShouldQueue
      * Create a new notification instance.
      */
     public function __construct(
-        public Object $project,
-        public Object $recipient,
+        public object $project,
+        public object $recipient,
         public string $message,
     ) {}
 
@@ -29,7 +29,7 @@ class ProjectAwardedCheckEmail extends Notification implements ShouldQueue
      */
     public function via(object $notifiable): array
     {
-        return ['mail','database'];
+        return ['mail', 'database'];
     }
 
     /**
@@ -39,7 +39,7 @@ class ProjectAwardedCheckEmail extends Notification implements ShouldQueue
     {
         //Go to projects page which has notifications for actioning
         $action = new LoginAction($this->recipient);
-        $action->response(redirect()->route("projects.index"));
+        $action->response(redirect()->route('projects.index'));
         $magicLink = MagicLink::create($action);
 
         //MagicLink is being weird making default "localhost" instead of "http://127.0.0.1:8000"
@@ -50,7 +50,7 @@ class ProjectAwardedCheckEmail extends Notification implements ShouldQueue
 
         return (new MailMessage)
             ->line($this->message)
-            ->action("Action this",$magicLinkUrl);
+            ->action('Action this', $magicLinkUrl);
     }
 
     /**

@@ -21,9 +21,9 @@ class UserResource extends JsonResource
             'name' => $this->name,
             'email' => $this->email,
             'created_at' => $this->created_at,
-            "business" => $this->business,
-            "templates" => $business->templates,
-            "suppliers" => $business->suppliers,
+            'business' => $this->business,
+            'templates' => $business->templates,
+            'suppliers' => $business->suppliers,
         ];
     }
 }

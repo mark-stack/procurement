@@ -30,6 +30,7 @@
     });
 
     const formUndoOrderSent = useForm({});
+    const formDelivered = useForm({});
 
     //Shared data
     const business = usePage().props.auth.business;
@@ -235,7 +236,17 @@
     }
 
     function deliveredCheckbox(row){
-        console.log("delivered checkbox");
+        let url = route("order.mark.delivered",row.formDelivered.order_id);
+
+        formDelivered.post(url, {
+            preserveScroll: true,
+            onSuccess: () => {
+                console.log('success');
+            },
+            onError: errors => {
+                console.log('errors',errors);
+            },
+        });
     }
 
     function undoOrderSent(row){
@@ -278,10 +289,13 @@
                 </div>
                 <div class="text-right">
                     <p>
-                        Quote coverage: <b>{{ quotesData.info.sentQuotesQty }}/{{ quotesData.info.totalQuotesQty }}</b>
+                        Quoted: <b>{{ quotesData.info.sentQuotesQty }}/{{ quotesData.info.totalQuotesQty }}</b>
                     </p>
                     <p>
-                        Order coverage: <b>{{ quotesData.info.sentOrdersQty }}/{{ quotesData.info.totalOrdersQty }}</b>
+                        Ordered: <b>{{ quotesData.info.sentOrdersQty }}/{{ quotesData.info.totalOrdersQty }}</b>
+                    </p>
+                    <p>
+                        Delivered: <b>{{ quotesData.info.deliveredQty }}/{{ quotesData.info.totalOrdersQty }}</b>
                     </p>
                 </div>
             </div>
@@ -290,7 +304,7 @@
                 <div class="mt-3">
                     <div
                         v-for="(data,supplierGroup) in quotesData?.supplierGroupCards"
-                        class="border-2 border-gray-200 rounded-lg p-3 mb-2"
+                        class="border-2 border-gray-300 rounded-xl p-3 mb-4"
                     >
                         <!-- header -->
                         <div class="grid grid-cols-2">
@@ -299,8 +313,23 @@
                                 <p class="text-sm text-gray-400">{{data.info.includedProducts}}</p>
                             </div>
                             <div class="text-right">
-                                <span v-if="data.info.order" class="block text-green-500 font-semibold text-lg">ORDERED</span>
-                                <span v-else class="block text-orange-500 font-semibold text-lg">NOT ORDERED</span>
+                                <!-- status -->
+                                <div class="flex justify-end gap-x-3">
+                                    <p
+                                        :class="data.info.order ? 'text-green-500' : 'text-orange-500'"
+                                        class="block text-green-500 font-semibold text-lg"
+                                    >
+                                        ORDERED
+                                    </p>
+                                    /
+                                    <p
+                                        :class="data.info.order?.is_delivered ? 'text-green-500' : 'text-orange-500'"
+                                        class="font-semibold text-lg"
+                                    >
+                                        DELIVERED
+                                    </p>
+                                </div>
+                                <!-- purchase order number -->
                                 <span v-if="data.info.purchaseOrderNumber" class="text-sm">PO: <span class="font-semibold">{{data.info.purchaseOrderNumber}}</span></span>
                             </div>
                         </div>
@@ -538,9 +567,10 @@
                                     </div>
                                 </div>
                                 <!-- delivered -->
-                                <div>
+                                <div class="pt-1">
                                     <input
-                                        v-model="data.info.delivered"
+                                        v-if="row.info.order_sent"
+                                        v-model="row.info.is_delivered"
                                         :true-value="1"
                                         :false-value="0"
                                         @change="deliveredCheckbox(row)"

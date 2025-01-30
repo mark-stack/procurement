@@ -15,8 +15,8 @@ return new class extends Migration
             $table->id();
             $table->timestamps();
             $table->foreignId('user_id')->constrained();
-            $table->float("total_length")->nullable();
-            $table->float("total_used_length")->nullable();
+            $table->float('total_length')->nullable();
+            $table->float('total_used_length')->nullable();
         });
     }
 

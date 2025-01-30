@@ -6,10 +6,8 @@ use App\Http\Resources\ProjectResource;
 use App\Models\Project;
 use App\Models\Quote;
 use App\Services\BatchService;
-use App\Services\NestingService;
 use App\Services\OrderService;
 use App\Services\QuoteService;
-use App\Services\SupplierService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -23,8 +21,8 @@ class ProjectController extends Controller
     public function index(): Response
     {
         //Services
-        $quoteService = new QuoteService();
-        $batchService = new BatchService();
+        $quoteService = new QuoteService;
+        $batchService = new BatchService;
 
         //Prerequisite variables
         $user = auth()->user();
@@ -32,17 +30,17 @@ class ProjectController extends Controller
 
         $projects = [
             //Kanban column 1
-            "NEW_PROJECTS" => ProjectResource::collection(Project::query()
+            'NEW_PROJECTS' => ProjectResource::collection(Project::query()
                 ->thisBusiness($business)
                 ->active()
                 ->doesntHave('rawMaterialQuotes')
                 ->sortByUserAndLatest()
                 ->get()),
             //Kanban column 2
-            "READY_FOR_NESTING" => [
-                "projects" => ProjectResource::collection($business
+            'READY_FOR_NESTING' => [
+                'projects' => ProjectResource::collection($business
                     ->projectsReadyForBatching()
-                    ->sortBy("created_at")),
+                    ->sortBy('created_at')),
             ],
         ];
 
@@ -55,28 +53,27 @@ class ProjectController extends Controller
             ->get();
 
         //Sort
-        $batchesForQuoting = $batchService->sortByUserAndLatest($batchesForQuoting,$business);
+        $batchesForQuoting = $batchService->sortByUserAndLatest($batchesForQuoting, $business);
 
-        foreach($batchesForQuoting as $batch){
+        foreach ($batchesForQuoting as $batch) {
             /**
              * Modal: "add quote requests"
              * table rows of each unique supplier-product_category.
              * e.g "ABC Steel" who does 'fasteners' and 'steel merchant' is 2 rows
              */
-
             $quoted[$batch->id] = [
-                "info" => [
-                    "batch" => [
-                        "id" => $batch->id,
-                        "totalMaterial" => 999, //todo
-                        "totalUsage" => 999, //todo
-                        "totalWaste" => 999, //todo
+                'info' => [
+                    'batch' => [
+                        'id' => $batch->id,
+                        'totalMaterial' => 999, //todo
+                        'totalUsage' => 999, //todo
+                        'totalWaste' => 999, //todo
                     ],
-                    "projects" => ProjectResource::collection($batch->projects()),
-                    "quotes" => $batch->quotes,
-                    "totalQuotesQty" => $batch->quotes()->count(),
-                    "sentQuotesQty" => $batch->quotes()->where("quote_sent",true)->count(),
-                    "batchQuotingDeadline" => $quoteService->batchQuotingDeadline($batch),
+                    'projects' => ProjectResource::collection($batch->projects()),
+                    'quotes' => $batch->quotes,
+                    'totalQuotesQty' => $batch->quotes()->count(),
+                    'sentQuotesQty' => $batch->quotes()->where('quote_sent', true)->count(),
+                    'batchQuotingDeadline' => $quoteService->batchQuotingDeadline($batch),
                 ],
             ];
         }
@@ -86,58 +83,102 @@ class ProjectController extends Controller
          * Batches for Ordering (Kanban column 4)
          */
         $ordered = [];
-        $batchesForOrdering = $business->batches()
-            ->hasAtLeastOneSentOrder()
-            ->get();
+        $batchesForOrdering = [];
+        foreach($business->batches as $batch){
+            //Less than 100% order coverage
+            $all100Percent = true;
+            foreach($batch->projects() as $project){
+                if($project->percentageOfMaterialsOrdered() !== 100){
+                    $all100Percent = false;
+                }
+            }
+            $sentOrdersQty = $batch->orders()->where('order_sent', true)->count();
+            if(($sentOrdersQty > 0) && !$all100Percent){
+                $batchesForOrdering[] = $batch;
+            }
+        }
+        $batchesForOrdering = collect($batchesForOrdering);
 
         //Sort
-        $batchesForOrdering = $batchService->sortByUserAndLatest($batchesForOrdering,$business);
+        $batchesForOrdering = $batchService->sortByUserAndLatest($batchesForOrdering, $business);
 
-        foreach($batchesForOrdering as $batch){
+        foreach ($batchesForOrdering as $batch) {
             //Total orders qty
             $orders = $batch->orders;
             $totalOrdersQty = $batchService->totalOrdersQty($batch);
 
             $ordered[$batch->id] = [
-                "info" => [
-                    "batch" => [
-                        "id" => $batch->id,
-                        "totalMaterial" => 999, //todo
-                        "totalUsage" => 999, //todo
-                        "totalWaste" => 999, //todo
+                'info' => [
+                    'batch' => [
+                        'id' => $batch->id,
+                        'totalMaterial' => 999, //todo
+                        'totalUsage' => 999, //todo
+                        'totalWaste' => 999, //todo
                     ],
-                    "projects" => ProjectResource::collection($batch->projects()),
-                    "orders" => $orders,
-                    "approxDueDate" => null, //todo actual - derived from earliest project
-                    "totalOrdersQty" => $totalOrdersQty,
-                    "sentOrdersQty" => $batch->orders()->where("order_sent",true)->count(),
-                    "all_project_manager_approvals" => (new OrderService())->allProjectManagersApproved($batch),
+                    'projects' => ProjectResource::collection($batch->projects()),
+                    'orders' => $orders,
+                    'approxDueDate' => null, //todo actual - derived from earliest project
+                    'totalOrdersQty' => $totalOrdersQty,
+                    'sentOrdersQty' => $batch->orders()->where('order_sent', true)->count(),
+                    'all_project_manager_approvals' => (new OrderService)->allProjectManagersApproved($batch),
                 ],
             ];
         }
         $ordered = array_values($ordered);
 
+        /**
+         * Batches for Delivering (Kanban column 5)
+         */
+        $delivered = [];
+        $batchesForDelivering = [];
+        foreach($business->batches as $batch){
+            //100% order coverage
+            $all100Percent = true;
+            foreach($batch->projects() as $project){
+                if($project->percentageOfMaterialsOrdered() !== 100){
+                    $all100Percent = false;
+                }
+            }
+
+            if($all100Percent){
+                $batchesForDelivering[] = $batch;
+            }
+        }
+        $batchesForDelivering = collect($batchesForDelivering);
+
+
+        //Sort
+        $batchesForDelivering = $batchService->sortByUserAndLatest($batchesForDelivering, $business);
+
+        foreach ($batchesForDelivering as $batch) {
+            //Total orders qty
+            $orders = $batch->orders;
+            $totalOrdersQty = $batchService->totalOrdersQty($batch);
+
+            $delivered[$batch->id] = [
+                'info' => [
+                    'batch' => [
+                        'id' => $batch->id,
+                        'totalMaterial' => 999, //todo
+                        'totalUsage' => 999, //todo
+                        'totalWaste' => 999, //todo
+                    ],
+                    'projects' => ProjectResource::collection($batch->projects()),
+                    'orders' => $orders,
+                    'approxDueDate' => null, //todo actual - derived from earliest project
+                    'totalOrdersQty' => $totalOrdersQty,
+                    'sentOrdersQty' => $batch->orders()->where('order_sent', true)->count(),
+                    "totalDeliveredQty" => $batch->orders()->where('is_delivered', true)->count(),
+                    'all_project_manager_approvals' => (new OrderService)->allProjectManagersApproved($batch),
+                ],
+            ];
+        }
+        $delivered = array_values($delivered);
 
         $batches = [
-            "QUOTED" => $quoted,
-            "ORDERED" => $ordered,
-            "DELIVERED" => [
-                [
-                    "info" => [
-                        "batch" => [
-                            "id" => 1,
-                            "totalMaterial" => 999,
-                            "totalUsage" => 999,
-                            "totalWaste" => 999,
-                        ],
-                        "projects" => ProjectResource::collection(Project::query()
-                            ->thisBusiness($business)
-                            ->active()
-                            ->latest()
-                            ->get()),
-                    ],
-                ],
-            ],
+            'QUOTED' => $quoted,
+            'ORDERED' => $ordered,
+            'DELIVERED' => $delivered,
         ];
 
         /*
@@ -145,14 +186,14 @@ class ProjectController extends Controller
          */
         $archivedProjects = ProjectResource::collection(Project::query()
             ->thisBusiness($business)
-            ->where('archive',true)
+            ->where('archive', true)
             ->latest()
             ->get());
 
-        return Inertia::render('Dashboard',[
-            "projects" => $projects,
-            "batches" => $batches,
-            "archivedProjects" => $archivedProjects,
+        return Inertia::render('Dashboard', [
+            'projects' => $projects,
+            'batches' => $batches,
+            'archivedProjects' => $archivedProjects,
         ]);
     }
 
@@ -161,7 +202,7 @@ class ProjectController extends Controller
      */
     public function create()
     {
-        dd("create");
+        dd('create');
     }
 
     /**
@@ -172,24 +213,24 @@ class ProjectController extends Controller
         $validated = $request->validate([
             'name' => 'required',
             'awarded' => 'required|boolean',
-            "reference" => 'nullable|required_if:awarded,true',
+            'reference' => 'nullable|required_if:awarded,true',
             'date_materials_required' => 'nullable|required_if:awarded,true|date|after:today',
-            "tentative" => 'required',
+            'tentative' => 'required',
         ]);
 
         //Clear reference and date if not awarded
-        if(!$validated["awarded"]){
-            $validated["reference"] = null;
-            $validated["date_materials_required"] = null;
+        if (! $validated['awarded']) {
+            $validated['reference'] = null;
+            $validated['date_materials_required'] = null;
         }
 
         Project::create([
-            "user_id" => auth()->user()->id,
-            "name" => $validated["name"],
-            "awarded" => $validated["awarded"],
-            "reference" => $validated["reference"],
-            "date_materials_required" => $validated["date_materials_required"],
-            "tentative" => $validated["tentative"],
+            'user_id' => auth()->user()->id,
+            'name' => $validated['name'],
+            'awarded' => $validated['awarded'],
+            'reference' => $validated['reference'],
+            'date_materials_required' => $validated['date_materials_required'],
+            'tentative' => $validated['tentative'],
         ]);
 
         return back();
@@ -219,14 +260,14 @@ class ProjectController extends Controller
         $validated = $request->validate([
             'name' => 'required',
             'awarded' => 'required|boolean',
-            "reference" => 'nullable|required_if:awarded,true',
+            'reference' => 'nullable|required_if:awarded,true',
             'date_materials_required' => 'nullable|required_if:awarded,true|date|after:today',
         ]);
 
         //Clear reference and date if not awarded
-        if(!$validated["awarded"]){
-            $validated["reference"] = null;
-            $validated["date_materials_required"] = null;
+        if (! $validated['awarded']) {
+            $validated['reference'] = null;
+            $validated['date_materials_required'] = null;
         }
 
         $project->update($validated);
@@ -242,7 +283,7 @@ class ProjectController extends Controller
         /**
          * Single purpose: toggle archive/restore
          */
-        $project->archive = !$project->archive;
+        $project->archive = ! $project->archive;
         $project->save();
 
         return back();

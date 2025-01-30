@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class RawMaterialQuote extends Model
@@ -33,20 +32,20 @@ class RawMaterialQuote extends Model
         $orderedOrder = false;
         $sentQuotes = false;
 
-        if($piece){
+        if ($piece) {
             $orderedOrder = $piece->order ? $piece->order->order_sent === 1 : null;
 
             $sentQuotes = $piece->quotes()
-                ->where("quote_sent",true)
+                ->where('quote_sent', true)
                 ->exists();
         }
 
         $status = null;
-        if($sentQuotes){
-            $status = "QUOTED";
+        if ($sentQuotes) {
+            $status = 'QUOTED';
         }
-        if($orderedOrder){
-            $status = "ORDERED";
+        if ($orderedOrder) {
+            $status = 'ORDERED';
         }
 
         return $status;

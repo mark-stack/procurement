@@ -13,7 +13,7 @@ class OnboardingController extends Controller
      */
     public function __invoke(Request $request): Response
     {
-        return Inertia::render('Onboarding',[
+        return Inertia::render('Onboarding', [
             //
         ]);
     }

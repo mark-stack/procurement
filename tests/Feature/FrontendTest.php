@@ -10,5 +10,3 @@ it('would be a disaster if landing page had errors', function () {
 });
 
 //todo more
-
-

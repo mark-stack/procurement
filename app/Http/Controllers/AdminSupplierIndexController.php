@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\SupplierResource;
 use App\Models\Business;
-use App\Models\Supplier;
 use App\Services\SupplierService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -17,10 +16,10 @@ class AdminSupplierIndexController extends Controller
      */
     public function __invoke(Request $request, Business $business): Response
     {
-        return Inertia::render('AdminSuppliersIndex',[
-            "suppliers" => SupplierResource::collection($business->suppliers()->orderBy("name")->get()),
-            "byCategory" => (new SupplierService())->supplierGroups($business),
-            "business" => $business,
+        return Inertia::render('AdminSuppliersIndex', [
+            'suppliers' => SupplierResource::collection($business->suppliers()->orderBy('name')->get()),
+            'byCategory' => (new SupplierService)->supplierGroups($business),
+            'business' => $business,
         ]);
     }
 }

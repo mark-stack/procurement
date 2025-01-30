@@ -42,8 +42,8 @@ class Supplier extends Model
     {
         $projectsWithThisSupplier = [];
 
-        foreach($this->orders as $order){
-            if($order->project){
+        foreach ($this->orders as $order) {
+            if ($order->project) {
                 $projectsWithThisSupplier[] = $order->project;
             }
         }
@@ -55,7 +55,7 @@ class Supplier extends Model
     {
         $usersWhoOrderFromThisSupplier = [];
 
-        foreach($this->orders as $order){
+        foreach ($this->orders as $order) {
             $usersWhoOrderFromThisSupplier[] = $order->user;
         }
 
@@ -72,7 +72,7 @@ class Supplier extends Model
 
         // 1) Attached to non-admin business
         $cond1 = $this->businesses()
-            ->whereRelation("users","email","!=",config("env.admin_business"))
+            ->whereRelation('users', 'email', '!=', config('env.admin_business'))
             ->count() > 0;
 
         // 2) Attached to quotes

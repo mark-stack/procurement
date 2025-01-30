@@ -10,10 +10,7 @@ use App\Enums\SupplierGroupEnums;
 
 class PFC_Implementation extends ProductBaseImplementation
 {
-    public function __construct()
-    {
-
-    }
+    public function __construct() {}
 
     public function productEnum(): ProductEnums
     {
@@ -23,24 +20,24 @@ class PFC_Implementation extends ProductBaseImplementation
     public function config(): array
     {
         return [
-            "productCategory" => $this->productEnum()->value,
-            "isFastener" => false,
-            "negativeKeywords" => [
+            'productCategory' => $this->productEnum()->value,
+            'isFastener' => false,
+            'negativeKeywords' => [
                 //
             ],
-            "productRegex" => [
-                "PFC",
+            'productRegex' => [
+                'PFC',
                 "Parallel+\s+Flange+\s+Channel",
                 "Parallel+\s+Flanged+\s+Channel",
                 "steel+\s+channel",
             ],
-            "nominalLengthRegex" => [
+            'nominalLengthRegex' => [
 
             ],
-            "nominalWidthRegex" => [
+            'nominalWidthRegex' => [
 
             ],
-            "nominalHeightRegex" => [
+            'nominalHeightRegex' => [
                 "(\d+)+PFC",          //200PFC
                 "(\d+)+\s+PFC",       //200 PFC
                 "(\d+)+mm+\s+PFC",    //200mm PFC
@@ -48,31 +45,30 @@ class PFC_Implementation extends ProductBaseImplementation
                 "(\d+)+\s+mm+\s+Parallel Flange Channel",    //200 mm Parallel Flange Channel
                 "(\d+)+mm+\s+Parallel+\s+Flange+\s+Channel", //200 mm Parallel Flange Channel
                 "PFC+\s(50|[5-9][0-9]|[1-9][0-9]{2,})\b",       //"PFC 200" (50 or above)
-                "PFC(50|[5-9][0-9]|[1-9][0-9]{2,})",          //"PFC200",
+                'PFC(50|[5-9][0-9]|[1-9][0-9]{2,})',          //"PFC200",
             ],
-            "wallRegex" => [
+            'wallRegex' => [
 
             ],
-            "weightRegex" => [
+            'weightRegex' => [
 
             ],
-            "measurementUnit" => MeasurementUnitEnums::MILLIMETERS,
-            "defaultMaterial" => MaterialEnums::PLAIN_CARBON_STEEL,
+            'measurementUnit' => MeasurementUnitEnums::MILLIMETERS,
+            'defaultMaterial' => MaterialEnums::PLAIN_CARBON_STEEL,
             //"defaultGrade" => GradeEnums::GR300,
-            "supplierGroup" => SupplierGroupEnums::STEEL_MERCHANT,
+            'supplierGroup' => SupplierGroupEnums::STEEL_MERCHANT,
         ];
     }
-
 
     public function getNominalSizeData(): array
     {
         return [
-            "length" => false,
-            "width" => false,
-            "height" => true,
-            "length_placeholder" => "",
-            "width_placeholder" => "",
-            "height_placeholder" => "Height (nominal)",
+            'length' => false,
+            'width' => false,
+            'height' => true,
+            'length_placeholder' => '',
+            'width_placeholder' => '',
+            'height_placeholder' => 'Height (nominal)',
         ];
     }
 
@@ -89,20 +85,18 @@ class PFC_Implementation extends ProductBaseImplementation
         ?float $wall,
         ?float $kg_per_m,
         ?string $material,
-    ): string
-    {
+    ): string {
         /*
          * 1) If plain carbon steel, just display "200PFC"
          * 2) Any other grades, display "200PFC SS316"
          */
-        $surface = $actualSurface ? (" ".$actualSurface) : '';
+        $surface = $actualSurface ? (' '.$actualSurface) : '';
 
-        $display = "";
-        if($material === MaterialEnums::PLAIN_CARBON_STEEL->value){
+        $display = '';
+        if ($material === MaterialEnums::PLAIN_CARBON_STEEL->value) {
             $display = $nominal_height.$productCategory.$surface;
-        }
-        else{
-            $display = $nominal_height.$productCategory." ".$material.$surface;
+        } else {
+            $display = $nominal_height.$productCategory.' '.$material.$surface;
         }
 
         return $display;
@@ -110,22 +104,22 @@ class PFC_Implementation extends ProductBaseImplementation
 
     public function generalProductDefinition(): array
     {
-//        'product_category',
-//        'material',
-//        'grade',
-//        'surface',
-//        'nominal_units',
-//        "nominal_length",
-//        "precise_length",
-//        "nominal_width",
-//        "precise_width",
-//        'nominal_height',
-//        "precise_height",
-//        "wall",
-//        "kg_per_m"
+        //        'product_category',
+        //        'material',
+        //        'grade',
+        //        'surface',
+        //        'nominal_units',
+        //        "nominal_length",
+        //        "precise_length",
+        //        "nominal_width",
+        //        "precise_width",
+        //        'nominal_height',
+        //        "precise_height",
+        //        "wall",
+        //        "kg_per_m"
 
         return [
-            "mandatory" => [
+            'mandatory' => [
                 'product_category',
                 'material',
                 'grade',
@@ -133,16 +127,16 @@ class PFC_Implementation extends ProductBaseImplementation
                 'nominal_units',
                 'nominal_height',
             ],
-            "exclude" => [
-                "nominal_width",
-                "precise_length",
-                "precise_height",
-                "precise_width",
-                "wall",
-                "kg_per_m",
+            'exclude' => [
+                'nominal_width',
+                'precise_length',
+                'precise_height',
+                'precise_width',
+                'wall',
+                'kg_per_m',
             ],
-            "purchasableVariations" => [
-                "nominal_length",
+            'purchasableVariations' => [
+                'nominal_length',
             ],
         ];
     }

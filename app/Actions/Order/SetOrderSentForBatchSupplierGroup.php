@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Actions\Order;
 
 use App\Models\Batch;
@@ -17,16 +18,16 @@ class SetOrderSentForBatchSupplierGroup
          */
         $supplierGroupOfOrderedOrder = $orderedOrder->quote->supplier_category;
 
-        foreach($batch->orders as $order){
+        foreach ($batch->orders as $order) {
             $matchingSupplierGroup = $order->quote->supplier_category === $supplierGroupOfOrderedOrder;
 
             //This order
-            if($order->id == $orderedOrder->id){
-                UpdateOrderSentStatus::run($order,true);
+            if ($order->id == $orderedOrder->id) {
+                UpdateOrderSentStatus::run($order, true);
             }
             //Other orders
-            elseif($matchingSupplierGroup){
-                UpdateOrderSentStatus::run($order,false);
+            elseif ($matchingSupplierGroup) {
+                UpdateOrderSentStatus::run($order, false);
             }
         }
     }

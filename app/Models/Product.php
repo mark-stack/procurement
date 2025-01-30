@@ -2,13 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
-use Illuminate\Database\Eloquent\Builder;
 
 class Product extends Model
 {
@@ -50,21 +50,23 @@ class Product extends Model
     {
         $query->whereNull('business_id');
     }
+
     public function scopeActive(Builder $query): void
     {
-        $query->where('deprecated',false);
+        $query->where('deprecated', false);
     }
-    public function scopeAvailableFor(Builder $query,User $user): void
+
+    public function scopeAvailableFor(Builder $query, User $user): void
     {
         /**
          * 1) Not deprecated
          * 2) Not someone else's (yours or platform's)
          */
         $business = $user->business;
-        $query->where('deprecated',false)
-            ->where(function($q) use($business){
-                $q->where('business_id',null)
-                  ->orWhere('business_id',$business->id);
+        $query->where('deprecated', false)
+            ->where(function ($q) use ($business) {
+                $q->where('business_id', null)
+                    ->orWhere('business_id', $business->id);
             });
     }
 
@@ -72,21 +74,22 @@ class Product extends Model
     public function pieces(): Collection
     {
         return Piece::query()
-            ->where("product_category",$this->product_category)
-            ->where("material",$this->material)
-            ->where("grade",$this->grade)
-            ->where("surface",$this->surface)
-            ->where("nominal_units",$this->nominal_units)
-            ->where("nominal_length",$this->nominal_length)
-            ->where("nominal_width",$this->nominal_width)
-            ->where("nominal_height",$this->nominal_height)
+            ->where('product_category', $this->product_category)
+            ->where('material', $this->material)
+            ->where('grade', $this->grade)
+            ->where('surface', $this->surface)
+            ->where('nominal_units', $this->nominal_units)
+            ->where('nominal_length', $this->nominal_length)
+            ->where('nominal_width', $this->nominal_width)
+            ->where('nominal_height', $this->nominal_height)
             ->get();
     }
+
     public function usersOrderedThisProduct(): Collection
     {
         $usersOrderedThisProduct = [];
 
-        foreach($this->orders as $order){
+        foreach ($this->orders as $order) {
             $usersOrderedThisProduct[] = $order->user;
         }
 
@@ -97,7 +100,7 @@ class Product extends Model
     {
         $projectsOrderedThisProduct = [];
 
-        foreach($this->orders as $order){
+        foreach ($this->orders as $order) {
             $projectsOrderedThisProduct[] = $order->project;
         }
 
