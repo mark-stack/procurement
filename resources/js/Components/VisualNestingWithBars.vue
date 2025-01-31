@@ -7,7 +7,7 @@
 
     //Props
     const props = defineProps({
-        usedStockBars: Object,
+        utilisedBars: Object,
         measurementUnit: String,
     });
 
@@ -38,7 +38,7 @@
     }
 
     function getPieces(bar){
-        let stockLength = bar.result['stock_length'];
+        let stockLength = bar.result['bar_length'];
         let pieces = bar.result.pieces
 
         let getPieces = [];
@@ -63,9 +63,9 @@
 </script>
 
 <template>
-    <div v-for="bar in usedStockBars" class="pt-4 pb-4">
+    <div v-for="bar in utilisedBars" class="pt-4 pb-4">
         <div>
-            <span class="font-bold">{{bar.count}} off {{ parseFloat(bar.result['stock_length']).toLocaleString() }}{{ displayUnits() }}:</span> <span>Waste: {{bar.result.waste}}{{ displayUnits() }} (used {{getEfficiencyPct(bar.result['stock_length'],bar.result.waste)}}%)</span>
+            <span class="font-bold">{{bar.count}} off {{ parseFloat(bar.result['bar_length']).toLocaleString() }}{{ displayUnits() }}:</span> <span>Waste: {{bar.result.waste}}{{ displayUnits() }} (used {{getEfficiencyPct(bar.result['bar_length'],bar.result.waste)}}%)</span>
         </div>
         <div class="shadow w-full bg-red-500 flex flex-row">
             <div

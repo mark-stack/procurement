@@ -70,13 +70,13 @@ function nestingTestCases(): array
             ],
             'result' => [
                 [
-                    'stock_length' => '9000',
+                    'bar_length' => '9000',
                     'count' => 1,
                     'pieces' => [2500, 2500, 2500, 1500],
                     'waste' => 0,
                 ],
                 [
-                    'stock_length' => '9000',
+                    'bar_length' => '9000',
                     'count' => 1,
                     'pieces' => [2500, 2500, 1500],
                     'waste' => 2500,
@@ -96,13 +96,13 @@ function nestingTestCases(): array
             ],
             'result' => [
                 [
-                    'stock_length' => '9000',
+                    'bar_length' => '9000',
                     'count' => 2,
                     'pieces' => [7000, 1700],
                     'waste' => 300,
                 ],
                 [
-                    'stock_length' => '9000',
+                    'bar_length' => '9000',
                     'count' => 1,
                     'pieces' => [1700, 1700, 1700, 1700, 1700],
                     'waste' => 500,

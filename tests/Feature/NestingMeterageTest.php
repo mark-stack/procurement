@@ -10,7 +10,7 @@ it("would be a disaster if total nested length didn't equal total pieces length"
 
 it('would be a disaster if unfit cuts for meterage nesting was not working correctly', function () {
     /**
-     * pieces.0.0.unfitCuts
+     * pieces.0.0.tooLong
      */
 });
 
@@ -58,12 +58,12 @@ it("would be a disaster if meterage nesting for a single project didn't work cor
     $response->assertInertia(fn (Assert $page) => $page
         ->count('pieces', 1) //1 batch parsed to the view
         ->count('pieces.0.0.pieces', count($nest))  //Piece groups. e.g 2x5000, 3x1000 is 2 piece groups
-        ->count('pieces.0.0.purchasable', 4)    //4 different lengths
+        ->count('pieces.0.0.purchasableLengths', 4)    //4 different lengths
         ->has('pieces', function (Assert $page) use ($result) {
             //Each stock bar
             foreach ($result as $index => $bar) {
                 $page->where('0.0.nested.usedStockBars.'.$index.'.count', $bar['count']);
-                $page->where('0.0.nested.usedStockBars.'.$index.'.result.stock_length', (int) $bar['stock_length']);
+                $page->where('0.0.nested.usedStockBars.'.$index.'.result.bar_length', (int) $bar['stock_length']);
                 $page->where('0.0.nested.usedStockBars.'.$index.'.result.waste', $bar['waste']);
                 foreach ($bar['pieces'] as $pieceIndex => $piece) {
                     $page->where('0.0.nested.usedStockBars.'.$index.'.result.pieces.'.$pieceIndex.'.cutLength', $piece);

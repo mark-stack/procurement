@@ -65,7 +65,7 @@ class ProjectController extends Controller
                 'info' => [
                     'batch' => [
                         'id' => $batch->id,
-                        'totalMaterial' => 999, //todo
+                        'totalPurchasedMaterial' => 999, //todo
                         'totalUsage' => 999, //todo
                         'totalWaste' => 999, //todo
                     ],
@@ -111,7 +111,7 @@ class ProjectController extends Controller
                 'info' => [
                     'batch' => [
                         'id' => $batch->id,
-                        'totalMaterial' => 999, //todo
+                        'totalPurchasedMaterial' => 999, //todo
                         'totalUsage' => 999, //todo
                         'totalWaste' => 999, //todo
                     ],
@@ -159,7 +159,7 @@ class ProjectController extends Controller
                 'info' => [
                     'batch' => [
                         'id' => $batch->id,
-                        'totalMaterial' => 999, //todo
+                        'totalPurchasedMaterial' => 999, //todo
                         'totalUsage' => 999, //todo
                         'totalWaste' => 999, //todo
                     ],

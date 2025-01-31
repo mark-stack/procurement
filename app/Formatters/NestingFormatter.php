@@ -380,17 +380,17 @@ class NestingFormatter
         /**
          * Sums of material totals, usage, and waste
          */
-        $totalMaterial = 0;
+        $totalPurchasedMaterial = 0;
         $totalUsedMaterial = 0;
         $totalWaste = 0;
 
         foreach ($piecesNested as $items) {
             foreach ($items as $item) {
                 $item = (array) $item;
+
                 if (isset($item['nested']['totals'])) {
                     $totals = $item['nested']['totals'];
-
-                    $totalMaterial = $totalMaterial + $totals['totalMaterial'];
+                    $totalPurchasedMaterial = $totalPurchasedMaterial + $totals['totalPurchasedMaterial'];
                     $totalUsedMaterial = $totalUsedMaterial + $totals['totalUsedMaterial'];
                     $totalWaste = $totalWaste + $totals['totalWaste'];
                 }
@@ -398,12 +398,12 @@ class NestingFormatter
         }
 
         return [
-            'totalMaterial' => $totalMaterial,
+            'totalPurchasedMaterial' => $totalPurchasedMaterial,
             'totalUsedMaterial' => $totalUsedMaterial,
             'totalWaste' => $totalWaste,
-            'efficiency' => $totalMaterial === 0
+            'efficiency' => $totalPurchasedMaterial === 0
                 ? 0
-                : (round($totalUsedMaterial / $totalMaterial * 100)),
+                : (round($totalUsedMaterial / $totalPurchasedMaterial * 100)),
         ];
     }
 
@@ -527,103 +527,140 @@ class NestingFormatter
         return $result;
     }
 
-    public function meterageAlgorithm(array $cutLengths, array $stockLengths, array $lettersProjectArray): array
+    public function meterageAlgorithm(array $cutLengthsRequired, array $purchasableStockLengths, array $offcutInventoryLengths, array $lettersProjectArray): array
     {
-        // Sort cut lengths in descending order (FFD heuristic)
-        $cutLengths = $this->sortCutLengthsDescending($cutLengths);
 
-        // Initialize an array to represent the used stock bars
-        $usedStockBars = [];
-        $unfitCuts = []; // Cuts that cannot be placed in any stock bar
-        $totalMaterial = 0;
-        $totalUsedMaterial = 0;
-        $totalWaste = 0;
+        /**
+         * "The Least Bins packing problem" with random iterations of choosing stock length
+         * 1) Sort the cut lengths in descending order to prioritize fitting large pieces first.
+         * 2) Start with an empty list of bins
+         * 3) Fitting into bins: "First-Fit Decreasing" = place each item into the first available bin that has enough space.
+         * 4) If no existing bin can accommodate it, create a new bin. (randomly choose an available size)
+         * 5) Choose the highest efficiency result
+         */
 
-        // Process each cut length
-        foreach ($cutLengths as $cut) {
-            /*
-             * Try to place the cut into an existing stock bar
-             * Note that '&$stock' means that '$usedStockBars' is updating itself
-             */
-            $tryPlaceCutIntoExistingStockBar = $this->tryPlaceCutIntoExistingStock($cut, $usedStockBars,$lettersProjectArray);
-            $usedStockBars = $tryPlaceCutIntoExistingStockBar["usedStockBars"];
-            $placed = $tryPlaceCutIntoExistingStockBar["placed"];
+        /*
+         * 1) Sort the cut lengths in descending order to prioritize fitting large pieces first.
+         */
+        $cutLengthsRequired = $this->sortCutLengthsDescending($cutLengthsRequired);
 
-            /*
-             * If the cut doesn't fit into any existing stock bar, use a new one
-             */
-            if (! $placed) {
-                $newStockPlaced = false;
-                foreach ($stockLengths as $stockLength) {
-                    if ($stockLength >= $cut['length']) {
+        $results = [];
+        for ($i = 1; $i <= 10000; $i++) {
+            // 2) Start with an empty list of bins
+            $utilisedBars = [];
+            $tooLong = []; // Cuts that cannot be placed in any stock bar
+
+            // Process each cut length
+            foreach ($cutLengthsRequired as $cut) {
+                /*
+                 * 3) "Best-Fit" = placing an item in the bin that leaves the least remaining space.
+                 * Try to place the cut into current utilised stock bars
+                 * Note that '&$stock' means that '$utilisedBars' is updating itself
+                 */
+                $tryPlaceCutIntoUtilisedBars = $this->tryPlaceCutIntoUtilisedBars($cut, $utilisedBars, $lettersProjectArray);
+                $utilisedBars = $tryPlaceCutIntoUtilisedBars["utilisedBars"];
+                $placed = $tryPlaceCutIntoUtilisedBars["placed"];
+
+                /*
+                 * If the cut doesn't fit into any existing stock bar, use a new one
+                 */
+                if (! $placed) {
+                    $newStockPlaced = false;
+
+                    //Random choose available stock length
+                    $randomKey = array_rand($purchasableStockLengths);
+                    $randomStockLength = $purchasableStockLengths[$randomKey];
+
+                    if ($randomStockLength >= $cut['length']) {
                         //new stock placed
                         $newStockPlaced = true;
 
                         //Add new stock bar
-                        $usedStockBars = $this->addNewStockBar(
+                        $utilisedBars = $this->addNewStockBar(
                             $cut,
-                            $stockLength,
-                            $usedStockBars,
+                            $randomStockLength, //todo include offcuts
+                            $utilisedBars,
                             $lettersProjectArray
                         );
+                    }
 
-                        //Sums
-                        $cutLength = (int) $cut['length'];
-                        $totalMaterial = $totalMaterial + $stockLength;
-                        $totalUsedMaterial = $totalUsedMaterial + $cutLength;
-                        $totalWaste = $totalWaste + ($stockLength - $cutLength);
 
-                        //Exit the loop
-                        break;
+                    // If no new stock bar can accommodate the cut, add it to unfit cuts
+                    if (! $newStockPlaced) {
+                        $tooLong[] = [
+                            'project' => $cut['project'],
+                            'length' => $cut['length'],
+                            'letter' => $lettersProjectArray[$cut['project']],
+                        ];
                     }
                 }
-
-                // If no new stock bar can accommodate the cut, add it to unfit cuts
-                if (! $newStockPlaced) {
-                    $unfitCuts[] = [
-                        'project' => $cut['project'],
-                        'length' => $cut['length'],
-                        'letter' => $lettersProjectArray[$cut['project']],
-                    ];
-                }
             }
+
+            $totalPurchasedMaterial = 0;
+            $totalWaste = 0;
+            foreach($utilisedBars as $utilisedBar){
+                $totalPurchasedMaterial = $totalPurchasedMaterial + $utilisedBar["bar_length"];
+                $totalWaste = $totalWaste + $utilisedBar["waste"];
+            }
+            $totalUsedMaterial = $totalPurchasedMaterial - $totalWaste;
+
+            $efficiency = round($totalUsedMaterial/$totalPurchasedMaterial*100);
+
+            $results[$efficiency] = [
+                "utilisedBars" => $utilisedBars,
+                "tooLong" => $tooLong,
+                "sums" => [
+                    "totalPurchasedMaterial" => $totalPurchasedMaterial,
+                    "totalUsedMaterial" => $totalUsedMaterial,
+                    "totalWaste" => $totalWaste,
+                ],
+            ];
         }
 
+        $highestEfficiencyKey = max(array_keys($results));
+
+        $utilisedBars = $results[$highestEfficiencyKey]["utilisedBars"];
+        $tooLong = $results[$highestEfficiencyKey]["tooLong"];
+        $sums = $results[$highestEfficiencyKey]["sums"];
+
         /**
-         * Consolidate sued stock bars that are the same (same length and cuts array)
+         * Consolidate utilised stock bars that are the same (same length and cuts array)
          */
-        $orderList = $this->orderList($usedStockBars);
-        $usedStockBars = $this->consolidateStockNestingResults($usedStockBars);
+        $orderList = $this->orderList($utilisedBars);
+        $utilisedBars = $this->consolidateStockNestingResults($utilisedBars);
 
         return [
-            'usedStockBars' => $usedStockBars,
-            'unfitCuts' => $unfitCuts,
+            'utilisedBars' => $utilisedBars,
+            'tooLong' => $tooLong,
             'orderList' => $orderList,
             'totals' => [
-                'totalMaterial' => $totalMaterial,
-                'totalUsedMaterial' => $totalUsedMaterial,
-                'totalWaste' => $totalWaste,
+                'totalPurchasedMaterial' => $sums["totalPurchasedMaterial"],
+                'totalUsedMaterial' => $sums["totalUsedMaterial"],
+                'totalWaste' => $sums["totalWaste"],
             ],
         ];
     }
 
-    private function sortCutLengthsDescending(array $cutLengths): array
+    private function sortCutLengthsDescending(array $cutLengthsRequired): array
     {
-        usort($cutLengths, function ($a, $b) {
+        usort($cutLengthsRequired, function ($a, $b) {
             return $b['length'] <=> $a['length']; //descending order
         });
 
-        return $cutLengths;
+        return $cutLengthsRequired;
     }
 
-    private function addNewStockBar(array $cut, int $stockLength, array $usedStockBars, array $lettersProjectArray): array
+    private function addNewStockBar(array $cut, int $barLength, array $utilisedBars, array $lettersProjectArray): array
     {
+        /*
+         * "barLength" could be purchase stock length or an offcut
+         */
         $cutLength = (int) $cut['length'];
         $projectId = $cut['project'];
 
-        $usedStockBars[] = [
-            'stock_length' => $stockLength,
-            'waste' => $stockLength - $cutLength,
+        $utilisedBars[] = [
+            'bar_length' => $barLength,
+            'waste' => $barLength - $cutLength,
             'pieces' => [[
                 'cutLength' => $cutLength,
                 'projectId' => $projectId,
@@ -631,31 +668,40 @@ class NestingFormatter
             ]],
         ];
 
-        return $usedStockBars;
+        return $utilisedBars;
     }
 
-    private function tryPlaceCutIntoExistingStock(array $cut, array $usedStockBars, array $lettersProjectArray): array
+    private function tryPlaceCutIntoUtilisedBars(array $cut, array $utilisedBars, array $lettersProjectArray): array
     {
         $placed = false;
 
         $cutLength = (int) $cut['length'];
         $projectId = (int) $cut['project'];
 
-        foreach ($usedStockBars as &$stock) {
-            if ($stock['waste'] >= $cutLength) {
-                $stock['pieces'][] = [
+        //Check all currently utilised stock bars
+        foreach ($utilisedBars as &$stockBar) {
+            //If the cut fits into the 'waste' (remaining)
+            if ($stockBar['waste'] >= $cutLength) {
+                //Add cut to 'pieces' of this stock bar
+                $stockBar['pieces'][] = [
                     'cutLength' => $cutLength,
                     'projectId' => $projectId,
                     'letter' => $lettersProjectArray[$projectId],
                 ];
-                $stock['waste'] -= $cutLength;
+
+                //Update 'waste' (remaining)
+                $stockBar['waste'] = $stockBar['waste'] - $cutLength;
+
+                //Mark as placed
                 $placed = true;
+
+                //Stop searching utilised stock bars
                 break;
             }
         }
 
         return [
-            "usedStockBars" => $usedStockBars,
+            "utilisedBars" => $utilisedBars,
             "placed" => $placed,
         ];
     }
@@ -702,14 +748,14 @@ class NestingFormatter
         ];
     }
 
-    public function consolidateStockNestingResults(array $usedStockBars): array
+    public function consolidateStockNestingResults(array $utilisedBars): array
     {
         /**
          * This list is unique stock length cuts.
          * If 2 items area identical except the project refs are different, they'll be treated as different.
          */
         // Step 1: Serialize each array
-        $serialized = array_map('serialize', $usedStockBars);
+        $serialized = array_map('serialize', $utilisedBars);
 
         // Step 2: Count occurrences
         $counted = array_count_values($serialized);
@@ -726,7 +772,7 @@ class NestingFormatter
         return $result;
     }
 
-    public function orderList(array $usedStockBars): array
+    public function orderList(array $utilisedBars): array
     {
         /**
          * This list is unique stock length.
@@ -734,10 +780,10 @@ class NestingFormatter
          */
         //Remove the project ID so they consolidate disregarding project refs
         $newResult = [];
-        foreach ($usedStockBars as $bar) {
+        foreach ($utilisedBars as $bar) {
             unset($bar['waste']);
             unset($bar['pieces'][0][1]);
-            $newResult[] = $bar['stock_length'];
+            $newResult[] = $bar['bar_length'];
         }
 
         // Step 1: Serialize each array
@@ -965,24 +1011,43 @@ class NestingFormatter
         $newPieceSpec->pieces = $piecesArray;
 
         /*
-         * Purchasables
+         * Purchasable stock lengths
          */
-        $purchasableVariations = $this->getPurchasableVariations($uniquePieceSpec, NestingEnums::METERAGE->value);
-        $newPieceSpec->purchasable = $purchasableVariations;
+        $purchasableStockLengths = $this->getPurchasableVariations($uniquePieceSpec, NestingEnums::METERAGE->value);
+        $newPieceSpec->purchasableLengths = $purchasableStockLengths;
+
+        /*
+         * Offcut inventory lengths
+         */
+        $offcutInventoryLengths = [
+            6000,1500, //todo placeholder
+        ];
+        $newPieceSpec->offcutInventoryLengths = $offcutInventoryLengths;
+
+        /*
+         * Available lengths (purchasable + offcuts)
+         */
+//        $availableStockLengths = array_merge($purchasableStockLengths,$offcutInventoryLengths);
+//        $newPieceSpec->availableLengths = $availableStockLengths;
 
         /*
          * Nesting
          */
-        $cutLengths = [];
+        $cutLengthsRequired = [];
         foreach ($pieces as $piece) {
             for ($i = 0; $i < (int) $piece->actual_qty; $i++) {
-                $cutLengths[] = [
+                $cutLengthsRequired[] = [
                     'project' => $piece->project()->first()->id,
                     'length' => $piece->actual_length,
                 ];
             }
         }
-        $newPieceSpec->nested = $this->meterageAlgorithm($cutLengths, $purchasableVariations, $lettersProjectArray);
+        $newPieceSpec->nested = $this->meterageAlgorithm(
+            $cutLengthsRequired,
+            $purchasableStockLengths,
+            $offcutInventoryLengths,
+            $lettersProjectArray
+        );
 
         return $newPieceSpec;
     }

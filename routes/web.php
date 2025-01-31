@@ -31,12 +31,66 @@ Route::get('stock-cutting', function () {
 });
 //todo temporary
 Route::get('test', function () {
-    $description = '20mm plate GR350';
 
-    $dataClassificationService = new DataClassificationService;
+    $stockLengths = [9000, 12000]; // Available stock lengths
+    $pieceLengths = [1000,1000,1000,1000,1000,1000,1000,1000,1000,1000]; // Pieces to cut
 
-    $generalProductMatches = $dataClassificationService->findGeneralProductMatchesFromText($description, auth()->user());
-    dd('web', $description, $generalProductMatches);
+    sort($stockLengths); // Ensure stock lengths are sorted (smallest to largest)
+    rsort($pieceLengths); // Start with the longest pieces to reduce waste
+
+    $results = [];
+    for ($i = 1; $i <= 10000; $i++) {
+        $bins = []; // Store used stock pieces
+
+        foreach ($pieceLengths as $piece) {
+            $bestBinIndex = -1;
+            $minRemaining = PHP_INT_MAX;
+
+            // Find the best bin (smallest remaining space that still fits the piece)
+            foreach ($bins as $index => $bin) {
+                if ($bin['remaining'] >= $piece && ($bin['remaining'] - $piece) < $minRemaining) {
+                    $bestBinIndex = $index;
+                    $minRemaining = $bin['remaining'] - $piece;
+                }
+            }
+
+            // Place the piece in the best-fit bin
+            if ($bestBinIndex != -1) {
+                $bins[$bestBinIndex]['cuts'][] = $piece;
+                $bins[$bestBinIndex]['remaining'] -= $piece;
+            }
+            else {
+                // If no bin fits, open a new stock piece
+                $randomKey = array_rand($stockLengths);
+                $randomStockLength = $stockLengths[$randomKey];
+
+                if($randomStockLength >= $piece){
+                    $bins[] = [
+                        'stock' => $randomStockLength,
+                        'remaining' => $randomStockLength - $piece,
+                        'cuts' => [$piece]
+                    ];
+                }
+            }
+        }
+
+        /*
+         * sums
+         */
+        $totalPurchasedMaterial = 0;
+        $totalWaste = 0;
+        foreach($bins as $bin){
+            $totalPurchasedMaterial = $totalPurchasedMaterial + $bin["stock"];
+            $totalWaste = $totalWaste + $bin["remaining"];
+        }
+        $totalUsed = $totalPurchasedMaterial - $totalWaste;
+        $efficiency = round($totalUsed/$totalPurchasedMaterial*100);
+
+        $results[$efficiency] = $bins;
+    }
+
+    $highestEfficiencyKey = max(array_keys($results));
+    dd($highestEfficiencyKey,$results[$highestEfficiencyKey]);
 });
 //todo temporary
 Route::get('notifications', function () {

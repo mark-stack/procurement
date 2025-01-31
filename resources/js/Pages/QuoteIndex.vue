@@ -74,7 +74,7 @@
                     <!-- Usage stats-->
                     <div class="mt-5">
                         <h2 class="font-semibold">Usage stats:</h2>
-                        Total Material = {{ (usage.totalMaterial/1000).toLocaleString() }} m
+                        Total Material = {{ (usage.totalPurchasedMaterial/1000).toLocaleString() }} m
                         <br>
                         Total Used Material = {{ (usage.totalUsedMaterial/1000).toLocaleString() }} m
                         <br>
@@ -132,7 +132,7 @@
                                             <ListPurchasables
                                                 :nestingAlgo="item.algo"
                                                 :measurementUnit="item.nominal_units"
-                                                :list="item.purchasable"
+                                                :list="item.purchasableLengths"
                                             />
                                         </div>
                                         <!-- order list -->
@@ -155,24 +155,14 @@
                                             <div v-if="item.algo === 'METERAGE'">
 
                                                 <VisualNestingWithBars
-                                                    :usedStockBars="item.nested.usedStockBars"
+                                                    :utilisedBars="item.nested.utilisedBars"
                                                     :measurementUnit="item.nominal_units"
                                                 />
-
-                                                <!--                                            <p v-for="bar in item.nested.usedStockBars" class="mt-3">-->
-                                                <!--                                                <VisualNestingWithText-->
-                                                <!--                                                    :stockLength="bar.result['stock_length']"-->
-                                                <!--                                                    :pieces="bar.result.pieces"-->
-                                                <!--                                                    :measurementUnit="item.nominal_units"-->
-                                                <!--                                                    :waste="bar.result.waste"-->
-                                                <!--                                                    :qty="bar.count"-->
-                                                <!--                                                />-->
-                                                <!--                                            </p>-->
                                                 <p
-                                                    v-if="item.nested.unfitCuts.length > 0"
+                                                    v-if="item.nested.tooLong.length > 0"
                                                     class="text-red-500 font-bold mt-2"
                                                 >
-                                                    Unused: <span v-for="unfit in item.nested.unfitCuts">{{ parseFloat(unfit.length).toLocaleString()}} mm (p{{unfit.project}}), </span>
+                                                    Unused: <span v-for="unfit in item.nested.tooLong">{{ parseFloat(unfit.length).toLocaleString()}} mm (p{{unfit.project}}), </span>
                                                 </p>
                                             </div>
                                             <!-- Nesting algorithm: bundle -->
