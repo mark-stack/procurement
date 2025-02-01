@@ -2,9 +2,12 @@
 
 //todo: experimental
 use App\Formatters\NestingFormatter;
+use App\Models\Business;
+use App\Models\RawMaterialQuote;
 use App\Models\User;
 use App\Services\DataClassificationService;
 use App\Services\NotificationService;
+use App\Services\ProductService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -29,6 +32,19 @@ Route::get('stock-cutting', function () {
 
     dd($result);
 });
+
+//todo temporary
+Route::get('match', function () {
+    $productService = new ProductService();
+    $business = Business::first();
+    $rawMaterialQuote = RawMaterialQuote::query()
+        ->where("description","100 PFC 9000 mm")
+        ->first();
+
+    $getProductMatchOptions = $productService->getProductMatchOptions($business, $rawMaterialQuote);
+    dd($getProductMatchOptions,$rawMaterialQuote);
+});
+
 //todo temporary
 Route::get('test', function () {
 

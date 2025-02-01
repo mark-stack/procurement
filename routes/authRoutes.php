@@ -5,6 +5,7 @@ use App\Actions\OrderApproval\UpdateOrderApprovalStatus;
 use App\Actions\Piece\AttachPiecesToOrder;
 use App\Actions\Piece\DetachPiecesFromOrder;
 use App\Formatters\NestingFormatter;
+use App\Formatters\ProductFormatter;
 use App\Formatters\SupplierFormatter;
 use App\Http\Controllers\BatchController;
 use App\Http\Controllers\BatchNestingController;
@@ -131,36 +132,38 @@ Route::middleware(['auth', 'verified'])->group(function () {
                      * UPGRADED has custom product ability
                      */
                     if ($getProductMatchOptions['status'] === 'CUSTOM') {
+                        //todo is this enough criteria? what about supplier groups?
                         if ($business->upgraded) {
                             $include = true;
 
-                            $requiresCustom[] = [
-                                'selected' => [
-                                    'product_category' => null,
-                                    'material' => null,
-                                    'grade' => null,
-                                    'nominal_length' => null,
-                                    'nominal_width' => null,
-                                    'nominal_height' => null,
-                                    'nesting_algo' => null,
-                                    'purchasable_length_1' => null,
-                                    'purchasable_length_2' => null,
-                                    'purchasable_length_3' => null,
-                                    'purchasable_width_1' => null,
-                                    'purchasable_width_2' => null,
-                                    'purchasable_width_3' => null,
-                                    'suppliers' => [],
-                                ],
-                                'selected_other' => [
-                                    'product_category' => null,
-                                    'material' => null,
-                                    'grade' => null,
-                                    'surface' => null,
-                                    'suppliers' => [],
-                                ],
-                                'data' => $rawMaterialQuote,
-                                'nominalSizeData' => $productService->getNominalSizeData(),
-                            ];
+                            $requiresCustom[] = (new ProductFormatter())->requiresCustomForm($rawMaterialQuote);
+//                            $requiresCustom[] = [
+//                                'selected' => [
+//                                    'product_category' => null,
+//                                    'material' => null,
+//                                    'grade' => null,
+//                                    'nominal_length' => null,
+//                                    'nominal_width' => null,
+//                                    'nominal_height' => null,
+//                                    'nesting_algo' => null,
+//                                    'purchasable_length_1' => null,
+//                                    'purchasable_length_2' => null,
+//                                    'purchasable_length_3' => null,
+//                                    'purchasable_width_1' => null,
+//                                    'purchasable_width_2' => null,
+//                                    'purchasable_width_3' => null,
+//                                    'suppliers' => [],
+//                                ],
+//                                'selected_other' => [
+//                                    'product_category' => null,
+//                                    'material' => null,
+//                                    'grade' => null,
+//                                    'surface' => null,
+//                                    'suppliers' => [],
+//                                ],
+//                                'data' => $rawMaterialQuote,
+//                                'nominalSizeData' => $productService->getNominalSizeData(),
+//                            ];
                         }
                     }
 
@@ -172,6 +175,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                         $supplierGroup = $getProductMatchOptions['supplierGroup'];
                         if ($business->supplierGroupIsCurrentPlan($supplierGroup)) {
                             $rawMaterialQuote['product'] = $getProductMatchOptions['decodedOption'];
+
                             $include = true;
                         }
                     }
@@ -189,7 +193,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
                                 'options' => $getProductMatchOptions['decodedOptions'],
                                 'custom' => $getProductMatchOptions['custom'],
                             ];
+
+                            $include = true;
                         }
+                    }
+                }
+                /*
+                 * No product match options
+                 * todo untested at the moment
+                 */
+                else{
+                    if ($business->upgraded) {
+                        $include = true;
+
+                        $requiresCustom[] = (new ProductFormatter())->requiresCustomForm($rawMaterialQuote);
                     }
                 }
 
@@ -225,7 +242,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             /**
              * Custom options (form select options)
              */
-            $allGrades = (new nestingFormatters())->allGradeLabels();
+            $allGrades = (new nestingFormatter())->allGradeLabels();
             $allMeasurements = $nestingFormatter->allMeasurementUnitLabels();
             $formDependentData = $nestingFormatter->buildDependencyArray2();
 

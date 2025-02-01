@@ -2,7 +2,6 @@
     //General Imports
     import {ref} from "vue";
     import moment from "moment";
-    import {useForm} from "@inertiajs/vue3";
 
     //Component Imports
     import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
@@ -24,10 +23,7 @@
     });
 
     //Form
-    // const formConfirmBatch = useForm({
-    //     batchLabel: String,
-    //     batchGroup: Object,
-    // });
+    //
 
     //Variables
     const currentBatch = ref(Object.keys(props.piecesGroupedBySupplierGroup.assigned)[0]);
@@ -162,7 +158,7 @@
                                                     v-if="item.nested.tooLong.length > 0"
                                                     class="text-red-500 font-bold mt-2"
                                                 >
-                                                    Unused: <span v-for="unfit in item.nested.tooLong">{{ parseFloat(unfit.length).toLocaleString()}} mm (p{{unfit.project}}), </span>
+                                                    Pieces too long: <span v-for="unfit in item.nested.tooLong">{{ parseFloat(unfit.length).toLocaleString()}} mm (p{{unfit.letter}}), </span>
                                                 </p>
                                             </div>
                                             <!-- Nesting algorithm: bundle -->

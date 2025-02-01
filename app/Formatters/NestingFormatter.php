@@ -567,13 +567,20 @@ class NestingFormatter
                 if (! $placed) {
                     $newStockPlaced = false;
 
-                    //Random choose available stock length
-                    $randomKey = array_rand($purchasableStockLengths);
-                    $randomStockLength = $purchasableStockLengths[$randomKey];
-
-                    if ($randomStockLength >= $cut['length']) {
+                    //Random choose available stock length that's big enough
+                    $purchasableStockLengthsLongEnough = [];
+                    foreach($purchasableStockLengths as $purchasableStockLength){
+                        if ($purchasableStockLength >= $cut['length']) {
+                            $purchasableStockLengthsLongEnough[] = $purchasableStockLength;
+                        }
+                    }
+                    if(count($purchasableStockLengthsLongEnough) > 0){
                         //new stock placed
                         $newStockPlaced = true;
+
+                        //Random length
+                        $randomKey = array_rand($purchasableStockLengthsLongEnough);
+                        $randomStockLength = $purchasableStockLengthsLongEnough[$randomKey];
 
                         //Add new stock bar
                         $utilisedBars = $this->addNewStockBar(
@@ -583,7 +590,6 @@ class NestingFormatter
                             $lettersProjectArray
                         );
                     }
-
 
                     // If no new stock bar can accommodate the cut, add it to unfit cuts
                     if (! $newStockPlaced) {

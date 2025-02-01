@@ -71,30 +71,23 @@
                     class="flex justify-between mt-2"
                 >
                     <div class="flex items-center">
-                        <div>
-                            <table>
-                                <tr>
-                                    <td colspan="2" class="text-xs text-gray-400">Target dates</td>
-                                </tr>
-                                <tr>
-                                    <td>Quote:</td>
-                                    <td><b>{{ moment(project.quotingDeadline).format("D MMM YY")}}</b></td>
-                                </tr>
-                                <tr>
-                                    <td>Order:</td>
-                                    <td><b>{{ moment(project.orderingDeadline).format("D MMM YY")}}</b></td>
-                                </tr>
-                                <tr>
-                                    <td>Delivery:</td>
-                                    <td><b>{{ moment(project.deliveryDeadline).format("D MMM YY")}}</b></td>
-                                </tr>
-                            </table>
-                        </div>
-<!--                        <i class="fa-regular fa-calendar-days text-base"></i>-->
-<!--                        <div>-->
-<!--                            <span class="ml-1 text-xs">Quote by:</span>-->
-<!--                            <span class="block ml-1 leading-none text-xs">{{ moment(project.criticalPathDeadline).format("D MMM YY")}}</span>-->
-<!--                        </div>-->
+                        <table>
+                            <tr>
+                                <td colspan="2" class="text-xs text-gray-400">Target dates</td>
+                            </tr>
+                            <tr>
+                                <td>Quote:</td>
+                                <td><b>{{ moment(project.quotingDeadline).format("D MMM YY")}}</b></td>
+                            </tr>
+                            <tr>
+                                <td>Order:</td>
+                                <td><b>{{ moment(project.orderingDeadline).format("D MMM YY")}}</b></td>
+                            </tr>
+                            <tr>
+                                <td>Delivery:</td>
+                                <td><b>{{ moment(project.deliveryDeadline).format("D MMM YY")}}</b></td>
+                            </tr>
+                        </table>
                     </div>
                     <div
                         v-if="shared.isYourProject(project,user.id)"
@@ -142,7 +135,7 @@
                 @click="loadingButton = 'NESTING_DETAILS'"
             >
                 <CardButtonBlue
-                    :label="loadingButton === 'NESTING_DETAILS' ? 'Opening...' : 'Nesting details'"
+                    :label="loadingButton === 'NESTING_DETAILS' ? 'Calculating...' : 'Nesting details'"
                     :highlight="false"
                 />
             </Link>

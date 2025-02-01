@@ -446,17 +446,22 @@ class CsvService
         $materialList = [];
 
         foreach ($rows as $row) {
+            //Find matching product config
             $productConfig = $dataClassificationService->findProductConfigFromText($row['description']);
-            $productCategory = $productConfig
-                ? $productConfig['productCategory']
-                : null;
+            if(!$productConfig){
+                continue; //Skip
+            }
+
+            //Product category
+            $productCategory = $productConfig['productCategory'];
 
             //Supplier group belongs to current plan
             $supplierGroup = $productConfig['supplierGroup']->value;
             if (! $business->supplierGroupIsCurrentPlan($supplierGroup)) {
-                continue;
+                continue; //Skip
             }
 
+            //Algo
             $algo = $productCategory
                 ? $nestingFormatter->getNestingLabelsFromProductCategory($productCategory)[0] ?? null
                 : null;

@@ -164,7 +164,7 @@
                 @click="loadingButton = 'NESTING_DETAILS'"
             >
                 <CardButtonBlue
-                    :label="loadingButton === 'NESTING_DETAILS' ? 'Opening...' : 'Nesting details'"
+                    :label="loadingButton === 'NESTING_DETAILS' ? 'Calculating...' : 'Nesting details'"
                     :highlight="false"
                 />
             </Link>

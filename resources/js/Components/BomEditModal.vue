@@ -129,6 +129,24 @@
             : false;
     }
 
+    function hasQuotesOrOrders(){
+        return thisDownloadedBomData(props.bomData)
+            ? (thisDownloadedBomData(props.bomData).percentageOfMaterialsQuoted > 0 || thisDownloadedBomData(props.bomData).percentageOfMaterialsOrdered > 0)
+            : false;
+    }
+
+    function hasSenseChecks(){
+        return thisDownloadedBomData(props.bomData)
+            ? (thisDownloadedBomData(props.bomData).senseChecks.length > 0)
+            : false;
+    }
+
+    function hasMaterialList(){
+        return thisDownloadedBomData(props.bomData)
+            ? (thisDownloadedBomData(props.bomData).materialListRows.length > 0)
+            : false;
+    }
+
     function submitCustomisations(){
         let url = route("raw.material.quote.customisations",business.id);
         formCustomisations.post(url, {
@@ -226,7 +244,7 @@
     }
 
     function showTable(){
-        return !hasClarifications() && !hasUserCustomProducts() && thisDownloadedBomData(props.bomData).materialListRows.length > 0;
+        return !hasClarifications() && !hasUserCustomProducts() && hasMaterialList();
     }
 
     function isDeletedClarification(id){
@@ -377,13 +395,13 @@
                         style="height:400px"
                         class="p-20 text-gray-700 italic"
                     >
-                        <span class="block font-bold text-xl">Loading...</span>
+                        <span class="block font-bold text-xl">Calculating...</span>
                         <span class="block text-lg">“Patience is bitter, but its fruit is sweet.”</span>
                     </div>
                     <div v-else class="pt-5">
                         <!-- Drag n drop  -->
                         <div
-                            v-if="!hasClarifications() && !hasUserCustomProducts() && thisDownloadedBomData(bomData).percentageOfMaterialsQuoted === 0 && thisDownloadedBomData(bomData).percentageOfMaterialsOrdered === 0"
+                            v-if="!hasClarifications() && !hasUserCustomProducts() && !hasQuotesOrOrders()"
                             class="pl-5 pr-5"
                         >
                             <!-- Rectangle -->
@@ -446,7 +464,7 @@
                         <div class="overflow-y-auto pl-5 pr-5">
                             <!-- Sense checks -->
                             <section
-                                v-if="thisDownloadedBomData(bomData).senseChecks.length > 0"
+                                v-if="hasSenseChecks()"
                                 style="height:400px"
                             >
                                 <h2 class="font-bold text-lg">Sense checks</h2>

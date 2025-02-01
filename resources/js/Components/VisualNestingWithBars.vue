@@ -76,12 +76,5 @@
                 {{piece.length}} {{'('+piece.letter+')'}}
             </div>
         </div>
-
-<!--        <div class="shadow w-full bg-grey-light mt-10 flex flex-row">-->
-<!--            <div class="bg-blue-500 text-xs leading-none py-2 text-center text-white border-r-4 border-black" style="width: 20%"></div>-->
-<!--            <div class="bg-blue-500 text-xs leading-none py-2 text-center text-white border-r-4 border-black" style="width: 50%"></div>-->
-<!--            <div class="bg-red-500 text-xs leading-none py-2 text-center text-white" style="width: 30%"></div>-->
-<!--        </div>-->
-
     </div>
 </template>
