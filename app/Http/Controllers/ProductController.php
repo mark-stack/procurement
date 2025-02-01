@@ -22,6 +22,7 @@ class ProductController extends Controller
         /**
          * Single purpose: upload, clarify, and display consolidated BOM for a project
          */
+        dd("hello");
         Gate::authorize('owned', $project);
 
         //Formatter

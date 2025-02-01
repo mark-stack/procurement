@@ -83,8 +83,6 @@
         formStore.post(url, {
             preserveScroll: true,
             onSuccess: () => {
-                console.log("products store");
-
                 uploading.value = false;
 
                 clearFileInput();
@@ -194,8 +192,6 @@
     }
 
     function reloadAndDownloadModal(){
-        console.log("freeze view and redownload");
-
         freezeView.value = true;
 
         emit("redownload",props.project.id);
@@ -369,7 +365,6 @@
     //Watcher
     const { refreshModalBom } = toRefs(props);
     watch(refreshModalBom, (newVal) => {
-        console.log("watch. unfreeze view. Update forms");
         freezeView.value = false;
 
         showClarifications.value = hasClarifications();

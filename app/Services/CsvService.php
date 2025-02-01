@@ -124,7 +124,7 @@ class CsvService
                  */
                 $generalProductMatches = $dataClassificationService->findGeneralProductMatchesFromText(
                     $row['description'],
-                    $project->user
+                    $project->user,
                 );
 
                 /*
@@ -435,7 +435,8 @@ class CsvService
     public function saveRawMaterialQuoteData(array $rows, Project $project, Business $business): array
     {
         /**
-         * Single purpose: save BOM row
+         * Single purpose: save BOM row.
+         * Note: "rows" at this point contains ALL rows imported
          */
 
         //Formatter
@@ -444,22 +445,26 @@ class CsvService
         $pieceService = new PieceService;
 
         $materialList = [];
-
         foreach ($rows as $row) {
             //Find matching product config
             $productConfig = $dataClassificationService->findProductConfigFromText($row['description']);
             if(!$productConfig){
-                continue; //Skip
+                continue; //don't save this row
             }
-
-            //Product category
-            $productCategory = $productConfig['productCategory'];
 
             //Supplier group belongs to current plan
             $supplierGroup = $productConfig['supplierGroup']->value;
             if (! $business->supplierGroupIsCurrentPlan($supplierGroup)) {
-                continue; //Skip
+                continue; //don't save this row
             }
+
+            //Must have general product matches
+            if(count($row['generalProductMatches']["results"]) === 0){
+                continue; //don't save this row
+            }
+
+            //Product category
+            $productCategory = $productConfig['productCategory'];
 
             //Algo
             $algo = $productCategory

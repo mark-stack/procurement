@@ -148,10 +148,8 @@
          Only download new data if hasn't already
          */
         let existingDownload = undefined; //todo Object.values(bomData.value).find(item => item.project_id == bomProject.value.id);
-        console.log("existingDownload",existingDownload);
 
         if(existingDownload === undefined){
-            console.log("not already downloaded. Proceed to download data");
             downloadProjectBomData(bomProject.value.id);
         }
         else{
@@ -189,11 +187,9 @@
             if(response.data.downloadedBomData){
                 //Delete if exists
                 bomData.value = Object.values(bomData.value).filter(item => item.project_id != projectId);
-                console.log("delete existing downloaded data");
 
                 //Create
                 bomData.value.push(response.data.downloadedBomData);
-                console.log("pushed new download data",bomData.value);
 
                 //Refresh modal BOM signal
                 sendRefreshModalBom();
@@ -206,7 +202,6 @@
         } finally {
             //Show modal
             showBomEditModal.value = true;
-            console.log("show modal");
 
             //Remove page loader
             pageLoading.value = false;
@@ -228,7 +223,6 @@
     //Watcher
     const { batches } = toRefs(props);
     watch(batches, (newVal) => {
-        console.log("dashboard watch");
         getUsageData();
     });
 </script>

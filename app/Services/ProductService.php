@@ -24,9 +24,6 @@ class ProductService
                 $service = new $implementation;
                 $config = $service->config();
 
-                /*
-                 * Upgraded = find all supplier categories
-                 */
                 //Fasteners
                 if ($config['isFastener'] === $fasteners) {
                     $productConfigs[] = [
@@ -102,8 +99,6 @@ class ProductService
          * 2) Price book exact match
          * 3) price book partial match (requires confirmation)
          */
-        $include = false;
-
         $result = null;
 
         /**

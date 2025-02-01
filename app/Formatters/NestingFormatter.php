@@ -545,7 +545,7 @@ class NestingFormatter
         $cutLengthsRequired = $this->sortCutLengthsDescending($cutLengthsRequired);
 
         $results = [];
-        for ($i = 1; $i <= 10000; $i++) {
+        for ($i = 1; $i <= config('env.nesting_iterations'); $i++) {
             // 2) Start with an empty list of bins
             $utilisedBars = [];
             $tooLong = []; // Cuts that cannot be placed in any stock bar

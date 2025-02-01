@@ -110,7 +110,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
             //Loop user's material rows
             foreach ($project->rawMaterialQuotes as $rawMaterialQuote) {
-
                 //Append Array
                 $nesting_algo = ($rawMaterialQuote->product_category && $nestingFormatter->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category))
                     ? $nestingFormatter->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category)[0]
@@ -122,8 +121,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 $rawMaterialQuote->status = $rawMaterialQuote->status();
 
                 //If should include row based on plan. e.g only "steel merchant" supplier group
-                $include = false;
-
                 $getProductMatchOptions = $productService->getProductMatchOptions($business, $rawMaterialQuote);
 
                 if ($getProductMatchOptions) {
@@ -134,36 +131,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                     if ($getProductMatchOptions['status'] === 'CUSTOM') {
                         //todo is this enough criteria? what about supplier groups?
                         if ($business->upgraded) {
-                            $include = true;
-
                             $requiresCustom[] = (new ProductFormatter())->requiresCustomForm($rawMaterialQuote);
-//                            $requiresCustom[] = [
-//                                'selected' => [
-//                                    'product_category' => null,
-//                                    'material' => null,
-//                                    'grade' => null,
-//                                    'nominal_length' => null,
-//                                    'nominal_width' => null,
-//                                    'nominal_height' => null,
-//                                    'nesting_algo' => null,
-//                                    'purchasable_length_1' => null,
-//                                    'purchasable_length_2' => null,
-//                                    'purchasable_length_3' => null,
-//                                    'purchasable_width_1' => null,
-//                                    'purchasable_width_2' => null,
-//                                    'purchasable_width_3' => null,
-//                                    'suppliers' => [],
-//                                ],
-//                                'selected_other' => [
-//                                    'product_category' => null,
-//                                    'material' => null,
-//                                    'grade' => null,
-//                                    'surface' => null,
-//                                    'suppliers' => [],
-//                                ],
-//                                'data' => $rawMaterialQuote,
-//                                'nominalSizeData' => $productService->getNominalSizeData(),
-//                            ];
                         }
                     }
 
@@ -175,8 +143,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
                         $supplierGroup = $getProductMatchOptions['supplierGroup'];
                         if ($business->supplierGroupIsCurrentPlan($supplierGroup)) {
                             $rawMaterialQuote['product'] = $getProductMatchOptions['decodedOption'];
-
-                            $include = true;
                         }
                     }
 
@@ -193,20 +159,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                                 'options' => $getProductMatchOptions['decodedOptions'],
                                 'custom' => $getProductMatchOptions['custom'],
                             ];
-
-                            $include = true;
                         }
-                    }
-                }
-                /*
-                 * No product match options
-                 * todo untested at the moment
-                 */
-                else{
-                    if ($business->upgraded) {
-                        $include = true;
-
-                        $requiresCustom[] = (new ProductFormatter())->requiresCustomForm($rawMaterialQuote);
                     }
                 }
 
@@ -228,9 +181,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 }
 
                 //Append Array
-                if ($include) {
-                    $materialListRows[] = $rawMaterialQuote;
-                }
+                $materialListRows[] = $rawMaterialQuote;
             }
 
             /**

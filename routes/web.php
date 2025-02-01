@@ -55,7 +55,7 @@ Route::get('test', function () {
     rsort($pieceLengths); // Start with the longest pieces to reduce waste
 
     $results = [];
-    for ($i = 1; $i <= 10000; $i++) {
+    for ($i = 1; $i <= config('env.nesting_iterations'); $i++) {
         $bins = []; // Store used stock pieces
 
         foreach ($pieceLengths as $piece) {
