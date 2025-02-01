@@ -527,33 +527,130 @@ class NestingFormatter
         return $result;
     }
 
-    public function meterageAlgorithm(array $cutLengthsRequired, array $purchasableStockLengths, array $offcutInventoryLengths, array $lettersProjectArray): array
+    public function meterageAlgorithm(object $newPieceSpec, array $cutLengthsRequired, array $purchasableStockLengths, array $offcutInventoryLengths, array $lettersProjectArray): array
     {
-
         /**
-         * "The Least Bins packing problem" with random iterations of choosing stock length
-         * 1) Sort the cut lengths in descending order to prioritize fitting large pieces first.
-         * 2) Start with an empty list of bins
-         * 3) Fitting into bins: "First-Fit Decreasing" = place each item into the first available bin that has enough space.
-         * 4) If no existing bin can accommodate it, create a new bin. (randomly choose an available size)
-         * 5) Choose the highest efficiency result
+         * STEP 1: use & optimised offcuts
+         *  1A) Offcut candidates are where an offcut uses 60-100%
+         *  1B) Randomly select a candidate
+         *  1C) Calculate efficiency
+         *  1D) Iterate 10,000 times and choose the highest efficiency result
+         *  1E) Cut the offcut into new offcuts
+         *  1F) Recycle when offcuts are below threshold, say 1000mm.
+         *
+         * STEP 2: use & optimised new stock
+         *  "The Least Bins packing problem" with random iterations of choosing stock length
+         *  2A) Remove pieces that have been allocated to offcuts
+         *  2B) Sort the cut lengths in descending order to prioritize fitting large pieces first.
+         *  2C) Start with an empty list of bins
+         *  2D) Fitting into bins: "First-Fit Decreasing" = place each item into the first available bin that has enough space.
+         *  2E) If no existing bin can accommodate it, create a new bin. (randomly choose an available size)
+         *  2F) Iterate 10,000 times and choose the highest efficiency result
          */
 
+        /**
+         * STEP 1
+         */
+        $depletableOffcutInventoryLengths = $offcutInventoryLengths;
+
+        $results = [];
+        for ($i = 1; $i <= 10; $i++) { //config('env.nesting_iterations')
+            $utilisedOffcutBars = [];
+
+            //1A) Offcut candidates are where an offcut uses 60-100%
+            foreach ($cutLengthsRequired as $cut) {
+                $cutLength = (int) $cut['length'];
+                $projectId = (int) $cut['project'];
+
+                $candidates = [];
+                foreach($depletableOffcutInventoryLengths as $index => $offcutInventoryLength){
+                    //Candidate range
+                    $max = $offcutInventoryLength;
+                    $min = $offcutInventoryLength * 0.6; //e.g 1000mm offcut can cut a 610mm piece from it
+
+                    if($cutLength >= $min && $cutLength <= $max){
+                        $candidates[] = [
+                            "length" => $offcutInventoryLength,
+                            "index" => $index,
+                        ];
+                    }
+                }
+                if(count($candidates) === 0){
+                    continue; //skip
+                }
+
+                //1B) Randomly select a candidate
+                $randomCandidateKey = array_rand($candidates);
+                $offcutLength = $candidates[$randomCandidateKey]["length"];
+
+                $utilisedOffcutBars[] = [
+                    "offcutLength" => $offcutLength,
+                    "cutLength" => $cutLength,
+                    "reusableLength" => (($offcutLength - $cutLength) > 1000) ? ($offcutLength - $cutLength) : 0,
+                    "scrapLength" => (($offcutLength - $cutLength) > 1000) ? 0 : ($offcutLength - $cutLength),
+                    "project" => $projectId,
+                ];
+
+                //Remove chosen item from group
+                $index = $candidates[$randomCandidateKey]["index"];
+                unset($depletableOffcutInventoryLengths[$index]);
+            }
+
+            //1C) Calculate efficiency
+            $totalOffcutsLength = 0;
+            $totalScrapLength = 0;
+            foreach($utilisedOffcutBars as $utilisedOffcutBar){
+                $totalOffcutsLength = $totalOffcutsLength + $utilisedOffcutBar["offcutLength"];
+                $totalScrapLength = $totalScrapLength + $utilisedOffcutBar["scrapLength"];
+            }
+            $totalUsed = $totalOffcutsLength - $totalScrapLength;
+            $efficiency = $totalOffcutsLength > 0
+                ? round(($totalUsed/$totalOffcutsLength)*100)
+                : 0;
+
+            $results[$efficiency] = $utilisedOffcutBars;
+        }
+
+        //1D) Iterate 10,000 times and choose the highest efficiency result
+        $highestEfficiencyKey = max(array_keys($results));
+        $lowestEfficiencyKey = min(array_keys($results));
+        $bestResult = $results[$highestEfficiencyKey];
+
+        //todo debug
+        if($newPieceSpec->product_derived_label === "75x50x2.5 RHS"){
+            dd($highestEfficiencyKey,$lowestEfficiencyKey,$bestResult);
+        }
+
+        // 1E) Cut the offcut into new offcuts
+        //todo
+
+        // 1F) Recycle when offcuts are below threshold, say 1000mm.
+        //todo
+
+        /**
+         * STEP 2
+         */
         /*
-         * 1) Sort the cut lengths in descending order to prioritize fitting large pieces first.
+         * 2A) Remove pieces that have been allocated to offcuts
+         */
+        //todo
+        //$cutLengthsRequired
+
+        /*
+         * 2B) Sort the cut lengths in descending order to prioritize fitting large pieces first.
          */
         $cutLengthsRequired = $this->sortCutLengthsDescending($cutLengthsRequired);
 
         $results = [];
         for ($i = 1; $i <= config('env.nesting_iterations'); $i++) {
-            // 2) Start with an empty list of bins
+            // 2C) Start with an empty list of bins
             $utilisedBars = [];
             $tooLong = []; // Cuts that cannot be placed in any stock bar
 
             // Process each cut length
             foreach ($cutLengthsRequired as $cut) {
                 /*
-                 * 3) "Best-Fit" = placing an item in the bin that leaves the least remaining space.
+                 * 2D) "Best-Fit" = placing an item in the bin that leaves the least remaining space.
                  * Try to place the cut into current utilised stock bars
                  * Note that '&$stock' means that '$utilisedBars' is updating itself
                  */
@@ -562,7 +659,7 @@ class NestingFormatter
                 $placed = $tryPlaceCutIntoUtilisedBars["placed"];
 
                 /*
-                 * If the cut doesn't fit into any existing stock bar, use a new one
+                 * 2E) If no existing bin can accommodate it, create a new bin. (randomly choose an available size)
                  */
                 if (! $placed) {
                     $newStockPlaced = false;
@@ -602,6 +699,7 @@ class NestingFormatter
                 }
             }
 
+
             $totalPurchasedMaterial = 0;
             $totalWaste = 0;
             foreach($utilisedBars as $utilisedBar){
@@ -609,7 +707,6 @@ class NestingFormatter
                 $totalWaste = $totalWaste + $utilisedBar["waste"];
             }
             $totalUsedMaterial = $totalPurchasedMaterial - $totalWaste;
-
             $efficiency = round($totalUsedMaterial/$totalPurchasedMaterial*100);
 
             $results[$efficiency] = [
@@ -623,8 +720,8 @@ class NestingFormatter
             ];
         }
 
+        //2F) Iterate 10,000 times and choose the highest efficiency result
         $highestEfficiencyKey = max(array_keys($results));
-
         $utilisedBars = $results[$highestEfficiencyKey]["utilisedBars"];
         $tooLong = $results[$highestEfficiencyKey]["tooLong"];
         $sums = $results[$highestEfficiencyKey]["sums"];
@@ -1025,16 +1122,8 @@ class NestingFormatter
         /*
          * Offcut inventory lengths
          */
-        $offcutInventoryLengths = [
-            6000,1500, //todo placeholder
-        ];
+        $offcutInventoryLengths = [6000,1500,1200]; //todo from THIS product spec
         $newPieceSpec->offcutInventoryLengths = $offcutInventoryLengths;
-
-        /*
-         * Available lengths (purchasable + offcuts)
-         */
-//        $availableStockLengths = array_merge($purchasableStockLengths,$offcutInventoryLengths);
-//        $newPieceSpec->availableLengths = $availableStockLengths;
 
         /*
          * Nesting
@@ -1049,6 +1138,7 @@ class NestingFormatter
             }
         }
         $newPieceSpec->nested = $this->meterageAlgorithm(
+            $newPieceSpec,
             $cutLengthsRequired,
             $purchasableStockLengths,
             $offcutInventoryLengths,
