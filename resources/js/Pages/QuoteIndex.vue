@@ -150,6 +150,16 @@
                                             <!-- Nesting algorithm: meterage -->
                                             <div v-if="item.algo === 'METERAGE'">
 
+                                                <!-- offcuts -->
+                                                <div v-if="item.nested.bestResultOffcuts">
+                                                    <ul>
+                                                        <li v-for="offcut in item.nested.bestResultOffcuts.utilisedOffcutBars">
+                                                            <b>{{offcut.cutLength}} from {{offcut.offcutLength}}mm</b> (reuse: {{offcut.reusableLength}}mm, scrap: {{offcut.scrapLength}}mm, projectId: {{offcut.projectId}}, offcutId: {{offcut.offcutId}}, batchFromId: {{offcut.batchFromId}})
+                                                        </li>
+                                                    </ul>
+                                                </div>
+
+                                                <!-- new stock nesting -->
                                                 <VisualNestingWithBars
                                                     :utilisedBars="item.nested.utilisedBars"
                                                     :measurementUnit="item.nominal_units"

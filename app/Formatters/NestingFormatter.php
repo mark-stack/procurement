@@ -392,9 +392,8 @@ class NestingFormatter
 
                 if (isset($item['nested']['totals'])) {
                     $totals = $item['nested']['totals'];
-                    $totalPurchasedMaterial = $totalPurchasedMaterial + $totals['totalPurchasedMaterial'];
-                    $totalUsedMaterial = $totalUsedMaterial + $totals['totalUsedMaterial'];
-                    $totalWaste = $totalWaste + $totals['totalWaste'];
+                    $totalPurchasedMaterial = $totalPurchasedMaterial + $totals["oldStock"]['total'] + $totals["newStock"]['total'];
+                    $totalUsedMaterial = $totalUsedMaterial + $totals["oldStock"]['used'] + $totals["newStock"]['used'];
                 }
             }
         }
@@ -402,7 +401,6 @@ class NestingFormatter
         return [
             'totalPurchasedMaterial' => $totalPurchasedMaterial,
             'totalUsedMaterial' => $totalUsedMaterial,
-            'totalWaste' => $totalWaste,
             'efficiency' => $totalPurchasedMaterial === 0
                 ? 0
                 : (round($totalUsedMaterial / $totalPurchasedMaterial * 100)),
@@ -562,7 +560,7 @@ class NestingFormatter
          */
         $depletableOffcutInventory = $offcutInventory;
 
-        $results = [];
+        $resultsOffcuts = [];
         for ($i = 1; $i <= 10; $i++) { //config('env.nesting_iterations')
             $utilisedOffcutBars = [];
 
@@ -621,24 +619,28 @@ class NestingFormatter
                 $totalOffcutsLength = $totalOffcutsLength + $utilisedOffcutBar["offcutLength"];
                 $totalScrapLength = $totalScrapLength + $utilisedOffcutBar["scrapLength"];
             }
-            $totalUsed = $totalOffcutsLength - $totalScrapLength;
-            $efficiency = $totalOffcutsLength > 0
-                ? round(($totalUsed/$totalOffcutsLength)*100)
+            $totalUsedOffcuts = $totalOffcutsLength - $totalScrapLength;
+            $efficiencyOffcuts = $totalOffcutsLength > 0
+                ? round(($totalUsedOffcuts/$totalOffcutsLength)*100)
                 : 0;
 
-            $results[$efficiency] = $utilisedOffcutBars;
+            $resultsOffcuts[$efficiencyOffcuts] = [
+                "utilisedOffcutBars" => $utilisedOffcutBars,
+                "totalOffcutsLength" => $totalOffcutsLength,
+                "totalUsedOffcuts" => $totalUsedOffcuts,
+            ];
         }
 
         //1D) Iterate 10,000 times and choose the highest efficiency result
-        $highestEfficiencyKeyOffcuts = max(array_keys($results));
-        $lowestEfficiencyKeyOfScrap = min(array_keys($results));
-        $bestResultOffcuts = $results[$highestEfficiencyKeyOffcuts];
+        $highestEfficiencyKeyOffcuts = max(array_keys($resultsOffcuts));
+        $lowestEfficiencyKeyOfScrap = min(array_keys($resultsOffcuts));
+        $bestResultOffcuts = $resultsOffcuts[$highestEfficiencyKeyOffcuts];
 
         // 1E) Cut the offcut into new offcuts (Recycle when offcuts are below threshold, say 1000mm)
         //todo: CRUD at the time of confirming
         $newOffcuts = [];
         $scrap = [];
-        foreach($bestResultOffcuts as $offcutData){
+        foreach($bestResultOffcuts["utilisedOffcutBars"] as $offcutData){
             //new offcut
             if($offcutData["reusableLength"] > 0){
                 $newOffcuts[] = [
@@ -672,9 +674,9 @@ class NestingFormatter
          * 2A) Remove pieces from "cutLengthsRequired" that have been allocated to offcuts
          */
         $cutLengthsRequiredAfterOffcutAllocation = [];
-        if(count($bestResultOffcuts) > 0){
+        if(count($bestResultOffcuts["utilisedOffcutBars"]) > 0){
             foreach($cutLengthsRequired as $cutLengthRequired){
-                foreach($bestResultOffcuts as $offcutData){
+                foreach($bestResultOffcuts["utilisedOffcutBars"] as $offcutData){
                     //Matches allocated offcut
                     if($offcutData["cutLength"] === $cutLengthRequired["length"]){
                         //Wont be added to $cutLengthsRequiredAfterOffcutAllocation
@@ -792,30 +794,42 @@ class NestingFormatter
          * Using offcuts could result in a lower efficiency of the new stock, but that misses the fact offcuts were used.
          * The "Effective efficiency" is total used (used of bought + non-scraped amount of offcuts) / total (bought + offcuts)
          */
-        $effectiveUsed = 999;
-        $effectiveTotal = 999;
+        $effectiveUsed = $sums["totalUsedMaterial"] + $bestResultOffcuts["totalUsedOffcuts"];
+        $effectiveTotal = $sums["totalPurchasedMaterial"] + $bestResultOffcuts["totalOffcutsLength"];
+        $effectiveEfficiency = $effectiveTotal > 0
+            ? round($effectiveUsed/$effectiveTotal*100)
+            : 0;
 
         //todo debug
-        if($newPieceSpec->product_derived_label === "75x50x2.5 RHS"){
-            dd([
-                "cut Lengths Required" => $cutLengthsRequired,
-                "efficiency of offcuts" => $highestEfficiencyKeyOffcuts,
-                "bestResult of offcuts" => $bestResultOffcuts,
-                "new Offcuts" => $newOffcuts,
-                "scrap" => $scrap,
-                "efficiency of new stock" => $highestEfficiencyKeyOfNewStock,
-                "utilisedBars" => $utilisedBars,
-            ]);
-        }
+//        if($newPieceSpec->product_derived_label === "75x50x2.5 RHS"){
+//            dd([
+//                "cut Lengths Required" => $cutLengthsRequired,
+//                "efficiency of offcuts" => $highestEfficiencyKeyOffcuts,
+//                "bestResult of offcuts" => $bestResultOffcuts,
+//                "new Offcuts" => $newOffcuts,
+//                "scrap" => $scrap,
+//                "efficiency of new stock" => $highestEfficiencyKeyOfNewStock,
+//                "utilisedBars" => $utilisedBars,
+//                "effectiveEfficiency" => $effectiveEfficiency,
+//            ]);
+//        }
 
         return [
             'utilisedBars' => $utilisedBars,
+            "bestResultOffcuts" => $bestResultOffcuts,
             'tooLong' => $tooLong,
             'orderList' => $orderList,
             'totals' => [
-                'totalPurchasedMaterial' => $sums["totalPurchasedMaterial"],
-                'totalUsedMaterial' => $sums["totalUsedMaterial"],
-                'totalWaste' => $sums["totalWaste"],
+                "oldStock" => [
+                    "total" => $bestResultOffcuts["totalOffcutsLength"],
+                    "used" => $bestResultOffcuts["totalUsedOffcuts"],
+                    "unused" => $bestResultOffcuts["totalOffcutsLength"] - $bestResultOffcuts["totalUsedOffcuts"],
+                ],
+                "newStock" => [
+                    "total" => $sums["totalPurchasedMaterial"],
+                    "used" => $sums["totalUsedMaterial"],
+                    "unused" => $sums["totalPurchasedMaterial"] - $sums["totalUsedMaterial"],
+                ],
             ],
         ];
     }
