@@ -63,7 +63,7 @@
     <!-- METERAGE -->
     <div v-if="nestingAlgo === 'METERAGE'" class="text-sm">
         <p v-for="piece in pieces">
-            {{ displayMeterage(piece) }}
+            {{ displayMeterage(piece) }} (p{{piece.project.id}})
         </p>
     </div>
 

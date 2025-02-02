@@ -11,6 +11,7 @@
     import VisualOrderList from "@/Components/VisualOrderList.vue";
     import VisualNestingWithBars from "@/Components/VisualNestingWithBars.vue";
     import Modal from "@/Layouts/Modal.vue";
+    import VisualNestingOffcuts from "@/Components/VisualNestingOffcuts.vue";
 
     //Props
     const props = defineProps({
@@ -69,14 +70,16 @@
 
                     <!-- Usage stats-->
                     <div class="mt-5">
-                        <h2 class="font-semibold">Usage stats:</h2>
-                        Total Material = {{ (usage.totalPurchasedMaterial/1000).toLocaleString() }} m
+                        <h2 class="font-semibold">Usage stats (meterage items)</h2>
+                        Total Material = {{ (usage.METERAGE.totalPurchasedMaterial/1000).toLocaleString() }} m
                         <br>
-                        Total Used Material = {{ (usage.totalUsedMaterial/1000).toLocaleString() }} m
+                        Total Used Material = {{ (usage.METERAGE.totalUsedMaterial/1000).toLocaleString() }} m
                         <br>
-                        Total Waste = {{ (usage.totalWaste/1000).toLocaleString() }} m
+                        Total Reusable = {{ (usage.METERAGE.totalReusable/1000).toLocaleString() }} m
                         <br>
-                        Efficiency = {{ usage.efficiency }}%
+                        Total Scrap = {{ (usage.METERAGE.totalScrap/1000).toLocaleString() }} m
+                        <br>
+                        Efficiency = {{ usage.METERAGE.efficiency }}%
                     </div>
 
 
@@ -146,19 +149,20 @@
                                         </div>
                                         <!-- Nesting -->
                                         <div class="col-span-4">
-                                            <h2 class="font-bold">{{item.algo}} Nesting</h2>
+
                                             <!-- Nesting algorithm: meterage -->
                                             <div v-if="item.algo === 'METERAGE'">
 
                                                 <!-- offcuts -->
-                                                <div v-if="item.nested.bestResultOffcuts">
-                                                    <ul>
-                                                        <li v-for="offcut in item.nested.bestResultOffcuts.utilisedOffcutBars">
-                                                            <b>{{offcut.cutLength}} from {{offcut.offcutLength}}mm</b> (reuse: {{offcut.reusableLength}}mm, scrap: {{offcut.scrapLength}}mm, projectId: {{offcut.projectId}}, offcutId: {{offcut.offcutId}}, batchFromId: {{offcut.batchFromId}})
-                                                        </li>
-                                                    </ul>
+                                                <div v-if="Object.values(item.nested.bestResultOffcuts.utilisedOffcutBars).length > 0">
+                                                    <h2 class="font-bold">Offcut usage</h2>
+                                                    <VisualNestingOffcuts
+                                                        :utilisedOffcutBars="item.nested.bestResultOffcuts.utilisedOffcutBars"
+                                                        :measurementUnit="item.nominal_units"
+                                                    />
                                                 </div>
 
+                                                <h2 class="font-bold">New stock usage</h2>
                                                 <!-- new stock nesting -->
                                                 <VisualNestingWithBars
                                                     :utilisedBars="item.nested.utilisedBars"

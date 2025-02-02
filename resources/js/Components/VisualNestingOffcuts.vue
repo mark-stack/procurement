@@ -7,7 +7,7 @@
 
     //Props
     const props = defineProps({
-        utilisedBars: Object,
+        utilisedOffcutBars: Object,
         measurementUnit: String,
     });
 
@@ -63,25 +63,27 @@
 </script>
 
 <template>
-    <div v-for="bar in utilisedBars" class="pt-4 pb-4">
-        <div>
-            <span class="font-bold">{{bar.count}} off {{ parseFloat(bar.result['bar_length']).toLocaleString() }}{{ displayUnits() }}:</span> <span>Unused: {{bar.result.unused}}{{ displayUnits() }} (used {{getEfficiencyPct(bar.result['bar_length'],bar.result.unused)}}%)</span>
-        </div>
-        <div class="shadow w-full bg-red-500 flex flex-row">
-            <div
-                v-for="piece in getPieces(bar)"
-                class="font-bold bg-blue-500 text-xs leading-none py-2 text-center text-blue-50 border-r-4 border-black"
-                :style="'width: '+piece.lengthPercentage+'%'"
-            >
-                {{piece.length}} {{'('+piece.letter+')'}}
+    <div class="grid grid-cols-3 gap-x-10">
+        <div v-for="offcut in utilisedOffcutBars" class="w-full pt-4 pb-4">
+            <div>
+                <span class="font-bold">1 off {{offcut.offcutLength}}{{ displayUnits() }}:</span> <span>(Used {{Math.round(offcut.cutLength/offcut.offcutLength*100)}}%)</span>
             </div>
-            <!-- reusable -->
-            <div
-                v-if="bar.result.unused > bar.result.scrap_threshold_mm"
-                class="font-bold bg-green-500 text-xs leading-none py-2 text-center text-green-50 border-r-4 border-black"
-                :style="'width: '+(bar.result.unused/bar.result['bar_length']*100)+'%'"
-            >
-                Reuse
+            <div class="shadow w-full bg-red-500 flex flex-row">
+                <!-- used cut -->
+                <div
+                    class="font-bold bg-blue-500 text-xs leading-none py-2 text-center text-blue-50 border-r-4 border-black"
+                    :style="'width: '+(offcut.cutLength/offcut.offcutLength*100)+'%'"
+                >
+                    {{offcut.cutLength}} {{'('+offcut.letter+')'}}
+                </div>
+                <!-- reuse -->
+                <div
+                    v-if="offcut.reusableLength > 0"
+                    class="font-bold bg-green-500 text-xs leading-none py-2 text-center text-green-50 border-r-4 border-black"
+                    :style="'width: '+(offcut.reusableLength/offcut.offcutLength*100)+'%'"
+                >
+                    Reuse
+                </div>
             </div>
         </div>
     </div>

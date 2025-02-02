@@ -3,6 +3,7 @@
 //todo: experimental
 use App\Formatters\NestingFormatter;
 use App\Models\Business;
+use App\Models\Offcut;
 use App\Models\RawMaterialQuote;
 use App\Models\User;
 use App\Services\DataClassificationService;
@@ -25,10 +26,27 @@ Route::get('pickles', function () {
 //todo temporary
 Route::get('stock-cutting', function () {
     // Example Usage:
-    $cutLengths = [1000, 3000, 4000, 1000, 5000, 11000, 4000, 2000, 2500, 5000, 13000];
-    $stockLengths = [9000, 12000];
+    $cutLengthsRequired = [];
+    for ($i = 1; $i <= 20; $i++) {
+        $cutLengthsRequired[] = [
+            'project' => 1,
+            'length' => 9000,
+        ];
+    }
 
-    $result = (new NestingFormatter)->meterageAlgorithm($cutLengths, $stockLengths);
+    $purchasableStockLengths = [9000, 12000];
+
+    $offcutInventory = [];
+    $lettersProjectArray[1] = "A";
+    $business = Business::first();
+
+    $result = (new NestingFormatter)->meterageAlgorithm(
+        $cutLengthsRequired,
+        $purchasableStockLengths,
+        $offcutInventory,
+        $lettersProjectArray,
+        $business
+    );
 
     dd($result);
 });
