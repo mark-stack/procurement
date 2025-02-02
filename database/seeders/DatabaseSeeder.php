@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Batch;
 use App\Models\Business;
 use App\Models\Offcut;
 use App\Models\Order;
@@ -42,15 +43,27 @@ class DatabaseSeeder extends Seeder
             'name' => "test project",
             'user_id' => $adminUser->id,
         ]);
+        $testBatch = Batch::create([
+            "user_id" => $adminUser->id,
+        ]);
         $testOffcut1 = Offcut::factory()
-            ->withProject($testProject->id)
+            ->withBatchFrom(1)
+            ->withBatchTo(2)
+            ->withPieceTo(3)
             ->withLength(6000)
             ->create();
         $testOffcut2 = Offcut::factory()
-            ->withProject($testProject->id)
+            ->withBatchFrom(1)
+            ->withBatchTo(2)
+            ->withPieceTo(3)
             ->withLength(1500)
             ->create();
-        //dd($testOffcut1);
+        $testOffcut3 = Offcut::factory()
+            ->withBatchFrom(1)
+            ->withBatchTo(2)
+            ->withPieceTo(3)
+            ->withLength(1200)
+            ->create();
 
 
         //        /**

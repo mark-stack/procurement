@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Services\BatchService;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,6 +10,9 @@ use Illuminate\Support\Collection;
 
 class Batch extends Model
 {
+    /** @use HasFactory<\Database\Factories\BatchFactory> */
+    use HasFactory;
+
     protected $guarded = [];
 
     //Relationships
@@ -55,6 +58,25 @@ class Batch extends Model
         return Project::query()
             ->whereIn('id', $uniqueProjectIds)
             ->get();
+    }
+
+    public function oldOffcuts(): Collection
+    {
+        return Offcut::query()
+            ->where("batch_from_id",$this->id)
+            ->get();
+    }
+
+    public function assignedOffcuts(): Collection
+    {
+        return Offcut::query()
+            ->where("batch_to_id",$this->id)
+            ->get();
+    }
+
+    public function scrap(): Collection
+    {
+
     }
 
     //Local scope

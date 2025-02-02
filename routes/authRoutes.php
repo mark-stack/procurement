@@ -284,7 +284,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             $lettersProjectArray = $nestingFormatter->getLetterProjectArray($batch->pieces);
 
             //2) Get all nested pieces
-            $piecesNested = $nestingFormatter->piecesNested($batch->pieces, $lettersProjectArray);
+            $piecesNested = $nestingFormatter->piecesNested($batch->pieces, $lettersProjectArray, $business);
 
             //3) Group nested pieces by nesting algorithm. e.g "meterage"
             $piecesGroupedBySupplierGroup = $nestingFormatter->piecesGroupedBySupplierGroup($piecesNested, $business);
@@ -493,7 +493,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
             $piecesReadyForBatching = $nestingFormatter->piecesReadyForBatching($business);
             $lettersProjectArray = $nestingFormatter->getLetterProjectArray($piecesReadyForBatching);
-            $piecesNested = $nestingFormatter->piecesNested($piecesReadyForBatching, $lettersProjectArray);
+            $piecesNested = $nestingFormatter->piecesNested($piecesReadyForBatching, $lettersProjectArray, $business);
 
             return response()->json([
                 'usageData' => $nestingFormatter->usageStats($piecesNested),

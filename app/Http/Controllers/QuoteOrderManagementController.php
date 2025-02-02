@@ -43,7 +43,7 @@ class QuoteOrderManagementController extends Controller
         $lettersProjectArray = $nestingFormatter->getLetterProjectArray($batch->pieces);
 
         //2) Get all nested pieces
-        $piecesNested = $nestingFormatter->piecesNested($batch->pieces, $lettersProjectArray);
+        $piecesNested = $nestingFormatter->piecesNested($batch->pieces, $lettersProjectArray, $business);
 
         //3) Group nested pieces by nesting algorithm. e.g "meterage"
         $piecesGroupedBySupplierGroup = $nestingFormatter->piecesGroupedBySupplierGroup($piecesNested, $business);

@@ -6,6 +6,8 @@ use App\Enums\GradeEnums;
 use App\Enums\MaterialEnums;
 use App\Enums\ProductEnums;
 use App\Enums\SurfaceEnums;
+use App\Models\Batch;
+use App\Models\Piece;
 use App\Models\Project;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -22,7 +24,10 @@ class OffcutFactory extends Factory
     public function definition(): array
     {
         return [
-            'project_id' => Project::factory(),
+            'batch_from_id' => null,
+            'batch_to_id' => null,
+            'piece_to_id' => null,
+
             'product_category' => ProductEnums::RHS->value,
             'material' => MaterialEnums::PLAIN_CARBON_STEEL->value,
             'grade' => GradeEnums::GR350->value,
@@ -38,11 +43,29 @@ class OffcutFactory extends Factory
         ];
     }
 
-    public function withProject($projectId = null)
+    public function withBatchFrom($batchId = null)
     {
-        return $this->state(function (array $attributes) use ($projectId) {
+        return $this->state(function (array $attributes) use ($batchId) {
             return [
-                'project_id' => $projectId ?? Project::factory(),
+                'batch_from_id' => $batchId ?? Batch::factory(),
+            ];
+        });
+    }
+
+    public function withBatchTo($batchId = null)
+    {
+        return $this->state(function (array $attributes) use ($batchId) {
+            return [
+                'batch_to_id' => $batchId ?? Batch::factory(),
+            ];
+        });
+    }
+
+    public function withPieceTo($pieceId = null)
+    {
+        return $this->state(function (array $attributes) use ($pieceId) {
+            return [
+                'piece_to_id' => $pieceId ?? Piece::factory(),
             ];
         });
     }

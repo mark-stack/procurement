@@ -11,13 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('offcuts', function (Blueprint $table) {
+        Schema::create('scraps', function (Blueprint $table) {
             $table->id();
             $table->timestamps();
 
-            $table->integer('batch_from_id');
-            $table->integer('batch_to_id')->nullable();
-            $table->integer('piece_to_id')->nullable();
+            $table->integer('batch_id'); //From batch
 
             $table->text('product_category');               //PFC
             $table->text('material');                       //PLAIN CARBON STEEL
@@ -40,6 +38,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('offcuts');
+        Schema::dropIfExists('scraps');
     }
 };

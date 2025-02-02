@@ -45,8 +45,6 @@ class QuoteController extends Controller
          */
         $batch = Batch::create([
             'user_id' => $user->id,
-            'total_length' => 999, //todo
-            'total_used_length' => 999, //todo
         ]);
 
         //Prerequisite variables

@@ -9,8 +9,10 @@ use App\Enums\ProductEnums;
 use App\Http\Resources\ProjectResource;
 use App\Models\Batch;
 use App\Models\Business;
+use App\Models\Offcut;
 use App\Models\Piece;
 use App\Models\Product;
+use App\Models\Scrap;
 use App\Services\ProductService;
 use Illuminate\Support\Collection;
 
@@ -363,13 +365,13 @@ class NestingFormatter
         ];
     }
 
-    public function piecesNested(Collection $pieces, array $lettersProjectArray): array
+    public function piecesNested(Collection $pieces, array $lettersProjectArray, Business $business): array
     {
         $groupedByAlgo = $pieces->groupBy('nesting_algo');
 
         $piecesNested = [];
         foreach ($groupedByAlgo as $nestingAlgoLabel => $pieces) {
-            $piecesNested[] = $this->nesting($nestingAlgoLabel, $pieces, $lettersProjectArray);
+            $piecesNested[] = $this->nesting($nestingAlgoLabel, $pieces, $lettersProjectArray, $business);
         }
 
         return $piecesNested;
@@ -527,7 +529,14 @@ class NestingFormatter
         return $result;
     }
 
-    public function meterageAlgorithm(object $newPieceSpec, array $cutLengthsRequired, array $purchasableStockLengths, array $offcutInventoryLengths, array $lettersProjectArray): array
+    public function meterageAlgorithm(
+        object $newPieceSpec,
+        array $cutLengthsRequired,
+        array $purchasableStockLengths,
+        array $offcutInventory,
+        array $lettersProjectArray,
+        Business $business,
+    ): array
     {
         /**
          * STEP 1: use & optimised offcuts
@@ -535,8 +544,8 @@ class NestingFormatter
          *  1B) Randomly select a candidate
          *  1C) Calculate efficiency
          *  1D) Iterate 10,000 times and choose the highest efficiency result
-         *  1E) Cut the offcut into new offcuts
-         *  1F) Recycle when offcuts are below threshold, say 1000mm.
+         *  1E) Cut the offcut into new offcuts (Recycle when offcuts are below threshold, say 1000mm)
+         *  1F) Assign the offcut to this batch
          *
          * STEP 2: use & optimised new stock
          *  "The Least Bins packing problem" with random iterations of choosing stock length
@@ -551,7 +560,7 @@ class NestingFormatter
         /**
          * STEP 1
          */
-        $depletableOffcutInventoryLengths = $offcutInventoryLengths;
+        $depletableOffcutInventory = $offcutInventory;
 
         $results = [];
         for ($i = 1; $i <= 10; $i++) { //config('env.nesting_iterations')
@@ -563,14 +572,16 @@ class NestingFormatter
                 $projectId = (int) $cut['project'];
 
                 $candidates = [];
-                foreach($depletableOffcutInventoryLengths as $index => $offcutInventoryLength){
+                foreach($depletableOffcutInventory as $index => $offcutData){
                     //Candidate range
-                    $max = $offcutInventoryLength;
-                    $min = $offcutInventoryLength * 0.6; //e.g 1000mm offcut can cut a 610mm piece from it
+                    $max = $offcutData["length"];
+                    $min = $offcutData["length"] * 0.6; //e.g 1000mm offcut can cut a 610mm piece from it
 
                     if($cutLength >= $min && $cutLength <= $max){
                         $candidates[] = [
-                            "length" => $offcutInventoryLength,
+                            "length" => $offcutData["length"],
+                            "offcut_id" => $offcutData["id"],
+                            "batch_from_id" => $offcutData["batch_from_id"],
                             "index" => $index,
                         ];
                     }
@@ -582,21 +593,28 @@ class NestingFormatter
                 //1B) Randomly select a candidate
                 $randomCandidateKey = array_rand($candidates);
                 $offcutLength = $candidates[$randomCandidateKey]["length"];
+                $offcutId = $candidates[$randomCandidateKey]["offcut_id"];
+                $batchFromId = $candidates[$randomCandidateKey]["batch_from_id"];
 
                 $utilisedOffcutBars[] = [
                     "offcutLength" => $offcutLength,
                     "cutLength" => $cutLength,
-                    "reusableLength" => (($offcutLength - $cutLength) > 1000) ? ($offcutLength - $cutLength) : 0,
-                    "scrapLength" => (($offcutLength - $cutLength) > 1000) ? 0 : ($offcutLength - $cutLength),
-                    "project" => $projectId,
+                    "reusableLength" => (($offcutLength - $cutLength) > $business->scrap_threshold_mm) ? ($offcutLength - $cutLength) : 0,
+                    "scrapLength" => (($offcutLength - $cutLength) > $business->scrap_threshold_mm) ? 0 : ($offcutLength - $cutLength),
+                    "projectId" => $projectId,
+                    "offcutId" => $offcutId,
+                    "batchFromId" => $batchFromId,
                 ];
 
                 //Remove chosen item from group
                 $index = $candidates[$randomCandidateKey]["index"];
-                unset($depletableOffcutInventoryLengths[$index]);
+                unset($depletableOffcutInventory[$index]);
             }
 
-            //1C) Calculate efficiency
+            /*
+             * 1C) Calculate efficiency
+             * Efficiency is amount of offcuts used that's not scraped. So it factors in reusable trimmings
+             */
             $totalOffcutsLength = 0;
             $totalScrapLength = 0;
             foreach($utilisedOffcutBars as $utilisedOffcutBar){
@@ -612,34 +630,71 @@ class NestingFormatter
         }
 
         //1D) Iterate 10,000 times and choose the highest efficiency result
-        $highestEfficiencyKey = max(array_keys($results));
-        $lowestEfficiencyKey = min(array_keys($results));
-        $bestResult = $results[$highestEfficiencyKey];
+        $highestEfficiencyKeyOffcuts = max(array_keys($results));
+        $lowestEfficiencyKeyOfScrap = min(array_keys($results));
+        $bestResultOffcuts = $results[$highestEfficiencyKeyOffcuts];
 
-        //todo debug
-        if($newPieceSpec->product_derived_label === "75x50x2.5 RHS"){
-            dd($highestEfficiencyKey,$lowestEfficiencyKey,$bestResult);
+        // 1E) Cut the offcut into new offcuts (Recycle when offcuts are below threshold, say 1000mm)
+        //todo: CRUD at the time of confirming
+        $newOffcuts = [];
+        $scrap = [];
+        foreach($bestResultOffcuts as $offcutData){
+            //new offcut
+            if($offcutData["reusableLength"] > 0){
+                $newOffcuts[] = [
+                    "length" => $offcutData["reusableLength"],
+                    "projectId" => $offcutData["projectId"],
+                    "cutFromOffcutId" => $offcutData["offcutId"],
+                    "batchFromId" => $offcutData["batchFromId"],
+                ];
+            }
+            //scrap
+            if($offcutData["scrapLength"] > 0){
+                $scrap[] = [
+                    "length" => $offcutData["scrapLength"],
+                    "cutFromOffcutId" => $offcutData["offcutId"],
+                    "batchFromId" => $offcutData["batchFromId"],
+                ];
+            }
         }
 
-        // 1E) Cut the offcut into new offcuts
-        //todo
+        // 1F) Assign the offcut to this batch and piece
+        //todo: CRUD at the time of confirming
+        //batch_to_id
+        //piece_to_id
 
-        // 1F) Recycle when offcuts are below threshold, say 1000mm.
-        //todo
+
 
         /**
          * STEP 2
          */
         /*
-         * 2A) Remove pieces that have been allocated to offcuts
+         * 2A) Remove pieces from "cutLengthsRequired" that have been allocated to offcuts
          */
-        //todo
-        //$cutLengthsRequired
+        $cutLengthsRequiredAfterOffcutAllocation = [];
+        if(count($bestResultOffcuts) > 0){
+            foreach($cutLengthsRequired as $cutLengthRequired){
+                foreach($bestResultOffcuts as $offcutData){
+                    //Matches allocated offcut
+                    if($offcutData["cutLength"] === $cutLengthRequired["length"]){
+                        //Wont be added to $cutLengthsRequiredAfterOffcutAllocation
+                    }
+                    //No match
+                    else{
+                        $cutLengthsRequiredAfterOffcutAllocation[] = $cutLengthRequired;
+                    }
+                }
+            }
+        }
+        else{
+            $cutLengthsRequiredAfterOffcutAllocation = $cutLengthsRequired;
+        }
+
 
         /*
          * 2B) Sort the cut lengths in descending order to prioritize fitting large pieces first.
          */
-        $cutLengthsRequired = $this->sortCutLengthsDescending($cutLengthsRequired);
+        $cutLengthsRequiredAfterOffcutAllocation = $this->sortCutLengthsDescending($cutLengthsRequiredAfterOffcutAllocation);
 
         $results = [];
         for ($i = 1; $i <= config('env.nesting_iterations'); $i++) {
@@ -648,7 +703,7 @@ class NestingFormatter
             $tooLong = []; // Cuts that cannot be placed in any stock bar
 
             // Process each cut length
-            foreach ($cutLengthsRequired as $cut) {
+            foreach ($cutLengthsRequiredAfterOffcutAllocation as $cut) {
                 /*
                  * 2D) "Best-Fit" = placing an item in the bin that leaves the least remaining space.
                  * Try to place the cut into current utilised stock bars
@@ -721,16 +776,37 @@ class NestingFormatter
         }
 
         //2F) Iterate 10,000 times and choose the highest efficiency result
-        $highestEfficiencyKey = max(array_keys($results));
-        $utilisedBars = $results[$highestEfficiencyKey]["utilisedBars"];
-        $tooLong = $results[$highestEfficiencyKey]["tooLong"];
-        $sums = $results[$highestEfficiencyKey]["sums"];
+        $highestEfficiencyKeyOfNewStock = max(array_keys($results));
+        $utilisedBars = $results[$highestEfficiencyKeyOfNewStock]["utilisedBars"];
+        $tooLong = $results[$highestEfficiencyKeyOfNewStock]["tooLong"];
+        $sums = $results[$highestEfficiencyKeyOfNewStock]["sums"];
 
         /**
          * Consolidate utilised stock bars that are the same (same length and cuts array)
          */
         $orderList = $this->orderList($utilisedBars);
         $utilisedBars = $this->consolidateStockNestingResults($utilisedBars);
+
+        /*
+         * "Effective efficiency"
+         * Using offcuts could result in a lower efficiency of the new stock, but that misses the fact offcuts were used.
+         * The "Effective efficiency" is total used (used of bought + non-scraped amount of offcuts) / total (bought + offcuts)
+         */
+        $effectiveUsed = 999;
+        $effectiveTotal = 999;
+
+        //todo debug
+        if($newPieceSpec->product_derived_label === "75x50x2.5 RHS"){
+            dd([
+                "cut Lengths Required" => $cutLengthsRequired,
+                "efficiency of offcuts" => $highestEfficiencyKeyOffcuts,
+                "bestResult of offcuts" => $bestResultOffcuts,
+                "new Offcuts" => $newOffcuts,
+                "scrap" => $scrap,
+                "efficiency of new stock" => $highestEfficiencyKeyOfNewStock,
+                "utilisedBars" => $utilisedBars,
+            ]);
+        }
 
         return [
             'utilisedBars' => $utilisedBars,
@@ -957,7 +1033,7 @@ class NestingFormatter
             $lettersProjectArray = $this->getLetterProjectArray($piecesInBatch);
 
             //Pieces nested
-            $piecesNested = $this->piecesNested($piecesInBatch, $lettersProjectArray);
+            $piecesNested = $this->piecesNested($piecesInBatch, $lettersProjectArray, $business);
 
             //Nesting stats
             $usageStats = $this->usageStats($piecesNested);
@@ -977,7 +1053,7 @@ class NestingFormatter
             $lettersProjectArray = $this->getLetterProjectArray($piecesReadyForBatching);
 
             //Pieces nested
-            $piecesNested = $this->piecesNested($piecesReadyForBatching, $lettersProjectArray);
+            $piecesNested = $this->piecesNested($piecesReadyForBatching, $lettersProjectArray, $business);
 
             //Nesting stats
             $usageStats = $this->usageStats($piecesNested);
@@ -1013,27 +1089,27 @@ class NestingFormatter
             ->get();
     }
 
-    public function nesting(string $nestingAlgoLabel, Collection $allPieces, array $lettersProjectArray): Collection
+    public function nesting(string $nestingAlgoLabel, Collection $allPieces, array $lettersProjectArray, Business $business): Collection
     {
         $result = [];
 
         //METERAGE
         if ($nestingAlgoLabel === NestingEnums::METERAGE->value) {
-            $result = $this->nestingMeterageAlgo($allPieces,$lettersProjectArray);
+            $result = $this->nestingMeterageAlgo($allPieces,$lettersProjectArray,$business);
         }
         //AREA
         if ($nestingAlgoLabel === NestingEnums::AREA->value) {
-            $result = $this->nestingAreaAlgo($allPieces);
+            $result = $this->nestingAreaAlgo($allPieces,$business);
         }
         //BUNDLE
         if ($nestingAlgoLabel === NestingEnums::BUNDLE->value) {
-            $result = $this->nestingBundleAlgo($allPieces);
+            $result = $this->nestingBundleAlgo($allPieces,$business);
         }
 
         return collect($result);
     }
 
-    private function nestingMeterageAlgo(Collection $allPieces, array $lettersProjectArray): array
+    private function nestingMeterageAlgo(Collection $allPieces, array $lettersProjectArray, Business $business): array
     {
         $result = [];
 
@@ -1063,14 +1139,14 @@ class NestingFormatter
 
             //Loop each unique piece specs
             foreach ($uniquePieceSpecs as $uniquePieceSpec) {
-                $result[] = $this->buildMeterageProductSpec($allPieces,$uniquePieceSpec,$lettersProjectArray);
+                $result[] = $this->buildMeterageProductSpec($allPieces,$uniquePieceSpec,$lettersProjectArray, $business);
             }
         }
 
         return $result;
     }
 
-    private function buildMeterageProductSpec($pieces,$uniquePieceSpec,$lettersProjectArray): object
+    private function buildMeterageProductSpec(Collection $pieces, array $uniquePieceSpec, array $lettersProjectArray, Business $business): object
     {
         /**
          * Build a piece/product spec
@@ -1122,8 +1198,21 @@ class NestingFormatter
         /*
          * Offcut inventory lengths
          */
-        $offcutInventoryLengths = [6000,1500,1200]; //todo from THIS product spec
-        $newPieceSpec->offcutInventoryLengths = $offcutInventoryLengths;
+        $offcutInventory = Offcut::query()
+            ->where('product_category',$newPieceSpec->product_category)
+            ->where('material',$newPieceSpec->material ?? null)
+            ->where('grade',$newPieceSpec->grade ?? null)
+            ->where('surface',$newPieceSpec->surface ?? null)
+            ->where('nominal_length',$newPieceSpec->nominal_length ?? null)
+            ->where('precise_length',$newPieceSpec->precise_length ?? null)
+            ->where('nominal_width',$newPieceSpec->nominal_width ?? null)
+            ->where('precise_width',$newPieceSpec->precise_width ?? null)
+            ->where('nominal_height',$newPieceSpec->nominal_height ?? null)
+            ->where('precise_height',$newPieceSpec->precise_height ?? null)
+            ->where('wall',$newPieceSpec->wall ?? null)
+            ->get()
+            ->toArray();
+        $newPieceSpec->offcutInventoryLengths = $offcutInventory;
 
         /*
          * Nesting
@@ -1141,14 +1230,15 @@ class NestingFormatter
             $newPieceSpec,
             $cutLengthsRequired,
             $purchasableStockLengths,
-            $offcutInventoryLengths,
-            $lettersProjectArray
+            $offcutInventory,
+            $lettersProjectArray,
+            $business,
         );
 
         return $newPieceSpec;
     }
 
-    private function nestingAreaAlgo(Collection $allPieces): array
+    private function nestingAreaAlgo(Collection $allPieces, Business $business): array
     {
         $result = [];
 
@@ -1212,7 +1302,7 @@ class NestingFormatter
         return $result;
     }
 
-    private function nestingBundleAlgo(Collection $allPieces): array
+    private function nestingBundleAlgo(Collection $allPieces, Business $business): array
     {
         $result = [];
 

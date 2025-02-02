@@ -4,12 +4,16 @@ namespace App\Models;
 
 use App\Services\ProductService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Piece extends Model
 {
+    /** @use HasFactory<\Database\Factories\PieceFactory> */
+    use HasFactory;
+
     protected $guarded = [];
 
     //Relationships
