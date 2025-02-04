@@ -27,16 +27,33 @@ Route::get('pickles', function () {
 Route::get('stock-cutting', function () {
     // Example Usage:
     $cutLengthsRequired = [];
-    for ($i = 1; $i <= 20; $i++) {
+    for ($i = 1; $i <= 13; $i++) {
         $cutLengthsRequired[] = [
             'project' => 1,
-            'length' => 9000,
+            'length' => 1000,
         ];
     }
 
-    $purchasableStockLengths = [9000, 12000];
+    $purchasableStockLengths = [8000];
 
-    $offcutInventory = [];
+    $offcutInventory = [
+        [
+            "length" => 6000,
+            "id" => 1,
+            "batch_from_id" => 1,
+        ],
+        [
+            "length" => 1500,
+            "id" => 2,
+            "batch_from_id" => 1,
+        ],
+        [
+            "length" => 1200,
+            "id" => 3,
+            "batch_from_id" => 1,
+        ],
+    ];
+
     $lettersProjectArray[1] = "A";
     $business = Business::first();
 
@@ -45,10 +62,11 @@ Route::get('stock-cutting', function () {
         $purchasableStockLengths,
         $offcutInventory,
         $lettersProjectArray,
-        $business
+        $business,
+        null,
     );
 
-    dd($result);
+    dd("13x 1000mm",$result);
 });
 
 //todo temporary

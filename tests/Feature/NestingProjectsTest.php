@@ -39,9 +39,11 @@ it('would be a disaster if a project with awarded status has no materials availa
     $response = $this->get(route('suggested.nesting'));
     $response->assertStatus(200);
 
+    //$response->assertInertia(fn (Assert $page) => dd($page));
+
     $response->assertInertia(fn (Assert $page) => $page
         ->count('pieces', 1) //1 batch parsed to the view
-        ->count('pieces.0.0.pieces', count($pieces)) //5 pieces
+        ->count('pieces.METERAGE.0.pieces', count($pieces)) //5 pieces
     );
 })->with(range(0, count(nestingTestCases()) - 1)); //This runs each test case index. e.g [0,1,2,3]
 

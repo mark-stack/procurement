@@ -164,11 +164,12 @@
          Axios
          */
         try {
-            const response = await axios.get(route("download.usage.data"));
-
-            if(response.data.usageData){
-                usageData.value = response.data.usageData;
-            }
+            //todo reinstate
+            // const response = await axios.get(route("download.usage.data"));
+            //
+            // if(response.data.usageData){
+            //     usageData.value = response.data.usageData;
+            // }
         } catch (error) {
 
         } finally {

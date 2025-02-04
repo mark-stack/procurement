@@ -19,6 +19,7 @@ return new class extends Migration
             $table->boolean('admin_setup_complete')->default(false);
             $table->boolean('upgraded')->default(false);
             $table->integer("scrap_threshold_mm")->default(1000);
+            $table->boolean("cap_12m_stock")->default(true);
         });
     }
 

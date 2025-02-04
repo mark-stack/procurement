@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Batch\RemoveOffcutsFromInventory;
+use App\Actions\Batch\SaveNesting;
 use App\Actions\OrderApproval\CreatePendingOrderApprovals;
 use App\Actions\Piece\AttachPiecesToBatch;
 use App\Formatters\NestingFormatter;
@@ -9,6 +11,8 @@ use App\Models\Batch;
 use App\Models\Quote;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Exception;
 
 class QuoteController extends Controller
 {
@@ -47,15 +51,25 @@ class QuoteController extends Controller
             'user_id' => $user->id,
         ]);
 
-        //Prerequisite variables
-        $projectsReadyForBatching = $business->projectsReadyForBatching(); //Note get this before updating pieces because it gets modified
-        $piecesReadyForBatching = (new NestingFormatter)->piecesReadyForBatching($business);
+        try {
+            DB::transaction(function () use($business,$batch) {
+                //Prerequisite variables
+                $projectsReadyForBatching = $business->projectsReadyForBatching(); //Note get this before updating pieces because it gets modified
+                $piecesReadyForBatching = (new NestingFormatter)->piecesReadyForBatching($business);
 
-        //Attach pieces to batch
-        AttachPiecesToBatch::run($piecesReadyForBatching, $batch);
+                //Attach pieces to batch
+                AttachPiecesToBatch::run($piecesReadyForBatching, $batch);
 
-        //Create pending order approvals
-        CreatePendingOrderApprovals::run($projectsReadyForBatching, $batch);
+                //Create pending order approvals
+                CreatePendingOrderApprovals::run($projectsReadyForBatching, $batch);
+
+                //Save the current nesting state
+                SaveNesting::run($piecesReadyForBatching, $batch, $business);
+            });
+        } catch (Exception $e) {
+            //dd($e->getMessage());
+            //todo throw an error
+        }
 
         return back();
     }

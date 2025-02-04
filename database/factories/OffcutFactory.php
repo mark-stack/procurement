@@ -56,7 +56,7 @@ class OffcutFactory extends Factory
     {
         return $this->state(function (array $attributes) use ($batchId) {
             return [
-                'batch_to_id' => $batchId ?? Batch::factory(),
+                'batch_to_id' => $batchId ?? null,
             ];
         });
     }
@@ -65,7 +65,7 @@ class OffcutFactory extends Factory
     {
         return $this->state(function (array $attributes) use ($pieceId) {
             return [
-                'piece_to_id' => $pieceId ?? Piece::factory(),
+                'piece_to_id' => $pieceId ?? null,
             ];
         });
     }

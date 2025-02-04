@@ -15,9 +15,11 @@ use App\Enums\GradeEnums;
 use App\Enums\MaterialEnums;
 use App\Enums\MeasurementUnitEnums;
 use App\Enums\NestingEnums;
+use App\Enums\ProductEnums;
 use App\Enums\SurfaceEnums;
 use App\Imports\ExcelImport;
 use App\Models\Business;
+use App\Models\Offcut;
 use App\Models\Piece;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
@@ -68,18 +70,23 @@ function nestingTestCases(): array
                 [2500, 5], //length,qty
                 [1500, 2],
             ],
+            "qtyPieces" => 7,
             'result' => [
                 [
                     'bar_length' => '9000',
                     'count' => 1,
                     'pieces' => [2500, 2500, 2500, 1500],
-                    'waste' => 0,
+                    'unused' => 0,
+                    "reusable" => 0,
+                    "scrap" => 0,
                 ],
                 [
                     'bar_length' => '9000',
                     'count' => 1,
                     'pieces' => [2500, 2500, 1500],
-                    'waste' => 2500,
+                    'unused' => 2500,
+                    "reusable" => 2500,
+                    "scrap" => 0,
                 ],
             ],
         ],
@@ -94,18 +101,98 @@ function nestingTestCases(): array
                 [7000, 2], //length,qty
                 [1700, 7],
             ],
+            "qtyPieces" => 9,
             'result' => [
                 [
                     'bar_length' => '9000',
                     'count' => 2,
                     'pieces' => [7000, 1700],
-                    'waste' => 300,
+                    'unused' => 300,
+                    "reusable" => 0,
+                    "scrap" => 300,
                 ],
                 [
                     'bar_length' => '9000',
                     'count' => 1,
                     'pieces' => [1700, 1700, 1700, 1700, 1700],
-                    'waste' => 500,
+                    'unused' => 500,
+                    "reusable" => 0,
+                    "scrap" => 500,
+                ],
+            ],
+        ],
+    ];
+}
+
+function nestingTestCasesWithOffcuts(): array
+{
+    return [
+        /**
+         * Case 1
+         *   1 of 9000: 2500|2500|2500|1500 (0 waste)
+         *   1 of 9000: 2500|2500|1500 (2500 waste)
+         */
+        [
+            'nest' => [
+                [2500, 5], //length,qty
+                [1500, 2],
+            ],
+            "qtyPieces" => 7,
+            "offcuts" => [
+                1200,1550
+            ],
+            "expectedQtyOffcutsUsed" => 1,
+            'result' => [
+                [
+                    'bar_length' => '9000',
+                    'count' => 1,
+                    'pieces' => [2500, 2500, 2500, 1500],
+                    'unused' => 0,
+                    "reusable" => 0,
+                    "scrap" => 0,
+                ],
+                [
+                    'bar_length' => '9000',
+                    'count' => 1,
+                    'pieces' => [2500, 2500],
+                    'unused' => 4000,
+                    "reusable" => 4000,
+                    "scrap" => 0,
+                ],
+            ],
+        ],
+        /**
+         * Case 2
+         *   1 of 9000: 7000|1700 (300 waste)
+         *   1 of 9000: 7000|1700 (300 waste)
+         *   1 of 9000: 1700|1700|1700|1700|1700 (500 waste)
+         */
+        [
+            'nest' => [
+                [7000, 2], //length,qty
+                [1700, 7],
+            ],
+            "qtyPieces" => 9,
+            "offcuts" => [
+                1200,2000
+            ],
+            "expectedQtyOffcutsUsed" => 1,
+            'result' => [
+                [
+                    'bar_length' => '9000',
+                    'count' => 2,
+                    'pieces' => [7000, 1700],
+                    'unused' => 300,
+                    "reusable" => 0,
+                    "scrap" => 300,
+                ],
+                [
+                    'bar_length' => '9000',
+                    'count' => 1,
+                    'pieces' => [1700, 1700, 1700, 1700],
+                    'unused' => 2200,
+                    "reusable" => 2200,
+                    "scrap" => 0,
                 ],
             ],
         ],
@@ -258,4 +345,25 @@ function csvArray(): ?array
     }
 
     return $csvArray;
+}
+
+function create_offcut_200PFC(int $length, $batchFromId): Offcut
+{
+    return Offcut::create([
+        'batch_from_id' => $batchFromId,
+        'batch_to_id' => null,
+        'piece_to_id' => null,
+        'product_category' => ProductEnums::PFC,
+        'material' => MaterialEnums::PLAIN_CARBON_STEEL,
+        'grade' => GradeEnums::GR300,
+        'surface' => SurfaceEnums::NONE,
+        'nominal_length' => null,
+        'precise_length' => null,
+        'nominal_width' => null,
+        'precise_width' => null,
+        'nominal_height' => 200,
+        'precise_height' => null,
+        'wall' => null,
+        'length' => $length,
+    ]);
 }
