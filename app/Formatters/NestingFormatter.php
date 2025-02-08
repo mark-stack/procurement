@@ -577,9 +577,7 @@ class NestingFormatter
          *  1A) Offcut candidates are where an offcut uses 60-100%
          *  1B) Randomly select a candidate
          *  1C) Calculate efficiency
-         *  1D) Iterate 10,000 times and choose the highest efficiency result
-         *  1E) Cut the offcut into new offcuts (Recycle when offcuts are below threshold, say 1000mm)
-         *  1F) Assign the offcut to this batch
+         *  1D) Iterate 100 times and choose the highest efficiency result
          *
          * STEP 2: use & optimised new stock
          *  "The Least Bins packing problem" with random iterations of choosing stock length
@@ -594,129 +592,120 @@ class NestingFormatter
         /**
          * STEP 1
          */
+
+
+
+        $iterations = 10;
         $depletableOffcutInventory = $offcutInventory;
 
         $resultsOffcuts = [];
-        $bestResultOffcuts = [];
 
-        for ($i = 1; $i <= 10; $i++) { //config('env.nesting_iterations')
-            $utilisedOffcutBars = [];
-
-            //1A) Offcut candidates are where an offcut uses 60-100%
-            foreach ($cutLengthsRequired as $cut) {
-                $cutLength = (int) $cut['length'];
-                $projectId = (int) $cut['project'];
-
-                $candidates = [];
-                foreach($depletableOffcutInventory as $index => $offcutData){
-                    //Candidate range
-                    $max = $offcutData["length"];
-                    $min = $offcutData["length"] * 0.6; //e.g 1000mm offcut can cut a 610mm piece from it
-
-                    if($cutLength >= $min && $cutLength <= $max){
-                        $candidates[] = [
-                            "length" => $offcutData["length"],
-                            "offcut_id" => $offcutData["id"],
-                            "piece_id" => $offcutData["id"],
-                            "batch_from_id" => $offcutData["batch_from_id"],
-                            "index" => $index,
-                        ];
-                    }
-                }
-                if(count($candidates) === 0){
-                    continue; //skip
-                }
-
-                //1B) Randomly select a candidate
-                $randomCandidateKey = array_rand($candidates);
-                $offcutLength = $candidates[$randomCandidateKey]["length"];
-                $offcutId = $candidates[$randomCandidateKey]["offcut_id"];
-                $batchFromId = $candidates[$randomCandidateKey]["batch_from_id"];
-                $pieceId = $candidates[$randomCandidateKey]["piece_id"];
-
-                $utilisedOffcutBars[] = [
-                    "offcutLength" => $offcutLength,
-                    "cutLength" => $cutLength,
-                    "reusableLength" => (($offcutLength - $cutLength) > $business->scrap_threshold_mm) ? ($offcutLength - $cutLength) : 0,
-                    "scrapLength" => (($offcutLength - $cutLength) > $business->scrap_threshold_mm) ? 0 : ($offcutLength - $cutLength),
-                    "projectId" => $projectId,
-                    "offcutId" => $offcutId,
-                    "pieceId" => $pieceId,
-                    "batchFromId" => $batchFromId,
-                    'letter' => $lettersProjectArray[$projectId],
-                ];
-
-                //Remove chosen item from group
-                $index = $candidates[$randomCandidateKey]["index"];
-                unset($depletableOffcutInventory[$index]);
-            }
-
-            /*
-             * 1C) Calculate efficiency
-             * Efficiency is amount of offcuts used that's not scraped. So it factors in reusable trimmings
-             */
-            $totalOffcutsLength = 0;
-            $totalScrapLength = 0;
-            $totalUsedOffcuts = 0;
-            $totalReusablelength = 0;
-            foreach($utilisedOffcutBars as $utilisedOffcutBar){
-                $totalOffcutsLength = $totalOffcutsLength + $utilisedOffcutBar["offcutLength"];
-                $totalUsedOffcuts = $totalUsedOffcuts + $utilisedOffcutBar["cutLength"];
-                $totalScrapLength = $totalScrapLength + $utilisedOffcutBar["scrapLength"];
-                $totalReusablelength = $totalReusablelength + $utilisedOffcutBar["reusableLength"];
-            }
-
-            $efficiencyOffcuts = $totalOffcutsLength > 0
-                ? round((($totalUsedOffcuts/$totalOffcutsLength)*100),1)
-                : 0;
-
-            $resultsOffcuts[$efficiencyOffcuts] = [
-                "utilisedOffcutBars" => $utilisedOffcutBars,
-                "totalOffcutsLength" => $totalOffcutsLength,
-                "totalUsedOffcuts" => $totalUsedOffcuts,
-                "totalScrapLength" => $totalScrapLength,
-                "totalReusablelength" => $totalReusablelength,
-            ];
-        }
-
-        //1D) Iterate 100 times and choose the highest efficiency result
-        if(count($resultsOffcuts) > 0){
-            $highestEfficiencyKeyOffcuts = max(array_keys($resultsOffcuts));
-            $lowestEfficiencyKeyOfScrap = min(array_keys($resultsOffcuts));
-            $bestResultOffcuts = $resultsOffcuts[$highestEfficiencyKeyOffcuts];
-        }
+        //Nesting required cuts into offcut inventory. e.g might cut 3x 900mm from 3,000mm
+        $bestResultOffcuts = $this->bestResultOffcuts($cutLengthsRequired,$offcutInventory,$lettersProjectArray, $business);
 
 
-        // 1E) Cut the offcut into new offcuts (Recycle when offcuts are below threshold, say 1000mm)
-//        //todo: CRUD at the time of confirming
-//        $newOffcuts = [];
-//        $scrap = [];
-//        foreach($bestResultOffcuts["utilisedOffcutBars"] as $offcutData){
-//            //new offcut
-//            if($offcutData["reusableLength"] > 0){
-//                $newOffcuts[] = [
-//                    "length" => $offcutData["reusableLength"],
-//                    "projectId" => $offcutData["projectId"],
-//                    "cutFromOffcutId" => $offcutData["offcutId"],
-//                    "batchFromId" => $offcutData["batchFromId"],
+        //todo debug
+//        if($newPieceSpec->product_derived_label === "75x50x2.5 RHS"){ //"75x50x2.5 RHS","250PFC  "
 //
-//                ];
-//            }
-//            //scrap
-//            if($offcutData["scrapLength"] > 0){
-//                $scrap[] = [
-//                    "length" => $offcutData["scrapLength"],
-//                    "cutFromOffcutId" => $offcutData["offcutId"],
-//                    "batchFromId" => $offcutData["batchFromId"],
-//                ];
-//            }
+//            dd([
+//                "hello" => "hello",
+//                "newPieceSpec" => $newPieceSpec,
+//                "cutLengthsRequired" => $cutLengthsRequired,
+//                "offcutInventory" => $offcutInventory,
+//                "bestResultOffcuts" => $bestResultOffcuts,
+//            ]);
 //        }
 
-        // 1F) Assign the offcut to this batch and piece
-        //todo: CRUD at the time of confirming
-        //batch_to_id
-        //piece_to_id
+        //todo deprecate below
+//        for ($i = 1; $i <= $iterations; $i++) {
+//            $utilisedOffcutBars = [];
+//
+//            //1A) Offcut candidates are where an offcut uses 60-100%
+//            foreach ($cutLengthsRequired as $cut) {
+//                $cutLength = (int) $cut['length'];
+//                $projectId = (int) $cut['project'];
+//
+//                $candidateOffcuts = [];
+//                foreach($depletableOffcutInventory as $index => $offcutData){
+//                    //Candidate range
+//                    $max = $offcutData["length"];
+//                    $min = $offcutData["length"] * 0.6; //e.g 1000mm offcut can cut a 610mm piece from it
+//
+//                    if($cutLength >= $min && $cutLength <= $max){
+//                        $candidateOffcuts[] = [
+//                            "length" => $offcutData["length"],
+//                            "offcut_id" => $offcutData["id"],
+//                            "piece_id" => $offcutData["id"],
+//                            "batch_from_id" => $offcutData["batch_from_id"],
+//                            "index" => $index,
+//                        ];
+//                    }
+//                }
+//
+//                if(count($candidateOffcuts) === 0){
+//                    continue; //skip
+//                }
+//
+//                //1B) Randomly select a candidate
+//                $randomCandidateKey = array_rand($candidateOffcuts);
+//                $offcutLength = $candidateOffcuts[$randomCandidateKey]["length"];
+//                $offcutId = $candidateOffcuts[$randomCandidateKey]["offcut_id"];
+//                $batchFromId = $candidateOffcuts[$randomCandidateKey]["batch_from_id"];
+//                $pieceId = $candidateOffcuts[$randomCandidateKey]["piece_id"];
+//
+//                $utilisedOffcutBars[] = [
+//                    "offcutLength" => $offcutLength,
+//                    "cutLength" => $cutLength,
+//                    "reusableLength" => (($offcutLength - $cutLength) > $business->scrap_threshold_mm) ? ($offcutLength - $cutLength) : 0,
+//                    "scrapLength" => (($offcutLength - $cutLength) > $business->scrap_threshold_mm) ? 0 : ($offcutLength - $cutLength),
+//                    "projectId" => $projectId,
+//                    "offcutId" => $offcutId,
+//                    "pieceId" => $pieceId,
+//                    "batchFromId" => $batchFromId,
+//                    'letter' => $lettersProjectArray[$projectId],
+//                ];
+//
+//                //Remove chosen item from group
+//                $index = $candidateOffcuts[$randomCandidateKey]["index"];
+//                unset($depletableOffcutInventory[$index]);
+//            }
+//
+//            /*
+//             * 1C) Calculate efficiency
+//             * Efficiency is amount of offcuts used that's not scraped. So it factors in reusable trimmings
+//             */
+//            $totalOffcutsLength = 0;
+//            $totalScrapLength = 0;
+//            $totalUsedOffcuts = 0;
+//            $totalReusableLength = 0;
+//            foreach($utilisedOffcutBars as $utilisedOffcutBar){
+//                $totalOffcutsLength = $totalOffcutsLength + $utilisedOffcutBar["offcutLength"];
+//                $totalUsedOffcuts = $totalUsedOffcuts + $utilisedOffcutBar["cutLength"];
+//                $totalScrapLength = $totalScrapLength + $utilisedOffcutBar["scrapLength"];
+//                $totalReusableLength = $totalReusableLength + $utilisedOffcutBar["reusableLength"];
+//            }
+//
+//            $efficiencyOffcuts = $totalOffcutsLength > 0
+//                ? round((($totalUsedOffcuts/$totalOffcutsLength)*100),1)
+//                : 0;
+//
+//            $resultsOffcuts[$efficiencyOffcuts] = [
+//                "utilisedOffcutBars" => $utilisedOffcutBars,
+//                "totalOffcutsLength" => $totalOffcutsLength,
+//                "totalUsedOffcuts" => $totalUsedOffcuts,
+//                "totalScrapLength" => $totalScrapLength,
+//                "totalReusableLength" => $totalReusableLength,
+//            ];
+//        }
 
+        //1D) Iterate 100 times and choose the highest efficiency result
+//        if(count($resultsOffcuts) > 0){
+//            $highestEfficiencyKeyOffcuts = max(array_keys($resultsOffcuts));
+//            $lowestEfficiencyKeyOfScrap = min(array_keys($resultsOffcuts));
+//            $bestResultOffcuts = $resultsOffcuts[$highestEfficiencyKeyOffcuts];
+//        }
+
+        //todo deprecate above ^^^^^
 
 
         /**
@@ -728,16 +717,24 @@ class NestingFormatter
         $cutLengthsRequiredAfterOffcutAllocation = $cutLengthsRequired;
         if(count($bestResultOffcuts) > 0){
             foreach($bestResultOffcuts["utilisedOffcutBars"] as $offcutBar){
-                foreach($cutLengthsRequiredAfterOffcutAllocation as $index => $requiredLength){
-                    if($offcutBar["cutLength"] === (int) $requiredLength["length"]){
-                        unset($cutLengthsRequiredAfterOffcutAllocation[$index]);
-                        break;
+                //Loop cuts
+                foreach($offcutBar["cuts"] as $cut){
+                    foreach($cutLengthsRequiredAfterOffcutAllocation as $index => $requiredLength){
+                        if($cut["length"] === (int) $requiredLength["length"]){
+                            unset($cutLengthsRequiredAfterOffcutAllocation[$index]);
+                            break;
+                        }
                     }
                 }
             }
 
             $cutLengthsRequiredAfterOffcutAllocation = array_values($cutLengthsRequiredAfterOffcutAllocation);
         }
+
+//        //todo debug
+//        if($newPieceSpec->product_derived_label === "75x50x2.5 RHS"){ //"75x50x2.5 RHS","250PFC  "
+//            dd(4,$bestResultOffcuts,count($cutLengthsRequired),count($cutLengthsRequiredAfterOffcutAllocation));
+//        }
 
         /*
          * 2B) Sort the cut lengths in descending order to prioritize fitting large pieces first.
@@ -803,7 +800,7 @@ class NestingFormatter
                     "total" => $bestResultOffcuts["totalOffcutsLength"],
                     "used" => $bestResultOffcuts["totalUsedOffcuts"],
                     "unused" => $bestResultOffcuts["totalOffcutsLength"] - $bestResultOffcuts["totalUsedOffcuts"],
-                    "reusable" => $bestResultOffcuts["totalReusablelength"],
+                    "reusable" => $bestResultOffcuts["totalReusableLength"],
                     "scrap" => $bestResultOffcuts["totalScrapLength"],
                 ],
                 "newStock" => [
@@ -815,6 +812,145 @@ class NestingFormatter
                 ],
             ],
         ];
+    }
+
+    private function bestResultOffcuts(array $cutLengthsRequired, array $offcutInventory, array $lettersProjectArray, Business $business): array
+    {
+        /**
+         * This is holistic nesting instead of piece by piece comparison which is an oversimplification.
+         *
+         * E.g 3000mm offcut and 3x 900mm pieces required. Simply comparing 900mm to 3000mm would say skip it,
+         * but 3x900mm = 2700mm which is viable use of 3000mm
+         *
+         * if there's multiple nesting possibilities, iterate through them
+         */
+
+        //Required cuts from biggest to smallest
+        $cutLengthsRequired = $this->sortCutLengthsDescending($cutLengthsRequired);
+
+        //Nesting
+        $nestRequiredCutsIntoOffcuts = $this->nestRequiredCutsIntoOffcuts(
+            $offcutInventory,
+            $cutLengthsRequired,
+            $lettersProjectArray,
+        );
+
+        $utilisedOffcutBars = [];
+        foreach($nestRequiredCutsIntoOffcuts as $offcut){
+            $offcutLength = $offcut["length"];
+            $usedLength = $offcutLength - $offcut["unused"];
+
+            $utilisedOffcutBars[] = [
+                "offcutLength" => $offcut["length"],
+                "cutLength" => $usedLength,
+                "reusableLength" => (($offcutLength - $usedLength) > $business->scrap_threshold_mm) ? ($offcutLength - $usedLength) : 0,
+                "scrapLength" => (($offcutLength - $usedLength) > $business->scrap_threshold_mm) ? 0 : ($offcutLength - $usedLength),
+                "offcutId" => $offcut["offcut_id"],
+                "batchFromId" => $offcut["batch_from_id"],
+                "scrap_threshold_mm" => $business->scrap_threshold_mm,
+                "cuts" => $offcut["cuts"], //length, projectId, piece_id, letter
+            ];
+        }
+
+        /*
+         * Calculate efficiency
+         * Efficiency is amount of offcuts used that's not scraped. So it factors in reusable trimmings
+         */
+        $totalOffcutsLength = 0;
+        $totalScrapLength = 0;
+        $totalUsedOffcuts = 0;
+        $totalReusableLength = 0;
+        foreach($utilisedOffcutBars as $utilisedOffcutBar){
+            $totalOffcutsLength = $totalOffcutsLength + $utilisedOffcutBar["offcutLength"];
+            $totalUsedOffcuts = $totalUsedOffcuts + $utilisedOffcutBar["cutLength"];
+            $totalScrapLength = $totalScrapLength + $utilisedOffcutBar["scrapLength"];
+            $totalReusableLength = $totalReusableLength + $utilisedOffcutBar["reusableLength"];
+        }
+
+        return [
+            "utilisedOffcutBars" => $utilisedOffcutBars,
+            "totalOffcutsLength" => $totalOffcutsLength,
+            "totalUsedOffcuts" => $totalUsedOffcuts,
+            "totalScrapLength" => $totalScrapLength,
+            "totalReusableLength" => $totalReusableLength,
+        ];
+    }
+
+    private function nestRequiredCutsIntoOffcuts(
+        array $offcutInventory,
+        array $cutLengthsRequired,
+        array $lettersProjectArray,
+    ): array
+    {
+        /**
+         * Take a list of required cuts and a list of available offcuts, and nest them. It includes cutting the offcut.
+         */
+
+        $utilisedOffcuts = [];
+
+        $depletableOffcutInventory = $offcutInventory;
+
+        foreach ($cutLengthsRequired as $cut) {
+            $placed = false;
+
+            $cutLength = (int) $cut['length'];
+            $projectId = (int) $cut['project'];
+            $pieceId = $cut["piece_id"];
+
+            // Try to fit the cut into an existing bar
+            foreach ($utilisedOffcuts as &$bar) {
+                if ($bar['unused'] >= $cutLength) {
+
+                    //dd();
+                    $cutData = [
+                        "length" => $cutLength,
+                        "projectId" => $projectId,
+                        "piece_id" => $pieceId,
+                        'letter' => $lettersProjectArray[$projectId],
+                    ];
+
+                    $bar['cuts'][] =  $cutData;
+                    $bar['unused'] -= $cutLength;
+                    $placed = true;
+                    break;
+                }
+            }
+
+            // If not placed, use a new offcut bar
+            if (!$placed) {
+                $offcutSelected = false;
+                foreach ($depletableOffcutInventory as $index => $offcutData) {
+                    $offcutLength = $offcutData['length'];
+
+                    if ($offcutLength >= $cutLength) {
+                        $offcutSelected = true;
+
+                        $cutData = [
+                            "length" => $cutLength,
+                            "projectId" => $projectId,
+                            "piece_id" => $pieceId,
+                            'letter' => $lettersProjectArray[$projectId],
+                        ];
+
+                        $utilisedOffcuts[] = [
+                            "length" => $offcutData["length"],
+                            "offcut_id" => $offcutData["id"],
+                            'unused' => $offcutLength - $cutLength,
+                            "batch_from_id" => $offcutData["batch_from_id"],
+                            'cuts' => [$cutData],
+                        ];
+                        break;
+                    }
+                }
+
+                //Remove used offcut
+                if($offcutSelected){
+                    unset($depletableOffcutInventory[$index]);
+                }
+            }
+        }
+
+        return $utilisedOffcuts;
     }
 
     private function singleRun(
@@ -1129,14 +1265,8 @@ class NestingFormatter
             //Projects in batch
             $projectsForBatching = $batch->projects();
 
-            //Pieces ready for batching
-            $piecesInBatch = $batch->pieces;
-
-            //Letter-project array
-            $lettersProjectArray = $this->getLetterProjectArray($piecesInBatch);
-
-            //Pieces nested
-            $piecesNested = $this->piecesNested($piecesInBatch, $lettersProjectArray, $business);
+            //Pieces nested (from saved)
+            $piecesNested = unserialize($batch->nested_state);
 
             //Nesting stats
             $usageStats = $this->usageStats($piecesNested);
@@ -1155,7 +1285,7 @@ class NestingFormatter
             //Letter-project array
             $lettersProjectArray = $this->getLetterProjectArray($piecesReadyForBatching);
 
-            //Pieces nested
+            //Pieces nested (generated)
             $piecesNested = $this->piecesNested($piecesReadyForBatching, $lettersProjectArray, $business);
 
             //Nesting stats
@@ -1302,6 +1432,7 @@ class NestingFormatter
          * Offcut inventory lengths
          */
         $offcutInventory = Offcut::query()
+            //Attributes
             ->where('product_category',$newPieceSpec->product_category)
             ->where('material',$newPieceSpec->material ?? null)
             ->where('grade',$newPieceSpec->grade ?? null)
@@ -1313,6 +1444,10 @@ class NestingFormatter
             ->where('nominal_height',$newPieceSpec->nominal_height ?? null)
             ->where('precise_height',$newPieceSpec->precise_height ?? null)
             ->where('wall',$newPieceSpec->wall ?? null)
+
+            //Availability
+            ->where("batch_to_id",null)
+
             ->get()
             ->toArray();
         $newPieceSpec->offcutInventoryLengths = $offcutInventory;

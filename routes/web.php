@@ -152,7 +152,7 @@ Route::get('notifications', function () {
     //HourlyNotificationsJob::dispatchSync();
 
     $notifications = (new NotificationService)->getUnreadNotifications($user);
-    //dd(3,$notifications);
+
     //Find Notification implementation
     $desiredNotificationClassName = "App\Services\NotificationImplementations\NotificationQuotingOrderingOverDueImplementation";
     $desiredNotificationClass = null;
@@ -170,8 +170,6 @@ Route::get('notifications', function () {
             }
         }
     }
-
-    dd(3, $desiredNotificationClass->hourlyCheck());
 
     dd('notifications', $notifications, $desiredNotificationClass);
 });

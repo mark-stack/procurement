@@ -133,7 +133,7 @@
                         class="flex items-center ml-4"
                     >
                         <CardButtonGreen
-                            @click="$emit('pageLoadingOn',null);$emit('showBom',project)"
+                            @click="$emit('pageLoadingOn',null);$emit('showBom',[project,false])"
                             :label="project.qtyMaterialRows"
                             :highlight="false"
                             :icon="true"

@@ -28,9 +28,13 @@ class SaveNesting
                 $bestResultOffcuts = $product->nested['bestResultOffcuts'];
                 if(count($bestResultOffcuts['utilisedOffcutBars']) > 0){
                     foreach($bestResultOffcuts['utilisedOffcutBars'] as $offcutData){
+                        //todo debug
+//                        if($product->product_derived_label === "75x50x2.5 RHS") { //"75x50x2.5 RHS","250PFC  "
+//                            dd(3,$bestResultOffcuts['utilisedOffcutBars']);
+//                        }
+
                         $offcut = Offcut::findOrFail($offcutData["offcutId"]);
                         $offcut->batch_to_id = $batch->id;
-                        $offcut->piece_to_id = $offcutData["pieceId"];
                         $offcut->save();
                     }
                 }

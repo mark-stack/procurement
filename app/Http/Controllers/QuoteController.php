@@ -63,7 +63,7 @@ class QuoteController extends Controller
                 //Create pending order approvals
                 CreatePendingOrderApprovals::run($projectsReadyForBatching, $batch);
 
-                //Save the current nesting state
+                //Save the current nesting state (points offcuts to new batch)
                 SaveNesting::run($piecesReadyForBatching, $batch, $business);
             });
         } catch (Exception $e) {

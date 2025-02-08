@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\Piece\DetachPiecesFromBatch;
 use App\Models\Batch;
+use App\Models\Offcut;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -67,6 +68,13 @@ class BatchController extends Controller
 
             //Delete order approvals
             $batch->orderApprovals()->delete();
+
+            //Un-associate any offcuts ("batch_to_id")
+            Offcut::query()
+                ->where("batch_to_id",$batch->id)
+                ->update([
+                    "batch_to_id" => null
+                ]);
 
             //Delete batch
             $batch->delete();

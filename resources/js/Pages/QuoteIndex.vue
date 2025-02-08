@@ -71,13 +71,13 @@
                     <!-- Usage stats-->
                     <div class="mt-5">
                         <h2 class="font-semibold">Usage stats (meterage items)</h2>
-                        Total Material = {{ (usage.METERAGE.totalPurchasedMaterial/1000).toLocaleString() }} m
+                        Total Material = {{ (usage.METERAGE.totalPurchasedMaterial/1000).toLocaleString() }}m
                         <br>
-                        Total Used Material = {{ (usage.METERAGE.totalUsedMaterial/1000).toLocaleString() }} m
+                        Total Used Material = {{ (usage.METERAGE.totalUsedMaterial/1000).toLocaleString() }}m
                         <br>
-                        Total Reusable = {{ (usage.METERAGE.totalReusable/1000).toLocaleString() }} m
+                        Total Reusable = {{ (usage.METERAGE.totalReusable/1000).toLocaleString() }}m
                         <br>
-                        Total Scrap = {{ (usage.METERAGE.totalScrap/1000).toLocaleString() }} m
+                        Total Scrap = {{ (usage.METERAGE.totalScrap/1000).toLocaleString() }}m
                         <br>
                         Efficiency = {{ usage.METERAGE.efficiency }}%
                     </div>

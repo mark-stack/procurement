@@ -11,7 +11,7 @@ class RemoveOffcutsFromInventory
 
     public function handle(array $piecesNested): void
     {
-        dd(3,$piecesNested);
+        //dd(3,$piecesNested);
 
         //nested > utilisedBars > bestResultOffcuts > utilisedOffcutBars
     }

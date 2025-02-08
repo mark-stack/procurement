@@ -13,6 +13,7 @@
         project: Object,
         bomData: Object,
         refreshModalBom: Boolean,
+        modalCanUpload: Boolean,
     });
 
     //Forms
@@ -127,10 +128,8 @@
             : false;
     }
 
-    function hasQuotesOrOrders(){
-        return thisDownloadedBomData(props.bomData)
-            ? (thisDownloadedBomData(props.bomData).percentageOfMaterialsQuoted > 0 || thisDownloadedBomData(props.bomData).percentageOfMaterialsOrdered > 0)
-            : false;
+    function nestingStage(){
+        return true; //todo
     }
 
     function hasSenseChecks(){
@@ -362,6 +361,14 @@
         return unitDisplay;
     }
 
+    function canUpload(){
+        /**
+         * Nesting stage only (nesting card).
+         * Don't show whilst clarifying or doing custom products
+         */
+        return props.modalCanUpload && !hasClarifications() && !hasUserCustomProducts();
+    }
+
     //Watcher
     const { refreshModalBom } = toRefs(props);
     watch(refreshModalBom, (newVal) => {
@@ -396,7 +403,7 @@
                     <div v-else class="pt-5">
                         <!-- Drag n drop  -->
                         <div
-                            v-if="!hasClarifications() && !hasUserCustomProducts() && !hasQuotesOrOrders()"
+                            v-if="canUpload()"
                             class="pl-5 pr-5"
                         >
                             <!-- Rectangle -->

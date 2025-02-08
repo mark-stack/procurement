@@ -39,31 +39,31 @@ class DatabaseSeeder extends Seeder
         $adminUser->save();
 
         //Test project with offcuts of 75x50x2.5 RHS (as found in "minimal scope" Excel)
-        $testProject = Project::create([
-            'name' => "test project",
-            'user_id' => $adminUser->id,
-        ]);
-        $testBatch = Batch::create([
-            "user_id" => $adminUser->id,
-        ]);
-        $testOffcut1 = Offcut::factory()
-            ->withBatchFrom(1)
-            ->withBatchTo(2)
-            ->withPieceTo(3)
-            ->withLength(6000)
-            ->create();
-        $testOffcut2 = Offcut::factory()
-            ->withBatchFrom(1)
-            ->withBatchTo(2)
-            ->withPieceTo(3)
-            ->withLength(1500)
-            ->create();
-        $testOffcut3 = Offcut::factory()
-            ->withBatchFrom(1)
-            ->withBatchTo(2)
-            ->withPieceTo(3)
-            ->withLength(1200)
-            ->create();
+//        $testProject = Project::create([
+//            'name' => "test project",
+//            'user_id' => $adminUser->id,
+//        ]);
+//        $testBatch = Batch::create([
+//            "user_id" => $adminUser->id,
+//        ]);
+//        $testOffcut1 = Offcut::factory()
+//            ->withBatchFrom(1)
+//            ->withBatchTo(2)
+//            ->withPieceTo(3)
+//            ->withLength(6000)
+//            ->create();
+//        $testOffcut2 = Offcut::factory()
+//            ->withBatchFrom(1)
+//            ->withBatchTo(2)
+//            ->withPieceTo(3)
+//            ->withLength(1500)
+//            ->create();
+//        $testOffcut3 = Offcut::factory()
+//            ->withBatchFrom(1)
+//            ->withBatchTo(2)
+//            ->withPieceTo(3)
+//            ->withLength(1200)
+//            ->create();
 
 
         //        /**

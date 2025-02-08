@@ -71,7 +71,7 @@
             </div>
             <div class="flex items-center ml-4">
                 <CardButtonGreen
-                    @click="$emit('pageLoadingOn',null);$emit('showBom',project)"
+                    @click="$emit('pageLoadingOn',null);$emit('showBom',[project,true])"
                     :label="project.qtyMaterialRows"
                     :highlight="false"
                     :icon="true"
@@ -92,7 +92,7 @@
                 label="Edit"
             />
             <CardButtonGreen
-                @click="$emit('pageLoadingOn',null);$emit('showBom',project)"
+                @click="$emit('pageLoadingOn',null);$emit('showBom',[project,true])"
                 label="Materials"
                 :highlight="true"
                 :icon="false"

@@ -528,6 +528,8 @@
                                         <input
                                             v-if="row.info.order_sent"
                                             @click="undoOrderSent(row)"
+                                            :disabled="row.info.is_delivered"
+                                            :class="row.info.is_delivered ? 'text-gray-500' : ''"
                                             type="checkbox"
                                             checked
                                         />
@@ -574,7 +576,9 @@
                                         :true-value="1"
                                         :false-value="0"
                                         @change="deliveredCheckbox(row)"
+                                        :disabled="row.info.is_delivered"
                                         type="checkbox"
+                                        :class="row.info.is_delivered ? 'text-gray-500' : ''"
                                     />
                                 </div>
                             </div>

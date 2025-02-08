@@ -17,7 +17,7 @@ return new class extends Migration
 
             $table->integer('batch_from_id');
             $table->integer('batch_to_id')->nullable();
-            $table->integer('piece_to_id')->nullable();
+            $table->integer('piece_to_id')->nullable(); //todo: 1 offcut might have multiple cuts belonging to multiple pieces
 
             $table->text('product_category');               //PFC
             $table->text('material');                       //PLAIN CARBON STEEL

@@ -40,6 +40,7 @@
     const bomData = ref([]);
     const pageLoading = ref(false);
     const usageData = ref(null);
+    const modalCanUpload = ref(false);
     const underNavScreenHeight = window.innerHeight - 68;
     const kanbanHeight = underNavScreenHeight - 50;
 
@@ -140,9 +141,13 @@
         editProject.value = null;
     }
 
-    function showBom(project){
+    function showBom(args){
+        let project = args[0];
+        let canUpload = args[1];
+
         //Set project
         bomProject.value = project;
+        modalCanUpload.value = canUpload;
 
         /**
          Only download new data if hasn't already
@@ -274,7 +279,7 @@
                                         class="mb-3"
                                         @toggleArchive="p => toggleArchive(p)"
                                         @editMode="p => editMode(p)"
-                                        @showBom="p => showBom(p)"
+                                        @showBom="args => showBom(args)"
                                         @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
                                         @pageLoadingOff="pageLoading = false"
                                     />
@@ -303,7 +308,7 @@
                                     @editMode="p => editMode(p)"
                                     @quoteNow="quoteNow()"
                                     @orderNow="orderNow()"
-                                    @showBom="p => showBom(p)"
+                                    @showBom="args => showBom(args)"
                                     @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
                                     @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
                                 />
@@ -337,7 +342,7 @@
                                     @editMode="p => editMode(p)"
                                     @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
                                     @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
-                                    @showBom="p => showBom(p)"
+                                    @showBom="args => showBom(args)"
                                 />
                                 <div v-else class="text-center text-sm text-gray-500 mx-auto" style="width:250px">
                                     Nested batches move to here after selecting <i>"Start quoting/ordering"</i>
@@ -370,7 +375,7 @@
                                     @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
                                     @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
                                     @orderNow="orderNow(batch['batch']['id'])"
-                                    @showBom="p => showBom(p)"
+                                    @showBom="args => showBom(args)"
                                 />
                                 <div v-else class="text-center text-sm text-gray-500 mx-auto" style="width:200px">
                                     Nested batches move to here after adding first order
@@ -403,7 +408,7 @@
                                     @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
                                     @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
                                     @orderNow="orderNow(batch['batch']['id'])"
-                                    @showBom="p => showBom(p)"
+                                    @showBom="args => showBom(args)"
                                 />
                                 <div v-else class="text-center text-sm text-gray-500 mx-auto" style="width:200px">
                                     Nested batches move to here after all orders are complete
@@ -455,6 +460,7 @@
         :project="bomProject"
         :bomData="bomData"
         :refreshModalBom="refreshModalBom"
+        :modalCanUpload="modalCanUpload"
         @closeModal="showBomEditModal = false"
         @closeModalOnSuccess="showBomEditModal = false"
         @redownload="projectId => downloadProjectBomData(projectId)"

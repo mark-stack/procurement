@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Offcut\GenerateOffcuts;
 use App\Actions\Order\SetOrderSentForBatchSupplierGroup;
 use App\Actions\OrderApproval\UpdateOrderApprovalStatus;
 use App\Actions\Piece\AttachPiecesToOrder;
@@ -568,8 +569,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         })->name('order.undo.sent');
 
         Route::post("order-mark-delivered/{order}",function(Request $request, Order $order){
+            //Mark delivered
             $order->is_delivered = !$order->is_delivered;
             $order->save();
+
+            //Generate offcuts
+            GenerateOffcuts::run($order->batch);
 
             return back();
         })->name("order.mark.delivered");
