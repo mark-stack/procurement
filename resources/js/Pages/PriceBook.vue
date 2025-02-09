@@ -151,12 +151,6 @@
                                                         <span>Height (nominal)</span>
                                                     </div>
                                                 </th>
-
-                                                <th v-if="isAdmin" scope="col" class="sticky top-0 py-3.5 px-4 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                                                    <div class="flex items-center gap-x-3">
-                                                        <span>Baseline Price</span>
-                                                    </div>
-                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody class="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-gray-900">
@@ -272,19 +266,7 @@
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <!-- baseline price (admin) -->
-                                                <td v-if="isAdmin" class="px-4 py-4 text-sm font-medium text-gray-700 whitespace-nowrap">
-                                                    <div class="inline-flex items-center gap-x-3">
-                                                        <div class="flex items-center gap-x-2">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="m0 0h512v512h-512z"/><path d="m39.557 19 283.883 254h149.003l-283.883-254h-149.002zm-14.557 11.13v25.847l286 255.893v-25.846zm64 107.263v34.584l286 255.893v-84.843l-64-13.002zm-11.445 48.497-42.9 10.723 287.79 257.498 42.9-10.723-287.789-257.498zm-52.555 26.24v23.847l286 255.893v-23.847zm304 78.87v21.973l64 16v126.054l-64 16v21.973h158v-21.973l-64-16v-126.054l64-16v-21.973zm112 135.865v14.108l21.88 5.47z" fill="#fff"/></svg>
-                                                            <div>
-                                                                <h2 class="font-medium text-gray-800 dark:text-white ">
-                                                                    {{row.baseline_unit_rate}}
-                                                                </h2>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </td>
+
                                             </tr>
                                         </tbody>
                                     </table>

@@ -456,7 +456,7 @@
     />
     <BomEditModal
         v-if="showBomEditModal"
-        width="1000"
+        width="800"
         :project="bomProject"
         :bomData="bomData"
         :refreshModalBom="refreshModalBom"

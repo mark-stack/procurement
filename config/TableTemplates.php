@@ -29,7 +29,6 @@ return [
         'LengthRelativeOffset' => 18, //"S"
         'WidthRelativeOffset' => null,
         'SubQtyRelativeOffset' => 1, //"B"
-        'UnitRateRelativeOffset' => null,
         'nominalUnits' => 'mm',
         'numberOfTablesInDocument' => 1,
         /*
@@ -64,7 +63,6 @@ return [
         'LengthRelativeOffset' => 10,
         'WidthRelativeOffset' => null,
         'SubQtyRelativeOffset' => 7,
-        'UnitRateRelativeOffset' => null,
         'nominalUnits' => 'mm',
         'numberOfTablesInDocument' => 4,
         /*
@@ -107,7 +105,6 @@ return [
         'LengthRelativeOffset' => 12, //"M"
         'WidthRelativeOffset' => 0, //"A"
         'SubQtyRelativeOffset' => 15, //"P"
-        'UnitRateRelativeOffset' => null,
         'nominalUnits' => 'mm',
         'numberOfTablesInDocument' => 1,
         /*
@@ -150,7 +147,6 @@ return [
         'LengthRelativeOffset' => 15, //"P"
         'WidthRelativeOffset' => 0, //"A"
         'SubQtyRelativeOffset' => 19, //"T"
-        'UnitRateRelativeOffset' => null,
         'nominalUnits' => 'mm',
         'numberOfTablesInDocument' => 1,
         /*
@@ -190,7 +186,6 @@ return [
         'LengthRelativeOffset' => 0,
         'WidthRelativeOffset' => 1,
         'SubQtyRelativeOffset' => 2,
-        'UnitRateRelativeOffset' => 3,
         'nominalUnits' => 'm',
         'numberOfTablesInDocument' => 1,
         /*

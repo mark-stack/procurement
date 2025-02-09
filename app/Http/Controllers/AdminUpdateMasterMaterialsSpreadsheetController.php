@@ -44,7 +44,6 @@ class AdminUpdateMasterMaterialsSpreadsheetController extends Controller
                         'pack_size_2' => $row[16],
                         'pack_size_3' => $row[17],
                         'kg_per_m' => $row[18],
-                        'baseline_unit_rate' => $row[19],
                     ];
                 }
             }

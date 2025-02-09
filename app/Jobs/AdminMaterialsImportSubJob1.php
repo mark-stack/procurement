@@ -52,7 +52,6 @@ class AdminMaterialsImportSubJob1 implements ShouldQueue
                 'pack_size_2' => $this->row['pack_size_2'],
                 'pack_size_3' => $this->row['pack_size_3'],
                 'kg_per_m' => $this->row['kg_per_m'],
-                'baseline_unit_rate' => $this->row['baseline_unit_rate'],
                 'business_id' => null,
                 'deprecated' => false,
             ]);
@@ -77,7 +76,6 @@ class AdminMaterialsImportSubJob1 implements ShouldQueue
             ->where('nominal_height', $row['nominal_height'])
             ->where('actual_height', $row['actual_height'])
             ->where('kg_per_m', $row['kg_per_m'])
-            ->where('baseline_unit_rate', $row['baseline_unit_rate'])
             ->first();
 
         return $record ? $record->id : null;

@@ -116,9 +116,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
                     ? $nestingFormatter->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category)[0]
                     : null;
                 $rawMaterialQuote->nesting_algo = $nesting_algo;
-                $baseline_unit_rate = $productService->getBaseLineUnitRateFromGeneral($getProductMatchOptions['decodedOption'] ?? null);
-                $rawMaterialQuote->baseline_unit_rate = $baseline_unit_rate;
-                $rawMaterialQuote->baseline_unit_rate_comparison = $productService->getBaselineUnitRateHighLowComparison($rawMaterialQuote->unit_rate, $baseline_unit_rate);
                 $rawMaterialQuote->status = $rawMaterialQuote->status();
 
                 //If should include row based on plan. e.g only "steel merchant" supplier group

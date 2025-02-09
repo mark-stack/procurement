@@ -254,7 +254,6 @@ class RawMaterialListCustomisationsController extends Controller
                 'pack_size_2' => $variation['pack_size_2'],
                 'pack_size_3' => $variation['pack_size_3'],
                 'kg_per_m' => 0.0, //todo can get this from somewhere?
-                'baseline_unit_rate' => null, //todo get quoted price
                 'business_id' => $business->id,
                 'deprecated' => false,
             ];

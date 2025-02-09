@@ -274,7 +274,6 @@ class ProductService
     //    public function senseChecks(): void
     //    {
     //        //todo
-    ////        $unitRate = $this->senseCheckUnitRate($unitRate);
     ////        $lengthRequired = $this->senseCheckLengthRequired($lengthRequired,$measurementUnit);
     //    }
 
@@ -311,21 +310,6 @@ class ProductService
     //
     //        return $result;
     //    }
-
-    public function senseCheckUnitRate($unitRate)
-    {
-        /**
-         * Sense check unit rate and update it if necessary
-         */
-
-        /**
-         * Case #1
-         * the description specified a length like PFC 9000mm, but this typically has METER units. Check that the rate matches METERS or MILLIMETERS.
-         */
-        //todo
-
-        return $unitRate; //todo actual
-    }
 
     public function senseCheckLengthRequired($lengthRequired, $measurementUnit)
     {
@@ -963,65 +947,6 @@ class ProductService
     private function formatDefault($productCategory, $nominal_length, $nominal_width, $nominal_height, $actualGrade, $actualSurface): string
     {
         return $productCategory.' '.$actualGrade.$actualSurface;
-    }
-
-    public function getBaseLineUnitRateFromGeneral(Product|array|null $productSpec): ?float
-    {
-        /**
-         * Get the baseline unit rate (comes from master materials spreadsheet)
-         */
-        $baselineUnitRate = null;
-
-        if ($productSpec !== null) {
-            //If object, convert to array
-            if (gettype($productSpec) === 'object') {
-                $productSpec = $productSpec->toArray();
-            }
-
-            unset($productSpec['product_derived_label']);
-
-            //Find product match
-            $query = Product::query();
-            foreach ($productSpec as $fieldKey => $fieldValue) {
-                $query->where($fieldKey, $fieldValue);
-            }
-            $productMatch = $query->first();
-
-            //Get baseline unit rate if product found
-            if ($productMatch && $productMatch->baseline_unit_rate) {
-                //Extract float from "$40.54"
-                $baselineUnitRate = $this->extractFloat($productMatch->baseline_unit_rate);
-            }
-        }
-
-        return $baselineUnitRate;
-    }
-
-    public function getBaselineUnitRateHighLowComparison(?string $unitRate, ?float $baseline_unit_rate): string
-    {
-        $comparison = 'NONE';
-
-        if ($unitRate && $baseline_unit_rate) {
-            $unitRate = floatval($unitRate);
-
-            if ($unitRate < ($baseline_unit_rate * 0.9)) {
-                $comparison = 'LOW';
-            }
-            if ($unitRate > ($baseline_unit_rate * 1.3)) {
-                $comparison = 'HIGH';
-            }
-        }
-
-        return $comparison;
-    }
-
-    public function extractFloat(string $string): ?float
-    {
-        if (preg_match('/\d+(\.\d+)?/', $string, $matches)) {
-            return (float) $matches[0];
-        }
-
-        return null; // Return null if no float found
     }
 
     public function getImplementations(): array

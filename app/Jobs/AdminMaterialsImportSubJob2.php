@@ -62,7 +62,6 @@ class AdminMaterialsImportSubJob2 implements ShouldQueue
             $nominal_height = strtoupper($row['nominal_height']) === strtoupper($productObject->nominal_height);
             $actual_height = strtoupper($row['actual_height']) === strtoupper($productObject->actual_height);
             $kg_per_m = strtoupper($row['kg_per_m']) === strtoupper($productObject->kg_per_m);
-            $baseline_unit_rate = strtoupper($row['baseline_unit_rate']) === strtoupper($productObject->baseline_unit_rate);
 
             if (
                 $description &&
@@ -79,8 +78,7 @@ class AdminMaterialsImportSubJob2 implements ShouldQueue
                 $actual_width &&
                 $nominal_height &&
                 $actual_height &&
-                $kg_per_m &&
-                $baseline_unit_rate
+                $kg_per_m
             ) {
                 $matchedIndex = $index;
             }

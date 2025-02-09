@@ -24,7 +24,6 @@ return new class extends Migration
             $table->string('length_required');
             $table->string('width_required')->nullable();
             $table->string('sub_qty');
-            $table->string('unit_rate')->nullable();
             $table->foreignId('project_id')->constrained();
             $table->text('general_product_matches')->nullable();
             $table->text('custom_product_matches')->nullable();

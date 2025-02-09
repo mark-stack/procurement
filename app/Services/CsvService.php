@@ -274,9 +274,6 @@ class CsvService
         $subQtyColumnAbsoluteIndex = isset($tableOption['SubQtyRelativeOffset'])
             ? ($firstHeadingColumnAbsoluteIndex + $tableOption['SubQtyRelativeOffset'])
             : null;
-        $unitRateColumnAbsoluteIndex = isset($tableOption['UnitRateRelativeOffset'])
-            ? ($firstHeadingColumnAbsoluteIndex + $tableOption['UnitRateRelativeOffset'])
-            : null;
 
         $nominalUnits = $tableOption['nominalUnits'];
 
@@ -336,11 +333,6 @@ class CsvService
                         ? $this->getSubQty($csvRow[$subQtyColumnAbsoluteIndex])
                         : null;
 
-                    //Unit rate
-                    $unitRate = ($unitRateColumnAbsoluteIndex !== null && isset($csvRow[$unitRateColumnAbsoluteIndex]))
-                        ? $this->getUnitRateDollars($csvRow[$unitRateColumnAbsoluteIndex])
-                        : null;
-
                     $tableData[] = [
                         'index' => $index,
                         'description' => $description,
@@ -350,7 +342,6 @@ class CsvService
                         'length_required' => $lengthRequired,
                         'width_required' => $widthRequired,
                         'sub_qty' => $subQty,
-                        'unit_rate' => $unitRate,
                         'assembly_mark' => $this->getAssemblyMark($tableOption, $csvRow, $csvArray, $firstDataRowIndex, $firstHeadingColumnAbsoluteIndex),
                     ];
                 }
@@ -414,24 +405,6 @@ class CsvService
         return (float) $removeCurrencySymbols;
     }
 
-    public function getUnitRateDollars(string $rawUnitRate): float
-    {
-        /**
-         * Single purpose: extract float numbers from string
-         */
-        $result = 0;
-
-        // Regular expression to match integers and floats
-        $pattern = '/\b\d{1,3}(?:,\d{3})*(?:\.\d+)?|\b\d+(?:\.\d+)?\b/';
-
-        // Perform regex match
-        if (preg_match($pattern, $rawUnitRate, $matches)) {
-            $result = $matches[0]; // Return the matched number
-        }
-
-        return (float) $result;
-    }
-
     public function saveRawMaterialQuoteData(array $rows, Project $project, Business $business): array
     {
         /**
@@ -488,7 +461,6 @@ class CsvService
                 'length_required' => $this->normalisedLength($algo, $lengthRequired),
                 'width_required' => $this->normalisedWidth($algo, $widthRequired),
                 'sub_qty' => $row['sub_qty'],
-                'unit_rate' => $row['unit_rate'] ?? null,
                 'project_id' => $project->id,
                 'general_product_matches' => serialize($row['generalProductMatches']),
                 'custom_product_matches' => serialize($row['customProductMatches']),

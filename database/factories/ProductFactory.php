@@ -30,7 +30,6 @@ class ProductFactory extends Factory
             'length' => fake()->text(10),
             'width' => fake()->text(10),
             'kg_per_m' => '17.5',
-            'baseline_unit_rate' => '$13.54',
             'domain' => null, //platform created
         ];
     }

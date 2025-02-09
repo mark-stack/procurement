@@ -33,7 +33,6 @@ return new class extends Migration
             $table->string('pack_size_2')->nullable();
             $table->string('pack_size_3')->nullable();
             $table->float('kg_per_m')->nullable();           //17.5
-            $table->text('baseline_unit_rate')->nullable(); //$13.54
             $table->foreignId('business_id')->nullable()->constrained(); //QSW (null means platform created)
             $table->boolean('deprecated')->default(false);
         });
