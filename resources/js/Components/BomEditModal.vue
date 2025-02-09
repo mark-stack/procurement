@@ -361,12 +361,29 @@
         return unitDisplay;
     }
 
+    function getPriceUnitDisplay(row,slash){
+        let unitDisplay = "";
+
+        if(row.nesting_algo === "METERAGE"){
+            unitDisplay =  slash ? "/m" : "m";
+        }
+
+        return unitDisplay;
+    }
+
     function canUpload(){
         /**
          * Nesting stage only (nesting card).
          * Don't show whilst clarifying or doing custom products
          */
         return props.modalCanUpload && !hasClarifications() && !hasUserCustomProducts();
+    }
+
+    function canDelete(){
+        /**
+         * Nesting stage only (nesting card).
+         */
+        return props.modalCanUpload;
     }
 
     //Watcher
@@ -619,6 +636,7 @@
                                 class="text-left"
                             >
                                 <button
+                                    v-if="canDelete()"
                                     :disabled="formBulkActions.selectedRawMaterialQuoteIds.length == 0"
                                     @click="submitBulkDelete()"
                                     :class="formBulkActions.selectedRawMaterialQuoteIds.length == 0 ? 'text-gray-500' : ''"
@@ -638,13 +656,14 @@
                                                             <th scope="col" class=" py-3.5 px-4 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400">
                                                                 <div class="flex items-center gap-x-3">
                                                                     <input
+                                                                        v-if="canDelete()"
                                                                         id="masterCheckbox"
                                                                         @input="toggleMasterCheckbox()"
                                                                         type="checkbox"
                                                                         :checked="allChecked"
                                                                         class="text-blue-500 border-gray-300 rounded dark:bg-gray-900 dark:ring-offset-gray-900 dark:border-gray-700"
                                                                     >
-                                                                    <label for="masterCheckbox">Description</label>
+                                                                    <label for="masterCheckbox" :class="canDelete() ? '' : 'ml-7'">Description</label>
                                                                 </div>
                                                             </th>
 
@@ -777,7 +796,7 @@
                                                                     <div class="flex items-center gap-x-2">
                                                                         <div>
                                                                             <h2 class="font-medium text-gray-800 dark:text-white ">
-                                                                                {{ new Intl.NumberFormat('en-US', {style: 'currency', currency: 'USD',}).format(row.unit_rate) }}<span class="text-xs">{{getUnitDisplay(row,true)}}</span>
+                                                                                {{ new Intl.NumberFormat('en-US', {style: 'currency', currency: 'USD',}).format(row.unit_rate) }}<span class="text-xs">{{getPriceUnitDisplay(row,true)}}</span>
                                                                             </h2>
                                                                             <p v-if="row.baseline_unit_rate_comparison !== 'NONE'" :class="getUnitRateColour(row)" class="text-xs">Too {{ row.baseline_unit_rate_comparison.toLowerCase() }}?</p>
                                                                         </div>
@@ -790,7 +809,7 @@
                                                                     <div class="flex items-center gap-x-2">
                                                                         <div>
                                                                             <h2 v-if="row.baseline_unit_rate" class="font-medium text-gray-800 dark:text-white ">
-                                                                                {{ new Intl.NumberFormat('en-US', {style: 'currency', currency: 'USD',}).format(row.baseline_unit_rate) }}<span class="text-xs">/m</span>
+                                                                                {{ new Intl.NumberFormat('en-US', {style: 'currency', currency: 'USD',}).format(row.baseline_unit_rate) }}<span class="text-xs">{{getPriceUnitDisplay(row,true)}}</span>
                                                                             </h2>
                                                                         </div>
                                                                     </div>

@@ -47,20 +47,11 @@
             <div :style="'width:'+width+'px; height:'+height+'px'" class="overflow-y-auto p-5">
                 <!-- Pieces -->
                 <section class="container max-w-5xl mx-auto mt-5">
-                    <p v-if="type === 'SUGGESTED'" class="mb-3">
-                        Criteria of materials ready to batch:
-                        <ul>
-                            <li> - Project is awarded (not tender phase)</li>
-                            <li> - Project is active (not archived)</li>
-                            <li> - Materials are imported and clarified against pricebook</li>
-                        </ul>
-                    </p>
-
                     <p v-if="projectsReadyForBatching.data.length > 0">
                         <h2 class="font-semibold">Included Projects:</h2>
                         <ul>
                             <li v-for="(project,index) in projectsReadyForBatching.data">
-                                - project #{{project.id}}: <i>'{{project.name}}'</i> ({{project.projectManager.name}}'s project) - Quote request deadline: {{moment(project.criticalPathDeadline).format("MMMM Do YYYY")}} ({{project.daysUntilCriticalPathDeadline}}).
+                                - Project #{{project.id}}: <i>'{{project.name}}'</i> ({{project.projectManager.name}}'s project)
                             </li>
                         </ul>
                     </p>

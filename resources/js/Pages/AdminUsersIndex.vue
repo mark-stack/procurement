@@ -61,7 +61,8 @@
                                 <td>{{user.business.domain}}</td>
                                 <td>
                                     <Link
-                                        class="underline text-blue-500"
+                                        class="underline"
+                                        :class="user.templates.length > 0 ? 'text-blue-500' : 'text-red-500 font-bold'"
                                         :href="route('admin.templates.index',user.business.id)"
                                     >
                                         {{user.templates.length}}
