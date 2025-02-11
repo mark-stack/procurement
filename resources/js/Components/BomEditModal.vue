@@ -467,7 +467,7 @@
                         </div>
 
                         <!-- Sense checks / Clarifications / User custom products / Table-->
-                        <div class="overflow-y-auto pl-5 pr-5">
+                        <div class="overflow-y-auto pl-5 pr-1">
                             <!-- Sense checks -->
                             <section
                                 v-if="hasSenseChecks()"
@@ -622,6 +622,14 @@
                                 style="height:300px"
                                 class="text-left"
                             >
+
+                                <div v-if="thisDownloadedBomData(props.bomData).itemsNotFound && !thisDownloadedBomData(props.bomData).business.upgraded" class="mt-2 flex justify-between rounded-lg py-2 px-4 bg-[#fff2b2] text-[#7c620c]">
+                                    <p class="font-sans text-xs">
+                                        Items from your uploaded BOM's for this project that are not recognised as linear stock:
+                                        <br><span class="text-sm">{{thisDownloadedBomData(props.bomData).itemsNotFound}}</span>
+                                    </p>
+                                </div>
+
                                 <button
                                     v-if="canDelete()"
                                     :disabled="formBulkActions.selectedRawMaterialQuoteIds.length == 0"
@@ -650,7 +658,7 @@
                                                                         :checked="allChecked"
                                                                         class="text-blue-500 border-gray-300 rounded dark:bg-gray-900 dark:ring-offset-gray-900 dark:border-gray-700"
                                                                     >
-                                                                    <label for="masterCheckbox" :class="canDelete() ? '' : 'ml-7'">Description</label>
+                                                                    <label for="masterCheckbox">Description</label>
                                                                 </div>
                                                             </th>
 
@@ -685,7 +693,7 @@
                                                             <td class="px-4 py-4 text-sm font-medium text-gray-700 whitespace-nowrap">
                                                                 <div class="inline-flex items-center gap-x-3">
                                                                     <input
-                                                                        v-if="!row.status"
+                                                                        v-if="canDelete() && !row.status"
                                                                         :id="'check'+row.id"
                                                                         type="checkbox"
                                                                         :checked="formBulkActions.selectedRawMaterialQuoteIds.includes(row.id)"

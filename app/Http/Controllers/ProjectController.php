@@ -10,6 +10,7 @@ use App\Services\OrderService;
 use App\Services\QuoteService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -186,6 +187,7 @@ class ProjectController extends Controller
          */
         $archivedProjects = ProjectResource::collection(Project::query()
             ->thisBusiness($business)
+            ->where("user_id",$user->id)
             ->where('archive', true)
             ->latest()
             ->get());
@@ -210,13 +212,28 @@ class ProjectController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        $business = auth()->user()->business;
+        $allProjects = $business->projects;
+        $allActiveProjectNames = $allProjects
+            ->pluck("name")
+            ->toArray();
+
         $validated = $request->validate([
-            'name' => 'required',
+            'name' => [
+                'required',
+                'string',
+                Rule::notIn($allActiveProjectNames),
+            ],
             'awarded' => 'required|boolean',
             'reference' => 'nullable|required_if:awarded,true',
             'date_materials_required' => 'nullable|required_if:awarded,true|date|after:today',
             'tentative' => 'required',
+        ],
+        //Rules
+        [
+            'name.not_in' => 'Pick a name different to currently active projects', // Custom error message
         ]);
+
 
         //Clear reference and date if not awarded
         if (! $validated['awarded']) {
@@ -257,11 +274,26 @@ class ProjectController extends Controller
      */
     public function update(Request $request, Project $project): RedirectResponse
     {
+        $business = $project->user->business;
+        $allProjects = $business->projects;
+        $allActiveProjectNames = $allProjects
+            ->where("name","!=",$project->name)
+            ->pluck("name")
+            ->toArray();
+
         $validated = $request->validate([
-            'name' => 'required',
+            'name' => [
+                'required',
+                'string',
+                Rule::notIn($allActiveProjectNames),
+            ],
             'awarded' => 'required|boolean',
             'reference' => 'nullable|required_if:awarded,true',
             'date_materials_required' => 'nullable|required_if:awarded,true|date|after:today',
+        ],
+        //Rules
+        [
+            'name.not_in' => 'Pick a name different to currently active projects', // Custom error message
         ]);
 
         //Clear reference and date if not awarded

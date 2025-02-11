@@ -169,12 +169,11 @@
          Axios
          */
         try {
-            //todo reinstate
-            // const response = await axios.get(route("download.usage.data"));
-            //
-            // if(response.data.usageData){
-            //     usageData.value = response.data.usageData;
-            // }
+            const response = await axios.get(route("download.usage.data"));
+
+            if(response.data.usageData){
+                usageData.value = response.data.usageData;
+            }
         } catch (error) {
 
         } finally {
@@ -284,6 +283,30 @@
                                         @pageLoadingOff="pageLoading = false"
                                     />
                                 </template>
+
+                                <!-- toggle archived projects -->
+                                <div v-if="archivedProjects.data.length > 0" class="text-center">
+                                    <button
+                                        @click="showArchivedProjects = !showArchivedProjects"
+                                        class="text-center text-blue-500 underline mt-6 mb-2"
+                                    >
+                                        {{showArchivedProjects ? 'Hide' : 'Show'}} {{archivedProjects.data.length}} Archived Project{{archivedProjects.data.length > 1 ? 's' : ''}}
+                                    </button>
+                                    <div v-if="showArchivedProjects">
+                                        <table class="w-full">
+                                            <tr>
+                                                <th class="p-1">Name</th>
+                                                <th class="p-1">Actions</th>
+                                            </tr>
+                                            <tr v-for="project in archivedProjects.data">
+                                                <td class="p-1">{{project.name}}</td>
+                                                <td class="p-1">
+                                                    <span style="cursor: pointer; " class="underline text-blue-500" @click="toggleArchive(project)">restore</span>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <!-- Ready for auto nesting -->
@@ -416,31 +439,6 @@
                             </div>
                         </div>
                     </div>
-
-                    <!-- toggle archived projects -->
-<!--                    <div>-->
-<!--                        <button-->
-<!--                            v-if="archivedProjects.data.length > 0"-->
-<!--                            @click="showArchivedProjects = !showArchivedProjects"-->
-<!--                            class="text-center text-blue-500 underline mt-6 mb-2"-->
-<!--                        >-->
-<!--                            {{showArchivedProjects ? 'Hide' : 'Show'}} {{archivedProjects.data.length}} Archived Project{{archivedProjects.data.length > 1 ? 's' : ''}}-->
-<!--                        </button>-->
-<!--                        <div v-if="showArchivedProjects">-->
-<!--                            <table>-->
-<!--                                <tr>-->
-<!--                                   <th class="p-1">Name</th>-->
-<!--                                   <th class="p-1">Actions</th>-->
-<!--                                </tr>-->
-<!--                                <tr v-for="project in archivedProjects.data">-->
-<!--                                    <td class="p-1">{{project.name}}</td>-->
-<!--                                    <td class="p-1">-->
-<!--                                        <span style="cursor: pointer; " class="underline text-blue-500" @click="toggleArchive(project)">restore</span>-->
-<!--                                    </td>-->
-<!--                                </tr>-->
-<!--                            </table>-->
-<!--                        </div>-->
-<!--                    </div>-->
                 </section>
             </div>
         </div>

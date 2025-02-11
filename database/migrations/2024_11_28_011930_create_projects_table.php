@@ -22,6 +22,7 @@ return new class extends Migration
             $table->date('date_materials_required')->nullable();
             $table->boolean('tentative')->default(true);
             $table->boolean('archive')->default(false);
+            $table->longText("items_not_found")->nullable();
         });
     }
 

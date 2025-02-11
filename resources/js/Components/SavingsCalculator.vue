@@ -124,7 +124,7 @@
 
             <!-- Value Display -->
             <div class="mt-2 text-gray-800 font-semibold">
-                Material Spend: ${{formCalculator.annualSpendMillions}}m/year
+                Steel Spend: ${{formCalculator.annualSpendMillions}}m/year
             </div>
         </div>
 
@@ -142,7 +142,7 @@
 
             <!-- Value Display -->
             <div class="mt-2 text-gray-800 font-semibold">
-                Material Yield increase: {{formCalculator.wastePct}}%
+                Steel Yield increase: {{formCalculator.wastePct}}%
             </div>
         </div>
 

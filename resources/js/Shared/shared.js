@@ -15,7 +15,7 @@ export default {
                 let description = item.product_derived_label;
 
                 item.nested.orderList.forEach(bar => {
-                    let text = " - " + description + ": " + bar.count + " off " + parseFloat(bar.result).toLocaleString() + "mm"; // + item.nominal_units.toLowerCase();
+                    let text = " - " + description + ": " + bar.count + "x " + parseFloat(bar.result).toLocaleString() + "mm"; // + item.nominal_units.toLowerCase();
                     materialList += text + "\n"; // Rows
                 });
             }

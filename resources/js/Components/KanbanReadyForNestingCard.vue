@@ -40,7 +40,7 @@
             class="w-full mb-2 text-center"
         >
             <p
-                v-if="usageStats && usageStats.METERAGE.efficiency > 0"
+                v-if="usageStats && usageStats.METERAGE?.efficiency > 0"
                 class="text-sm text-green-500"
             >
                 <b>{{usageStats.METERAGE.efficiency}}%</b> efficiency

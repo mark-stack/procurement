@@ -27,9 +27,9 @@ class FLAT_Implementation extends ProductBaseImplementation
             ],
             'productRegex' => [
                 "FL(\d+)",                      //"FL8*75"
-                "(\d+)x(\d+)+\sflatbar",        //"100x10 flatbar"
-                "(\d+)x(\d+)mm+\sflat+\sbar",   //"100x10mm flat bar"
-                "(\d+)x(\d+)mm+\sflatbar",      //"100x10mm flatbar"
+                "(\d+)x(\d+)+\s+flatbar",       //"100x10 flatbar"
+                "(\d+)x(\d+)mm+\s+flat+\sbar",  //"100x10mm flat bar"
+                "(\d+)x(\d+)mm+\s+flatbar",     //"100x10mm flatbar"
                 "(\d+)FL\b",                    //"10FL x 75mm"
                 "(\d+)FLx",                     //"10FLx75"
                 "(\d+)x(\d+)FL",                //"10x75FL"

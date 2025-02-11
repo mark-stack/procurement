@@ -13,7 +13,7 @@
 
     //Form
     const formCalculator = useForm({
-        annualSpendMillions:2.5,
+        annualSpendMillions:2.0,
         wastePct:5,
         scrapRefundPct:13,
     });
@@ -23,10 +23,10 @@
 
     //Variables
     const trial_months = 2;
-    const savings_period_years = 5;
-    const fullPriceAnnual = 5900;
+    const savings_period_years = 3;
+    const fullPriceAnnual = 4900;
     const fullPriceMonthly = 490;
-    const firstYearDiscount = 50;
+    const firstYearDiscount = 70;
     const whichPlan = "ANNUAL";
 
     //Shared Methods
@@ -91,7 +91,7 @@
                         <rect x="14" y="1" width="7" height="6"></rect>
                         <rect x="14" y="11" width="7" height="12"></rect>
                     </svg>
-                    <span class="ml-2 text-xl font-bold tracking-wide text-gray-100 uppercase">Company</span>
+                    <span class="ml-2 text-xl font-bold tracking-wide text-gray-100 uppercase">Steel minima</span>
                 </a>
                 <ul class="flex items-center hidden ml-auto space-x-8 lg:flex">
                     <li>

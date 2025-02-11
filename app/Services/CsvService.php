@@ -8,7 +8,10 @@ use App\Formatters\NestingFormatter;
 use App\Models\Business;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
+use App\Models\User;
+use App\Notifications\AdminUnfoundItems;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Notification;
 
 class CsvService
 {
@@ -418,9 +421,12 @@ class CsvService
         $pieceService = new PieceService;
 
         $materialList = [];
+        $itemsNotFound = [];
+        $fromOtherPlan = [];
         foreach ($rows as $row) {
             //Find matching product config
             $productConfig = $dataClassificationService->findProductConfigFromText($row['description']);
+
             if(!$productConfig){
                 continue; //don't save this row
             }
@@ -428,11 +434,13 @@ class CsvService
             //Supplier group belongs to current plan
             $supplierGroup = $productConfig['supplierGroup']->value;
             if (! $business->supplierGroupIsCurrentPlan($supplierGroup)) {
+                $fromOtherPlan[] = $row['description'];
                 continue; //don't save this row
             }
 
             //Must have general product matches
             if(count($row['generalProductMatches']["results"]) === 0){
+                $itemsNotFound[] = $row['description'];
                 continue; //don't save this row
             }
 
@@ -476,6 +484,29 @@ class CsvService
                 $productSpec = $row['generalProductMatches']['results'][0];
                 $piece = $pieceService->createPieceFromProductSpec($productSpec, $rawMaterialQuote, $algo);
             }
+        }
+
+        /**
+         * Notify user & admin of items not found
+         */
+
+        if(count($itemsNotFound) > 0 || count($fromOtherPlan) > 0){
+            //Notify admin
+            $adminUser = User::query()->where('email', config('env.admin_email'))->first();
+            if ($adminUser && count($itemsNotFound) > 0) {
+                $message = "The following items were not found: ".implode(", ",$itemsNotFound);
+                Notification::send($adminUser, new AdminUnfoundItems($message));
+            }
+
+            //Notify user
+            $existingItems = $project->items_not_found
+                ? unserialize($project->items_not_found)
+                : [];
+            $combined = array_merge($itemsNotFound,$fromOtherPlan);
+            $merge = array_merge($existingItems,$combined);
+            $unique = array_unique($merge);
+            $project->items_not_found = serialize($unique);
+            $project->save();
         }
 
         return $materialList;

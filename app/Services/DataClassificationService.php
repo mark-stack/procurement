@@ -555,18 +555,18 @@ class DataClassificationService
             //Weight
             $kg_per_m = $this->findNumberByRegex($productConfig, $text, 'weightRegex');
 
-            //            dd([
-            //                "text" => $text,
-            //                "surface" => $surfaceEnum,
-            //                "grade" => $gradesEnums,
-            //                "uncertainLengthFloat" => $uncertainLengthFloat,
-            //                "uncertainWidthFloat" => $uncertainWidthFloat,
-            //                "uncertainHeightFloat" => $uncertainHeightFloat,
-            //                "wall" => $wall,
-            //                "kg_per_m" => $kg_per_m,
-            //                "gradesEnums" => $gradesEnums,
-            //                "productConfig" => $productConfig,
-            //            ]);
+//            dd([
+//                "text" => $text,
+//                "surface" => $surfaceEnum,
+//                "grade" => $gradesEnums,
+//                "uncertainLengthFloat" => $uncertainLengthFloat,
+//                "uncertainWidthFloat" => $uncertainWidthFloat,
+//                "uncertainHeightFloat" => $uncertainHeightFloat,
+//                "wall" => $wall,
+//                "kg_per_m" => $kg_per_m,
+//                "gradesEnums" => $gradesEnums,
+//                "productConfig" => $productConfig,
+//            ]);
 
             $generalProductMatches = $this->findGeneralProductMatches(
                 $user,

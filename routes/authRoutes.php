@@ -204,6 +204,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 'downloadedBomData' => [
                     'project_id' => $project->id,
                     'data' => [
+                        "itemsNotFound" => $project->items_not_found
+                            ? implode(", ",unserialize($project->items_not_found))
+                            : null,
                         'percentageOfMaterialsQuoted' => $project->percentageOfMaterialsQuoted(),
                         'percentageOfMaterialsOrdered' => $project->percentageOfMaterialsOrdered(),
                         'project' => $project,

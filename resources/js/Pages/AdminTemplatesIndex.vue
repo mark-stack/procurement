@@ -76,16 +76,20 @@
         });
     }
     function submitDelete(id){
-        let url = route("admin.templates.destroy",id);
-        formTemplateDelete.delete(url, {
-            preserveScroll: true,
-            onSuccess: () => {
-                console.log('success');
-            },
-            onError: errors => {
-                console.log('errors',errors);
-            },
-        });
+        let msg = "Are you sure you want to delete this template? It might be used.";
+        const userConfirmed = confirm(msg);
+        if (userConfirmed) {
+            let url = route("admin.templates.destroy",id);
+            formTemplateDelete.delete(url, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    console.log('success');
+                },
+                onError: errors => {
+                    console.log('errors',errors);
+                },
+            });
+        }
     }
     function submitUpdate(){
         let url = route("admin.templates.update",[editId.value,props.business.id]);

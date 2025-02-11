@@ -75,7 +75,7 @@ return [
          *    - "FIXED"
          * 3) None: null
          */
-        'assemblyMarkRule' => ['COLUMN', 3],
+        'assemblyMarkRule' => ['COLUMN', 6],
     ],
     [
         'label' => 'Bolt Summary - top',
