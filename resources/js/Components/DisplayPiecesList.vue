@@ -8,8 +8,9 @@
     //Props
     const props = defineProps({
         nestingAlgo: String,
-        pieces: Object,
         measurementUnit: String,
+        pieces: Object,
+        lettersProjectArray: Object,
     });
 
     //Form
@@ -63,7 +64,7 @@
     <!-- METERAGE -->
     <div v-if="nestingAlgo === 'METERAGE'" class="text-sm">
         <p v-for="piece in pieces">
-            {{ displayMeterage(piece) }} (p{{piece.project.id}})
+            {{ displayMeterage(piece) }} ({{lettersProjectArray[piece.project.id]}})
         </p>
     </div>
 

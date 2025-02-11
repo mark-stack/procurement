@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\RawMaterialQuote;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class RawMaterialQuoteController extends Controller
 {
@@ -37,7 +38,7 @@ class RawMaterialQuoteController extends Controller
      */
     public function show(RawMaterialQuote $rawMaterialQuote)
     {
-        //
+        Gate::authorize('owned', $rawMaterialQuote);
     }
 
     /**
@@ -45,7 +46,7 @@ class RawMaterialQuoteController extends Controller
      */
     public function edit(RawMaterialQuote $rawMaterialQuote)
     {
-        //
+        Gate::authorize('owned', $rawMaterialQuote);
     }
 
     /**
@@ -53,7 +54,7 @@ class RawMaterialQuoteController extends Controller
      */
     public function update(Request $request, RawMaterialQuote $rawMaterialQuote)
     {
-        //
+        Gate::authorize('owned', $rawMaterialQuote);
     }
 
     /**
@@ -61,6 +62,8 @@ class RawMaterialQuoteController extends Controller
      */
     public function destroy(RawMaterialQuote $rawMaterialQuote): RedirectResponse
     {
+        Gate::authorize('owned', $rawMaterialQuote);
+
         $rawMaterialQuote->delete();
 
         return back();

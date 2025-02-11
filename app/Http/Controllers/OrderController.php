@@ -8,6 +8,7 @@ use App\Models\OrderApproval;
 use App\Models\Quote;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class OrderController extends Controller
 {
@@ -98,7 +99,7 @@ class OrderController extends Controller
      */
     public function show(Order $order)
     {
-        //
+        Gate::authorize('owned', $order);
     }
 
     /**
@@ -106,7 +107,7 @@ class OrderController extends Controller
      */
     public function edit(Order $order)
     {
-        //
+        Gate::authorize('owned', $order);
     }
 
     /**
@@ -114,6 +115,8 @@ class OrderController extends Controller
      */
     public function update(Request $request, Order $order): RedirectResponse
     {
+        Gate::authorize('owned', $order);
+
         $validated = $request->validate([
             'purchase_order_number' => ['nullable'],
         ]);
@@ -128,6 +131,8 @@ class OrderController extends Controller
      */
     public function destroy(Order $order): RedirectResponse
     {
+        Gate::authorize('owned', $order);
+
         /**
          * 1) No order has been made
          */

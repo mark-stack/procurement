@@ -12,6 +12,7 @@ use App\Services\DataClassificationService;
 use App\Services\PieceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class RawMaterialListClarificationsController extends Controller
 {
@@ -25,6 +26,9 @@ class RawMaterialListClarificationsController extends Controller
          * The user is given a bunch of partial matches to chose from to clarify.
          * It's saved by making the "general_product_matches" field = 1x product.
          */
+
+        Gate::authorize('owned', $business);
+
         $user = auth()->user();
 
         //Services

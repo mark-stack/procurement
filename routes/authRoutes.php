@@ -262,6 +262,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
          * @deprecated
          */
         Route::get('download-quotes-data/{batch}', function (Request $request, Batch $batch) {
+
+            Gate::authorize('owned', $batch);
+
             //Formatter
             $batchService = new BatchService;
             $nestingFormatter = new NestingFormatter;
@@ -535,6 +538,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
              * Action 2: AttachPiecesToOrder
              * Action 3: UpdateOrderApprovalsForBatch
              */
+
+            Gate::authorize('owned', $batch);
+
             $validated = $request->validate([
                 'order_id' => ['required'],
             ]);
@@ -557,6 +563,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             /**
              * Undo order sent
              */
+            Gate::authorize('owned', $order);
+
             $order->order_sent = false;
             $order->is_delivered = false;
             $order->save();
@@ -569,6 +577,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         })->name('order.undo.sent');
 
         Route::post("order-mark-delivered/{order}",function(Request $request, Order $order){
+            Gate::authorize('owned', $order);
+
             //Mark delivered
             $order->is_delivered = !$order->is_delivered;
             $order->save();

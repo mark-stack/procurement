@@ -21,6 +21,7 @@
         usage: Object,
         type: String,
         width: Number,
+        lettersProjectArray: Object,
     });
 
     //Form
@@ -47,36 +48,47 @@
             <div :style="'width:'+width+'px; height:'+height+'px'" class="overflow-y-auto p-5">
                 <!-- Pieces -->
                 <section class="container max-w-5xl mx-auto mt-5">
-                    <p v-if="projectsReadyForBatching.data.length > 0">
-                        <h2 class="font-semibold">Included Projects:</h2>
-                        <ul>
-                            <li v-for="(project,index) in projectsReadyForBatching.data">
-                                - Project #{{project.id}}: <i>'{{project.name}}'</i> ({{project.projectManager.name}}'s project)
-                            </li>
-                        </ul>
-                    </p>
-                    <p v-else>
-                        There's no projects with materials ready to quote yet.
-                    </p>
-
-                    <!-- Usage stats-->
-                    <div class="mt-5">
-                        <h2 class="font-semibold">Usage stats (meterage items)</h2>
-                        Total Material = {{ (usage.METERAGE.totalPurchasedMaterial/1000).toLocaleString() }}m
-                        <br>
-                        Total Used Material = {{ (usage.METERAGE.totalUsedMaterial/1000).toLocaleString() }}m
-                        <br>
-                        Total Reusable = {{ (usage.METERAGE.totalReusable/1000).toLocaleString() }}m
-                        <br>
-                        Total Scrap = {{ (usage.METERAGE.totalScrap/1000).toLocaleString() }}m
-                        <br>
-                        Efficiency = {{ usage.METERAGE.efficiency }}%
+                    <div
+                        v-if="projectsReadyForBatching.data.length > 0"
+                        class="grid grid-cols-5"
+                    >
+                        <!-- included projects -->
+                        <div class="col-span-2">
+                            <h2 class="font-bold">Included Projects:</h2>
+                            <ul>
+                                <li v-for="(project,index) in projectsReadyForBatching.data">
+                                    - Project '<b>{{lettersProjectArray[project.id]}}</b>': <i>{{project.name}}</i> ({{project.projectManager.name}}'s project)
+                                </li>
+                            </ul>
+                        </div>
+                        <!-- Usage stats-->
+                        <div class="col-span-3">
+                            <table class="w-full">
+                               <tr>
+                                   <th>Total Material</th>
+                                   <th>Total Used Material</th>
+                                   <th>Total Reusable</th>
+                                   <th>Total Scrap</th>
+                                   <th>Efficiency</th>
+                               </tr>
+                                <tr>
+                                    <td>{{ (usage.METERAGE.totalPurchasedMaterial/1000).toLocaleString() }}m</td>
+                                    <td>{{ (usage.METERAGE.totalUsedMaterial/1000).toLocaleString() }}m</td>
+                                    <td>{{ (usage.METERAGE.totalReusable/1000).toLocaleString() }}m</td>
+                                    <td>{{ (usage.METERAGE.totalScrap/1000).toLocaleString() }}m</td>
+                                    <td>{{ usage.METERAGE.efficiency }}%</td>
+                                </tr>
+                            </table>
+                        </div>
                     </div>
 
+                    <div v-else>
+                        There's no projects with materials ready to quote yet.
+                    </div>
 
                     <div class="mb-3 text-gray-600 mt-3">
-
-                        <div class="flex gap-x-3">
+                        <!-- buttons to toggle supplier groups. e.g "steel merchant" -->
+                        <div v-if="Object.keys(piecesGroupedBySupplierGroup.assigned).length > 1" class="flex gap-x-3">
                             <button
                                 v-for="(batchGroup,batchLabel) in piecesGroupedBySupplierGroup.assigned"
                                 class="rounded px-2 py-1 text-green-900"
@@ -114,6 +126,7 @@
                                                 :nestingAlgo="item.algo"
                                                 :measurementUnit="item.nominal_units"
                                                 :pieces="item.pieces"
+                                                :lettersProjectArray="lettersProjectArray"
                                             />
                                         </div>
                                         <!-- Purchasable -->

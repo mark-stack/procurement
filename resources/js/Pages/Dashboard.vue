@@ -233,7 +233,7 @@
 </script>
 
 <template>
-    <Head title="Dashboard" />
+    <Head title="Steel Minima" />
 
     <AuthenticatedLayout>
         <PageLoadingOverlay

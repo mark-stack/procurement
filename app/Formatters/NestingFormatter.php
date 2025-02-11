@@ -1259,6 +1259,7 @@ class NestingFormatter
         $projectsForBatching = null;
         $piecesGroupedBySupplierGroup = null;
         $usageStats = null;
+        $lettersProjectArray = null;
 
         //Batch (after batch object exists)
         if ($type === 'BATCH') {
@@ -1267,6 +1268,15 @@ class NestingFormatter
 
             //Pieces nested (from saved)
             $piecesNested = unserialize($batch->nested_state);
+
+            //Letter-project array
+            $pieces = [];
+            foreach($projectsForBatching as $project){
+                foreach($project->pieces as $piece){
+                    $pieces[] = $piece;
+                }
+            }
+            $lettersProjectArray = $this->getLetterProjectArray(collect($pieces));
 
             //Nesting stats
             $usageStats = $this->usageStats($piecesNested);
@@ -1301,6 +1311,7 @@ class NestingFormatter
             'piecesGroupedBySupplierGroup' => $piecesGroupedBySupplierGroup,
             'usage' => $usageStats,
             'type' => $type,
+            "lettersProjectArray" => $lettersProjectArray,
         ];
     }
 

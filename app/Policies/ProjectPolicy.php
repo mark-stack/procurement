@@ -9,6 +9,9 @@ class ProjectPolicy
 {
     public function owned(User $user, Project $project): bool
     {
-        return $user->id === $project->user_id;
+        /**
+         * Is a user of this business
+         */
+        return $project->user->business->id === $user->business->id;
     }
 }

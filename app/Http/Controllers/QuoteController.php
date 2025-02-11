@@ -13,6 +13,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Exception;
+use Illuminate\Support\Facades\Gate;
 
 class QuoteController extends Controller
 {
@@ -79,7 +80,7 @@ class QuoteController extends Controller
      */
     public function show(Quote $quote)
     {
-        //
+        Gate::authorize('owned', $quote);
     }
 
     /**
@@ -87,7 +88,7 @@ class QuoteController extends Controller
      */
     public function edit(Quote $quote)
     {
-        //
+        Gate::authorize('owned', $quote);
     }
 
     /**
@@ -95,6 +96,8 @@ class QuoteController extends Controller
      */
     public function update(Request $request, Quote $quote): RedirectResponse
     {
+        Gate::authorize('owned', $quote);
+
         $validated = $request->validate([
             'batch_id' => 'required',
             'quote_sent' => 'required',
@@ -113,6 +116,6 @@ class QuoteController extends Controller
      */
     public function destroy(Quote $quote)
     {
-        //
+        Gate::authorize('owned', $quote);
     }
 }

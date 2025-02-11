@@ -10,6 +10,7 @@ use App\Models\Order;
 use App\Models\Quote;
 use App\Services\BatchService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -20,6 +21,8 @@ class QuoteOrderManagementController extends Controller
      */
     public function __invoke(Request $request, Batch $batch): Response
     {
+        Gate::authorize('owned', $batch);
+
         //Formatter
         $batchService = new BatchService;
         $nestingFormatter = new NestingFormatter();

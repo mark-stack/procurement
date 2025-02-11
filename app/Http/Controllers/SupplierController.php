@@ -8,6 +8,7 @@ use App\Models\Business;
 use App\Models\Supplier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -18,6 +19,8 @@ class SupplierController extends Controller
      */
     public function index(Business $business): Response
     {
+        Gate::authorize('owned', $business);
+
         $suppliers = $business->suppliers()->orderBy('name')->get();
 
         //Category and included products

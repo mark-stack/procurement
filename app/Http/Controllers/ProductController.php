@@ -167,7 +167,7 @@ class ProductController extends Controller
      */
     public function create(Project $project)
     {
-        //
+        Gate::authorize('owned', $project);
     }
 
     /**
@@ -178,6 +178,8 @@ class ProductController extends Controller
         /**
          * Single purpose: extract and save materials in a CSV material list
          */
+        Gate::authorize('owned', $project);
+
         //Validate
         $request->validate([
             'excel' => 'required|mimes:xlsx,xls|max:2048',
@@ -218,7 +220,7 @@ class ProductController extends Controller
      */
     public function show(Project $project, Product $product)
     {
-        //
+        Gate::authorize('owned', $product->business);
     }
 
     /**
@@ -226,7 +228,7 @@ class ProductController extends Controller
      */
     public function edit(Project $project, Product $product)
     {
-        //
+        Gate::authorize('owned', $product->business);
     }
 
     /**
@@ -234,7 +236,7 @@ class ProductController extends Controller
      */
     public function update(Request $request, Product $product)
     {
-        //
+        Gate::authorize('owned', $product->business);
     }
 
     /**
@@ -242,6 +244,6 @@ class ProductController extends Controller
      */
     public function destroy(Project $project, Product $product)
     {
-        //
+        Gate::authorize('owned', $product->business);
     }
 }

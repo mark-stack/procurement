@@ -65,20 +65,22 @@
 <template>
     <div v-for="bar in utilisedBars" class="pt-4 pb-4">
         <div>
-            <span class="font-bold">{{bar.count}} off {{ parseFloat(bar.result['bar_length']).toLocaleString() }}{{ displayUnits() }}:</span> <span>Unused: {{bar.result.unused}}{{ displayUnits() }} (used {{getEfficiencyPct(bar.result['bar_length'],bar.result.unused)}}%)</span>
+            <span class="font-bold">{{bar.count}} off {{ parseFloat(bar.result['bar_length']).toLocaleString() }}{{ displayUnits() }}:</span> <span>Unused: {{bar.result.unused.toLocaleString()}}{{ displayUnits() }} (used {{getEfficiencyPct(bar.result['bar_length'],bar.result.unused)}}%)</span>
         </div>
-        <div class="shadow w-full bg-red-500 flex flex-row">
+        <div class="shadow w-full bg-red-200 flex flex-row border-2 border-black" style="height:30px">
             <div
                 v-for="piece in getPieces(bar)"
-                class="font-bold bg-blue-500 text-xs leading-none py-2 text-center text-blue-50 border-r-4 border-black"
+                class="font-bold bg-blue-100 text-xs leading-none py-2 text-center border-r-4 border-black"
                 :style="'width: '+piece.lengthPercentage+'%'"
             >
-                {{piece.length}} {{'('+piece.letter+')'}}
+                <p :class="piece.lengthPercentage < 5 ? 'relative top-7 right-2 text-black' : 'text-black'">
+                    {{piece.length}} {{'('+piece.letter+')'}}
+                </p>
             </div>
             <!-- reusable -->
             <div
                 v-if="bar.result.unused > bar.result.scrap_threshold_mm"
-                class="font-bold bg-green-500 text-xs leading-none py-2 text-center text-green-50 border-r-4 border-black"
+                class="font-bold bg-green-100 text-xs leading-none py-2 text-center text-black border-r-4 border-black"
                 :style="'width: '+(bar.result.unused/bar.result['bar_length']*100)+'%'"
             >
                 Reuse

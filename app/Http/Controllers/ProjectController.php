@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\ProjectResource;
 use App\Models\Project;
-use App\Models\Quote;
+use Illuminate\Support\Facades\Gate;
 use App\Services\BatchService;
 use App\Services\OrderService;
 use App\Services\QuoteService;
@@ -274,6 +274,8 @@ class ProjectController extends Controller
      */
     public function update(Request $request, Project $project): RedirectResponse
     {
+        Gate::authorize('owned', $project);
+
         $business = $project->user->business;
         $allProjects = $business->projects;
         $allActiveProjectNames = $allProjects
@@ -315,6 +317,8 @@ class ProjectController extends Controller
         /**
          * Single purpose: toggle archive/restore
          */
+        Gate::authorize('owned', $project);
+
         $project->archive = ! $project->archive;
         $project->save();
 

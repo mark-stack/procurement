@@ -7,6 +7,7 @@ use App\Models\Batch;
 use App\Models\Offcut;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class BatchController extends Controller
 {
@@ -27,17 +28,17 @@ class BatchController extends Controller
 
     public function show(Batch $batch)
     {
-        //
+        Gate::authorize('owned', $batch);
     }
 
     public function edit(Batch $batch)
     {
-        //
+        Gate::authorize('owned', $batch);
     }
 
     public function update(Request $request, Batch $batch)
     {
-        //
+        Gate::authorize('owned', $batch);
     }
 
     public function destroy(Batch $batch): RedirectResponse
@@ -46,6 +47,9 @@ class BatchController extends Controller
          * Break batch
          * 1) Not if used for order (order_sent = false)
          */
+
+        Gate::authorize('owned', $batch);
+
         $batchOrderedOrders = $batch->orders()
             ->where('order_sent', true)
             ->get();

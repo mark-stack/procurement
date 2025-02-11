@@ -15,6 +15,7 @@ use App\Services\DataClassificationService;
 use App\Services\ProductService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 class RawMaterialListCustomisationsController extends Controller
@@ -27,6 +28,8 @@ class RawMaterialListCustomisationsController extends Controller
         /**
          * Single purpose: save the non-price book product as user-custom product
          */
+        Gate::authorize('owned', $business);
+
         $productService = new ProductService;
         $csvService = new CsvService;
         $dataClassificationService = new DataClassificationService;

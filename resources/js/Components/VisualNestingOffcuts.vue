@@ -69,18 +69,20 @@
                 <span class="font-bold">1 off {{offcut.offcutLength}}{{ displayUnits() }}:</span> <span>(Used {{Math.round(offcut.cutLength/offcut.offcutLength*100)}}%)</span>
             </div>
 
-            <div class="shadow w-full bg-red-500 flex flex-row">
+            <div class="shadow w-full bg-red-200 flex flex-row border-2 border-black">
                 <div
                     v-for="cut in getPieces(offcut)"
-                    class="font-bold bg-blue-500 text-xs leading-none py-2 text-center text-blue-50 border-r-4 border-black"
+                    class="font-bold bg-blue-100 text-xs leading-none py-2 text-center text-black border-r-4 border-black"
                     :style="'width: '+cut.lengthPercentage+'%'"
                 >
-                    {{cut.length}} {{'('+cut.letter+')'}}
+                    <p :class="cut.lengthPercentage < 5 ? 'relative top-7 right-2 text-black' : 'text-black'">
+                        {{cut.length}} {{'('+cut.letter+')'}}
+                    </p>
                 </div>
                 <!-- reusable -->
                 <div
                     v-if="offcut.reusableLength > 0"
-                    class="font-bold bg-green-500 text-xs leading-none py-2 text-center text-green-50 border-r-4 border-black"
+                    class="font-bold bg-green-100 text-xs leading-none py-2 text-center text-black border-r-4 border-black"
                     :style="'width: '+(offcut.reusableLength/offcut.offcutLength*100)+'%'"
                 >
                     Reuse
