@@ -367,7 +367,7 @@
                                     @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
                                     @showBom="args => showBom(args)"
                                 />
-                                <div v-else class="text-center text-sm text-gray-500 mx-auto" style="width:250px">
+                                <div class="text-center text-sm text-gray-500 mx-auto" style="width:250px">
                                     Nested batches move to here after selecting <i>"Start quoting/ordering"</i>
                                 </div>
                             </div>
@@ -400,7 +400,7 @@
                                     @orderNow="orderNow(batch['batch']['id'])"
                                     @showBom="args => showBom(args)"
                                 />
-                                <div v-else class="text-center text-sm text-gray-500 mx-auto" style="width:200px">
+                                <div class="text-center text-sm text-gray-500 mx-auto" style="width:200px">
                                     Nested batches move to here after adding first order
                                 </div>
                             </div>
@@ -433,7 +433,7 @@
                                     @orderNow="orderNow(batch['batch']['id'])"
                                     @showBom="args => showBom(args)"
                                 />
-                                <div v-else class="text-center text-sm text-gray-500 mx-auto" style="width:200px">
+                                <div class="text-center text-sm text-gray-500 mx-auto" style="width:200px">
                                     Nested batches move to here after all orders are complete
                                 </div>
                             </div>

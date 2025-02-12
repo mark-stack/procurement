@@ -26,7 +26,7 @@ defineProps({
                         class="font-semibold px-3 py-2 text-gray-800 transition-colors duration-300 transform rounded-lg hover:text-deep-purple-accent-400"
                         :href="route('projects.index')"
                     >
-                        <i class="fa-regular fa-hand-point-left pr-2"></i> All Projects
+                        <i class="fa-regular fa-hand-point-left pr-2"></i> Current Projects
                     </Link>
                 </div>
 
