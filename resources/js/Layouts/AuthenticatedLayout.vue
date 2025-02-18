@@ -14,6 +14,7 @@
     const hasSeedImport = usePage().props.hasSeedImport;
     const user = computed(() => usePage().props.auth.user);
     const notifications = computed(() => usePage().props.auth.notifications);
+    const hasPastProjects = computed(() => usePage().props.auth.hasPastProjects);
 
     //Variables
     const showNotifications = ref(false);
@@ -45,9 +46,9 @@
                                 Current Projects
                             </Link>
                         </li>
-                        <li>
+                        <li v-if="hasPastProjects">
                             <Link
-                                :href="route('dashboard')"
+                                :href="route('past.projects.index')"
                                 title="Past Projects"
                                 class="font-medium tracking-wide text-gray-100 transition-colors duration-200 hover:text-teal-accent-400"
                             >
@@ -344,7 +345,7 @@
 <!--        </aside>-->
 
         <!-- Main -->
-        <main class="col-span-7 overflow-y-auto pl-4 pr-4 bg-gradient-to-tr from-blue-100 via-indigo-100 to-gray-100">
+        <main class="col-span-7 overflow-y-auto pl-4 pr-4 bg-[#f9fafb]"><!--bg-gradient-to-tr from-blue-100 via-indigo-100 to-gray-100-->
             <slot/>
         </main>
     </div>

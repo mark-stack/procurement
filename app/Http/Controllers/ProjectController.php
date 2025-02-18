@@ -51,6 +51,7 @@ class ProjectController extends Controller
         $quoted = [];
         $batchesForQuoting = $business->batches()
             ->hasNoSentOrder()
+            ->active()
             ->get();
 
         //Sort
@@ -85,7 +86,7 @@ class ProjectController extends Controller
          */
         $ordered = [];
         $batchesForOrdering = [];
-        foreach($business->batches as $batch){
+        foreach($business->batches()->active()->get() as $batch){
             //Less than 100% order coverage
             $all100Percent = true;
             foreach($batch->projects() as $project){
@@ -132,7 +133,7 @@ class ProjectController extends Controller
          */
         $delivered = [];
         $batchesForDelivering = [];
-        foreach($business->batches as $batch){
+        foreach($business->batches()->active()->get() as $batch){
             //100% order coverage
             $all100Percent = true;
             foreach($batch->projects() as $project){
@@ -155,6 +156,7 @@ class ProjectController extends Controller
             //Total orders qty
             $orders = $batch->orders;
             $totalOrdersQty = $batchService->totalOrdersQty($batch);
+            $totalDeliveredQty = $batch->orders()->where('is_delivered', true)->count();
 
             $delivered[$batch->id] = [
                 'info' => [
@@ -169,7 +171,8 @@ class ProjectController extends Controller
                     'approxDueDate' => null, //todo actual - derived from earliest project
                     'totalOrdersQty' => $totalOrdersQty,
                     'sentOrdersQty' => $batch->orders()->where('order_sent', true)->count(),
-                    "totalDeliveredQty" => $batch->orders()->where('is_delivered', true)->count(),
+                    "totalDeliveredQty" => $totalDeliveredQty,
+                    "allDelivered" => $totalDeliveredQty === $totalOrdersQty,
                     'all_project_manager_approvals' => (new OrderService)->allProjectManagersApproved($batch),
                 ],
             ];

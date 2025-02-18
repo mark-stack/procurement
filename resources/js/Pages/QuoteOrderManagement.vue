@@ -279,7 +279,7 @@
 
 <template>
     <AuthenticatedLayout>
-        <Modal :fakeModal="true">
+        <Modal :fakeModal="true" redirect="current">
             <!-- header -->
             <div class="grid grid-cols-3 pt-2 pr-5 pb-2 pl-5">
                 <div class="col-span-2">

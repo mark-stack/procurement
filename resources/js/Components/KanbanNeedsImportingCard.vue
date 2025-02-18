@@ -1,13 +1,15 @@
 <script setup>
     //General Imports
     import moment from "moment";
-    import {computed} from "vue";
+    import {computed, ref} from "vue";
     import {usePage} from "@inertiajs/vue3";
 
     //Component Imports
     import CardButtonGreen from "@/Components/CardButtonGreen.vue";
     import CardButtonRed from "@/Components/CardButtonRed.vue";
     import CardButtonYellow from "@/Components/CardButtonYellow.vue";
+    import CardButtonForward from "@/Components/CardButtonForward.vue";
+    import CardButtonExpand from "@/Components/CardButtonExpand.vue";
 
     //Props
     const props = defineProps({
@@ -23,9 +25,11 @@
     //Variables
     const emit = defineEmits(['toggleArchive','editMode','showBom','pageLoadingOn']);
     const user = computed(() => usePage().props.auth.user);
+    const expand = ref(false);
 
     //Shared methods
     import shared from '@/Shared/shared';
+
 
     //Methods
     //
@@ -33,22 +37,28 @@
 
 <template>
     <!-- card -->
-    <div
-        :class="shared.isYourProject(project,user.id) ? 'bg-white' : 'bg-gray-200'"
-        class="relative flex flex-col items-start p-4 mt-3 rounded-lg group"
-    >
-<!--        <h4 class="text-base font-medium">-->
-<!--            {{ shared.cropText(shared.capitalizeWords(project.name)) }}-->
-<!--        </h4>-->
-        <div class="w-full grid grid-cols-7 text-gray-500">
+    <div class="bg-white relative flex flex-col items-start p-4 mt-3 rounded-lg group border-[1px] border-gray-300 shadow-lg">
+        <div class="w-full grid grid-cols-7 text-gray-900">
             <h4 class="col-span-5 text-base font-medium">
                 {{ shared.cropText(shared.capitalizeWords(project.name),15) }}
             </h4>
             <span class="col-span-2 text-xs font-medium text-right pt-1"><i class="fa-solid fa-user text-xs"></i> {{shared.isYourProject(project,user.id) ? 'Yours' : shared.cropText(project.projectManager.name,6)}}</span>
         </div>
+        <div class="flex justify-between gap-x-1 w-full mt-3 text-xs font-medium text-gray-900">
+            <CardButtonExpand
+                label="Details/Edit"
+                :expandedIndex="expandProject"
+                :thisIndex="999"
+                @click="expand = !expand"
+            />
+            <CardButtonForward
+                label="Add Mat'ls"
+                @click="$emit('pageLoadingOn',null);$emit('showBom',[project,true])"
+            />
+        </div>
         <div
-            v-if="shared.isYourProject(project,user.id)"
-            class="flex justify-between w-full mt-3 text-xs font-medium text-gray-500"
+            v-if="expand"
+            class="flex justify-between w-full mt-5 text-xs font-medium text-gray-900"
         >
             <div class="flex items-center">
                 <table>
@@ -69,34 +79,25 @@
                     </tr>
                 </table>
             </div>
-            <div class="flex items-center ml-4">
+            <div
+                v-if="shared.isYourProject(project,user.id)"
+                class="grid grid-cols-1 gap-y-1"
+            >
                 <CardButtonGreen
                     @click="$emit('pageLoadingOn',null);$emit('showBom',[project,true])"
-                    :label="project.qtyMaterialRows"
+                    :label="project.qtyMaterialRows + ' pieces'"
                     :highlight="false"
-                    :icon="true"
+                    :icon="false"
+                />
+                <CardButtonRed
+                    @click="$emit('toggleArchive',project)"
+                    label="Archive"
+                />
+                <CardButtonYellow
+                    @click="$emit('editMode',project)"
+                    label="Edit"
                 />
             </div>
-        </div>
-
-        <div
-            v-if="shared.isYourProject(project,user.id)"
-            class="mt-3 w-full flex gap-x-2 justify-between items-center"
-        >
-            <CardButtonRed
-                @click="$emit('toggleArchive',project)"
-                label="Archive"
-            />
-            <CardButtonYellow
-                @click="$emit('editMode',project)"
-                label="Edit"
-            />
-            <CardButtonGreen
-                @click="$emit('pageLoadingOn',null);$emit('showBom',[project,true])"
-                label="Materials"
-                :highlight="true"
-                :icon="false"
-            />
         </div>
     </div>
 </template>

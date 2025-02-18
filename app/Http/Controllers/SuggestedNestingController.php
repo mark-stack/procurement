@@ -22,8 +22,13 @@ class SuggestedNestingController extends Controller
         $business = $user->business;
 
         //View data
-        $batchData = $nestingFormatter->nestingViewData('SUGGESTED', $business, null);
+        $viewData = $nestingFormatter->nestingViewData('SUGGESTED', $business, null);
 
-        return Inertia::render('QuoteIndex', $batchData);
+        $viewData = array_merge($viewData, [
+            'width' => 900,
+            "redirect" => "current",
+        ]);
+
+        return Inertia::render('QuoteIndex', $viewData);
     }
 }

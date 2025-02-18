@@ -22,6 +22,7 @@
         type: String,
         width: Number,
         lettersProjectArray: Object,
+        redirect: String,
     });
 
     //Form
@@ -39,7 +40,7 @@
 
 <template>
     <AuthenticatedLayout>
-        <Modal :fakeModal="true">
+        <Modal :fakeModal="true" :redirect="redirect">
             <!-- header -->
             <div>
                 <h2 class="text-center font-bold text-lg">NESTING</h2>

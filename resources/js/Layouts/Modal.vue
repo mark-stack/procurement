@@ -6,6 +6,7 @@
     //Props
     const props = defineProps({
         fakeModal: Boolean,
+        redirect: String,
     });
 
     //Variables
@@ -14,20 +15,7 @@
     const loadingButton = ref(false);
 
     //Methods
-    function onClickAway(event) {
-
-        //if(props.showModal){
-            //This is to exclude initial button click
-            clickCount.value = clickCount.value + 1;
-            if(clickCount.value > 1){
-                //Reset
-                clickCount.value = 0;
-
-                //Close modal
-                //emit('closeModal'); //todo reinstate
-            }
-        //}
-    }
+    //
 </script>
 
 <template>
@@ -44,10 +32,7 @@
             <div class="fixed z-10 inset-0 overflow-y-auto">
                 <div class="flex items-end sm:items-center justify-center min-h-full p-4 text-center sm:p-0">
                     <!-- sm:max-w-3xl sm:w-full  -->
-                    <div
-                        v-click-away="onClickAway"
-                        class="relative bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8"
-                    >
+                    <div class="relative bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8">
                         <div class="bg-white pt-5 pb-4 sm:pb-4">
                             <!-- content -->
                             <slot/>
@@ -57,7 +42,7 @@
                                 v-if="fakeModal"
                                 type="button"
                                 class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                                :href="route('dashboard')"
+                                :href="redirect === 'current' ? route('dashboard') : route('past.projects.index')"
                                 @click="loadingButton = true"
                             >
                                 {{ loadingButton ? 'Closing...' : 'Back to projects'}}

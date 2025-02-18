@@ -99,7 +99,7 @@
 </script>
 
 <template>
-    <Modal :fakeModal="false">
+    <Modal :fakeModal="false" redirect="current">
         <div :style="'width:'+width+'px'">
 
             <div class="dark:bg-gray-900 rounded-xl">

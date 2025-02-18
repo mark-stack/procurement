@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -80,12 +81,15 @@ class Batch extends Model
     }
 
     //Local scope
-//    public function scopeHasAtLeastOneSentOrder($query)
-//    {
-//        return $query->whereHas('orders', function ($query) {
-//            $query->where('order_sent', true);
-//        });
-//    }
+    public function scopeActive(Builder $query): void
+    {
+        $query->where('done', false);
+    }
+
+    public function scopeInactive(Builder $query): void
+    {
+        $query->where('done', true);
+    }
 
     public function scopeHasNoSentOrder($query)
     {

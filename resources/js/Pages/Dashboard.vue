@@ -247,7 +247,7 @@
                     <!-- kanban -->
                     <div class="grid grid-cols-5">
                         <!-- New projects-->
-                        <div class="border-r-2 border-indigo-200 p-2">
+                        <div class="border-r-2 border-gray-200 border-dashed p-3">
                             <!-- header -->
                             <div>
                                 <h2 class="text-xl font-bold text-center text-gray-900">
@@ -272,7 +272,7 @@
 
 
                                 <!-- cards -->
-                                <template v-for="project in projects['NEW_PROJECTS'].data">
+                                <template v-for="(project,index) in projects['NEW_PROJECTS'].data">
                                     <KanbanNeedsImportingCard
                                         :project="project"
                                         class="mb-3"
@@ -310,7 +310,7 @@
                             </div>
                         </div>
                         <!-- Ready for auto nesting -->
-                        <div class="border-r-2 border-indigo-200 p-2">
+                        <div class="border-r-2 border-gray-200 border-dashed p-3">
                             <!-- header -->
                             <div>
                                 <h2 class="text-xl font-bold text-center">
@@ -341,7 +341,7 @@
                             </div>
                         </div>
                         <!-- Quoted -->
-                        <div class="border-r-2 border-indigo-200 p-2">
+                        <div class="border-r-2 border-gray-200 border-dashed p-3">
                             <!-- header -->
                             <div>
                                 <h2 class="text-xl font-bold text-center">
@@ -373,7 +373,7 @@
                             </div>
                         </div>
                         <!-- Ordered -->
-                        <div class="border-r-2 border-indigo-200 p-2">
+                        <div class="border-r-2 border-gray-200 border-dashed p-3">
                             <!-- header -->
                             <div>
                                 <h2 class="text-xl font-bold text-center">

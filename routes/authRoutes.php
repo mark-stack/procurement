@@ -10,9 +10,11 @@ use App\Formatters\ProductFormatter;
 use App\Formatters\SupplierFormatter;
 use App\Http\Controllers\BatchController;
 use App\Http\Controllers\BatchNestingController;
+use App\Http\Controllers\MarkAsPastProjectController;
 use App\Http\Controllers\MarkNotificationStatusController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\PastProjectsController;
 use App\Http\Controllers\PricebookController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
@@ -67,8 +69,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     //Onboarding is finalised
     Route::middleware([BusinessReadyMiddleware::class])->group(function () {
-        //Projects
+        //Current Projects
         Route::resource('projects', ProjectController::class);
+
+        //Past Projects
+        Route::get("past-projects", PastProjectsController::class)->name("past.projects.index");
+        Route::post("mark-as-past-project/{batch}", MarkAsPastProjectController::class)->name("mark.as.past.project");
 
         //Products
         Route::controller(ProductController::class)->group(function () {
@@ -593,7 +599,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('suggested-nesting', SuggestedNestingController::class)->name('suggested.nesting');
 
         //Batch Nesting
-        Route::get('batch-nesting/{batch}', BatchNestingController::class)->name('batch.nesting');
+        Route::get('batch-nesting/{batch}/{redirect}', BatchNestingController::class)->name('batch.nesting');
     });
 
     //Batches
