@@ -32,7 +32,7 @@ export default {
         // Create the mailto link
         let row1 = "Hi, I'm seeking a quote for the following:";
         let row2 = materialList;
-        let row3 = "Thank you.";
+        let row3 = "Mill certificates will be required. Thank you.";
 
         const body = encodeURIComponent(`${row1}\n\n${row2}\n\n${row3}`);
         const mailtoLink = `mailto:${emailAddress}?subject=${encodeURIComponent(subject)}&body=${body}`;

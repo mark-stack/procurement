@@ -20,19 +20,15 @@ class QuoteController extends Controller
     /**
      * @deprecated
      */
-    public function index() {}
+    public function index() {
 
-    /**
-     * Show the form for creating a new resource.
-     */
+    }
+
     public function create()
     {
         //
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -75,25 +71,16 @@ class QuoteController extends Controller
         return back();
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(Quote $quote)
     {
         Gate::authorize('owned', $quote);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
     public function edit(Quote $quote)
     {
         Gate::authorize('owned', $quote);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, Quote $quote): RedirectResponse
     {
         Gate::authorize('owned', $quote);
@@ -111,9 +98,6 @@ class QuoteController extends Controller
         return back();
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(Quote $quote)
     {
         Gate::authorize('owned', $quote);

@@ -6,6 +6,9 @@ use App\Models\Batch;
 use App\Models\Offcut;
 use Lorisleiva\Actions\Concerns\AsAction;
 
+/**
+ * @deprecated replaced with Actions/Bar/CreateBars
+ */
 class GenerateOffcuts
 {
     use AsAction;

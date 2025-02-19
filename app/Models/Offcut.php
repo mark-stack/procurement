@@ -13,6 +13,14 @@ class Offcut extends Model
 
     protected $guarded = [];
 
+    //Relationships
+    public function bar(): BelongsTo
+    {
+        return $this->belongsTo(Bar::class);
+    }
+
+
+    //Batch
     public function batchFrom(): Batch
     {
         return Batch::findOrFail($this->batch_from_id);

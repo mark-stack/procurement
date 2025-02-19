@@ -160,11 +160,9 @@
             v-if="shared.atLeastOneProjectIsYours(projects,user.id)"
             class="mt-3 w-full flex gap-x-2 justify-between items-center"
         >
-            <CardButtonGreen
-                @click="$emit('pageLoadingOn',null);$emit('quoteNow')"
+            <CardButtonForward
                 label="Start quoting/ordering"
-                :highlight="true"
-                :icon="false"
+                @click="$emit('pageLoadingOn',null);$emit('quoteNow')"
             />
         </div>
         <p

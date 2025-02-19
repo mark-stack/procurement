@@ -11,15 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('offcuts', function (Blueprint $table) {
+        Schema::create('bars', function (Blueprint $table) {
             $table->id();
             $table->timestamps();
-
-            //Relationships
-            $table->integer('batch_from_id');
-            $table->integer('batch_to_id')->nullable();
-            $table->integer('piece_to_id')->nullable(); //todo: 1 offcut might have multiple cuts belonging to multiple pieces
-            $table->integer('bar_id')->nullable(); //todo what about when comes from an offcut?
 
             //Product attributes
             $table->text('product_category');               //PFC
@@ -35,6 +29,7 @@ return new class extends Migration
             $table->float('wall')->nullable();              //
 
             //Other
+            $table->string("product_derived_label");
             $table->float('length');
         });
     }
@@ -44,6 +39,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('offcuts');
+        Schema::dropIfExists('bars');
     }
 };

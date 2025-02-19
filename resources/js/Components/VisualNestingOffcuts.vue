@@ -86,6 +86,7 @@
                     :style="'width: '+(offcut.reusableLength/offcut.offcutLength*100)+'%'"
                 >
                     Reuse
+<!--                    Reuse <i v-if="offcut.uniqueId">"{{offcut.uniqueId}}"</i>-->
                 </div>
             </div>
 

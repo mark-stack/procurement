@@ -590,7 +590,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             $order->save();
 
             //Generate offcuts
-            GenerateOffcuts::run($order->batch);
+            //GenerateOffcuts::run($order->batch);
 
             return back();
         })->name("order.mark.delivered");

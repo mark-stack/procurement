@@ -84,6 +84,7 @@
                 :style="'width: '+(bar.result.unused/bar.result['bar_length']*100)+'%'"
             >
                 Reuse
+<!--                Reuse [{{bar.result}}]<i v-if="bar.result.uniqueId">"{{bar.result.uniqueId}}"</i>-->
             </div>
         </div>
     </div>
