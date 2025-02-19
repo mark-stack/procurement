@@ -94,6 +94,7 @@ class ProjectController extends Controller
                     $all100Percent = false;
                 }
             }
+
             $sentOrdersQty = $batch->orders()->where('order_sent', true)->count();
             if(($sentOrdersQty > 0) && !$all100Percent){
                 $batchesForOrdering[] = $batch;

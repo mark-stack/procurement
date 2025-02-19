@@ -128,10 +128,6 @@
             : false;
     }
 
-    function nestingStage(){
-        return true; //todo
-    }
-
     function hasSenseChecks(){
         return thisDownloadedBomData(props.bomData)
             ? (thisDownloadedBomData(props.bomData).senseChecks.length > 0)
@@ -360,8 +356,8 @@
 
     function canUpload(){
         /**
-         * Nesting stage only (nesting card).
-         * Don't show whilst clarifying or doing custom products
+         * 1) Nesting stage only (nesting card).
+         * 2) Don't show whilst clarifying or doing custom products
          */
         return props.modalCanUpload && !hasClarifications() && !hasUserCustomProducts();
     }

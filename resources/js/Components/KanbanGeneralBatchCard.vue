@@ -114,9 +114,6 @@
             <p class="text-sm text-gray-700">
                 Ordered: <b>{{ info.sentOrdersQty }}/{{ info.totalOrdersQty }}</b>
             </p>
-            <p v-if="info.all_project_manager_approvals && type === 'ORDERS'" class="text-sm text-green-700">
-                All project managers approved
-            </p>
         </div>
 
         <!-- delivery card -->
@@ -247,7 +244,7 @@
                     </div>
                     <div v-if="shared.isYourProject(project,user.id)">
                         <CardButtonGreen
-                            @click="$emit('pageLoadingOn',null);$emit('showBom',[project,true])"
+                            @click="$emit('pageLoadingOn',null);$emit('showBom',[project,false])"
                             :label="project.qtyMaterialRows + ' pieces'"
                             :highlight="false"
                             :icon="false"
@@ -270,97 +267,104 @@
                 :thisIndex="999"
                 @click="toggleExpandBatchDetails()"
             />
-            <CardButtonForward
-                v-if="type === 'QUOTES'"
-                label="Orders"
-                :href="route('quote.order.management',props.info.batch.id)"
-            />
-            <CardButtonForward
-                v-if="type === 'ORDERS'"
-                label="Orders"
-                :href="route('quote.order.management',props.info.batch.id)"
-            />
-        </div>
-
-        <div
-            v-if="expandBatchDetails"
-            class="flex w-full justify-center mt-2"
-        >
-            <Link
-                :href="route('batch.nesting',[props.info.batch.id,'current'])"
-                class="w-full"
-                @click="loadingButton = 'NESTING_DETAILS'"
-            >
-                <CardButtonBlue
-                    :label="loadingButton === 'NESTING_DETAILS' ? 'Calculating...' : 'Nesting details'"
-                    :highlight="false"
-                />
-            </Link>
-        </div>
-
-        <div
-            v-if="shared.atLeastOneProjectIsYours(info.projects.data,user.id)"
-            class="mt-3 w-full flex gap-x-2 justify-between items-center"
-        >
-            <!-- Quote actions -->
-            <CardButtonRed
-                v-if="type === 'QUOTES'"
-                @click="$emit('pageLoadingOn',3); breakBatch()"
-                label="Re-nest"
-            />
-
             <Link
                 v-if="type === 'QUOTES'"
                 :href="route('quote.order.management',props.info.batch.id)"
                 class="w-full"
                 @click="loadingButton = 'QUOTES'"
             >
-                <CardButtonGreen
+                <CardButtonForward
                     :label="loadingButton === 'QUOTES' ? 'Opening...' : 'Quotes'"
-                    :highlight="true"
-                    :icon="false"
+                    @click="loadingButton = 'QUOTES'"
                 />
             </Link>
 
-            <!-- order actions -->
             <Link
                 v-if="type === 'ORDERS'"
                 :href="route('quote.order.management',props.info.batch.id)"
                 class="w-full"
                 @click="loadingButton = 'ORDERS'"
             >
-                <CardButtonGreen
+                <CardButtonForward
                     :label="loadingButton === 'ORDERS' ? 'Opening...' : 'Orders'"
-                    :highlight="true"
-                    :icon="false"
+                    @click="loadingButton = 'ORDERS'"
                 />
             </Link>
 
             <!-- delivery actions -->
-            <Link
-                v-if="type === 'DELIVERED'"
-                :href="route('quote.order.management',props.info.batch.id)"
-                class="w-full"
-                @click="loadingButton = 'ORDERS'"
-            >
-                <CardButtonGreen
-                    :label="loadingButton === 'ORDERS' ? 'Opening...' : 'Orders'"
-                    :highlight="!allDelivered()"
-                    :icon="false"
-                />
-            </Link>
-
-            <p
-                v-if="type === 'DELIVERED' && allDelivered()"
-                class="w-full"
-                @click="markAsPastProject()"
-            >
-                <CardButtonGreen
+            <template v-if="type === 'DELIVERED'">
+                <!-- All delivered (suggest mark as done) -->
+                <CardButtonForward
+                    v-if="allDelivered()"
                     :label="formMarkAsPastProject.processing ? 'Moving...' : 'Move to done'"
-                    :highlight="true"
-                    :icon="false"
+                    @click="markAsPastProject()"
                 />
+
+                <!-- NOT all delivered (open orders)-->
+                <Link
+                    v-else
+                    :href="route('quote.order.management',props.info.batch.id)"
+                    class="w-full"
+                    @click="loadingButton = 'DELIVERED'"
+                >
+                    <CardButtonForward
+                        :label="loadingButton === 'DELIVERED' ? 'Opening...' : 'Orders'"
+                        @click="loadingButton = 'DELIVERED'"
+                    />
+                </Link>
+            </template>
+        </div>
+
+        <!-- Expanded area -->
+        <div
+            v-if="expandBatchDetails"
+            class="w-full mt-3"
+        >
+            <!-- All project managers approved -->
+            <p
+                v-if="info.all_project_manager_approvals && type === 'ORDERS'"
+                class="text-sm text-green-700 text-center"
+            >
+                All project managers approved
             </p>
+
+            <!-- Nesting details -->
+            <p class="w-full mt-2">
+                <Link
+                    :href="route('batch.nesting',[props.info.batch.id,'current'])"
+                    @click="loadingButton = 'NESTING_DETAILS'"
+                >
+                    <CardButtonBlue
+                        :label="loadingButton === 'NESTING_DETAILS' ? 'Calculating...' : 'Nesting details'"
+                        :highlight="false"
+                    />
+                </Link>
+            </p>
+
+            <!-- Quote actions -->
+            <CardButtonRed
+                v-if="type === 'QUOTES'"
+                @click="$emit('pageLoadingOn',3); breakBatch()"
+                label="Re-nest"
+                class="w-full mt-2"
+            />
+
+            <!-- delivery actions -->
+            <p class="w-full mt-2">
+                <Link
+                    v-if="type === 'DELIVERED' && allDelivered()"
+                    :href="route('quote.order.management',props.info.batch.id)"
+                    @click="loadingButton = 'DELIVERED'"
+                >
+                    <CardButtonGreen
+                        :label="loadingButton === 'DELIVERED' ? 'Opening...' : 'Orders'"
+                        :highlight="false"
+                        :icon="false"
+                        class="mt-1"
+                    />
+                </Link>
+            </p>
+
         </div>
         <p
             v-if="shared.atLeastOneProjectIsYours(info.projects.data,user.id)"
