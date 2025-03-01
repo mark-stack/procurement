@@ -20,6 +20,7 @@ class GenerateOffcuts
          */
 
         //Array of nesting data
+        //todo refactor this to collecting 'BAR' and 'OFFCUT' items
         $nestedPiecesData = unserialize($batch->nested_state);
         $meterageProducts = ($batch->nested_state && $nestedPiecesData)
             ? $nestedPiecesData["METERAGE"]

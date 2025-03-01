@@ -1195,11 +1195,11 @@ class NestingFormatter
         }
         //Suggested (pre-batch at nesting phase)
         if ($type === 'SUGGESTED') {
-            //Projects ready for batching
-            $projectsForBatching = $business->projectsReadyForBatching();
-
             //Pieces ready for batching
             $piecesReadyForBatching = $this->piecesReadyForBatching($business);
+
+            //Projects ready for batching
+            $projectsForBatching = $business->projectsReadyForBatching($piecesReadyForBatching);
 
             //Letter-project array
             $lettersProjectArray = $this->getLetterProjectArray($piecesReadyForBatching);
@@ -1229,16 +1229,10 @@ class NestingFormatter
      */
     public function piecesReadyForBatching(Business $business): Collection
     {
-        //todo: timeline and status criteria needed
-        $projectsReadyForBatching = $business->projectsReadyForBatching();
-
-        $projectsForQuotingIds = $projectsReadyForBatching
-            ->pluck('id')
-            ->toArray();
-
         return Piece::query()
-            ->whereIn('project_id', $projectsForQuotingIds)
-            ->readyToBatch()
+            ->whereRelation("project.user.business","id","=",$business->id)
+            ->whereRelation("project","archive","=",false)
+            ->doesntHave("batch")
             ->get();
     }
 

@@ -32,7 +32,7 @@ class NotificationQuotingOrderingDueImplementation implements NotificationInterf
          * "Due" is when there's [critical path + 1 day] until planned project material received date
          *
          * 1) Project is active
-         * 2) Project is awarded
+         * 2)
          * 3) Between [critical path + 1 day] and [critical path] days before planned project material received date
          * 4) At least 1 day since last reminder
          * 5) Order coverage < 100%
@@ -40,7 +40,6 @@ class NotificationQuotingOrderingDueImplementation implements NotificationInterf
          */
         $quoteDueProjects = Project::query()
             ->active()                       //1) Project is active (not archived)
-            ->awarded()                      //2) Project "awarded" = true
             ->dueForQuotingAndOrdering()     //3) Between [critical path + 1 day] and [critical path] days before planned project material received date
             ->get();
 

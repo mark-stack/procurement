@@ -17,7 +17,6 @@ return new class extends Migration
 
             $table->text('name');
             $table->foreignId('user_id')->constrained();
-            $table->boolean('awarded')->default(true);
             $table->string('reference')->nullable();
             $table->date('date_materials_required')->nullable();
             $table->boolean('tentative')->default(true);

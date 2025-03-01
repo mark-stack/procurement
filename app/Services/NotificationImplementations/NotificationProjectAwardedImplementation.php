@@ -10,6 +10,9 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Carbon;
 
+/**
+ * @deprecated
+ */
 class NotificationProjectAwardedImplementation implements NotificationInterface
 {
     public string $subInterval;

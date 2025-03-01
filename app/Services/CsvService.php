@@ -489,7 +489,6 @@ class CsvService
         /**
          * Notify user & admin of items not found
          */
-
         if(count($itemsNotFound) > 0 || count($fromOtherPlan) > 0){
             //Notify admin
             $adminUser = User::query()->where('email', config('env.admin_email'))->first();

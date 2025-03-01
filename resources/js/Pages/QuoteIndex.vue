@@ -167,18 +167,20 @@
                                                     />
                                                 </div>
 
-                                                <h2 class="font-bold">New stock usage</h2>
-                                                <!-- new stock nesting -->
-                                                <VisualNestingWithBars
-                                                    :utilisedBars="item.nested.utilisedBars"
-                                                    :measurementUnit="item.nominal_units"
-                                                />
-                                                <p
-                                                    v-if="item.nested.tooLong.length > 0"
-                                                    class="text-red-500 font-bold mt-2"
-                                                >
-                                                    Pieces too long: <span v-for="unfit in item.nested.tooLong">{{ parseFloat(unfit.length).toLocaleString()}} mm (p{{unfit.letter}}), </span>
-                                                </p>
+                                                <template v-if="Object.values(item.nested.utilisedBars).length > 0">
+                                                    <h2 class="font-bold">New stock usage</h2>
+                                                    <!-- new stock nesting -->
+                                                    <VisualNestingWithBars
+                                                        :utilisedBars="item.nested.utilisedBars"
+                                                        :measurementUnit="item.nominal_units"
+                                                    />
+                                                    <p
+                                                        v-if="item.nested.tooLong.length > 0"
+                                                        class="text-red-500 font-bold mt-2"
+                                                    >
+                                                        Pieces too long: <span v-for="unfit in item.nested.tooLong">{{ parseFloat(unfit.length).toLocaleString()}} mm (p{{unfit.letter}}), </span>
+                                                    </p>
+                                                </template>
                                             </div>
                                             <!-- Nesting algorithm: bundle -->
                                             <div v-if="item.algo === 'BUNDLE'">

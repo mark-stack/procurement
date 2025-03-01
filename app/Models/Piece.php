@@ -43,10 +43,7 @@ class Piece extends Model
     }
 
     //Local scopes
-    public function scopeReadyToBatch(Builder $query): void
-    {
-        $query->whereNull('batch_id');
-    }
+    //...
 
     //Collections
     public function product(): ?Product

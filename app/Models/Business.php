@@ -50,13 +50,10 @@ class Business extends Model
     }
 
     //Local scopes
-    public function projectsReadyForBatching(): Collection
+    public function projectsReadyForBatching(Collection $piecesReadyForBatching): Collection
     {
-        //todo: timeline and status criteria needed
-        return $this->projects()
-            ->active()
-            ->awarded()
-            ->unBatchedPieces()
+        return Project::query()
+            ->whereIn("id",$piecesReadyForBatching->pluck("project_id")->toArray())
             ->get();
     }
 

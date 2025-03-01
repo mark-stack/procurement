@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Formatters\NestingFormatter;
 use App\Http\Resources\ProjectResource;
 use App\Models\Project;
 use Illuminate\Support\Facades\Gate;
@@ -28,6 +29,7 @@ class ProjectController extends Controller
         //Prerequisite variables
         $user = auth()->user();
         $business = $user->business;
+        $piecesReadyForBatching = (new NestingFormatter)->piecesReadyForBatching($business);
 
         $projects = [
             //Kanban column 1
@@ -40,7 +42,7 @@ class ProjectController extends Controller
             //Kanban column 2
             'READY_FOR_NESTING' => [
                 'projects' => ProjectResource::collection($business
-                    ->projectsReadyForBatching()
+                    ->projectsReadyForBatching($piecesReadyForBatching)
                     ->sortBy('created_at')),
             ],
         ];
@@ -228,9 +230,8 @@ class ProjectController extends Controller
                 'string',
                 Rule::notIn($allActiveProjectNames),
             ],
-            'awarded' => 'required|boolean',
-            'reference' => 'nullable|required_if:awarded,true',
-            'date_materials_required' => 'nullable|required_if:awarded,true|date|after:today',
+            'reference' => 'nullable',
+            'date_materials_required' => 'nullable|date|after:today',
             'tentative' => 'required',
         ],
         //Rules
@@ -238,17 +239,9 @@ class ProjectController extends Controller
             'name.not_in' => 'Pick a name different to currently active projects', // Custom error message
         ]);
 
-
-        //Clear reference and date if not awarded
-        if (! $validated['awarded']) {
-            $validated['reference'] = null;
-            $validated['date_materials_required'] = null;
-        }
-
         Project::create([
             'user_id' => auth()->user()->id,
             'name' => $validated['name'],
-            'awarded' => $validated['awarded'],
             'reference' => $validated['reference'],
             'date_materials_required' => $validated['date_materials_required'],
             'tentative' => $validated['tentative'],
@@ -293,20 +286,13 @@ class ProjectController extends Controller
                 'string',
                 Rule::notIn($allActiveProjectNames),
             ],
-            'awarded' => 'required|boolean',
-            'reference' => 'nullable|required_if:awarded,true',
-            'date_materials_required' => 'nullable|required_if:awarded,true|date|after:today',
+            'reference' => 'nullable',
+            'date_materials_required' => 'nullable|date|after:today',
         ],
         //Rules
         [
             'name.not_in' => 'Pick a name different to currently active projects', // Custom error message
         ]);
-
-        //Clear reference and date if not awarded
-        if (! $validated['awarded']) {
-            $validated['reference'] = null;
-            $validated['date_materials_required'] = null;
-        }
 
         $project->update($validated);
 

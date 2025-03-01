@@ -1,5 +1,7 @@
 <?php
-
+/**
+ * @deprecated
+ */
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;

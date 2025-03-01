@@ -32,7 +32,7 @@ class NotificationQuotingOrderingOverDueImplementation implements NotificationIn
          * "Overdue" is when the time between now and planned project material received date is less than critical path
          *
          * 1) Project is active
-         * 2) Project is awarded
+         * 2)
          * 3) Less than [critical path] before planned project material received date
          * 4) At least 1 day since last reminder
          * 5) Order coverage < 100%
@@ -40,7 +40,6 @@ class NotificationQuotingOrderingOverDueImplementation implements NotificationIn
          */
         $quoteDueProjects = Project::query()
             ->active()                        //1) Project is active (not archived)
-            ->awarded()                       //2) Project "awarded" = true
             ->overdueForQuotingAndOrdering()  //3) Less than [critical path] before planned project material received date
             ->get();
 

@@ -15,7 +15,6 @@
     //Forms
     const formProjectCreate = useForm({
         name: null,
-        awarded: true,
         reference: null,
         date_materials_required: null,
         tentative: false,
@@ -71,7 +70,6 @@
 
         //Populate form
         formProjectCreate.name = project.name;
-        formProjectCreate.awarded = project.awarded === 1;
         formProjectCreate.date_materials_required = project.date_materials_required;
         formProjectCreate.reference = project.reference;
         formProjectCreate.tentative = project.tentative;
@@ -125,7 +123,7 @@
                                 </div>
 
                                 <!-- Project reference -->
-                                <div v-if="formProjectCreate.awarded">
+                                <div>
                                     <label class="text-gray-700 dark:text-gray-200 ml-1">Project reference</label>
                                     <input
                                         v-model="formProjectCreate.reference"
@@ -138,7 +136,7 @@
                                 </div>
 
                                 <!-- Date materials required -->
-                                <div v-if="formProjectCreate.awarded">
+                                <div>
                                     <label class="text-gray-700 dark:text-gray-200 ml-1">Materials required by</label>
                                     <input
                                         v-model="formProjectCreate.date_materials_required"

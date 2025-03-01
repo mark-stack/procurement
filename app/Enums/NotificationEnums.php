@@ -10,9 +10,6 @@ enum NotificationEnums: string
     /**
      * Projects
      */
-    //Has the project been awarded to you?
-    case HAS_THE_PROJECT_BEEN_AWARDED_TO_YOU = 'HAS_THE_PROJECT_BEEN_AWARDED_TO_YOU';
-
     //Is the tentative materials date still correct?
     case TENTATIVE_MATERIALS_DATE_CORRECT = 'TENTATIVE_MATERIALS_DATE_CORRECT';
 

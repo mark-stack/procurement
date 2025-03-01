@@ -22,7 +22,6 @@ class ProjectResource extends JsonResource
             'id' => $project->id,
             'name' => $project->name,
             'user_id' => $project->user_id,
-            'awarded' => $project->awarded,
             'reference' => $project->reference,
             'date_materials_required' => $project->date_materials_required,
             'tentative' => $project->tentative,

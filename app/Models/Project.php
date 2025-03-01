@@ -215,11 +215,6 @@ class Project extends Model
         $query->where('archive', false);
     }
 
-    public function scopeAwarded(Builder $query): void
-    {
-        $query->where('awarded', true);
-    }
-
     public function scopeUnBatchedPieces(Builder $query): void
     {
         $query->whereRelation('pieces', 'batch_id', '=', null);

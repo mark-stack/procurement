@@ -220,12 +220,11 @@ function createUser(int $id, Business $business, bool $isAdmin, bool $emailVerif
     ]);
 }
 
-function createProject(User $user, bool $awarded): Project
+function createProject(User $user): Project
 {
     return Project::create([
         'name' => 'some project',
         'user_id' => $user->id,
-        'awarded' => $awarded,
         'reference' => 'ref',
         'date_materials_required' => null,
         'tentative' => true,

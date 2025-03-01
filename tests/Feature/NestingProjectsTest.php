@@ -9,6 +9,7 @@ uses(RefreshDatabase::class);
 it('would be a disaster if a project with awarded status has no materials available for nesting', function (int $testCaseIndex) {
     /**
      * project with awarded status has materials available for nesting
+     * //todo remove "awarded"
      */
     //Create admin
     $adminBusiness = createBusiness('admin', true);
@@ -85,8 +86,6 @@ it('would be a disaster if a project with non-awarded status has materials avail
         );
     }
 });
-
-it('would be a disaster if materials available for project not yet awarded', function () {});
 
 it('would be a disaster if has other business’s materials', function () {});
 
