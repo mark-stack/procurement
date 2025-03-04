@@ -16,6 +16,7 @@
     const props = defineProps({
         projects: Object,
         usageStats: Number,
+        prerequisiteStartQuoting: Boolean,
     });
 
     //Form
@@ -122,7 +123,7 @@
                         <!--                    :icon="true"-->
                         <!--                />-->
                         <CardButtonGreen
-                            @click="$emit('pageLoadingOn',null);$emit('showBom',[project,true])"
+                            @click="$emit('pageLoadingOn',null);$emit('showBom',project)"
                             :label="project.qtyMaterialRows + ' pieces'"
                             :highlight="false"
                             :icon="false"
@@ -157,7 +158,7 @@
 
         <!-- Actions -->
         <div
-            v-if="shared.atLeastOneProjectIsYours(projects,user.id)"
+            v-if="prerequisiteStartQuoting"
             class="mt-3 w-full flex gap-x-2 justify-between items-center"
         >
             <CardButtonForward

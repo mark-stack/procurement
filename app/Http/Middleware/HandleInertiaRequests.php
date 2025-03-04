@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Product;
+use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;

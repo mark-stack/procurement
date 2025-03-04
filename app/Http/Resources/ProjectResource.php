@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\Project;
+use App\PrerequisiteConditions\PrerequisiteConditions;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -15,6 +16,7 @@ class ProjectResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $user = auth()->user();
         $project = Project::query()->findOrFail($this->id);
 
         return [
@@ -35,6 +37,11 @@ class ProjectResource extends JsonResource
             'deliveryDeadline' => $project->deliveryDeadline(),
             'projectManager' => $project->user,
             'qtyMaterialRows' => $project->rawMaterialQuotes()->count(),
+            "prerequisiteUploadMaterials" => (new PrerequisiteConditions())->uploadMaterials(
+                $user->business,
+                $user,
+                $project,
+            ),
         ];
     }
 }

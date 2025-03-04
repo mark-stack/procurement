@@ -244,7 +244,7 @@
                     </div>
                     <div v-if="shared.isYourProject(project,user.id)">
                         <CardButtonGreen
-                            @click="$emit('pageLoadingOn',null);$emit('showBom',[project,false])"
+                            @click="$emit('pageLoadingOn',null);$emit('showBom',project)"
                             :label="project.qtyMaterialRows + ' pieces'"
                             :highlight="false"
                             :icon="false"
@@ -343,7 +343,7 @@
 
             <!-- Quote actions -->
             <CardButtonRed
-                v-if="type === 'QUOTES'"
+                v-if="info.prerequisiteUndoStartQuoting"
                 @click="$emit('pageLoadingOn',3); breakBatch()"
                 label="Re-nest"
                 class="w-full mt-2"

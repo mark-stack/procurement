@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Formatters\NestingFormatter;
 use App\Http\Resources\ProjectResource;
+use App\Models\Offcut;
 use App\Models\Project;
+use App\PrerequisiteConditions\PrerequisiteConditions;
 use Illuminate\Support\Facades\Gate;
 use App\Services\BatchService;
 use App\Services\OrderService;
@@ -35,7 +37,7 @@ class ProjectController extends Controller
             //Kanban column 1
             'NEW_PROJECTS' => ProjectResource::collection(Project::query()
                 ->thisBusiness($business)
-                ->active()
+                ->where("archive",false)
                 ->doesntHave('rawMaterialQuotes')
                 ->sortByUserAndLatest()
                 ->get()),
@@ -65,6 +67,20 @@ class ProjectController extends Controller
              * table rows of each unique supplier-product_category.
              * e.g "ABC Steel" who does 'fasteners' and 'steel merchant' is 2 rows
              */
+
+            /*
+             * Prerequisite Gate
+             */
+            $offcutsAssignedToThisBatch = Offcut::query()
+                ->where("batch_to_id",$batch->id)
+                ->get();
+            $prerequisiteUndoStartQuoting = (new PrerequisiteConditions())->undoStartQuoting(
+                $batch,
+                $business,
+                $user,
+                $offcutsAssignedToThisBatch,
+            );
+
             $quoted[$batch->id] = [
                 'info' => [
                     'batch' => [
@@ -78,6 +94,7 @@ class ProjectController extends Controller
                     'totalQuotesQty' => $batch->quotes()->count(),
                     'sentQuotesQty' => $batch->quotes()->where('quote_sent', true)->count(),
                     'batchQuotingDeadline' => $quoteService->batchQuotingDeadline($batch),
+                    "prerequisiteUndoStartQuoting" => $prerequisiteUndoStartQuoting,
                 ],
             ];
         }
@@ -198,10 +215,24 @@ class ProjectController extends Controller
             ->latest()
             ->get());
 
+        /*
+         * Prerequisite Gates
+         */
+        $piecesReadyForBatching = (new NestingFormatter)->piecesReadyForBatching($business);
+        $projectsReadyForBatching = $business->projectsReadyForBatching($piecesReadyForBatching); //Note get this before updating pieces because it gets modified
+        $prerequisiteStartQuoting = (new PrerequisiteConditions())->startQuoting(
+            $business,
+            $user,
+            $projectsReadyForBatching,
+            $piecesReadyForBatching,
+        );
+
         return Inertia::render('Dashboard', [
             'projects' => $projects,
             'batches' => $batches,
             'archivedProjects' => $archivedProjects,
+            "prerequisiteStartQuoting" => $prerequisiteStartQuoting,
+            //"prerequisiteUndoStartQuoting" => $prerequisiteUndoStartQuoting,
         ]);
     }
 
@@ -219,8 +250,7 @@ class ProjectController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $business = auth()->user()->business;
-        $allProjects = $business->projects;
-        $allActiveProjectNames = $allProjects
+        $allCurrentProjectNames = $business->currentProjects()
             ->pluck("name")
             ->toArray();
 
@@ -228,7 +258,7 @@ class ProjectController extends Controller
             'name' => [
                 'required',
                 'string',
-                Rule::notIn($allActiveProjectNames),
+                Rule::notIn($allCurrentProjectNames),
             ],
             'reference' => 'nullable',
             'date_materials_required' => 'nullable|date|after:today',

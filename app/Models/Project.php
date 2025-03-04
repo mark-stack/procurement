@@ -191,6 +191,18 @@ class Project extends Model
         $query->whereBetween('date_materials_required', [$startRange, $endRange]);
     }
 
+    public function scopeWithoutBatch(Builder $query): void
+    {
+        // batch > piece > project
+        $query->whereRelation("pieces.batch","done","=",false);
+    }
+
+    public function scopeWithBatch(Builder $query): void
+    {
+        // batch > piece > project
+        $query->whereRelation("pieces.batch","done","=",true);
+    }
+
     public function scopeOverdueForQuotingAndOrdering(Builder $query): void
     {
         /**
@@ -208,11 +220,6 @@ class Project extends Model
         $staffIds = $business->users()->get()->pluck('id')->toArray();
 
         $query->whereIn('user_id', $staffIds);
-    }
-
-    public function scopeActive(Builder $query): void
-    {
-        $query->where('archive', false);
     }
 
     public function scopeUnBatchedPieces(Builder $query): void

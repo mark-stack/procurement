@@ -6,6 +6,7 @@ use App\Formatters\NestingFormatter;
 use App\Imports\ExcelImport;
 use App\Models\Product;
 use App\Models\Project;
+use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\CsvService;
 use App\Services\ProductService;
 use Illuminate\Http\RedirectResponse;
@@ -180,6 +181,17 @@ class ProductController extends Controller
          */
         Gate::authorize('owned', $project);
 
+        $user = auth()->user();
+        $business = $user->business;
+
+        //Prerequisite conditions
+        $prerequisiteUploadMaterials = (new PrerequisiteConditions())->uploadMaterials(
+            $business,
+            $user,
+            $project,
+        );
+        abort_if(!$prerequisiteUploadMaterials,403);
+
         //Validate
         $request->validate([
             'excel' => 'required|mimes:xlsx,xls|max:2048',
@@ -199,7 +211,7 @@ class ProductController extends Controller
         $errorMsg = "The file didn't auto-detect properly. Did the template change? Please email the file to mark.laravel.coder@gmail to have it re-calibrated quickly.";
 
         //Users to get nice error message, admin to throw error.
-        if (auth()->user()->isAdmin()) {
+        if ($user->isAdmin()) {
             $return = $csvService->processCsv($csvArray, $project, $errorMsg);
         } else {
             try {

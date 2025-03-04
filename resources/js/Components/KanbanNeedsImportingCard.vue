@@ -53,7 +53,7 @@
             />
             <CardButtonForward
                 label="Add Mat'ls"
-                @click="$emit('pageLoadingOn',null);$emit('showBom',[project,true])"
+                @click="$emit('pageLoadingOn',null);$emit('showBom',project)"
             />
         </div>
         <div
@@ -84,7 +84,7 @@
                 class="grid grid-cols-1 gap-y-1"
             >
                 <CardButtonGreen
-                    @click="$emit('pageLoadingOn',null);$emit('showBom',[project,true])"
+                    @click="$emit('pageLoadingOn',null);"
                     :label="project.qtyMaterialRows + ' pieces'"
                     :highlight="false"
                     :icon="false"

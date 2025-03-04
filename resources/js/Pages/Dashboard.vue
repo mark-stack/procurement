@@ -18,6 +18,7 @@
         projects: Object,
         batches: Object,
         archivedProjects: Object,
+        prerequisiteStartQuoting: Boolean,
     });
 
     //Forms
@@ -142,26 +143,15 @@
     }
 
     function showBom(args){
-        let project = args[0];
-        let canUpload = args[1];
+        let project = args;
+        console.log("project",project);
+        let canUpload = project.prerequisiteUploadMaterials;
 
         //Set project
         bomProject.value = project;
         modalCanUpload.value = canUpload;
 
-        /**
-         Only download new data if hasn't already
-         */
-        let existingDownload = undefined; //todo Object.values(bomData.value).find(item => item.project_id == bomProject.value.id);
-
-        if(existingDownload === undefined){
-            downloadProjectBomData(bomProject.value.id);
-        }
-        else{
-            //Show modal
-            showBomEditModal.value = true;
-            console.log("already downloaded. show modal");
-        }
+        downloadProjectBomData(bomProject.value.id);
     }
 
     async function getUsageData(){
@@ -186,6 +176,7 @@
         /**
             Axios
          */
+        console.log("projectId",projectId);
         try {
             const response = await axios.get(route("download.bom",projectId));
 
@@ -327,6 +318,7 @@
                                     v-if="projects['READY_FOR_NESTING'].projects.data.length > 0"
                                     :projects="projects['READY_FOR_NESTING'].projects.data"
                                     :usageStats="usageData"
+                                    :prerequisiteStartQuoting="prerequisiteStartQuoting"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
                                     @quoteNow="quoteNow()"
