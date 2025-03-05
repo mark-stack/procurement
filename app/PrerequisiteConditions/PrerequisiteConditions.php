@@ -5,13 +5,13 @@ namespace App\PrerequisiteConditions;
 use App\Models\Batch;
 use App\Models\Business;
 use App\Models\Project;
+use App\Models\Quote;
 use App\Models\User;
 use Illuminate\Support\Collection;
 
 class PrerequisiteConditions
 {
     public function startQuoting(
-        Business $business,
         User $user,
         Collection $projectsReadyForBatching,
         Collection $piecesReadyForBatching
@@ -29,7 +29,7 @@ class PrerequisiteConditions
          */
 
         //1) BUSINESS: Is your business
-        $condition_1 = $business->id = $user->business->id;
+        $condition_1 = true; //$user->business
 
         //2) User is owner of at least 1 project
         $condition_2 = false;
@@ -45,7 +45,7 @@ class PrerequisiteConditions
         //4) PIECE: Pieces belong to this business
         $condition_4 = true;
         foreach($projectsReadyForBatching as $project){
-            if($project->user->business->id !== $business->id){
+            if($project->user->business->id !== $user->business->id){
                 $condition_4 = false;
             }
         }
@@ -69,7 +69,6 @@ class PrerequisiteConditions
 
     public function undoStartQuoting(
         Batch $batch,
-        Business $business,
         User $user,
         Collection $offcutsAssignedToThisBatch,
     ): bool
@@ -87,7 +86,7 @@ class PrerequisiteConditions
         //1) PROJECT: All projects belong to your business
         $condition_1 = true;
         foreach($batch->projects() as $project){
-            if($project->user->business->id !== $business->id){
+            if($project->user->business->id !== $user->business->id){
                 $condition_1 = false;
             }
         }
@@ -114,7 +113,7 @@ class PrerequisiteConditions
         //5) OFFCUT: Are your offcuts being released
         $condition_5 = true;
         foreach($offcutsAssignedToThisBatch as $offcut){
-            $businessOwnership = $offcut->batchTo()->user->business->id === $business->id;
+            $businessOwnership = $offcut->batchTo()->user->business->id === $user->business->id;
             if(!$businessOwnership){
                 $condition_5 = false;
             }
@@ -147,7 +146,7 @@ class PrerequisiteConditions
             $condition_7;
     }
 
-    public function uploadMaterials(Business $business, User $user, Project $project): bool
+    public function uploadMaterials(User $user, Project $project): bool
     {
         /**
          * 1) BUSINESS: Your business
@@ -159,7 +158,7 @@ class PrerequisiteConditions
          */
 
         //1) BUSINESS: Your business
-        $condition_1 = $business->id === $user->business->id;
+        $condition_1 = $project->user->business->id === $user->business->id;
 
         //2) PROJECT: Your project
         $condition_2 = $project->user->id === $user->id;
@@ -193,14 +192,100 @@ class PrerequisiteConditions
 
     }
 
-    public function markQuoteAsSent(): bool
+    public function markQuoteAsSent(User $user, Quote $quote): bool
     {
+        /**
+         * 1) BUSINESS: is your business
+         * 2) USER: you're a PM on at least 1 project
+         * 3) PROJECT: project is not archived
+         * 4) QUOTE: quote is not sent
+         * 5) ORDER: order not sent
+         * 6) ORDER: order not delivered
+         */
 
+        //1) BUSINESS: is your business
+        $condition_1 = $quote->user->business->id === $user->business->id;
+
+        //2) USER: You're a PM on at least 1 project
+        $condition_2 = true;
+        foreach($quote->batch->projects() as $project){
+            if($project->user->id !== $user->id){
+                $condition_2 = false;
+            }
+        }
+
+        //3) PROJECT: all projects not archived
+        $condition_3 = true;
+        foreach($quote->batch->projects() as $project){
+            if($project->archive){
+                $condition_3 = false;
+            }
+        }
+
+        //4) QUOTE: quote is not sent
+        $condition_4 = !$quote->quote_sent;
+
+        //5) ORDER: order not sent
+        $condition_5 = !$quote->order->order_sent;
+
+        //6) ORDER: order not delivered
+        $condition_6 = !$quote->order->is_delivered;
+
+        return
+            $condition_1 &&
+            $condition_2 &&
+            $condition_3 &&
+            $condition_4 &&
+            $condition_5 &&
+            $condition_6;
     }
 
-    public function undoMarkQuoteAsSent(): bool
+    public function undoMarkQuoteAsSent(User $user, Quote $quote): bool
     {
+        /**
+         * 1) BUSINESS: is your business
+         * 2) USER: you're a PM on at least 1 project
+         * 3) PROJECT: project is not archived
+         * 4) QUOTE: quote is sent
+         * 5) ORDER: order not sent
+         * 6) ORDER: order not delivered
+         */
 
+        //1) BUSINESS: is your business
+        $condition_1 = $quote->user->business->id === $user->business->id;
+
+        //2) USER: You're a PM on at least 1 project
+        $condition_2 = true;
+        foreach($quote->batch->projects() as $project){
+            if($project->user->id !== $user->id){
+                $condition_2 = false;
+            }
+        }
+
+        //3) PROJECT: all projects not archived
+        $condition_3 = true;
+        foreach($quote->batch->projects() as $project){
+            if($project->archive){
+                $condition_3 = false;
+            }
+        }
+
+        //4) QUOTE: quote is sent
+        $condition_4 = $quote->quote_sent;
+
+        //5) ORDER: order not sent
+        $condition_5 = !$quote->order->order_sent;
+
+        //6) ORDER: order not delivered
+        $condition_6 = !$quote->order->is_delivered;
+
+        return
+            $condition_1 &&
+            $condition_2 &&
+            $condition_3 &&
+            $condition_4 &&
+            $condition_5 &&
+            $condition_6;
     }
 
     public function markOrderAsSent(): bool

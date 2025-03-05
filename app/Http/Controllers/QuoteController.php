@@ -46,7 +46,6 @@ class QuoteController extends Controller
 
         //Prerequisite conditions
         $prerequisiteStartQuoting = (new PrerequisiteConditions())->startQuoting(
-            $business,
             $user,
             $projectsReadyForBatching,
             $piecesReadyForBatching,
@@ -100,6 +99,23 @@ class QuoteController extends Controller
             'quoted_price' => 'nullable',
             'quoted_lead_time' => 'nullable',
         ]);
+
+        //Attempting to mark as sent
+        if(!$quote->quote_sent && $validated['quote_sent']){
+            $canMarkQuoteAsSent = (new PrerequisiteConditions())->markQuoteAsSent(
+                auth()->user(),
+                $quote,
+            );
+            abort_if(!$canMarkQuoteAsSent,403,"Cannot mark quote as sent");
+        }
+        //Attempting to undo mark as sent
+        if($quote->quote_sent && !$validated['quote_sent']){
+            $canUndoMarkQuoteAsSent = (new PrerequisiteConditions())->undoMarkQuoteAsSent(
+                auth()->user(),
+                $quote,
+            );
+            abort_if(!$canUndoMarkQuoteAsSent,403,"Cannot undo mark quote as sent");
+        }
 
         $quote->update($validated);
 

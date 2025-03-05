@@ -38,7 +38,6 @@ class ProjectResource extends JsonResource
             'projectManager' => $project->user,
             'qtyMaterialRows' => $project->rawMaterialQuotes()->count(),
             "prerequisiteUploadMaterials" => (new PrerequisiteConditions())->uploadMaterials(
-                $user->business,
                 $user,
                 $project,
             ),

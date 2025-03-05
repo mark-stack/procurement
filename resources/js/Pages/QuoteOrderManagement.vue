@@ -275,6 +275,27 @@
             row.formOrderUpdate.ordered_quote_id = null;
         }
     }
+
+    function shouldDisableQuoteSent(row){
+        /**
+         * 1) If checked (sent) && cannot undo
+         * 2) If not checked (not sent) && cannot mark sent
+         */
+        console.log("row",row);
+        let shouldDisableQuoteSent = false;
+        let currentlySent = row.formQuoteUpdate.quote_sent;
+
+        //1) If checked (sent) && cannot undo
+        if(currentlySent && !row.formQuoteUpdate.canUndoMarkQuoteAsSent){
+            shouldDisableQuoteSent = true;
+        }
+        //2) If not checked (not sent) && cannot mark sent
+        if(!currentlySent && !row.formQuoteUpdate.canMarkQuoteAsSent){
+            shouldDisableQuoteSent = true;
+        }
+
+        return shouldDisableQuoteSent;
+    }
 </script>
 
 <template>
@@ -389,6 +410,8 @@
                                         v-model="row.formQuoteUpdate.quote_sent"
                                         :true-value="1"
                                         :false-value="0"
+                                        :disabled="shouldDisableQuoteSent(row)"
+                                        :class="shouldDisableQuoteSent(row) ? 'bg-gray-300 checked:bg-gray-400 hover:checked:bg-gray-400' : ''"
                                         @change="quoteSentCheckbox(row)"
                                         type="checkbox"
                                     />

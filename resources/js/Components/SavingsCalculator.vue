@@ -134,8 +134,8 @@
             <input
                 v-model="formCalculator.wastePct"
                 type="range"
-                min="3"
-                max="7"
+                min="5"
+                max="11"
                 step="1"
                 class="w-full max-w-sm appearance-none bg-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />

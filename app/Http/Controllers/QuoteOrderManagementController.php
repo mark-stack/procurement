@@ -8,6 +8,7 @@ use App\Formatters\SupplierFormatter;
 use App\Models\Batch;
 use App\Models\Order;
 use App\Models\Quote;
+use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\BatchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -122,6 +123,14 @@ class QuoteOrderManagementController extends Controller
                             'supplier_quote_reference' => $quote->supplier_quote_reference,
                             'quoted_price' => $quote->quoted_price,
                             'quoted_lead_time' => $quote->quoted_lead_time,
+                            "canMarkQuoteAsSent" => (new PrerequisiteConditions())->markQuoteAsSent(
+                                $user,
+                                $quote,
+                            ),
+                            "canUndoMarkQuoteAsSent" => (new PrerequisiteConditions())->undoMarkQuoteAsSent(
+                                $user,
+                                $quote,
+                            ),
                         ],
                         'formOrderUpdate' => [
                             'batch_id' => $batch->id,

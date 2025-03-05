@@ -76,7 +76,6 @@ class ProjectController extends Controller
                 ->get();
             $prerequisiteUndoStartQuoting = (new PrerequisiteConditions())->undoStartQuoting(
                 $batch,
-                $business,
                 $user,
                 $offcutsAssignedToThisBatch,
             );
@@ -221,7 +220,6 @@ class ProjectController extends Controller
         $piecesReadyForBatching = (new NestingFormatter)->piecesReadyForBatching($business);
         $projectsReadyForBatching = $business->projectsReadyForBatching($piecesReadyForBatching); //Note get this before updating pieces because it gets modified
         $prerequisiteStartQuoting = (new PrerequisiteConditions())->startQuoting(
-            $business,
             $user,
             $projectsReadyForBatching,
             $piecesReadyForBatching,

@@ -186,7 +186,6 @@ class ProductController extends Controller
 
         //Prerequisite conditions
         $prerequisiteUploadMaterials = (new PrerequisiteConditions())->uploadMaterials(
-            $business,
             $user,
             $project,
         );

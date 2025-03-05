@@ -14,7 +14,7 @@
     //Form
     const formCalculator = useForm({
         annualSpendMillions:2.0,
-        wastePct:5,
+        wastePct:8,
         scrapRefundPct:13,
     });
 
@@ -24,10 +24,10 @@
     //Variables
     const trial_months = 2;
     const savings_period_years = 3;
-    const fullPriceAnnual = 4900;
-    const fullPriceMonthly = 490;
+    const fullPriceAnnual = 10000;
+    const fullPriceMonthly = 790;
     const firstYearDiscount = 70;
-    const whichPlan = "ANNUAL";
+    const whichPlan = "ANNUAL"; //"MONTHLY","ANNUAL"
     const showMobileNav = ref(false);
 
     //Shared Methods
@@ -252,17 +252,18 @@
                     <p class="text-base text-gray-700 md:text-lg">
                         <b>Centralised procurement is the key to:</b>
                         <br>
-                        - <span class="font-semibold text-deep-purple-accent-400">Far less waste</span> from cross-project nesting.
+                        - <span class="font-semibold text-deep-purple-accent-400">Higher yield</span> from cross-project nesting.
 <!--                        <br>-->
 <!--                        - <span class="font-semibold text-deep-purple-accent-400">More bulk discounts</span> via cross-project batched orders.-->
 <!--                        <br>-->
 <!--                        - <span class="font-semibold text-deep-purple-accent-400">More supplier discounts</span> aligned to your material lists.-->
                         <br>
+                        - <span class="font-semibold text-deep-purple-accent-400">Higher yield</span> from reusing tracked offcuts.
+                        <br>
                         - <span class="font-semibold text-deep-purple-accent-400">Less delivery fees</span> from cross-project batched orders.
-                        <br>
-                        - <span class="font-semibold text-deep-purple-accent-400">Less over-ordering</span> from reusing tracked offcuts.
-                        <br>
-                        - <span class="font-semibold text-deep-purple-accent-400">Less ordering errors</span> from automated material list checks.
+
+<!--                        <br>-->
+<!--                        - <span class="font-semibold text-deep-purple-accent-400">Less ordering errors</span> from automated material list checks.-->
                     </p>
                 </div>
                 <div class="flex flex-col items-center md:flex-row">
@@ -450,7 +451,7 @@
     <div class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">
         <div class="max-w-5xl mb-10 md:mx-auto sm:text-center md:mb-12">
             <h2 class="max-w-5xl mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">
-                See the difference even 3% can make
+                See the difference even 5% can make
             </h2>
         </div>
 
@@ -689,7 +690,7 @@
                                 Unlimited plan
                             </p>
 
-                            <div class="mt-4 flex items-baseline justify-start">
+                            <div v-if="firstYearDiscount > 0" class="mt-4 flex items-baseline justify-start">
                                 <p class="text-3xl font-extrabold">
                                     <s class="font-medium">${{ fullPriceAnnual.toLocaleString('en-US') }}</s><span class="font-bold text-xl">/year</span>
                                 </p>

@@ -61,7 +61,6 @@ class BatchController extends Controller
         //Prerequisite conditions
         $prerequisiteUndoStartQuoting = (new PrerequisiteConditions())->undoStartQuoting(
             $batch,
-            $business,
             $user,
             $offcutsAssignedToThisBatch,
         );
