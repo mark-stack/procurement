@@ -5,7 +5,7 @@
 
     //Component Imports
     import Notifications2 from "@/Components/Notifications2.vue";
-    import NavButton from "@/Components/NavButton.vue";
+    import NavButton from "@/Components/Buttons/NavButton.vue";
 
     //Shared data
     const business = usePage().props.auth.business;

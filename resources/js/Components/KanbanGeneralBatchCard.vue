@@ -5,12 +5,12 @@
     import {computed, ref} from "vue";
 
     //Component Imports
-    import CardButtonGreen from "@/Components/CardButtonGreen.vue";
-    import CardButtonRed from "@/Components/CardButtonRed.vue";
-    import CardButtonBlue from "@/Components/CardButtonBlue.vue";
-    import CardButtonYellow from "@/Components/CardButtonYellow.vue";
-    import CardButtonExpand from "@/Components/CardButtonExpand.vue";
-    import CardButtonForward from "@/Components/CardButtonForward.vue";
+    import CardButtonGreen from "@/Components/Buttons/CardButtonGreen.vue";
+    import CardButtonRed from "@/Components/Buttons/CardButtonRed.vue";
+    import CardButtonBlue from "@/Components/Buttons/CardButtonBlue.vue";
+    import CardButtonYellow from "@/Components/Buttons/CardButtonYellow.vue";
+    import CardButtonExpand from "@/Components/Buttons/CardButtonExpand.vue";
+    import CardButtonForward from "@/Components/Buttons/CardButtonForward.vue";
 
     //Props
     const props = defineProps({

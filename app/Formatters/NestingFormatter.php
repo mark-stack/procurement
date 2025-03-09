@@ -429,6 +429,277 @@ class NestingFormatter
         return $result;
     }
 
+    public function checks(array $piecesNested, array $usageStats, Business $business): array
+    {
+        /**
+         1) Total length of input pieces = total length of output cuts
+         2) Qty of input pieces = qty of output cuts
+         3) Efficiency 70%+
+         4) a cut longer than max stock length is categorised as "too long"
+         5) total offcuts used < total available
+         6) new offcuts + scrap = total unused
+         7) Each bar: sum of cuts less than bar
+         8) total used + total new offcuts + scrap - total used offcuts = total bought + used offcuts
+         9) Using more old stock than scraping
+         10)
+         */
+
+        $usageStatsMeterage = $usageStats["METERAGE"];
+
+        /*
+         * 3) Efficiency 70%+
+         */
+        $efficiency = $usageStatsMeterage["efficiency"] <= 100 && $usageStatsMeterage["efficiency"] > 70;
+        $efficiency_number = $usageStatsMeterage["efficiency"];
+
+        /*
+         * Count passing individual products
+         */
+        $countQ1 = 0;
+        $numberQ1 = 0;
+
+        $countQ2 = 0;
+        $numberQ2 = 0;
+
+        $countQ4 = 0;
+
+        $countQ5 = 0;
+        $numberQ5 = 0;
+
+        $countQ6 = 0;
+        $numberQ6 = 0;
+
+        $countQ7 = 0;
+
+        $countQ8 = 0;
+
+        $countQ9 = 0;
+
+        foreach($piecesNested["METERAGE"] as $product){
+            /*
+             * 1) Total length of input pieces = total length of output cuts
+             */
+            //Sum pieces
+            $sumPieces = 0;
+            foreach($product->pieces as $piece){
+                $sumPieces = $sumPieces + ($piece["length"] * $piece["quantity"]);
+            }
+
+            //Sum cuts
+            $sumCuts = 0;
+            foreach($product->nested['utilisedBars'] as $utilisedBar){
+                $qty = $utilisedBar["count"];
+                $cuts = $utilisedBar["result"]["pieces"];
+                foreach($cuts as $cut){
+                    $sumCuts = $sumCuts + ($qty * $cut["cutLength"]);
+                }
+            }
+
+            //Sum 'too long'
+            $sumTooLong = 0;
+            foreach($product->nested["tooLong"] as $tooLong){
+                $sumTooLong = $sumTooLong + $tooLong["length"];
+            }
+
+            //Sum offcut cuts
+            $sumOffcutCuts = 0;
+            $utilisedOffcutBars = $product->nested["bestResultOffcuts"]["utilisedOffcutBars"];
+            foreach($utilisedOffcutBars as $utilisedOffcutBar){
+                foreach($utilisedOffcutBar["cuts"] as $cut){
+                    $sumOffcutCuts = $sumOffcutCuts + $cut["length"];
+                }
+            }
+
+            if($sumPieces === ($sumCuts + $sumTooLong + $sumOffcutCuts)){
+                $countQ1++;
+            }
+            $numberQ1 = $numberQ1 + $sumCuts;
+
+            /*
+             * 2) Qty of input pieces = qty of output cuts
+             */
+            //Qty pieces
+            $qtyPieces = 0;
+            foreach($product->pieces as $piece){
+                $qtyPieces = $qtyPieces + $piece["quantity"];
+            }
+
+            //Qty cuts
+            $qtyCuts = 0;
+            foreach($product->nested['utilisedBars'] as $utilisedBar){
+                $qty = $utilisedBar["count"];
+                $cuts = $utilisedBar["result"]["pieces"];
+                $qtyCuts = $qtyCuts + ($qty * count($cuts));
+            }
+
+            //Qty 'too long'
+            $qtyTooLong = count($product->nested["tooLong"]);
+
+            //Sum offcut cuts
+            $qtyOffcutCuts = 0;
+            foreach($utilisedOffcutBars as $utilisedOffcutBar){
+                $qtyOffcutCuts = $qtyOffcutCuts + count($utilisedOffcutBar["cuts"]);
+            }
+
+            if($qtyPieces === ($qtyCuts + $qtyTooLong + $qtyOffcutCuts)){
+                $countQ2++;
+            }
+            $numberQ2 = $numberQ2 + $qtyCuts;
+
+            /*
+             * 4) a cut longer than max stock length is categorised as "too long"
+             */
+            $tooLong = $product->nested["tooLong"];
+            if(count($tooLong) === 0){
+                $countQ4++;
+            }
+            else{
+                $countLonger = 0;
+                foreach($tooLong as $item){
+                    $length = (int) $item["length"];
+                    if(count($product->purchasableLengths) > 0 && $length > max($product->purchasableLengths)){
+                        $countLonger++;
+                    }
+                }
+
+                if($countLonger === count($tooLong)){
+                    $countQ4++;
+                }
+            }
+
+            /*
+             * 5) Total offcuts used less than total available
+             */
+            $availableOffcuts = $business->availableOffcuts()
+                ->matchProduct($product)
+                ->get();
+
+            $sumOffcutFullLength = 0;
+            foreach($utilisedOffcutBars as $utilisedOffcutBar){
+                $sumOffcutFullLength = $sumOffcutFullLength + $utilisedOffcutBar["offcutLength"];
+            }
+            if($sumOffcutFullLength <= $availableOffcuts->sum("length")){
+                $countQ5++;
+
+            }
+            $numberQ5 = $numberQ5 + $availableOffcuts->sum("length");
+
+            /*
+             * 6) New offcuts + scrap = total unused
+             */
+            $oldStock = $product->nested["totals"]["oldStock"];
+            $newStock = $product->nested["totals"]["newStock"];
+            $totalScrap = $oldStock["scrap"] +$newStock["scrap"];
+            $totalUnused = $oldStock["unused"] +$newStock["unused"];
+            $newOffcuts = $newStock["reusable"];
+
+            if(($totalScrap + $newOffcuts) === $totalUnused){
+                $countQ6++;
+            }
+            $numberQ6 = $numberQ6 + $totalUnused;
+
+            /*
+             * 7) Each bar: sum of cuts less than bar
+             */
+            $countSumCutsLessThanLength = 0;
+            foreach($utilisedOffcutBars as $utilisedOffcutBar){
+                if($utilisedOffcutBar["cutLength"] < $utilisedOffcutBar["offcutLength"]){
+                    $countSumCutsLessThanLength++;
+                }
+            }
+            if($countSumCutsLessThanLength === count($utilisedOffcutBars)){
+                $countQ7++;
+            }
+
+            /*
+             * 8) Total cuts + total new offcuts + scrap = total bought + used offcuts
+             */
+            $totalUsed = $oldStock["used"] +$newStock["used"];
+            $orderList = $product->nested["orderList"];
+            $sumOrderLength = 0;
+            foreach($orderList as $item){
+                $sumOrderLength = $sumOrderLength + ($item["count"] * $item["result"]);
+            }
+
+            if(($totalUsed + $newOffcuts + $totalScrap) === ($sumOrderLength + $oldStock["total"])){
+                $countQ8++;
+            }
+
+            /*
+             * 9) Using more old stock than scraping
+             */
+            if($oldStock["total"] > $totalScrap){
+                $countQ9++;
+            }
+        }
+
+        return [
+            //1
+            "total_length_input_output" => [
+                "description" => "Total length of input pieces = total length of output cuts",
+                "result" => count($piecesNested["METERAGE"]) === $countQ1,
+                "number" => $numberQ1,
+                "suffix" => "mm",
+            ],
+            //2
+            "total_qty_input_output" => [
+                "description" => "Qty of input pieces = qty of output cuts",
+                "result" => count($piecesNested["METERAGE"]) === $countQ2,
+                "number" => $numberQ2,
+                "suffix" => null,
+            ],
+            //3
+            "efficiency" => [
+                "description" => "Efficiency 70%+",
+                "result" => $efficiency,
+                "number" => $efficiency_number,
+                "suffix" => "%",
+            ],
+            //4
+            "over_sized_cuts" => [
+                "description" => "A cut longer than max stock length is categorised as 'too long'",
+                "result" => count($piecesNested["METERAGE"]) === $countQ4,
+                "number" => null,
+                "suffix" => null,
+            ],
+            //5
+            "offcuts_qty" => [
+                "description" => "Total offcuts used less than total available",
+                "result" => count($piecesNested["METERAGE"]) === $countQ5,
+                "number" => $numberQ5,
+                "suffix" => "mm",
+            ],
+            //6
+            "unused_vs_offcuts" => [
+                "description" => "New offcuts + scrap = total unused",
+                "result" => count($piecesNested["METERAGE"]) === $countQ6,
+                "number" => $numberQ6,
+                "suffix" => "mm",
+            ],
+            //7
+            "cuts_within_bar" => [
+                "description" => "Each bar: sum of cuts less than bar",
+                "result" => count($piecesNested["METERAGE"]) === $countQ7,
+                "number" => null,
+                "suffix" => null,
+            ],
+            //8
+            "total_sums" => [
+                "description" => "Total cuts + total new offcuts + scrap = total bought + used offcuts",
+                "result" => count($piecesNested["METERAGE"]) === $countQ8,
+                "number" => null,
+                "suffix" => null,
+            ],
+            //9
+            "scrap_ratio" => [
+                "description" => "Using more old stock than scraping",
+                "result" => count($piecesNested["METERAGE"]) === $countQ9,
+                "number" => null,
+                "suffix" => null,
+            ],
+        ];
+    }
+
     public function getLetterProjectArray(Collection $piecesReadyForBatching): array
     {
         $projectIds = [];
@@ -587,7 +858,7 @@ class NestingFormatter
          *  2C) Start with an empty list of bins
          *  2D) Fitting into bins: "First-Fit Decreasing" = place each item into the first available bin that has enough space.
          *  2E) If no existing bin can accommodate it, create a new bin. (randomly choose an available size)
-         *  2F) Iterate 10,000 times and choose the highest efficiency result
+         *  2F) Iterate 100 times and choose the highest efficiency result
          */
 
         /**
@@ -631,7 +902,7 @@ class NestingFormatter
 
         $results = [];
 
-        //1000+ random selection
+        //100+ random selection
         for ($i = 1; $i <= config('env.nesting_iterations'); $i++) {
             $singleRun = $this->singleRun(
                 $cutLengthsRequiredAfterOffcutAllocation,
@@ -655,7 +926,7 @@ class NestingFormatter
 
         $results[$singleRun["efficiency"]] = $singleRun["result"];
 
-        //2F) Iterate 10,000 times and choose the highest efficiency result
+        //2F) Iterate 100 times and choose the highest efficiency result
         $highestEfficiencyKeyOfNewStock = max(array_keys($results));
         $utilisedBars = $results[$highestEfficiencyKeyOfNewStock]["utilisedBars"];
         $tooLong = $results[$highestEfficiencyKeyOfNewStock]["tooLong"];
@@ -946,18 +1217,18 @@ class NestingFormatter
         ];
     }
 
-    private function generateUniqueCode(&$usedCodes): string
-    {
-        do {
-            $code = '';
-            for ($i = 0; $i < 4; $i++) {
-                $code .= chr(rand(65, 90)); // Generate random uppercase letter (A-Z)
-            }
-        } while (in_array($code, $usedCodes)); // Ensure uniqueness
-
-        $usedCodes[] = $code; // Store used code
-        return $code;
-    }
+//    private function generateUniqueCode(&$usedCodes): string
+//    {
+//        do {
+//            $code = '';
+//            for ($i = 0; $i < 4; $i++) {
+//                $code .= chr(rand(65, 90)); // Generate random uppercase letter (A-Z)
+//            }
+//        } while (in_array($code, $usedCodes)); // Ensure uniqueness
+//
+//        $usedCodes[] = $code; // Store used code
+//        return $code;
+//    }
 
     private function sortCutLengthsDescending(array $cutLengthsRequired): array
     {
@@ -1168,15 +1439,12 @@ class NestingFormatter
         $piecesGroupedBySupplierGroup = null;
         $usageStats = null;
         $lettersProjectArray = null;
+        $checks = null;
 
         //Batch (after batch object exists)
         if ($type === 'BATCH') {
             //Projects in batch
             $projectsForBatching = $batch->projects();
-
-            //Pieces nested (from saved)
-            //todo refactor this to collecting 'BAR' and 'OFFCUT' items
-            $piecesNested = unserialize($batch->nested_state);
 
             //Letter-project array
             $pieces = [];
@@ -1186,6 +1454,23 @@ class NestingFormatter
                 }
             }
             $lettersProjectArray = $this->getLetterProjectArray(collect($pieces));
+
+            //Pieces nested (from saved)
+            //todo refactor this to collecting 'BAR' and 'OFFCUT' items
+            /*
+             * batch > offcut
+             * offcut > bar
+             */
+            //$piecesNested = unserialize($batch->nested_state);
+
+
+
+            //todo problem with this is it's random results. Probably the same, but not exact. [not deterministic]
+            $piecesNested = $this->piecesNested($batch->pieces, $lettersProjectArray, $business);
+            dd(2,$piecesNested);
+
+
+            ////////////////////////////////////////////////////////////////////////////
 
             //Nesting stats
             $usageStats = $this->usageStats($piecesNested);
@@ -1210,6 +1495,9 @@ class NestingFormatter
             //Nesting stats
             $usageStats = $this->usageStats($piecesNested);
 
+            //Checks
+            $checks = $this->checks($piecesNested,$usageStats,$business);
+
             //Pieces grouped by supplier group
             $piecesGroupedBySupplierGroup = $this->piecesGroupedBySupplierGroup($piecesNested, $business);
         }
@@ -1219,6 +1507,7 @@ class NestingFormatter
             'projectsReadyForBatching' => ProjectResource::collection($projectsForBatching),
             'piecesGroupedBySupplierGroup' => $piecesGroupedBySupplierGroup,
             'usage' => $usageStats,
+            "checks" => $checks,
             'type' => $type,
             "lettersProjectArray" => $lettersProjectArray,
         ];
@@ -1345,25 +1634,23 @@ class NestingFormatter
         /*
          * Offcut inventory lengths
          */
-        $offcutInventory = Offcut::query()
+        $offcutInventory = $business->availableOffcuts()
+            ->matchProduct($newPieceSpec)
             //Attributes
-            ->where('product_category',$newPieceSpec->product_category)
-            ->where('material',$newPieceSpec->material ?? null)
-            ->where('grade',$newPieceSpec->grade ?? null)
-            ->where('surface',$newPieceSpec->surface ?? null)
-            ->where('nominal_length',$newPieceSpec->nominal_length ?? null)
-            ->where('precise_length',$newPieceSpec->precise_length ?? null)
-            ->where('nominal_width',$newPieceSpec->nominal_width ?? null)
-            ->where('precise_width',$newPieceSpec->precise_width ?? null)
-            ->where('nominal_height',$newPieceSpec->nominal_height ?? null)
-            ->where('precise_height',$newPieceSpec->precise_height ?? null)
-            ->where('wall',$newPieceSpec->wall ?? null)
-
-            //Availability
-            ->where("batch_to_id",null)
-
+//            ->where('product_category',$newPieceSpec->product_category)
+//            ->where('material',$newPieceSpec->material ?? null)
+//            ->where('grade',$newPieceSpec->grade ?? null)
+//            ->where('surface',$newPieceSpec->surface ?? null)
+//            ->where('nominal_length',$newPieceSpec->nominal_length ?? null)
+//            ->where('precise_length',$newPieceSpec->precise_length ?? null)
+//            ->where('nominal_width',$newPieceSpec->nominal_width ?? null)
+//            ->where('precise_width',$newPieceSpec->precise_width ?? null)
+//            ->where('nominal_height',$newPieceSpec->nominal_height ?? null)
+//            ->where('precise_height',$newPieceSpec->precise_height ?? null)
+//            ->where('wall',$newPieceSpec->wall ?? null)
             ->get()
             ->toArray();
+
         $newPieceSpec->offcutInventoryLengths = $offcutInventory;
 
 

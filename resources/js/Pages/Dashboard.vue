@@ -9,8 +9,8 @@
     import KanbanNeedsImportingCard from "@/Components/KanbanNeedsImportingCard.vue";
     import KanbanReadyForNestingCard from "@/Components/KanbanReadyForNestingCard.vue";
     import KanbanGeneralBatchCard from "@/Components/KanbanGeneralBatchCard.vue";
-    import NewProjectModal from "@/Components/NewProjectModal.vue";
-    import BomEditModal from "@/Components/BomEditModal.vue";
+    import NewProjectModal from "@/Components/Modals/NewProjectModal.vue";
+    import BomEditModal from "@/Components/Modals/BomEditModal.vue";
     import PageLoadingOverlay from "@/Components/PageLoadingOverlay.vue";
 
     //Props

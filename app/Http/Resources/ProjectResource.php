@@ -37,10 +37,9 @@ class ProjectResource extends JsonResource
             'deliveryDeadline' => $project->deliveryDeadline(),
             'projectManager' => $project->user,
             'qtyMaterialRows' => $project->rawMaterialQuotes()->count(),
-            "prerequisiteUploadMaterials" => (new PrerequisiteConditions())->uploadMaterials(
-                $user,
-                $project,
-            ),
+            "prerequisiteUploadMaterials" => $user
+                ? (new PrerequisiteConditions())->uploadMaterials($user, $project)
+                : false,
         ];
     }
 }

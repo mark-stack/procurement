@@ -5,12 +5,12 @@
     import moment from "moment/moment.js";
 
     //Component Imports
-    import CardButtonRed from "@/Components/CardButtonRed.vue";
-    import CardButtonYellow from "@/Components/CardButtonYellow.vue";
-    import CardButtonGreen from "@/Components/CardButtonGreen.vue";
-    import CardButtonBlue from "@/Components/CardButtonBlue.vue";
-    import CardButtonForward from "@/Components/CardButtonForward.vue";
-    import CardButtonExpand from "@/Components/CardButtonExpand.vue";
+    import CardButtonRed from "@/Components/Buttons/CardButtonRed.vue";
+    import CardButtonYellow from "@/Components/Buttons/CardButtonYellow.vue";
+    import CardButtonGreen from "@/Components/Buttons/CardButtonGreen.vue";
+    import CardButtonBlue from "@/Components/Buttons/CardButtonBlue.vue";
+    import CardButtonForward from "@/Components/Buttons/CardButtonForward.vue";
+    import CardButtonExpand from "@/Components/Buttons/CardButtonExpand.vue";
 
     //Props
     const props = defineProps({

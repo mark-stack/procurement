@@ -2,6 +2,11 @@
 
 namespace Database\Seeders;
 
+use App\Enums\GradeEnums;
+use App\Enums\MaterialEnums;
+use App\Enums\ProductEnums;
+use App\Enums\SurfaceEnums;
+use App\Formatters\TestingFormatter;
 use App\Models\Batch;
 use App\Models\Business;
 use App\Models\Offcut;
@@ -12,6 +17,7 @@ use App\Models\Quote;
 use App\Models\Supplier;
 use App\Models\Template;
 use App\Models\User;
+use App\Services\DataClassificationService;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -21,6 +27,10 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        //Services
+        $testingFormatter = new TestingFormatter();
+        $dataClassificationService = new dataClassificationService;
+
         /**
          * Admin
          */
@@ -38,195 +48,119 @@ class DatabaseSeeder extends Seeder
         $adminUser->business_id = $adminBusiness->id;
         $adminUser->save();
 
-        //Test project with offcuts of 75x50x2.5 RHS (as found in "minimal scope" Excel)
-//        $testProject = Project::create([
-//            'name' => "test project",
-//            'user_id' => $adminUser->id,
-//        ]);
-//        $testBatch = Batch::create([
-//            "user_id" => $adminUser->id,
-//        ]);
-//        $testOffcut1 = Offcut::factory()
-//            ->withBatchFrom(1)
-//            ->withBatchTo(2)
-//            ->withPieceTo(3)
-//            ->withLength(6000)
-//            ->create();
-//        $testOffcut2 = Offcut::factory()
-//            ->withBatchFrom(1)
-//            ->withBatchTo(2)
-//            ->withPieceTo(3)
-//            ->withLength(1500)
-//            ->create();
-//        $testOffcut3 = Offcut::factory()
-//            ->withBatchFrom(1)
-//            ->withBatchTo(2)
-//            ->withPieceTo(3)
-//            ->withLength(1200)
-//            ->create();
+        /**
+         * Sample data
+         */
+        /*
+         * Business
+         */
+        $sampleBusiness = Business::create([
+            'name' => "SAMPLE",
+            'domain' => 'sample.com',
+            'admin_setup_complete' => false,
+        ]);
+
+        /*
+         * User2
+         */
+        $sampleUser_1 = User::factory()->create([
+            'name' => 'John',
+            'email' => 'john@sample.com',
+            "business_id" => $sampleBusiness->id,
+        ]);
+
+        $sampleUser_2 = User::factory()->create([
+            'name' => 'Karen',
+            'email' => 'karen@sample.com',
+            "business_id" => $sampleBusiness->id,
+        ]);
+
+        /*
+         * Project
+         * Test project with offcuts of 75x50x2.5 RHS (as found in "minimal scope" Excel)
+         */
+        $sampleProject_1 = Project::create([
+            'name' => "Silo access platforms",
+            'user_id' => $sampleUser_1->id,
+        ]);
+        $sampleProject_2 = Project::create([
+            'name' => "Silica conveyor",
+            'user_id' => $sampleUser_2->id,
+        ]);
+
+        /*
+         * Batches
+         */
+        $sampleBatch1 = Batch::create([
+            "user_id" => $sampleUser_1->id,
+        ]);
+        $sampleBatch2 = Batch::create([
+            "user_id" => $sampleUser_2->id,
+        ]);
+
+        /*
+         * BOM
+         */
+        $nest_1 = [
+            [7000, 2], //length,qty
+            [1700, 7],
+            [15000, 1],
+            [900, 13],
+        ];
+        $sampleBOM_1 = $testingFormatter->sampleBOM($sampleProject_1, $dataClassificationService, $nest_1);
+
+        $nest_2 = [
+            [3800, 6], //length,qty
+            [1200, 6],
+        ];
+        $sampleBOM_2 = $testingFormatter->sampleBOM($sampleProject_2, $dataClassificationService, $nest_2);
+
+        /*
+         * Pieces
+         */
+        $samplePieces_1 = $testingFormatter->createPieces($sampleBOM_1, $sampleProject_1, $dataClassificationService);
+        $samplePieces_2 = $testingFormatter->createPieces($sampleBOM_2, $sampleProject_2, $dataClassificationService);
+
+        /*
+         * Offcuts (200PFC)
+         */
+        $sampleOffcut1 = Offcut::create([
+            'batch_from_id' => $sampleBatch1->id,
+            'batch_to_id' => null,
+            'piece_to_id' => null, //todo redundant?
+            'product_category' => ProductEnums::PFC,
+            'material' => MaterialEnums::PLAIN_CARBON_STEEL,
+            'grade' => GradeEnums::GR300,
+            'surface' => SurfaceEnums::NONE,
+            'nominal_length' => null,
+            'precise_length' => null,
+            'nominal_width' => null,
+            'precise_width' => null,
+            'nominal_height' => 200,
+            'precise_height' => null,
+            'wall' => null,
+            'length' => 2200,
+        ]);
+
+        $sampleOffcut2 = Offcut::create([
+            'batch_from_id' => $sampleBatch1->id,
+            'batch_to_id' => null,
+            'piece_to_id' => null, //todo redundant?
+            'product_category' => ProductEnums::PFC,
+            'material' => MaterialEnums::PLAIN_CARBON_STEEL,
+            'grade' => GradeEnums::GR300,
+            'surface' => SurfaceEnums::NONE,
+            'nominal_length' => null,
+            'precise_length' => null,
+            'nominal_width' => null,
+            'precise_width' => null,
+            'nominal_height' => 200,
+            'precise_height' => null,
+            'wall' => null,
+            'length' => 1750,
+        ]);
 
 
-        //        /**
-        //         * User
-        //         */
-        //        $user = User::factory()->create([
-        //            'name' => 'Test User',
-        //            'email' => 'test@example.com',
-        //        ]);
-        //
-        //        /**
-        //         * Project
-        //         */
-        //        $project = Project::factory()->forUser($user->id)->create();
-        //
-        //        /**
-        //         * Suppliers
-        //         */
-        //        $suppliers = Supplier::factory(10)->create();
-        //
-        //        /**
-        //         * Products
-        //         */
-        //        $products = Product::factory(10)->create();
-        //
-        //        //Add Products to Suppliers
-        //        foreach ($products as $product) {
-        //            $product->suppliers()->attach(
-        //                $suppliers->random(rand(1, 3))->pluck('id')->toArray() // Randomly associate 1-3 suppliers
-        //            );
-        //        }
-        //
-        //        /**
-        //         * Quotes
-        //         */
-        //        foreach($suppliers as $supplier){
-        //            /**
-        //             * Quotes associated with a project (optional)
-        //             */
-        //            $quote = Quote::factory()
-        //                ->forUser($user->id)
-        //                ->forSupplier($supplier->id)
-        //                ->forProject($project->id)
-        //                ->create();
-        //
-        //            //Add product rows to quote
-        //            $quote->products()->attach(
-        //                $supplier->products()->get()->pluck('id')->toArray(),
-        //                ['quantity' => fake()->numberBetween(1,100)]
-        //            );
-        //
-        //            /**
-        //             * Quotes NOT associated with a project
-        //             */
-        //            $quote = Quote::factory()
-        //                ->forUser($user->id)
-        //                ->forSupplier($supplier->id)
-        //                ->create();
-        //
-        //            //Add product rows to quote
-        //            $quote->products()->attach(
-        //                $supplier->products()->get()->pluck('id')->toArray(),
-        //                ['quantity' => fake()->numberBetween(1,100)]
-        //            );
-        //        }
-        //
-        //        /**
-        //         * Orders
-        //         */
-        //        $supplier = Supplier::first();
-        //        foreach(Project::all() as $project){
-        //            //Associated with project (optional) & quote (optional)
-        //            foreach($project->quotes as $quote){
-        //                $order = Order::factory()
-        //                    ->forUser($user->id)
-        //                    ->forProject($project->id)
-        //                    ->forQuote($quote->id)
-        //                    ->forSupplier($supplier->id)
-        //                    ->create();
-        //
-        //                //Add product rows to order
-        //                $order->products()->attach(
-        //                    $supplier->products()->get()->pluck('id')->toArray(),
-        //                    ['quantity' => fake()->numberBetween(1,100)]
-        //                );
-        //            }
-        //        }
-        //
-        //        //NOT associated with project
-        //        $order = Order::factory()
-        //            ->forUser($user->id)
-        //            ->forSupplier($supplier->id)
-        //            ->create();
-        //
-        //        //Add product rows to order
-        //        $order->products()->attach(
-        //            $supplier->products()->get()->pluck('id')->toArray(),
-        //            ['quantity' => fake()->numberBetween(1,100)]
-        //        );
-        //
-        //        /**
-        //         * Test relationships
-        //         */
-        //        //User
-        //        $userProjects = $user->projects;
-        //        $userQuotes = $user->quotes;
-        //        $userOrders = $user->orders;
-        //        $userProductsOrdered = $user->productsOrdered();
-        //        $userSuppliersOrderedFrom = $user->suppliersOrderedFrom();
-        //
-        //        //Quote
-        //        $quote = Quote::first();
-        //        $quoteUser = $quote->user;
-        //        $quoteSupplier = $quote->supplier;
-        //        $quoteProducts = $quote->products;
-        //        $quoteProject = $quote->project; //optional
-        //        $quoteOrders = $quote->orders; //optional
-        //
-        //        //Product
-        //        $product = Product::first();
-        //        $productSuppliers = $product->suppliers;
-        //        $productQuotes = $product->quotes;
-        //        $usersOrderedThisProduct = $product->usersOrderedThisProduct();
-        //        $projectsOrderedThisProduct = $product->projectsOrderedThisProduct();
-        //        $productOrders = $product->orders;
-        //
-        //        //Order
-        //        $order = Order::first();
-        //        $orderUser = $order->user;
-        //        $orderProject = $order->project; //optional
-        //        $orderQuote = $order->quote; //optional
-        //        $orderProducts = $order->products;
-        //        $orderSupplier = $order->supplier;
-        //
-        //        //Project
-        //        $project = Project::first();
-        //        $projectUser = $project->user;
-        //        $projectQuotes = $project->quotes;
-        //        $projectSuppliers = $project->suppliers();
-        //        $projectOrders = $project->orders;
-        //        $projectOrderedProducts = $project->orderedProducts();
-        //
-        //        //Supplier
-        //        $supplier = Supplier::first();
-        //        $supplierProducts = $supplier->products;
-        //        $supplierQuotes = $supplier->quotes;
-        //        $supplierOrders = $supplier->orders;
-        //        $projectsUsingThisSupplier = $supplier->projectsUsingThisSupplier();
-        //        $usersWhoOrderedFromThisSupplier = $supplier->usersWhoOrderedFromThisSupplier();
-        //
-        //        //Stock
-        //        //$stockProduct
-        //        //$userThatOrderedThisStock
-        //        //$projectThisStockWasOrderedFor
-        //        //$projectsUsingThisStock
-        //        //$supplierOfThisStock
-        //        //$quoteForThisStock
-        //        //$orderForThisStock
-        //
-        //        /**
-        //         Material List
-        //        */
-        //        $materialList = $project->pieces;
 
         /**
          * Import template

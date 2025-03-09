@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\SupplierGroupEnums;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -129,5 +130,20 @@ class Business extends Model
         return Project::query()
             ->whereIn("id",$pastProjects)
             ->get();
+    }
+
+    public function availableOffcuts(): Builder
+    {
+        $businessBatchesIds = [];
+        foreach($this->users as $user){
+            foreach($user->batches as $batch){
+                $businessBatchesIds[] = $batch->id;
+            }
+        }
+
+        return Offcut::query()
+            ->whereIn("batch_from_id",$businessBatchesIds)
+            ->where("batch_to_id",null);
+            //->get();
     }
 }

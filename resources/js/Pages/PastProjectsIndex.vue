@@ -5,7 +5,7 @@
 
     //Component Imports
     import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
-    import CardButtonBlue from "@/Components/CardButtonBlue.vue";
+    import CardButtonBlue from "@/Components/Buttons/CardButtonBlue.vue";
 
     //Props
     const props = defineProps({
