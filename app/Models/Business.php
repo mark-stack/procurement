@@ -144,6 +144,5 @@ class Business extends Model
         return Offcut::query()
             ->whereIn("batch_from_id",$businessBatchesIds)
             ->where("batch_to_id",null);
-            //->get();
     }
 }

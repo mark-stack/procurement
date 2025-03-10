@@ -616,7 +616,7 @@
                             <!-- table -->
                             <section
                                 v-else-if="showTable()"
-                                style="height:450px"
+                                style="height:350px"
                                 class="text-left"
                             >
 

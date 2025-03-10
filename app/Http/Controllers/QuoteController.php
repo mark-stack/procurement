@@ -50,6 +50,7 @@ class QuoteController extends Controller
             $projectsReadyForBatching,
             $piecesReadyForBatching,
         );
+
         abort_if(!$prerequisiteStartQuoting,403);
 
         try {
