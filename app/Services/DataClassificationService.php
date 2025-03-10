@@ -960,6 +960,7 @@ class DataClassificationService
                     'galvanize',
                     'gal',
                     'galv',
+                    "hdg",
                 ],
             ],
             [
@@ -978,6 +979,12 @@ class DataClassificationService
                 'surfaceEnum' => SurfaceEnums::TREATED,
                 'regex' => [
                     'treated',
+                ],
+            ],
+            [
+                'surfaceEnum' => SurfaceEnums::ZINC,
+                'regex' => [
+                    'zinc',
                 ],
             ],
             //todo more

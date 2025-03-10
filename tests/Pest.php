@@ -238,6 +238,26 @@ function createProject(User $user): Project
 //    ]);
 }
 
+function createRawMaterialQuote200Pfc(Project $project, MaterialEnums $material, GradeEnums $grade, int $length)
+{
+    return RawMaterialQuote::create([
+        'csv_index' => 999,
+        'description' => "200PFC",
+        'product_category' => ProductEnums::PFC->value,
+        'material' => $material->value,
+        'grade' => $grade->value,
+        'surface' => SurfaceEnums::NONE->value,
+        'nominal_units' => MeasurementUnitEnums::MILLIMETERS,
+        'length_required' => $length,
+        'width_required' => null,
+        'sub_qty' => 2,
+        'project_id' => $project->id,
+        'general_product_matches' => null,
+        'custom_product_matches' => null,
+        'assembly_mark' => '',
+    ]);
+}
+
 function piecePfc(int $nominalHeight, int $length, int $qty, Project $project, object $dataClassificationService): array
 {
     return (new TestingFormatter())->piecePfc($nominalHeight, $length, $qty, $project, $dataClassificationService);

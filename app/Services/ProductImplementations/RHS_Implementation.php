@@ -85,20 +85,6 @@ class RHS_Implementation extends ProductBaseImplementation
 
     public function generalProductDefinition(): array
     {
-        //        'product_category',
-        //        'material',
-        //        'grade',
-        //        'surface',
-        //        'nominal_units',
-        //        "nominal_length",
-        //        "precise_length",
-        //        "nominal_width",
-        //        "precise_width",
-        //        'nominal_height',
-        //        "precise_height",
-        //        "wall",
-        //        "kg_per_m"
-
         return [
             'mandatory' => [
                 'product_category',

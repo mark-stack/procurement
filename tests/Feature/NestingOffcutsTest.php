@@ -105,6 +105,42 @@ it('would be a disaster if using offcuts that are allocated to another batch', f
 
 });
 
+it("would be a disaster if offuct of an offcut didn't work", function () {
+    //Create admin
+    $adminBusiness = createBusiness('admin', true);
+    $adminUser = createUser(1, $adminBusiness, true, true);
+
+    //Authorised
+    $this->actingAs($adminUser);
+
+    //Seed master_product.csv to create products
+    $this->get(route('admin.update.master.materials.spreadsheet'));
+
+    //Create admin
+    $business = createBusiness('admin', true);
+    $user = createUser(1, $business, false, true);
+
+    //Create project
+    $project = createProject($user);
+
+    //Nesting
+    $nest = nestingTestCases()[0]['nest']; //length vs qty array
+
+    //Service
+    $dataClassificationService = new dataClassificationService;
+
+    //Create BOM
+    $sampleBOM = sampleBOM($project, $dataClassificationService, $nest);
+
+    //Create raw material quotes & pieces
+    $pieces = createPieces($sampleBOM, $project, $dataClassificationService);
+
+    //todo save nesting
+
+
+    dd($adminBusiness->availableOffcuts()->get());
+});
+
 it('would be a disaster if using offcuts that belong to another company', function () {});
 
 it('would be a disaster if offcuts not added to inventory', function () {});

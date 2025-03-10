@@ -1,7 +1,7 @@
 <script setup>
     //General Imports
-    import {Link} from "@inertiajs/vue3";
-    import {ref} from "vue";
+    import {Link, usePage} from "@inertiajs/vue3";
+    import {computed, ref} from "vue";
 
     //Component Imports
     //...
@@ -19,6 +19,7 @@
 
     //Variables
     const showMobileNav = ref(false);
+    const user = computed(() => usePage().props.auth.user);
 
     //Shared Methods
     //...

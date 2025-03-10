@@ -65,7 +65,7 @@
                 v-else
                 class="text-sm text-green-500"
             >
-                calculating efficiency...
+                Calculating efficiency...
             </p>
         </div>
 

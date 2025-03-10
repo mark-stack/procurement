@@ -1461,13 +1461,11 @@ class NestingFormatter
              * batch > offcut
              * offcut > bar
              */
-            //$piecesNested = unserialize($batch->nested_state);
-
-
+            $piecesNested = unserialize($batch->nested_state);
 
             //todo problem with this is it's random results. Probably the same, but not exact. [not deterministic]
-            $piecesNested = $this->piecesNested($batch->pieces, $lettersProjectArray, $business);
-            dd(2,$piecesNested);
+//            $piecesNested = $this->piecesNested($batch->pieces, $lettersProjectArray, $business);
+//            dd(2,$piecesNested);
 
 
             ////////////////////////////////////////////////////////////////////////////
@@ -1636,18 +1634,6 @@ class NestingFormatter
          */
         $offcutInventory = $business->availableOffcuts()
             ->matchProduct($newPieceSpec)
-            //Attributes
-//            ->where('product_category',$newPieceSpec->product_category)
-//            ->where('material',$newPieceSpec->material ?? null)
-//            ->where('grade',$newPieceSpec->grade ?? null)
-//            ->where('surface',$newPieceSpec->surface ?? null)
-//            ->where('nominal_length',$newPieceSpec->nominal_length ?? null)
-//            ->where('precise_length',$newPieceSpec->precise_length ?? null)
-//            ->where('nominal_width',$newPieceSpec->nominal_width ?? null)
-//            ->where('precise_width',$newPieceSpec->precise_width ?? null)
-//            ->where('nominal_height',$newPieceSpec->nominal_height ?? null)
-//            ->where('precise_height',$newPieceSpec->precise_height ?? null)
-//            ->where('wall',$newPieceSpec->wall ?? null)
             ->get()
             ->toArray();
 

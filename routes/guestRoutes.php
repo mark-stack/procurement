@@ -15,7 +15,10 @@ Route::get('/', function () {
         ->where('domain','sample.com')
         ->first();
 
-    $sampleData = $nestingFormatter->nestingViewData('SUGGESTED', $sampleBusiness, null);
+    $sampleData = null;
+    if($sampleBusiness){
+        $sampleData = $nestingFormatter->nestingViewData('SUGGESTED', $sampleBusiness, null);
+    }
 
     return Inertia::render('Welcome', [
         "sampleNestingData" => $sampleData,
