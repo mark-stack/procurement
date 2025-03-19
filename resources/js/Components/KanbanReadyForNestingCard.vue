@@ -133,6 +133,7 @@
                             @click="$emit('editMode',project)"
                             label="Edit"
                             class="mt-2"
+                            :fullWidth="true"
                         />
                     </div>
                 </div>

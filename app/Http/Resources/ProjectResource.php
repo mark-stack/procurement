@@ -40,6 +40,7 @@ class ProjectResource extends JsonResource
             "prerequisiteUploadMaterials" => $user
                 ? (new PrerequisiteConditions())->uploadMaterials($user, $project)
                 : false,
+            "info" => [],
         ];
     }
 }

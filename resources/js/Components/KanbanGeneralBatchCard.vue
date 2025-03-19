@@ -254,6 +254,7 @@
                             @click="$emit('editMode',project)"
                             label="Edit"
                             class="mt-2"
+                            :fullWidth="true"
                         />
                     </div>
                 </div>
@@ -347,6 +348,8 @@
                 @click="$emit('pageLoadingOn',3); breakBatch()"
                 label="Re-nest"
                 class="w-full mt-2"
+                :fullWidth="true"
+                :disabled="false"
             />
 
             <!-- delivery actions -->

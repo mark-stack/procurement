@@ -92,10 +92,13 @@
                 <CardButtonRed
                     @click="$emit('toggleArchive',project)"
                     label="Archive"
+                    :fullWidth="true"
+                    :disabled="false"
                 />
                 <CardButtonYellow
                     @click="$emit('editMode',project)"
                     label="Edit"
+                    :fullWidth="true"
                 />
             </div>
         </div>

@@ -7,6 +7,7 @@ use App\Actions\Piece\AttachPiecesToOrder;
 use App\Actions\Piece\DetachPiecesFromOrder;
 use App\Formatters\NestingFormatter;
 use App\Formatters\ProductFormatter;
+use App\Formatters\QuoteFormatter;
 use App\Formatters\SupplierFormatter;
 use App\Http\Controllers\BatchController;
 use App\Http\Controllers\BatchNestingController;
@@ -28,15 +29,21 @@ use App\Http\Controllers\RawMaterialQuoteController;
 use App\Http\Controllers\SuggestedNestingController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Middleware\BusinessReadyMiddleware;
+use App\Http\Resources\ProjectResource;
 use App\Models\Batch;
+use App\Models\Offcut;
 use App\Models\Order;
 use App\Models\Project;
 use App\Models\Quote;
+use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\BatchService;
+use App\Services\OrderService;
 use App\Services\ProductService;
+use App\Services\QuoteService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 Route::middleware(['auth', 'verified'])->group(function () {
 
@@ -405,94 +412,217 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ]);
         })->name('download.quotes.data');
 
-        //        Route::get("download-orders-data/{batch}",function(Request $request, Batch $batch){
-        //            //Services
-        //            $nestingFormatter = new NestingService();
-        //
-        //            //Prerequisite variables
-        //            $user = auth()->user();
-        //            $business = $user->business;
-        //
-        //            /**
-        //             * "Add Quote Requests"
-        //             * 1) Assign a letter to each project. A, B, C, etc
-        //             * 2) Get all nested pieces
-        //             * 3) Group nested pieces by nesting algorithm. e.g "meterage"
-        //             */
-        //
-        //            //1) Assign a letter to each project. A, B, C, etc
-        //            $lettersProjectArray = $nestingFormatter->getLetterProjectArray($batch->pieces);
-        //
-        //            //2) Get all nested pieces
-        //            $piecesNested = $nestingFormatter->piecesNested($batch->pieces,$lettersProjectArray);
-        //
-        //            //3) Group nested pieces by nesting algorithm. e.g "meterage"
-        //            $piecesGroupedBySupplierGroup = $nestingFormatter->piecesGroupedBySupplierGroup($piecesNested, $business);
-        //
-        //            /**
-        //             * "current quote coverage"
-        //             * 1) Get list of all supplier categories with contained products. e.g "steel merchant" contains "PFC, UB, etc"
-        //             * 2) Build an array that includes a string of included products. e.g "PFC, UB, UC..."
-        //             * 3) Check if the supplier category matching nested pieces
-        //             * 4) Build an array that contains "included products" and "qty quotes"
-        //             */
-        //            $currentQuoteCoverage = [];
-        //
-        //            //1) Get list of all supplier categories with contained products. e.g "steel merchant" contains "PFC, UB, etc"
-        //            $supplierCategoriesWithIncludedProducts = (new SupplierService())->supplierGroups($business);
-        //
-        //            //2) Build an array that includes a string of included products. e.g "PFC, UB, UC..."
-        //            $supplierCategoriesFormatted = [];
-        //            foreach($supplierCategoriesWithIncludedProducts as $supplierCategory => $includedProducts){
-        //                $supplierCategoriesFormatted[$supplierCategory] = [
-        //                    "includedProducts" => [
-        //                        "array" => $includedProducts,
-        //                        "string" => implode(", ",$includedProducts),
-        //                    ],
-        //                ];
-        //            }
-        //
-        //            //3) Check if the supplier category matching nested pieces
-        //            foreach($supplierCategoriesFormatted as $supplierCategory => $data){
-        //                //4) Build an array that contains "included products" and "qty quotes"
-        //                $batchGroup = $piecesGroupedBySupplierGroup["assigned"][$supplierCategory] ?? null;
-        //
-        //                if($batchGroup){
-        //                    $appended = $data;
-        //                    $appended["quotes"] = $batch->quotes()
-        //                        ->with("supplier")
-        //                        ->where("supplier_category",$supplierCategory)
-        //                        ->where("quote_sent",true)
-        //                        ->get();
-        //                    $appended["qtyQuotes"] = $batch->quotes()
-        //                        ->where("supplier_category",$supplierCategory)
-        //                        ->where("quote_sent",true)
-        //                        ->count();
-        //                    $appended["batchGroup"] = $batchGroup;
-        //                    $appended["orders"] = $batch->orders;
-        //                    $appended["supplier_category"] = $supplierCategory;
-        //
-        //                    $orderedOrder = $batch->orders()
-        //                        ->whereRelation("quote","quote_sent","=",true)
-        //                        ->where("order_sent",true)
-        //                        ->first();
-        //
-        //                    $appended["selectedSupplierId"] = $orderedOrder ? $orderedOrder->supplier_id : null;
-        //                    $appended["orderSent"] = (bool) $orderedOrder;
-        //
-        //                    $currentQuoteCoverage[$supplierCategory] = $appended;
-        //                }
-        //            }
-        //
-        //            return response()->json([
-        //                'downloadedOrdersData' => [
-        //                    "batch_id" => $batch->id,
-        //                    "data" => [
-        //                        "currentQuoteCoverage" => $currentQuoteCoverage,
-        //                    ],
-        //                ],
-        //            ]);
-        //        })->name("download.orders.data");
+        Route::get("kanban-simple",function(){
+            //Services
+            $quoteService = new QuoteService;
+            $batchService = new BatchService;
+            $supplierService = new SupplierFormatter;
+            $quoteFormatter = new QuoteFormatter();
+
+            //Prerequisite variables
+            $user = auth()->user();
+            $business = $user->business;
+            $piecesReadyForBatching = (new NestingFormatter)->piecesReadyForBatching($business);
+
+            /*
+             * Archived projects
+             */
+            $archivedProjects = ProjectResource::collection(Project::query()
+                ->thisBusiness($business)
+                ->where("user_id",$user->id)
+                ->where('archive', true)
+                ->latest()
+                ->get());
+
+            $projects = [
+                //Kanban column 1
+                'NEW_PROJECTS' => ProjectResource::collection(Project::query()
+                    ->thisBusiness($business)
+                    ->where("archive",false)
+                    ->doesntHave('rawMaterialQuotes')
+                    ->sortByUserAndLatest()
+                    ->get()),
+                //Kanban column 2
+                'READY_FOR_NESTING' => [
+                    'projects' => ProjectResource::collection($business
+                        ->projectsReadyForBatching($piecesReadyForBatching)
+                        ->sortBy('created_at')),
+                ],
+            ];
+
+            /**
+             * Batches for quoting (Kanban column 3)
+             */
+            $quoted = [];
+            $batchesForQuoting = $business->batches()
+                ->hasNoSentOrder()
+                ->active()
+                ->get();
+
+            //Sort
+            $batchesForQuoting = $batchService->sortByUserAndLatest($batchesForQuoting, $business);
+
+            foreach ($batchesForQuoting as $batch) {
+                /**
+                 * Modal: "add quote requests"
+                 * table rows of each unique supplier-product_category.
+                 * e.g "ABC Steel" who does 'fasteners' and 'steel merchant' is 2 rows
+                 */
+
+                /*
+                 * Prerequisite Gate
+                 */
+                $offcutsAssignedToThisBatch = Offcut::query()
+                    ->where("batch_to_id",$batch->id)
+                    ->get();
+                $prerequisiteUndoStartQuoting = (new PrerequisiteConditions())->undoStartQuoting(
+                    $batch,
+                    $user,
+                    $offcutsAssignedToThisBatch,
+                );
+
+                $quoted[$batch->id] = [
+                    'info' => [
+                        'batch' => [
+                            'id' => $batch->id,
+                            'totalPurchasedMaterial' => 999, //todo
+                            'totalUsage' => 999, //todo
+                            'totalWaste' => 999, //todo
+                        ],
+                        'projects' => ProjectResource::collection($batch->projects()),
+                        'quotes' => $batch->quotes,
+                        'totalQuotesQty' => $batch->quotes()->count(),
+                        'sentQuotesQty' => $batch->quotes()->where('quote_sent', true)->count(),
+                        'batchQuotingDeadline' => $quoteService->batchQuotingDeadline($batch),
+                        "prerequisiteUndoStartQuoting" => $prerequisiteUndoStartQuoting,
+                    ],
+                ];
+            }
+            $quoted = array_values($quoted);
+
+            /**
+             * Batches for Ordering (Kanban column 4)
+             */
+            $ordered = [];
+            $batchesForOrdering = [];
+            foreach($business->batches()->active()->get() as $batch){
+                //Less than 100% order coverage
+                $all100Percent = true;
+                foreach($batch->projects() as $project){
+                    if($project->percentageOfMaterialsOrdered() !== 100){
+                        $all100Percent = false;
+                    }
+                }
+
+                $sentOrdersQty = $batch->orders()->where('order_sent', true)->count();
+                if(($sentOrdersQty > 0) && !$all100Percent){
+                    $batchesForOrdering[] = $batch;
+                }
+            }
+            $batchesForOrdering = collect($batchesForOrdering);
+
+            //Sort
+            $batchesForOrdering = $batchService->sortByUserAndLatest($batchesForOrdering, $business);
+
+            foreach ($batchesForOrdering as $batch) {
+                //Total orders qty
+                $orders = $batch->orders;
+                $totalOrdersQty = $batchService->totalOrdersQty($batch);
+
+                $ordered[$batch->id] = [
+                    'info' => [
+                        'batch' => [
+                            'id' => $batch->id,
+                            'totalPurchasedMaterial' => 999, //todo
+                            'totalUsage' => 999, //todo
+                            'totalWaste' => 999, //todo
+                        ],
+                        'projects' => ProjectResource::collection($batch->projects()),
+                        'orders' => $orders,
+                        'approxDueDate' => null, //todo actual - derived from earliest project
+                        'totalOrdersQty' => $totalOrdersQty,
+                        'sentOrdersQty' => $batch->orders()->where('order_sent', true)->count(),
+                        'all_project_manager_approvals' => (new OrderService)->allProjectManagersApproved($batch),
+                    ],
+                ];
+            }
+            $ordered = array_values($ordered);
+
+            /**
+             * Batches for Delivering (Kanban column 5)
+             */
+            $delivered = [];
+            $batchesForDelivering = [];
+            foreach($business->batches()->active()->get() as $batch){
+                //100% order coverage
+                $all100Percent = true;
+                foreach($batch->projects() as $project){
+                    if($project->percentageOfMaterialsOrdered() !== 100){
+                        $all100Percent = false;
+                    }
+                }
+
+                if($all100Percent){
+                    $batchesForDelivering[] = $batch;
+                }
+            }
+            $batchesForDelivering = collect($batchesForDelivering);
+
+
+            //Sort
+            $batchesForDelivering = $batchService->sortByUserAndLatest($batchesForDelivering, $business);
+
+            foreach ($batchesForDelivering as $batch) {
+                //Total orders qty
+                $orders = $batch->orders;
+                $totalOrdersQty = $batchService->totalOrdersQty($batch);
+                $totalDeliveredQty = $batch->orders()->where('is_delivered', true)->count();
+
+                $delivered[$batch->id] = [
+                    'info' => [
+                        'batch' => [
+                            'id' => $batch->id,
+                            'totalPurchasedMaterial' => 999, //todo
+                            'totalUsage' => 999, //todo
+                            'totalWaste' => 999, //todo
+                        ],
+                        'projects' => ProjectResource::collection($batch->projects()),
+                        'orders' => $orders,
+                        'approxDueDate' => null, //todo actual - derived from earliest project
+                        'totalOrdersQty' => $totalOrdersQty,
+                        'sentOrdersQty' => $batch->orders()->where('order_sent', true)->count(),
+                        "totalDeliveredQty" => $totalDeliveredQty,
+                        "allDelivered" => $totalDeliveredQty === $totalOrdersQty,
+                        'all_project_manager_approvals' => (new OrderService)->allProjectManagersApproved($batch),
+                    ],
+                ];
+            }
+            $delivered = array_values($delivered);
+
+            $batches = [
+                'QUOTED' => $quoted,
+                'ORDERED' => $ordered,
+                'DELIVERED' => $delivered,
+            ];
+
+            /*
+             * Prerequisite Gates
+             */
+            $piecesReadyForBatching = (new NestingFormatter)->piecesReadyForBatching($business);
+            $projectsReadyForBatching = $business->projectsReadyForBatching($piecesReadyForBatching); //Note get this before updating pieces because it gets modified
+            $prerequisiteStartQuoting = (new PrerequisiteConditions())->startQuoting(
+                $user,
+                $projectsReadyForBatching,
+                $piecesReadyForBatching,
+            );
+
+            return Inertia::render('KanbanSimple', [
+                'projects' => $projects,
+                'batches' => $batches,
+                'archivedProjects' => $archivedProjects,
+                "prerequisiteStartQuoting" => $prerequisiteStartQuoting,
+            ]);
+        })->name("kanban.simple");
 
         Route::get('download-usage-data', function (Request $request) {
             //Formatter

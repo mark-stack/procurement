@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Formatters\NestingFormatter;
+use App\Formatters\QuoteFormatter;
 use App\Http\Resources\ProjectResource;
 use App\Models\Offcut;
 use App\Models\Project;
@@ -27,6 +28,7 @@ class ProjectController extends Controller
         //Services
         $quoteService = new QuoteService;
         $batchService = new BatchService;
+        $quoteFormatter = new QuoteFormatter();
 
         //Prerequisite variables
         $user = auth()->user();
@@ -80,6 +82,16 @@ class ProjectController extends Controller
                 $offcutsAssignedToThisBatch,
             );
 
+            /**
+             * "Quotes and orders"
+             * 1) Assign a letter to each project. A, B, C, etc
+             * 2) Get all nested pieces
+             * 3) Group nested pieces by nesting algorithm. e.g "meterage"
+             * 4) get list of supplier categories available to the business
+             * 5) filter out categories not features in the nesting list
+             */
+            $quotesData = $quoteFormatter->quotesData($business, $batch, $user);
+
             $quoted[$batch->id] = [
                 'info' => [
                     'batch' => [
@@ -94,6 +106,7 @@ class ProjectController extends Controller
                     'sentQuotesQty' => $batch->quotes()->where('quote_sent', true)->count(),
                     'batchQuotingDeadline' => $quoteService->batchQuotingDeadline($batch),
                     "prerequisiteUndoStartQuoting" => $prerequisiteUndoStartQuoting,
+                    "quotesData" => $quotesData,
                 ],
             ];
         }
