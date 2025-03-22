@@ -182,6 +182,8 @@
             const response = await axios.get(route("download.bom",projectId));
 
             if(response.data.downloadedBomData){
+                console.log("downloadedBomData",response.data.downloadedBomData);
+
                 //Delete if exists
                 bomData.value = Object.values(bomData.value).filter(item => item.project_id != projectId);
 
@@ -315,25 +317,25 @@
                                 :style="'height:'+kanbanHeight+'px'"
                             >
                                 <!-- card -->
-                                <KanbanReadyForNestingCard
-                                    v-if="projects['READY_FOR_NESTING'].projects.data.length > 0"
-                                    :projects="projects['READY_FOR_NESTING'].projects.data"
-                                    :usageStats="usageData"
-                                    :prerequisiteStartQuoting="prerequisiteStartQuoting"
-                                    @toggleArchive="p => toggleArchive(p)"
-                                    @editMode="p => editMode(p)"
-                                    @quoteNow="quoteNow()"
-                                    @orderNow="orderNow()"
-                                    @showBom="args => showBom(args)"
-                                    @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
-                                    @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
-                                />
+<!--                                <KanbanReadyForNestingCard-->
+<!--                                    v-if="projects['READY_FOR_NESTING'].projects.data.length > 0"-->
+<!--                                    :projects="projects['READY_FOR_NESTING'].projects.data"-->
+<!--                                    :usageStats="usageData"-->
+<!--                                    :prerequisiteStartQuoting="prerequisiteStartQuoting"-->
+<!--                                    @toggleArchive="p => toggleArchive(p)"-->
+<!--                                    @editMode="p => editMode(p)"-->
+<!--                                    @quoteNow="quoteNow()"-->
+<!--                                    @orderNow="orderNow()"-->
+<!--                                    @showBom="args => showBom(args)"-->
+<!--                                    @pageLoadingOn="seconds => pageLoaderTimer(seconds)"-->
+<!--                                    @pageLoadingOff="console.log('loading OFF'); pageLoading = false"-->
+<!--                                />-->
                                 <KanbanMinimalCard
                                     v-if="projects['READY_FOR_NESTING'].projects.data.length > 0"
                                     :projects="projects['READY_FOR_NESTING'].projects.data"
+                                    kanbanColumn="NESTING"
                                     :usageStats="usageData"
                                     :prerequisiteStartQuoting="prerequisiteStartQuoting"
-                                    kanbanColumn="NESTING"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
                                     @quoteNow="quoteNow()"
@@ -362,26 +364,26 @@
                                 :style="'height:'+kanbanHeight+'px'"
                             >
                                 <!-- card-->
-                                <KanbanGeneralBatchCard
-                                    v-if="batches['QUOTED'].length > 0"
-                                    v-for="batch in batches['QUOTED']"
-                                    :key="batch.info.batch.id"
-                                    :info="batch.info"
-                                    type="QUOTES"
-                                    class="mb-3"
-                                    @toggleArchive="p => toggleArchive(p)"
-                                    @editMode="p => editMode(p)"
-                                    @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
-                                    @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
-                                    @showBom="args => showBom(args)"
-                                />
+<!--                                <KanbanGeneralBatchCard-->
+<!--                                    v-if="batches['QUOTED'].length > 0"-->
+<!--                                    v-for="batch in batches['QUOTED']"-->
+<!--                                    :key="batch.info.batch.id"-->
+<!--                                    :info="batch.info"-->
+<!--                                    type="QUOTES"-->
+<!--                                    class="mb-3"-->
+<!--                                    @toggleArchive="p => toggleArchive(p)"-->
+<!--                                    @editMode="p => editMode(p)"-->
+<!--                                    @pageLoadingOn="seconds => pageLoaderTimer(seconds)"-->
+<!--                                    @pageLoadingOff="console.log('loading OFF'); pageLoading = false"-->
+<!--                                    @showBom="args => showBom(args)"-->
+<!--                                />-->
                                 <KanbanMinimalCard
                                     v-if="batches['QUOTED'].length > 0"
                                     v-for="batch in batches['QUOTED']"
                                     :key="batch.info.batch.id"
-                                    :info="batch.info"
                                     :projects="batch.info.projects.data"
                                     kanbanColumn="QUOTING"
+                                    :batchInfo="batch.info"
                                     class="mb-3"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
@@ -409,12 +411,27 @@
                                 :style="'height:'+kanbanHeight+'px'"
                             >
                                 <!-- card -->
-                                <KanbanGeneralBatchCard
+<!--                                <KanbanGeneralBatchCard-->
+<!--                                    v-if="batches['ORDERED'].length > 0"-->
+<!--                                    v-for="batch in batches['ORDERED']"-->
+<!--                                    :key="batch.info.batch.id"-->
+<!--                                    :info="batch.info"-->
+<!--                                    type="ORDERS"-->
+<!--                                    class="mb-3"-->
+<!--                                    @toggleArchive="p => toggleArchive(p)"-->
+<!--                                    @editMode="p => editMode(p)"-->
+<!--                                    @pageLoadingOn="seconds => pageLoaderTimer(seconds)"-->
+<!--                                    @pageLoadingOff="console.log('loading OFF'); pageLoading = false"-->
+<!--                                    @orderNow="orderNow(batch['batch']['id'])"-->
+<!--                                    @showBom="args => showBom(args)"-->
+<!--                                />-->
+                                <KanbanMinimalCard
                                     v-if="batches['ORDERED'].length > 0"
                                     v-for="batch in batches['ORDERED']"
                                     :key="batch.info.batch.id"
-                                    :info="batch.info"
-                                    type="ORDERS"
+                                    :projects="batch.info.projects.data"
+                                    kanbanColumn="ORDERING"
+                                    :batchInfo="batch.info"
                                     class="mb-3"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
@@ -442,19 +459,34 @@
                                 :style="'height:'+kanbanHeight+'px'"
                             >
                                 <!-- card -->
-                                <KanbanGeneralBatchCard
+<!--                                <KanbanGeneralBatchCard-->
+<!--                                    v-if="batches['DELIVERED'].length > 0"-->
+<!--                                    v-for="batch in batches['DELIVERED']"-->
+<!--                                    :key="batch.info.batch.id"-->
+<!--                                    :info="batch.info"-->
+<!--                                    type="DELIVERED"-->
+<!--                                    class="mb-3"-->
+<!--                                    @toggleArchive="p => toggleArchive(p)"-->
+<!--                                    @editMode="p => editMode(p)"-->
+<!--                                    @pageLoadingOn="seconds => pageLoaderTimer(seconds)"-->
+<!--                                    @pageLoadingOff="console.log('loading OFF'); pageLoading = false"-->
+<!--                                    @orderNow="orderNow(batch['batch']['id'])"-->
+<!--                                    @showBom="args => showBom(args)"-->
+<!--                                />-->
+                                <KanbanMinimalCard
                                     v-if="batches['DELIVERED'].length > 0"
                                     v-for="batch in batches['DELIVERED']"
                                     :key="batch.info.batch.id"
-                                    :info="batch.info"
-                                    type="DELIVERED"
+                                    :projects="batch.info.projects.data"
+                                    kanbanColumn="DELIVERED"
+                                    :batchInfo="batch.info"
                                     class="mb-3"
                                     @toggleArchive="p => toggleArchive(p)"
                                     @editMode="p => editMode(p)"
                                     @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
                                     @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
-                                    @orderNow="orderNow(batch['batch']['id'])"
                                     @showBom="args => showBom(args)"
+                                    @addProject="addProject()"
                                 />
                                 <div class="text-center text-sm text-gray-500 mx-auto" style="width:200px">
                                     Nested batches move to here after all orders are complete

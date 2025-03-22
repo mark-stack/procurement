@@ -24,7 +24,7 @@
     //
 
     //Variables
-    const currentBatch = ref(Object.keys(props.piecesGroupedBySupplierGroup.assigned)[0]);
+    const currentSupplierGroup = ref(Object.keys(props.piecesGroupedBySupplierGroup.assigned)[0]);
     const height = window.innerHeight - 250;
 
     //Shared data
@@ -41,7 +41,7 @@
                 :lettersProjectArray="lettersProjectArray"
                 :usage="usage"
                 :piecesGroupedBySupplierGroup="piecesGroupedBySupplierGroup"
-                :currentBatch="currentBatch"
+                :currentSupplierGroup="currentSupplierGroup"
             />
         </Modal>
     </AuthenticatedLayout>

@@ -137,11 +137,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 if ($getProductMatchOptions) {
                     /**
                      * 1) Non-price book (will be user custom product)
-                     * UPGRADED has custom product ability
+                     * if business "allow_custom_products"
                      */
                     if ($getProductMatchOptions['status'] === 'CUSTOM') {
-                        //todo is this enough criteria? what about supplier groups?
-                        if ($business->upgraded) {
+                        if ($business->allow_custom_products) {
                             $requiresCustom[] = (new ProductFormatter())->requiresCustomForm($rawMaterialQuote);
                         }
                     }

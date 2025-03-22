@@ -16,7 +16,7 @@ class ProductService
     {
         $productConfigs = [];
 
-        $implementations = (new ProductService)->getImplementations();
+        $implementations = $this->getImplementations();
 
         foreach ($implementations as $implementation) {
             // Check if the class exists
@@ -165,11 +165,11 @@ class ProductService
             }
             //If no results, it's user-custom
             if (count($decodedGeneralProducts) === 0 && count($decodedCustomProducts) === 0) {
-                if ($business->upgraded) {
+                if ($business->allow_custom_products) {
                     $result = [
                         'status' => 'CUSTOM',
                         'decodedOptions' => null,
-                        'supplierGroup' => $decodedGeneralProductsRaw['supplierGroup'],
+                        'supplierGroup' => null,
                     ];
                 }
             }

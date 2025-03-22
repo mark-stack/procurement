@@ -599,7 +599,6 @@ class DataClassificationService
          * Fasteners advanced classification
          * 1) Find one of: MX, bolt, csk, hd bolt, etc...
          * 2) Then do further classification based on keywords and lengths
-         * UPGRADED can do fasteners
          */
         $fastenersConfig = $this->findFastenersConfigFromText($text);
         if ($fastenersConfig) {

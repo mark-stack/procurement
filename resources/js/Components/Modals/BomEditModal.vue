@@ -550,7 +550,7 @@
                                                         {{ option.product_derived_label }}
                                                     </label>
                                                 </div>
-                                                <label>
+                                                <label v-if="business.allow_custom_products">
                                                     <input
                                                         v-model="formClarifications[index]['selected']"
                                                         type="radio"
@@ -620,7 +620,7 @@
                                 class="text-left"
                             >
 
-                                <div v-if="thisDownloadedBomData(props.bomData).itemsNotFound && !thisDownloadedBomData(props.bomData).business.upgraded" class="mt-2 flex justify-between rounded-lg py-2 px-4 bg-[#fff2b2] text-[#7c620c]">
+                                <div v-if="thisDownloadedBomData(props.bomData).itemsNotFound && thisDownloadedBomData(props.bomData).business.meterage_only" class="mt-2 flex justify-between rounded-lg py-2 px-4 bg-[#fff2b2] text-[#7c620c]">
                                     <p class="font-sans text-xs">
                                         Items from your uploaded BOM's for this project that are not recognised as linear stock:
                                         <br><span class="text-sm">{{thisDownloadedBomData(props.bomData).itemsNotFound}}</span>

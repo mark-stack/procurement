@@ -43,7 +43,7 @@ class QuoteOrderManagementController extends Controller
          * 4) get list of supplier categories available to the business
          * 5) filter out categories not features in the nesting list
          */
-        $quotesData = $quoteFormatter->quotesData($business, $batch);
+        $quotesData = $quoteFormatter->quotesData($business, $batch, $user);
 
 //        $supplierGroupCards = [];
 //

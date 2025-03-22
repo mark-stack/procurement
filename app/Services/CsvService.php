@@ -431,19 +431,6 @@ class CsvService
                 continue; //don't save this row
             }
 
-            //Supplier group belongs to current plan
-            $supplierGroup = $productConfig['supplierGroup']->value;
-            if (! $business->supplierGroupIsCurrentPlan($supplierGroup)) {
-                $fromOtherPlan[] = $row['description'];
-                continue; //don't save this row
-            }
-
-            //Must have general product matches
-            if(count($row['generalProductMatches']["results"]) === 0){
-                $itemsNotFound[] = $row['description'];
-                continue; //don't save this row
-            }
-
             //Product category
             $productCategory = $productConfig['productCategory'];
 
@@ -451,6 +438,27 @@ class CsvService
             $algo = $productCategory
                 ? $nestingFormatter->getNestingLabelsFromProductCategory($productCategory)[0] ?? null
                 : null;
+
+            //Supplier group belongs to current plan
+            $supplierGroup = $productConfig['supplierGroup']->value;
+            if (! $business->supplierGroupIsCurrentPlan($supplierGroup)) {
+                $fromOtherPlan[] = $row['description'];
+                continue; //don't save this row
+            }
+
+            //Business plan is meterage products only
+            if($business->meterage_only){
+                if($algo !== NestingEnums::METERAGE->value){
+                    $fromOtherPlan[] = $row['description'];
+                    continue; //don't save this row
+                }
+            }
+
+            //Must have general product matches
+            if(count($row['generalProductMatches']["results"]) === 0){
+                $itemsNotFound[] = $row['description'];
+                continue; //don't save this row
+            }
 
             /**
              * Create 'RawMaterialQuote' item

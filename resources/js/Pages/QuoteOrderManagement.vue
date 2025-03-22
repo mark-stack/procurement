@@ -281,7 +281,6 @@
          * 1) If checked (sent) && cannot undo
          * 2) If not checked (not sent) && cannot mark sent
          */
-        console.log("row",row);
         let shouldDisableQuoteSent = false;
         let currentlySent = row.formQuoteUpdate.quote_sent;
 
@@ -358,7 +357,7 @@
                         <!-- Main-->
                         <div v-if="data.hasSuppliersForThisGroup" class="mt-3">
                             <!-- heading row -->
-                            <div class="grid grid-cols-10 text-xs text-gray-500 text-center mb-2 font-semibold">
+                            <div class="grid grid-cols-6 text-xs text-gray-500 text-center mb-2 font-semibold">
                                 <div class="col-span-2 text-left">
                                     Supplier
                                 </div>
@@ -368,15 +367,15 @@
                                 <div>
                                     Sent Quote
                                 </div>
-                                <div>
-                                    Price
-                                </div>
-                                <div>
-                                    Lead time (days)
-                                </div>
-                                <div class="col-span-2">
-                                    Quote reference
-                                </div>
+<!--                                <div>-->
+<!--                                    Price-->
+<!--                                </div>-->
+<!--                                <div>-->
+<!--                                    Lead time (days)-->
+<!--                                </div>-->
+<!--                                <div class="col-span-2">-->
+<!--                                    Quote reference-->
+<!--                                </div>-->
                                 <div>
                                     Sent order
                                 </div>
@@ -388,7 +387,7 @@
                             <div
                                 v-for="row in data.rows"
                                 :class="row.info.order_sent ? 'bg-green-50' : ''"
-                                class="grid grid-cols-10 text-center mb-2 p-1 rounded"
+                                class="grid grid-cols-6 text-center mb-2 p-1 rounded"
                             >
                                 <!-- supplier -->
                                 <div class="col-span-2 text-left pt-1">
@@ -397,7 +396,7 @@
                                 <!-- email button -->
                                 <div>
                                     <button
-                                        @click="shared.sendSupplierBatchEmail(data.info.batchGroup)"
+                                        @click="shared.sendSupplierBatchEmail(data.info.batchGroup,supplierGroup)"
                                         class="bg-green-50 rounded px-1 border-2 border-green-100 hover:bg-green-100"
                                     >
                                         <i class="fa-regular fa-envelope text-2xl"></i>
@@ -417,133 +416,133 @@
                                     />
                                 </div>
                                 <!-- Price -->
-                                <div class="pt-1">
-                                    <!-- has quote details -->
-                                    <div v-if="showQuotedPrice(row.info.supplier.id)">
-                                        <!-- formQuoteUpdate -->
-                                        <input
-                                            v-model="row.formQuoteUpdate.quoted_price"
-                                            type="number"
-                                            class="w-full text-sm rounded"
-                                            style="width:80px"
-                                            min="1"
-                                            max="99"
-                                        />
-                                        <div class="flex gap-x-1 justify-center">
-                                            <template v-if="formQuoteUpdate.processing">
-                                                <span class="text-xs text-green-500 font-bold">Saving...</span>
-                                            </template>
-                                            <template v-else>
-                                                <button @click="updateQuote(row,true)" class="text-xs underline text-green-500 font-bold">Save</button>
-                                                <button @click="hideInput()" class="text-xs underline">Cancel</button>
-                                            </template>
-                                        </div>
-                                    </div>
+<!--                                <div class="pt-1">-->
+<!--                                    &lt;!&ndash; has quote details &ndash;&gt;-->
+<!--                                    <div v-if="showQuotedPrice(row.info.supplier.id)">-->
+<!--                                        &lt;!&ndash; formQuoteUpdate &ndash;&gt;-->
+<!--                                        <input-->
+<!--                                            v-model="row.formQuoteUpdate.quoted_price"-->
+<!--                                            type="number"-->
+<!--                                            class="w-full text-sm rounded"-->
+<!--                                            style="width:80px"-->
+<!--                                            min="1"-->
+<!--                                            max="99"-->
+<!--                                        />-->
+<!--                                        <div class="flex gap-x-1 justify-center">-->
+<!--                                            <template v-if="formQuoteUpdate.processing">-->
+<!--                                                <span class="text-xs text-green-500 font-bold">Saving...</span>-->
+<!--                                            </template>-->
+<!--                                            <template v-else>-->
+<!--                                                <button @click="updateQuote(row,true)" class="text-xs underline text-green-500 font-bold">Save</button>-->
+<!--                                                <button @click="hideInput()" class="text-xs underline">Cancel</button>-->
+<!--                                            </template>-->
+<!--                                        </div>-->
+<!--                                    </div>-->
 
-                                    <template v-else>
-                                        <!-- formQuoteUpdate -->
-                                        <button
-                                            v-if="row.formQuoteUpdate.quoted_price"
-                                            class="text-sm text-blue-500 underline italic"
-                                            @click="toggleShowInput(row,'quoted_price')"
-                                        >
-                                            ${{ row.formQuoteUpdate.quoted_price.toFixed(2) }}
-                                        </button>
-                                        <button
-                                            v-else
-                                            class="text-xs text-blue-500 underline"
-                                            @click="toggleShowInput(row,'quoted_price')"
-                                        >
-                                            Add
-                                        </button>
-                                    </template>
-                                </div>
+<!--                                    <template v-else>-->
+<!--                                        &lt;!&ndash; formQuoteUpdate &ndash;&gt;-->
+<!--                                        <button-->
+<!--                                            v-if="row.formQuoteUpdate.quoted_price"-->
+<!--                                            class="text-sm text-blue-500 underline italic"-->
+<!--                                            @click="toggleShowInput(row,'quoted_price')"-->
+<!--                                        >-->
+<!--                                            ${{ row.formQuoteUpdate.quoted_price.toFixed(2) }}-->
+<!--                                        </button>-->
+<!--                                        <button-->
+<!--                                            v-else-->
+<!--                                            class="text-xs text-blue-500 underline"-->
+<!--                                            @click="toggleShowInput(row,'quoted_price')"-->
+<!--                                        >-->
+<!--                                            Add-->
+<!--                                        </button>-->
+<!--                                    </template>-->
+<!--                                </div>-->
 
-                                <!-- Lead time -->
-                                <div class="pt-1">
-                                    <div v-if="showQuotedLeadTime(row.info.supplier.id)">
-                                        <!-- formQuoteUpdate -->
-                                        <input
-                                            v-model="row.formQuoteUpdate.quoted_lead_time"
-                                            required
-                                            type="number"
-                                            class="w-full text-sm rounded"
-                                            style="width:60px"
-                                            min="1"
-                                            max="99"
-                                        />
-                                        <div class="flex gap-x-1 justify-center">
-                                            <template v-if="formQuoteUpdate.processing">
-                                                <span class="text-xs text-green-500 font-bold">Saving...</span>
-                                            </template>
-                                            <template v-else>
-                                                <button @click="updateQuote(row,true)" class="text-xs underline text-green-500 font-bold">Save</button>
-                                                <button @click="hideInput()" class="text-xs underline">Cancel</button>
-                                            </template>
-                                        </div>
-                                    </div>
+<!--                                &lt;!&ndash; Lead time &ndash;&gt;-->
+<!--                                <div class="pt-1">-->
+<!--                                    <div v-if="showQuotedLeadTime(row.info.supplier.id)">-->
+<!--                                        &lt;!&ndash; formQuoteUpdate &ndash;&gt;-->
+<!--                                        <input-->
+<!--                                            v-model="row.formQuoteUpdate.quoted_lead_time"-->
+<!--                                            required-->
+<!--                                            type="number"-->
+<!--                                            class="w-full text-sm rounded"-->
+<!--                                            style="width:60px"-->
+<!--                                            min="1"-->
+<!--                                            max="99"-->
+<!--                                        />-->
+<!--                                        <div class="flex gap-x-1 justify-center">-->
+<!--                                            <template v-if="formQuoteUpdate.processing">-->
+<!--                                                <span class="text-xs text-green-500 font-bold">Saving...</span>-->
+<!--                                            </template>-->
+<!--                                            <template v-else>-->
+<!--                                                <button @click="updateQuote(row,true)" class="text-xs underline text-green-500 font-bold">Save</button>-->
+<!--                                                <button @click="hideInput()" class="text-xs underline">Cancel</button>-->
+<!--                                            </template>-->
+<!--                                        </div>-->
+<!--                                    </div>-->
 
-                                    <template v-else>
-                                        <!-- formQuoteUpdate -->
-                                        <button
-                                            v-if="row.formQuoteUpdate.quoted_lead_time"
-                                            class="text-sm text-blue-500 underline italic"
-                                            @click="toggleShowInput(row,'quoted_lead_time')"
-                                        >
-                                            {{ row.formQuoteUpdate.quoted_lead_time }} days
-                                        </button>
-                                        <button
-                                            v-else
-                                            class="text-xs text-blue-500 underline"
-                                            @click="toggleShowInput(row,'quoted_lead_time')"
-                                        >
-                                            Add
-                                        </button>
-                                    </template>
-                                </div>
-                                <!-- Quote reference -->
-                                <div class="col-span-2 pt-2">
-                                    <div class="italic text-sm">
-                                        <!-- formQuoteUpdate -->
-                                        <div v-if="showSupplierQuoteReference(row.info.supplier.id)">
-                                            <input
-                                                v-model="row.formQuoteUpdate.supplier_quote_reference"
-                                                required
-                                                type="text"
-                                                class="w-full text-sm rounded"
-                                                style="width:90px"
-                                                minlength="1"
-                                            />
-                                            <div class="flex gap-x-1 justify-center">
-                                                <template v-if="formQuoteUpdate.processing">
-                                                    <span class="text-xs text-green-500 font-bold">Saving...</span>
-                                                </template>
-                                                <template v-else>
-                                                    <button @click="updateQuote(row,true)" class="text-xs underline text-green-500 font-bold">Save</button>
-                                                    <button @click="hideInput()" class="text-xs underline">Cancel</button>
-                                                </template>
-                                            </div>
-                                        </div>
+<!--                                    <template v-else>-->
+<!--                                        &lt;!&ndash; formQuoteUpdate &ndash;&gt;-->
+<!--                                        <button-->
+<!--                                            v-if="row.formQuoteUpdate.quoted_lead_time"-->
+<!--                                            class="text-sm text-blue-500 underline italic"-->
+<!--                                            @click="toggleShowInput(row,'quoted_lead_time')"-->
+<!--                                        >-->
+<!--                                            {{ row.formQuoteUpdate.quoted_lead_time }} days-->
+<!--                                        </button>-->
+<!--                                        <button-->
+<!--                                            v-else-->
+<!--                                            class="text-xs text-blue-500 underline"-->
+<!--                                            @click="toggleShowInput(row,'quoted_lead_time')"-->
+<!--                                        >-->
+<!--                                            Add-->
+<!--                                        </button>-->
+<!--                                    </template>-->
+<!--                                </div>-->
+<!--                                &lt;!&ndash; Quote reference &ndash;&gt;-->
+<!--                                <div class="col-span-2 pt-2">-->
+<!--                                    <div class="italic text-sm">-->
+<!--                                        &lt;!&ndash; formQuoteUpdate &ndash;&gt;-->
+<!--                                        <div v-if="showSupplierQuoteReference(row.info.supplier.id)">-->
+<!--                                            <input-->
+<!--                                                v-model="row.formQuoteUpdate.supplier_quote_reference"-->
+<!--                                                required-->
+<!--                                                type="text"-->
+<!--                                                class="w-full text-sm rounded"-->
+<!--                                                style="width:90px"-->
+<!--                                                minlength="1"-->
+<!--                                            />-->
+<!--                                            <div class="flex gap-x-1 justify-center">-->
+<!--                                                <template v-if="formQuoteUpdate.processing">-->
+<!--                                                    <span class="text-xs text-green-500 font-bold">Saving...</span>-->
+<!--                                                </template>-->
+<!--                                                <template v-else>-->
+<!--                                                    <button @click="updateQuote(row,true)" class="text-xs underline text-green-500 font-bold">Save</button>-->
+<!--                                                    <button @click="hideInput()" class="text-xs underline">Cancel</button>-->
+<!--                                                </template>-->
+<!--                                            </div>-->
+<!--                                        </div>-->
 
-                                        <!-- formQuoteUpdate -->
-                                        <template v-else>
-                                            <button
-                                                v-if="row.formQuoteUpdate.supplier_quote_reference"
-                                                class="text-sm text-blue-500 underline italic"
-                                                @click="toggleShowInput(row,'supplier_quote_reference')"
-                                            >
-                                                {{ shared.cropText(row.formQuoteUpdate.supplier_quote_reference,8) }}
-                                            </button>
-                                            <button
-                                                v-else
-                                                class="text-xs text-blue-500 underline"
-                                                @click="toggleShowInput(row,'supplier_quote_reference')"
-                                            >
-                                                Add
-                                            </button>
-                                        </template>
-                                    </div>
-                                </div>
+<!--                                        &lt;!&ndash; formQuoteUpdate &ndash;&gt;-->
+<!--                                        <template v-else>-->
+<!--                                            <button-->
+<!--                                                v-if="row.formQuoteUpdate.supplier_quote_reference"-->
+<!--                                                class="text-sm text-blue-500 underline italic"-->
+<!--                                                @click="toggleShowInput(row,'supplier_quote_reference')"-->
+<!--                                            >-->
+<!--                                                {{ shared.cropText(row.formQuoteUpdate.supplier_quote_reference,8) }}-->
+<!--                                            </button>-->
+<!--                                            <button-->
+<!--                                                v-else-->
+<!--                                                class="text-xs text-blue-500 underline"-->
+<!--                                                @click="toggleShowInput(row,'supplier_quote_reference')"-->
+<!--                                            >-->
+<!--                                                Add-->
+<!--                                            </button>-->
+<!--                                        </template>-->
+<!--                                    </div>-->
+<!--                                </div>-->
                                 <!-- Sent order -->
                                 <div class="pt-1">
                                     <!-- formOrderUpdate -->
@@ -563,13 +562,13 @@
                                         />
                                     </template>
 
-                                    <button
-                                        v-if="row.info.order_sent && !showAddPurchaseOrder(row.info.supplier.id)"
-                                        @click="toggleShowInput(row,'add_purchase_order')"
-                                        class="text-xs underline text-blue-500"
-                                    >
-                                        {{row.formOrderUpdate.purchase_order_number ? 'Edit PO number' :'Add PO number'}}
-                                    </button>
+<!--                                    <button-->
+<!--                                        v-if="row.info.order_sent && !showAddPurchaseOrder(row.info.supplier.id)"-->
+<!--                                        @click="toggleShowInput(row,'add_purchase_order')"-->
+<!--                                        class="text-xs underline text-blue-500"-->
+<!--                                    >-->
+<!--                                        {{row.formOrderUpdate.purchase_order_number ? 'Edit PO number' :'Add PO number'}}-->
+<!--                                    </button>-->
 
                                     <div v-if="showAddPurchaseOrder(row.info.supplier.id)">
                                         <input

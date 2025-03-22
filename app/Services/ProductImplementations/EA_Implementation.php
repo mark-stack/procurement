@@ -5,6 +5,7 @@ namespace App\Services\ProductImplementations;
 use App\Enums\GradeEnums;
 use App\Enums\MaterialEnums;
 use App\Enums\MeasurementUnitEnums;
+use App\Enums\NestingEnums;
 use App\Enums\ProductEnums;
 use App\Enums\SupplierGroupEnums;
 
@@ -51,6 +52,7 @@ class EA_Implementation extends ProductBaseImplementation
             'defaultMaterial' => MaterialEnums::PLAIN_CARBON_STEEL,
             //"defaultGrade" => GradeEnums::NONE, //todo
             'supplierGroup' => SupplierGroupEnums::STEEL_MERCHANT, //todo
+            "algorithm" => NestingEnums::METERAGE,
         ];
     }
 

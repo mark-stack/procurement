@@ -5,6 +5,7 @@ namespace App\Services\ProductImplementations;
 use App\Enums\GradeEnums;
 use App\Enums\MaterialEnums;
 use App\Enums\MeasurementUnitEnums;
+use App\Enums\NestingEnums;
 use App\Enums\ProductEnums;
 use App\Enums\SupplierGroupEnums;
 
@@ -49,6 +50,7 @@ class LVL_Implementation extends ProductBaseImplementation
             'defaultMaterial' => MaterialEnums::TIMBER,
             //"defaultGrade" => GradeEnums::NONE, //todo
             'supplierGroup' => SupplierGroupEnums::TIMBER_MERCHANT,
+            "algorithm" => NestingEnums::METERAGE,
         ];
     }
 

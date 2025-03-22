@@ -42,8 +42,20 @@ class RawMaterialListCustomisationsController extends Controller
         if ($validation['validationErrors'] > 0) {
             throw new ValidationException($validation['validator']);
         } else {
-            //Delete the "promised to delete" items
-            RawMaterialQuote::query()->whereIn('id', $request->deletedIds)->delete();
+            /*
+             * Delete the "promised to delete" items
+             */
+            $deleteRawMaterialQuotes = RawMaterialQuote::query()->whereIn('id', $request->deletedIds)->get();
+            foreach($deleteRawMaterialQuotes as $rawMaterialQuote){
+                //Delete piece
+                $piece = $rawMaterialQuote->piece;
+                if($piece){
+                    $piece->delete();
+                }
+
+                //Delete RawMaterialQuote
+                $rawMaterialQuote->delete();
+            }
 
             $user = auth()->user();
 

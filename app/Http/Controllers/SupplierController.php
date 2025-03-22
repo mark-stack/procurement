@@ -29,7 +29,6 @@ class SupplierController extends Controller
         //Category, included products, user attached suppliers
         $byCategory = [];
         foreach ($categories as $categoryLabel => $includedProducts) {
-
             $suppliersWithThisCategory = [];
             foreach ($suppliers as $supplier) {
                 $supplierCategories = unserialize($supplier->supplier_categories);

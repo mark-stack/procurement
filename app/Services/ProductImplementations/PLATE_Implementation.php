@@ -5,6 +5,7 @@ namespace App\Services\ProductImplementations;
 use App\Enums\GradeEnums;
 use App\Enums\MaterialEnums;
 use App\Enums\MeasurementUnitEnums;
+use App\Enums\NestingEnums;
 use App\Enums\ProductEnums;
 use App\Enums\SupplierGroupEnums;
 
@@ -59,6 +60,7 @@ class PLATE_Implementation extends ProductBaseImplementation
             'defaultMaterial' => MaterialEnums::PLAIN_CARBON_STEEL,
             //"defaultGrade" => GradeEnums::NONE, //todo
             'supplierGroup' => SupplierGroupEnums::PROFILE_CUTTING,
+            "algorithm" => NestingEnums::AREA,
         ];
     }
 

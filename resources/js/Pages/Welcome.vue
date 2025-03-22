@@ -621,7 +621,7 @@
                 :lettersProjectArray="sampleNestingData.lettersProjectArray"
                 :usage="sampleNestingData.usage"
                 :piecesGroupedBySupplierGroup="sampleNestingData.piecesGroupedBySupplierGroup"
-                :currentBatch="Object.keys(sampleNestingData.piecesGroupedBySupplierGroup.assigned)[0]"
+                :currentSupplierGroup="Object.keys(sampleNestingData.piecesGroupedBySupplierGroup.assigned)[0]"
             />
         </div>
     </div>

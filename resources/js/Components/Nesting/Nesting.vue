@@ -1,6 +1,6 @@
 <script setup>
     //General Imports
-    //...
+    import {ref} from "vue";
 
     //Component Imports
     import ListPurchasables from "@/Components/ListPurchasables.vue";
@@ -16,7 +16,7 @@
         lettersProjectArray: Object,
         usage: Object,
         piecesGroupedBySupplierGroup: Object,
-        currentBatch: String,
+        currentSupplierGroup: String,
     });
 
     //Form
@@ -26,7 +26,7 @@
     //...
 
     //Variables
-    //...
+    const selectedSupplierGroup = ref(props.currentSupplierGroup);
 
     //Shared Methods
     //...
@@ -88,18 +88,17 @@
                 <!-- buttons to toggle supplier groups. e.g "steel merchant" -->
                 <div v-if="Object.keys(piecesGroupedBySupplierGroup.assigned).length > 1" class="flex gap-x-3">
                     <button
-                        v-for="(batchGroup,batchLabel) in piecesGroupedBySupplierGroup.assigned"
+                        v-for="(batchGroup,supplierGroupLabel) in piecesGroupedBySupplierGroup.assigned"
                         class="rounded px-2 py-1 text-green-900"
-                        :class="batchLabel === currentBatch ? 'bg-green-300 border-2 border-green-900' : 'bg-green-200'"
-                        @click="currentBatch = batchLabel"
+                        :class="supplierGroupLabel === selectedSupplierGroup ? 'bg-green-300 border-2 border-green-900' : 'bg-green-200'"
+                        @click="selectedSupplierGroup = supplierGroupLabel"
                     >
-                        <b>{{batchLabel}}</b> batch
+                        <b>{{supplierGroupLabel}}</b> batch
                     </button>
                 </div>
 
-
                 <template v-for="(batchGroup,batchLabel) in piecesGroupedBySupplierGroup.assigned">
-                    <div v-if="batchLabel === currentBatch" class="pt-5">
+                    <div v-if="batchLabel === selectedSupplierGroup" class="pt-5">
 
                         <div class="grid grid-cols-1 gap-5">
                             <div

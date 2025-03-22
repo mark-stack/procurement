@@ -17,9 +17,11 @@ return new class extends Migration
             $table->string('name')->nullable();
             $table->string('domain');
             $table->boolean('admin_setup_complete')->default(false);
-            $table->boolean('upgraded')->default(false);
             $table->integer("scrap_threshold_mm")->default(1000);
             $table->boolean("cap_12m_stock")->default(true);
+
+            $table->boolean('meterage_only')->default(true);
+            $table->boolean('allow_custom_products')->default(false);
         });
     }
 
