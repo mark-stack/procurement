@@ -32,8 +32,8 @@ class CsvService
             //Process data
             $this->processTemplate($detectedTables, $project);
 
-            //Return back without warnings
-            $return = back();
+            //Return back with project ID
+            $return =back()->with("project",$project);
         } else {
             $return = back()->with('warning', $errorMsg);
         }

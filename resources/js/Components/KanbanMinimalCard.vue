@@ -16,7 +16,7 @@
         projects: Object,
         kanbanColumn: String,
         usageStats: Object,
-        prerequisiteStartQuoting: Object,
+        prerequisiteStartQuoting: Boolean,
         batchInfo: Object,
     });
 

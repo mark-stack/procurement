@@ -39,17 +39,27 @@
     const showNewProjectModal = ref(false);
     const showBomEditModal = ref(false);
     const refreshModalBom = ref(false);
+    const refreshNewProject = ref(false);
     const bomData = ref([]);
     const pageLoading = ref(false);
     const usageData = ref(null);
     const modalCanUpload = ref(false);
     const underNavScreenHeight = window.innerHeight - 68;
     const kanbanHeight = underNavScreenHeight - 50;
+    const projectAfterUpload = ref(null);
 
 
     //Methods
     function sendRefreshModalBom(){
         refreshModalBom.value = !refreshModalBom.value; // Toggle refreshModalBom
+    }
+
+    function sendRefreshNewProject(project){
+        console.log("sendRefreshNewProject");
+        refreshNewProject.value = !refreshNewProject.value; // Toggle refreshNewProject
+
+        projectAfterUpload.value = project;
+        console.log("projectAfterUpload",projectAfterUpload.value);
     }
 
     function submitArchiveToggle(id){
@@ -152,7 +162,7 @@
         bomProject.value = project;
         modalCanUpload.value = canUpload;
 
-        downloadProjectBomData(bomProject.value.id);
+        downloadProjectBomData(bomProject.value,"BOM");
     }
 
     async function getUsageData(){
@@ -173,25 +183,44 @@
     }
     getUsageData();
 
-    async function downloadProjectBomData(projectId){
+    async function downloadProjectBomData(project,whichModal){
         /**
-            Axios
+            Axios request that returns:
+            - project
+            - itemsNotFound
+            - partialProductMatches
+            - requiring custom
+            - nesting
+            - quote and order statuses
          */
-        console.log("projectId",projectId);
+
         try {
-            const response = await axios.get(route("download.bom",projectId));
+            console.log("project",project);
+            const response = await axios.get(route("download.bom",project.id));
 
             if(response.data.downloadedBomData){
                 console.log("downloadedBomData",response.data.downloadedBomData);
 
                 //Delete if exists
-                bomData.value = Object.values(bomData.value).filter(item => item.project_id != projectId);
+                //bomData.value = Object.values(bomData.value).filter(item => item.project_id != projectId);
 
                 //Create
-                bomData.value.push(response.data.downloadedBomData);
+                //bomData.value.push(response.data.downloadedBomData);
+
+                bomData.value = response.data.downloadedBomData;
 
                 //Refresh modal BOM signal
-                sendRefreshModalBom();
+                console.log("whichModal",whichModal);
+                if(whichModal === 'BOM'){
+                    sendRefreshModalBom();
+                }
+                if(whichModal === 'NEW_PROJECT'){
+                    console.log("whichModal = NEW_PROJECT");
+                    sendRefreshNewProject(project);
+                }
+            }
+            else{
+                console.log("no downloadedBomData",response.data);
             }
         } catch (error) {
             console.error('Error fetching data:', error);
@@ -200,7 +229,12 @@
             pageLoading.value = false;
         } finally {
             //Show modal
-            showBomEditModal.value = true;
+            if(whichModal === 'BOM'){
+                showBomEditModal.value = true;
+            }
+            if(whichModal === 'NEW_PROJECT'){
+                showNewProjectModal.value = true;
+            }
 
             //Remove page loader
             pageLoading.value = false;
@@ -253,18 +287,6 @@
                                 class="pt-3 overflow-y-auto"
                                 :style="'height:'+kanbanHeight+'px'"
                             >
-                                <!-- new project -->
-                                <div class="">
-                                    <button
-                                        type="button"
-                                        @click="addProject()"
-                                        class="w-full text-center p-5 border-2 text-gray-600 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 border-gray-400 hover:border-gray-500 border-dashed rounded-lg font-semibold text-lg"
-                                    >
-                                        + Add new project
-                                    </button>
-                                </div>
-
-
                                 <!-- cards -->
                                 <template v-for="(project,index) in projects['NEW_PROJECTS'].data">
                                     <KanbanNeedsImportingCard
@@ -316,6 +338,17 @@
                                 class="pt-3 overflow-y-auto"
                                 :style="'height:'+kanbanHeight+'px'"
                             >
+                                <!-- new project -->
+                                <div class="mb-3">
+                                    <button
+                                        type="button"
+                                        @click="addProject()"
+                                        class="w-full text-center p-5 border-2 text-gray-600 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 border-gray-400 hover:border-gray-500 border-dashed rounded-lg font-semibold text-lg"
+                                    >
+                                        + Add new project
+                                    </button>
+                                </div>
+
                                 <!-- card -->
 <!--                                <KanbanReadyForNestingCard-->
 <!--                                    v-if="projects['READY_FOR_NESTING'].projects.data.length > 0"-->
@@ -345,9 +378,9 @@
                                     @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
                                     @addProject="addProject()"
                                 />
-                                <div v-else class="text-center text-sm text-gray-500 mx-auto" style="width:200px">
-                                    Projects move to here after adding materials
-                                </div>
+<!--                                <div v-else class="text-center text-sm text-gray-500 mx-auto" style="width:200px">-->
+<!--                                    Projects move to here after adding materials-->
+<!--                                </div>-->
                             </div>
                         </div>
                         <!-- Quoted -->
@@ -502,10 +535,14 @@
     <!-- Modals -->
     <NewProjectModal
         v-show="showNewProjectModal"
-        width="400"
+        width="500"
         :editProject="editProject"
-        @closeModal="showNewProjectModal = false"
-        @closeModalOnSuccess="showNewProjectModal = false"
+        :bomData="bomData"
+        :refreshNewProject="refreshNewProject"
+        :projectAfterUpload="projectAfterUpload"
+        @closeModal="showNewProjectModal = false; bomData = null;"
+        @closeModalOnSuccess="showNewProjectModal = false; "
+        @redownload="project => downloadProjectBomData(project,'NEW_PROJECT')"
     />
     <BomEditModal
         v-if="showBomEditModal"
@@ -516,7 +553,7 @@
         :modalCanUpload="modalCanUpload"
         @closeModal="showBomEditModal = false"
         @closeModalOnSuccess="showBomEditModal = false"
-        @redownload="projectId => downloadProjectBomData(projectId)"
+        @redownload="project => downloadProjectBomData(project,'BOM')"
     />
 </template>
 

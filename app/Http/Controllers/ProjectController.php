@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Formatters\NestingFormatter;
 use App\Formatters\QuoteFormatter;
 use App\Http\Resources\ProjectResource;
+use App\Imports\ExcelImport;
 use App\Models\Offcut;
 use App\Models\Project;
 use App\PrerequisiteConditions\PrerequisiteConditions;
+use App\Services\CsvService;
 use Illuminate\Support\Facades\Gate;
 use App\Services\BatchService;
 use App\Services\OrderService;
@@ -17,6 +19,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ProjectController extends Controller
 {
@@ -38,15 +41,21 @@ class ProjectController extends Controller
         $projects = [
             //Kanban column 1
             'NEW_PROJECTS' => ProjectResource::collection(Project::query()
+                //Clarifications required OR no rawMaterialQuotes
+                ->where(function($q) use($business){
+                     $q->whereIn("id",$business->projectsRequiringClarification()->pluck("id")->toArray())
+                       ->orWhere(function($qq){
+                           $qq->doesntHave('rawMaterialQuotes');
+                       });
+                })
                 ->thisBusiness($business)
                 ->where("archive",false)
-                ->doesntHave('rawMaterialQuotes')
                 ->sortByUserAndLatest()
                 ->get()),
             //Kanban column 2
             'READY_FOR_NESTING' => [
                 'projects' => ProjectResource::collection($business
-                    ->projectsReadyForBatching($piecesReadyForBatching)
+                    ->projectsReadyForBatching($piecesReadyForBatching,$business)
                     ->sortBy('created_at')),
             ],
         ];
@@ -231,7 +240,7 @@ class ProjectController extends Controller
          * Prerequisite Gates
          */
         $piecesReadyForBatching = (new NestingFormatter)->piecesReadyForBatching($business);
-        $projectsReadyForBatching = $business->projectsReadyForBatching($piecesReadyForBatching); //Note get this before updating pieces because it gets modified
+        $projectsReadyForBatching = $business->projectsReadyForBatching($piecesReadyForBatching,$business); //Note get this before updating pieces because it gets modified
         $prerequisiteStartQuoting = (new PrerequisiteConditions())->startQuoting(
             $user,
             $projectsReadyForBatching,
@@ -260,7 +269,11 @@ class ProjectController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        $business = auth()->user()->business;
+        /*
+         * Validation
+         */
+        $user = auth()->user();
+        $business = $user->business;
         $allCurrentProjectNames = $business->currentProjects()
             ->pluck("name")
             ->toArray();
@@ -274,21 +287,60 @@ class ProjectController extends Controller
             'reference' => 'nullable',
             'date_materials_required' => 'nullable|date|after:today',
             'tentative' => 'required',
+            'excel' => 'required|array',
         ],
         //Rules
         [
             'name.not_in' => 'Pick a name different to currently active projects', // Custom error message
         ]);
 
-        Project::create([
-            'user_id' => auth()->user()->id,
+        /*
+         * Create project
+         */
+        $project = Project::create([
+            'user_id' => $user->id,
             'name' => $validated['name'],
             'reference' => $validated['reference'],
             'date_materials_required' => $validated['date_materials_required'],
             'tentative' => $validated['tentative'],
         ]);
 
-        return back();
+        /*
+         * Process Excel
+         */
+        //Services
+        $csvService = new CsvService;
+
+        //Store the uploaded file temporarily
+        $files = $request->file('excel');
+
+        $return = back();
+
+        foreach($files as $file){
+            $path = $file->store('uploads');
+
+            //Read the CSV
+            $csvArray = Excel::toArray(new ExcelImport, $file)[0];
+
+            //Process the CSV
+            $errorMsg = "The file didn't auto-detect properly. Did the template change? Please email the file to mark.laravel.coder@gmail to have it re-calibrated quickly.";
+
+            //Users to get nice error message, admin to throw error.
+            if ($user->isAdmin()) {
+                $return = $csvService->processCsv($csvArray, $project, $errorMsg);
+            } else {
+                try {
+                    $return = $csvService->processCsv($csvArray, $project, $errorMsg);
+                } catch (\Exception $e) {
+                    $return = back()->with('warning', $errorMsg);
+                }
+            }
+
+            // Delete the file after processing
+            unlink(storage_path("app/private/{$path}"));
+        }
+
+        return $return;
     }
 
     /**

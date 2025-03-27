@@ -45,6 +45,7 @@ class HandleInertiaRequests extends Middleware
             'hasSeedImport' => Product::count() > 0,
             'flash' => [
                 'warning' => fn () => $request->session()->get('warning'),
+                "project" => fn () => $request->session()->get('project'),
             ],
             'adminEmail' => config('env.admin_email'),
         ];

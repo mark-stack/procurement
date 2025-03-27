@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\SupplierGroupEnums;
+use App\Services\ProductService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -51,12 +52,7 @@ class Business extends Model
     }
 
     //Local scopes
-    public function projectsReadyForBatching(Collection $piecesReadyForBatching): Collection
-    {
-        return Project::query()
-            ->whereIn("id",$piecesReadyForBatching->pluck("project_id")->toArray())
-            ->get();
-    }
+
 
     //Boolean
     public function supplierGroupIsCurrentPlan($supplierGroup): bool
@@ -79,6 +75,52 @@ class Business extends Model
     }
 
     //Collection
+    public function projectsReadyForBatching(Collection $piecesReadyForBatching): Collection
+    {
+        $requiringClarification = $this->projectsRequiringClarification()->pluck("id")->toArray();
+
+        return Project::query()
+            ->has("rawMaterialQuotes")
+            ->whereNotIn("id",$requiringClarification)
+            ->whereIn("id",$piecesReadyForBatching->pluck("project_id")->toArray())
+            ->get();
+    }
+
+    public function projectsRequiringClarification(): Collection
+    {
+        $projectsRequiringClarification = [];
+
+        //Services
+        $productService = new ProductService();
+
+        foreach($this->projects as $project){
+            $partialProductMatches = [];
+            foreach ($project->rawMaterialQuotes as $rawMaterialQuote) {
+                $getProductMatchOptions = $productService->getProductMatchOptions($this, $rawMaterialQuote);
+
+                if ($getProductMatchOptions) {
+                    /*
+                     * Price book partial match (requires confirmation)
+                     */
+                    if ($getProductMatchOptions['status'] === 'PARTIAL') {
+                        $partialProductMatches[] = [
+                            'selected' => null,
+                            'data' => $rawMaterialQuote,
+                            'options' => $getProductMatchOptions['decodedOptions'],
+                            'custom' => $getProductMatchOptions['custom'],
+                        ];
+                    }
+                }
+            }
+
+            if (count($partialProductMatches) > 0) {
+                $projectsRequiringClarification[] = $project;
+            }
+        }
+
+        return collect($projectsRequiringClarification);
+    }
+
     public function currentProjects(): Collection
     {
         /**

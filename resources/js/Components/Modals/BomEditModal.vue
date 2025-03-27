@@ -139,7 +139,6 @@
             ? (thisDownloadedBomData(props.bomData).materialListRows.length > 0)
             : false;
     }
-    console.log("hasMaterialList",hasMaterialList());
 
     function submitCustomisations(){
         let url = route("raw.material.quote.customisations",business.id);
@@ -190,7 +189,7 @@
     function reloadAndDownloadModal(){
         freezeView.value = true;
 
-        emit("redownload",props.project.id);
+        emit("redownload",props.project);
     }
 
     function isNumeric(value) {
