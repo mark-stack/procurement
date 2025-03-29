@@ -195,7 +195,7 @@
          */
 
         try {
-            console.log("project",project);
+            console.log("project. Start delay",project);
             const response = await axios.get(route("download.bom",project.id));
 
             if(response.data.downloadedBomData){
@@ -258,10 +258,17 @@
     watch(batches, (newVal) => {
         getUsageData();
     });
+
+    const { projects } = toRefs(props);
+    watch(projects, (newVal) => {
+        //Remove page loader
+        pageLoading.value = false;
+    });
+
 </script>
 
 <template>
-    <Head title="Steel Minima" />
+    <Head title="Steel Nesting" />
 
     <AuthenticatedLayout>
         <PageLoadingOverlay

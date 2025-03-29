@@ -28,7 +28,7 @@
     //...
 
     //Variables
-    const emit = defineEmits(['toggleArchive','editMode','pageLoadingOn','pageLoadingOff','showBom','showNesting','addProject']);
+    const emit = defineEmits(['toggleArchive','editMode','pageLoadingOn','pageLoadingOff','showBom','showNesting','addProject','quoteNow']);
     const user = computed(() => usePage().props.auth.user);
     const loadingButton = ref(null);
     const expandProject = ref(null);
@@ -103,7 +103,7 @@
             class="w-full border-gray-200 rounded-lg border-[1px] p-2 bg-gray-50 mb-2 mt-2"
         >
             <h4 class="col-span-4 text-base font-medium">
-                {{ shared.cropText(shared.capitalizeWords(project.name),24) }}
+                {{ shared.cropText(shared.capitalizeWords(project.name),30) }}
             </h4>
 
             <div class="flex gap-x-1 w-full mt-3 text-xs font-medium text-gray-900">
@@ -209,10 +209,10 @@
                 />
             </Link>
 
-            <!-- re-nest -->
+            <!-- re-nest $emit('pageLoadingOn',3);  -->
             <CardButtonRed
                 v-if="batchInfo?.prerequisiteUndoStartQuoting"
-                @click="$emit('pageLoadingOn',3); breakBatch()"
+                @click="$emit('pageLoadingOn',null); breakBatch()"
                 label="Re-nest"
                 class="w-full mt-2"
                 :fullWidth="true"

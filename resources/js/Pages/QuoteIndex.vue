@@ -37,6 +37,7 @@
     <AuthenticatedLayout>
         <Modal :fakeModal="true" :redirect="redirect">
             <Nesting
+                :width="width"
                 :projectsReadyForBatching="projectsReadyForBatching"
                 :lettersProjectArray="lettersProjectArray"
                 :usage="usage"

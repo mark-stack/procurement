@@ -126,15 +126,15 @@
             <input
                 v-model="formCalculator.annualSpendMillions"
                 type="range"
-                min="1"
-                max="8"
-                step="0.5"
+                min="0.5"
+                max="6"
+                step="0.1"
                 class="w-full max-w-sm appearance-none bg-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
 
             <!-- Value Display -->
             <div class="mt-2 text-gray-800 font-semibold">
-                Steel Sections Spend: ${{formCalculator.annualSpendMillions}}m/year
+                Steel sections spend: ${{formCalculator.annualSpendMillions}}m/year
             </div>
         </div>
 
@@ -152,7 +152,7 @@
 
             <!-- Value Display -->
             <div class="mt-2 text-gray-800 font-semibold">
-                Steel Yield increase: {{formCalculator.wastePct}}%
+                Steel efficiency increase: {{formCalculator.wastePct}}%
             </div>
         </div>
 

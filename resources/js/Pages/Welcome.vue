@@ -26,10 +26,10 @@
     //Variables
     const trial_months = 3;
     const savings_period_years = 3;
-    const fullPriceMultiYear = 6000;
+    const fullPriceMultiYear = 10000;
     const fullPriceAnnual = 4000;
     const fullPriceMonthly = 300;
-    const fullPriceWeekly = 29;
+    const fullPriceWeekly = 49;
     const firstYearDiscount = 0;
     const whichPlan = "MULTI_YEAR"; //"MONTHLY","ANNUAL", "WEEKLY", "MULTI_YEAR"
 
@@ -81,7 +81,7 @@
 </script>
 
 <template>
-    <Head title="Steel Minima" />
+    <Head title="Steel Nesting" />
 
     <!-- Nav -->
     <LandingNav/>
@@ -90,33 +90,26 @@
     <div class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">
         <div class="flex flex-col items-center justify-between lg:flex-row">
             <div class="mb-10 lg:max-w-lg lg:pr-5 lg:mb-0">
-                <div class="max-w-xl mb-6">
-                    <div>
-                        <p class="inline-block px-3 py-px mb-4 text-xs font-semibold tracking-wider text-teal-900 uppercase rounded-full bg-teal-accent-400">
-                            New in 2025
-                        </p>
-                    </div>
-                    <h2 class="max-w-lg mb-6 font-sans text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl sm:leading-none">
-                        Reaching <u>maximum</u> steel nesting efficiency could save you
+                <div class="max-w-xl mb-16">
+<!--                    <div>-->
+<!--                        <p class="inline-block px-3 py-px mb-4 text-xs font-semibold tracking-wider text-teal-900 uppercase rounded-full bg-teal-accent-400">-->
+<!--                            New in 2025-->
+<!--                        </p>-->
+<!--                    </div>-->
+                    <h2 class="max-w-lg mb-6 font-sans text-5xl font-bold tracking-tight text-gray-900 sm:leading-none">
+                        Maximum steel nesting efficiency could save you
                         <span v-if="savings_period_years === 1" class="inline-block text-deep-purple-accent-400">${{beforeFees()}} annually</span>
                         <span v-else class="inline-block text-orange-900">${{beforeFees()}} in <u>waste</u></span>
                     </h2>
-                    <p class="text-base text-gray-700 md:text-lg">
-                        <b>Centralised procurement is the key to:</b>
-                        <br>
-                        - <span class="font-semibold text-deep-purple-accent-400">Higher yield</span> from cross-project nesting.
+<!--                    <p class="text-base text-gray-700 md:text-lg">-->
+<!--                        <b>How to reach maximum efficiency?</b>-->
 <!--                        <br>-->
-<!--                        - <span class="font-semibold text-deep-purple-accent-400">More bulk discounts</span> via cross-project batched orders.-->
+<!--                        - Cross-project nesting.-->
 <!--                        <br>-->
-<!--                        - <span class="font-semibold text-deep-purple-accent-400">More supplier discounts</span> aligned to your material lists.-->
-                        <br>
-                        - <span class="font-semibold text-deep-purple-accent-400">Higher yield</span> from reusing tracked offcuts.
-                        <br>
-                        - <span class="font-semibold text-deep-purple-accent-400">Less delivery fees</span> from cross-project batched orders.
-
+<!--                        - Optimised offcut placement.-->
 <!--                        <br>-->
-<!--                        - <span class="font-semibold text-deep-purple-accent-400">Less ordering errors</span> from automated material list checks.-->
-                    </p>
+<!--                        - Algorithm that finds best of 1000 iterations.-->
+<!--                    </p>-->
                 </div>
                 <div class="flex flex-col items-center md:flex-row">
                     <Link
@@ -222,7 +215,7 @@
                     <div class="flex flex-col justify-between flex-grow">
                         <div>
                             <h6 class="mb-2 font-bold leading-5 text-2xl">
-                                Simple tracked offcuts
+                                Optimised offcut placement
                             </h6>
                             <p class="mb-2 text-base text-gray-900">
                                 The system knows all the available offcuts without complex inventory management or stocktaking.
@@ -257,63 +250,63 @@
 
     </div>
 
-    <div class="px-4 py-16 mx-auto max-w-5xl md:px-24 lg:px-8 lg:py-20">
-        <div class="mb-10 md:mx-auto sm:text-center md:mb-12">
-            <h2 class="mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">
-                Other savers
-            </h2>
-        </div>
-        <div class="grid grid-cols-2 gap-5 row-gap-6 mb-10 sm:grid-cols-3 lg:grid-cols-6">
-            <div class="text-center">
-                <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-50 sm:w-24 sm:h-24">
-                    <svg class="w-12 h-12 text-deep-purple-accent-400 sm:w-16 sm:h-16" stroke="currentColor" viewBox="0 0 52 52">
-                        <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
-                    </svg>
-                </div>
-                <h6 class="mb-2 font-semibold leading-5">Less deliveries</h6>
-            </div>
-            <div class="text-center">
-                <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-50 sm:w-24 sm:h-24">
-                    <svg class="w-12 h-12 text-deep-purple-accent-400 sm:w-16 sm:h-16" stroke="currentColor" viewBox="0 0 52 52">
-                        <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
-                    </svg>
-                </div>
-                <h6 class="mb-2 font-semibold leading-5">Auto nesting</h6>
-            </div>
-            <div class="text-center">
-                <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-50 sm:w-24 sm:h-24">
-                    <svg class="w-12 h-12 text-deep-purple-accent-400 sm:w-16 sm:h-16" stroke="currentColor" viewBox="0 0 52 52">
-                        <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
-                    </svg>
-                </div>
-                <h6 class="mb-2 font-semibold leading-5">Less cutting setup</h6>
-            </div>
-            <div class="text-center">
-                <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-50 sm:w-24 sm:h-24">
-                    <svg class="w-12 h-12 text-deep-purple-accent-400 sm:w-16 sm:h-16" stroke="currentColor" viewBox="0 0 52 52">
-                        <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
-                    </svg>
-                </div>
-                <h6 class="mb-2 font-semibold leading-5">Less procurement labour</h6>
-            </div>
-            <div class="text-center">
-                <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-50 sm:w-24 sm:h-24">
-                    <svg class="w-12 h-12 text-deep-purple-accent-400 sm:w-16 sm:h-16" stroke="currentColor" viewBox="0 0 52 52">
-                        <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
-                    </svg>
-                </div>
-                <h6 class="mb-2 font-semibold leading-5">xxx</h6>
-            </div>
-            <div class="text-center">
-                <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-50 sm:w-24 sm:h-24">
-                    <svg class="w-12 h-12 text-deep-purple-accent-400 sm:w-16 sm:h-16" stroke="currentColor" viewBox="0 0 52 52">
-                        <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
-                    </svg>
-                </div>
-                <h6 class="mb-2 font-semibold leading-5">xxx</h6>
-            </div>
-        </div>
-    </div>
+<!--    <div class="px-4 py-16 mx-auto max-w-5xl md:px-24 lg:px-8 lg:py-20">-->
+<!--        <div class="mb-10 md:mx-auto sm:text-center md:mb-12">-->
+<!--            <h2 class="mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">-->
+<!--                Other savers-->
+<!--            </h2>-->
+<!--        </div>-->
+<!--        <div class="grid grid-cols-2 gap-5 row-gap-6 mb-10 sm:grid-cols-3 lg:grid-cols-6">-->
+<!--            <div class="text-center">-->
+<!--                <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-50 sm:w-24 sm:h-24">-->
+<!--                    <svg class="w-12 h-12 text-deep-purple-accent-400 sm:w-16 sm:h-16" stroke="currentColor" viewBox="0 0 52 52">-->
+<!--                        <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>-->
+<!--                    </svg>-->
+<!--                </div>-->
+<!--                <h6 class="mb-2 font-semibold leading-5">Less deliveries</h6>-->
+<!--            </div>-->
+<!--            <div class="text-center">-->
+<!--                <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-50 sm:w-24 sm:h-24">-->
+<!--                    <svg class="w-12 h-12 text-deep-purple-accent-400 sm:w-16 sm:h-16" stroke="currentColor" viewBox="0 0 52 52">-->
+<!--                        <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>-->
+<!--                    </svg>-->
+<!--                </div>-->
+<!--                <h6 class="mb-2 font-semibold leading-5">Auto nesting</h6>-->
+<!--            </div>-->
+<!--            <div class="text-center">-->
+<!--                <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-50 sm:w-24 sm:h-24">-->
+<!--                    <svg class="w-12 h-12 text-deep-purple-accent-400 sm:w-16 sm:h-16" stroke="currentColor" viewBox="0 0 52 52">-->
+<!--                        <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>-->
+<!--                    </svg>-->
+<!--                </div>-->
+<!--                <h6 class="mb-2 font-semibold leading-5">Less cutting setup</h6>-->
+<!--            </div>-->
+<!--            <div class="text-center">-->
+<!--                <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-50 sm:w-24 sm:h-24">-->
+<!--                    <svg class="w-12 h-12 text-deep-purple-accent-400 sm:w-16 sm:h-16" stroke="currentColor" viewBox="0 0 52 52">-->
+<!--                        <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>-->
+<!--                    </svg>-->
+<!--                </div>-->
+<!--                <h6 class="mb-2 font-semibold leading-5">Less procurement labour</h6>-->
+<!--            </div>-->
+<!--            <div class="text-center">-->
+<!--                <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-50 sm:w-24 sm:h-24">-->
+<!--                    <svg class="w-12 h-12 text-deep-purple-accent-400 sm:w-16 sm:h-16" stroke="currentColor" viewBox="0 0 52 52">-->
+<!--                        <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>-->
+<!--                    </svg>-->
+<!--                </div>-->
+<!--                <h6 class="mb-2 font-semibold leading-5">xxx</h6>-->
+<!--            </div>-->
+<!--            <div class="text-center">-->
+<!--                <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-50 sm:w-24 sm:h-24">-->
+<!--                    <svg class="w-12 h-12 text-deep-purple-accent-400 sm:w-16 sm:h-16" stroke="currentColor" viewBox="0 0 52 52">-->
+<!--                        <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>-->
+<!--                    </svg>-->
+<!--                </div>-->
+<!--                <h6 class="mb-2 font-semibold leading-5">xxx</h6>-->
+<!--            </div>-->
+<!--        </div>-->
+<!--    </div>-->
 
 
 
@@ -484,7 +477,7 @@
                                 <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
                             </svg>
                         </p>
-                        Import materials from any quote template
+                        Import materials from your BOM spreadsheet
                     </li>
                     <li class="flex items-start">
                         <p class="mr-1">
@@ -536,14 +529,14 @@
                         </p>
                         Auto group materials together based on your suppliers for easier RFQ preparation.
                     </li>
-                    <li class="flex items-start">
-                        <p class="mr-1">
-                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">
-                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
-                            </svg>
-                        </p>
-                        Reminders for managing RFQs based on project deadlines
-                    </li>
+<!--                    <li class="flex items-start">-->
+<!--                        <p class="mr-1">-->
+<!--                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">-->
+<!--                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>-->
+<!--                            </svg>-->
+<!--                        </p>-->
+<!--                        Reminders for managing RFQs based on project deadlines-->
+<!--                    </li>-->
                 </ul>
                 <div class="top-0 right-0 flex items-center justify-center h-24 lg:-mr-8 lg:absolute">
                     <svg class="w-8 text-gray-700 transform rotate-90 lg:rotate-0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
@@ -586,14 +579,14 @@
                         </p>
                         Multiple Purchase order numbers handled
                     </li>
-                    <li class="flex items-start">
-                        <p class="mr-1">
-                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">
-                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
-                            </svg>
-                        </p>
-                        Reminders for managing orders based on project deadlines. No expensive expedited orders because something was forgotten.
-                    </li>
+<!--                    <li class="flex items-start">-->
+<!--                        <p class="mr-1">-->
+<!--                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">-->
+<!--                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>-->
+<!--                            </svg>-->
+<!--                        </p>-->
+<!--                        Reminders for managing orders based on project deadlines. No expensive expedited orders because something was forgotten.-->
+<!--                    </li>-->
                 </ul>
             </div>
         </div>
@@ -623,6 +616,7 @@
                 </div>
             </div>
             <Nesting
+                :width="900"
                 :projectsReadyForBatching="sampleNestingData.projectsReadyForBatching"
                 :lettersProjectArray="sampleNestingData.lettersProjectArray"
                 :usage="sampleNestingData.usage"

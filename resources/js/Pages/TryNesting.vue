@@ -29,7 +29,7 @@
 </script>
 
 <template>
-    <Head title="Steel Minima" />
+    <Head title="Steel Nesting" />
 
     <!-- Nav -->
     <LandingNav/>
@@ -60,6 +60,7 @@
                 </div>
             </div>
             <Nesting
+                :width="900"
                 :projectsReadyForBatching="sampleNestingData.projectsReadyForBatching"
                 :lettersProjectArray="sampleNestingData.lettersProjectArray"
                 :usage="sampleNestingData.usage"

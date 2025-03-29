@@ -37,6 +37,7 @@
 
     //Methods
     function breakBatch(){
+        console.log("break");
         let url = route("batches.destroy",props.info.batch.id);
         formBreakBatch.delete(url, {
             preserveScroll: true,

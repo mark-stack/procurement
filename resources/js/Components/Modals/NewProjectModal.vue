@@ -39,6 +39,7 @@
     const showClarifications = ref(hasClarifications());
     const showUserCustomProducts = ref(hasUserCustomProducts());
     const business = usePage().props.auth.business;
+    const freezeView = ref(false);
 
 
     //Shared Methods
@@ -77,6 +78,7 @@
                     formProjectCreate.reset();
 
                     //Close modal
+                    freezeView.value = false;
                     emit('closeModalOnSuccess');
                 },
                 onError: errors => {
@@ -90,14 +92,15 @@
          This will create the project, extract BOM, then return Project model.
          */
         else{
+            //Freeze
+            freezeView.value = true;
+
             let url = route("projects.store");
+
             formProjectCreate.post(url, {
                 preserveScroll: true,
                 onSuccess: () => {
                     formProjectCreate.reset();
-
-                    //Close modal
-                    //emit('closeModalOnSuccess');
 
                     //Download BOM data
                     reloadAndDownloadModal(projectFlashed.value);
@@ -165,7 +168,7 @@
          * Download BOM data like partialProductMatches, nesting, quotes, etc
          */
 
-        //freezeView.value = true;
+        freezeView.value = true;
 
         console.log("project flashed",projectFlashed);
 
@@ -177,6 +180,9 @@
     }
 
     function submitClarifications(){
+        //Freeze
+        freezeView.value = true;
+
         let url = route("raw.material.quote.clarifications",business.id);
         formClarifications.post(url, {
             preserveScroll: true,
@@ -195,8 +201,6 @@
     }
 
     function isEdit(){
-        console.log("editProject",editProject.value);
-        console.log("hasClarifications",hasClarifications());
         return editProject.value && !hasClarifications();
     }
 
@@ -253,7 +257,11 @@
             formClarifications = useForm(Object.assign({}, partialProductMatches, {deletedIds:[]}));
             if(partialProductMatches.length === 0){
                //Close if no clarifications
+               freezeView.value = false;
                emit("closeModalOnSuccess")
+            }
+            else{
+                freezeView.value = false;
             }
 
             /*
@@ -261,7 +269,9 @@
              */
             let requiresCustom = thisDownloadedBomData(props.bomData).requiresCustom;
             formCustomisations = useForm(Object.assign({}, requiresCustom, {deletedIds:[]}));
-            console.log("custom qty",formCustomisations.length);
+            if(formCustomisations > 0){
+                freezeView.value = false;
+            }
         }
     });
 </script>
@@ -271,10 +281,19 @@
         <div :style="'width:'+width+'px'">
 
             <div class="dark:bg-gray-900 rounded-xl">
+                <!-- Loading -->
+                <div
+                    v-if="freezeView"
+                    class="flex items-center justify-center text-center italic text-lg"
+                    style="height:300px"
+                >
+                    Loading: Take a 10 second meditation
+                </div>
 
                 <!-- Add project -->
                 <div
-                    v-if="isAdd()"
+                    v-else-if="isAdd()"
+                    style="height:300px"
                     class="px-6 pt-4 pb-4 mx-auto text-center"
                 >
                     <h1 class="text-3xl font-semibold text-gray-800 dark:text-gray-100">
@@ -293,7 +312,7 @@
                                         class="w-full px-4 py-2 text-gray-700 bg-white border rounded-md dark:bg-gray-900 dark:text-gray-300 dark:border-gray-600 focus:border-blue-400 dark:focus:border-blue-300 focus:outline-none focus:ring focus:ring-blue-300 focus:ring-opacity-40"
                                         placeholder="Name"
                                         required
-                                        :disabled="formProjectCreate.processing"
+                                        :disabled="formProjectCreate.processing || freezeView"
                                     >
                                     <div v-if="formProjectCreate.errors.name" class="text-sm text-red-500">{{ formProjectCreate.errors.name }}</div>
                                 </div>
@@ -323,7 +342,7 @@
                                 <!--                                    <div v-if="formProjectCreate.errors.date_materials_required" class="text-sm text-red-500">{{ formProjectCreate.errors.date_materials_required }}</div>-->
                                 <!--                                </div>-->
 
-                                <!-- Name -->
+                                <!-- BOM upload -->
                                 <div>
                                     <label class="text-gray-700 dark:text-gray-200 ml-1">Upload 1 or more BOM Excel files</label>
                                     <br>
@@ -342,7 +361,7 @@
                                             <p
                                                 class="text-right"
                                                 @click="removeFile(file.name)"
-                                                :style="formProjectCreate.processing ? 'pointer-events: none;' : ''"
+                                                :style="(formProjectCreate.processing || freezeView) ? 'pointer-events: none;' : ''"
                                             >
                                                 <i class="fa-solid fa-xmark text-red-500"></i>
                                             </p>
@@ -357,7 +376,7 @@
                                             accept=".xls,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                                             @input="addFiles($event.target.files)"
                                             style="cursor: pointer;"
-                                            :disabled="formProjectCreate.processing"
+                                            :disabled="formProjectCreate.processing || freezeView"
                                         />
                                     </label>
                                     <div
@@ -371,12 +390,12 @@
                                 <div>
                                     <button
                                         type="submit"
-                                        :disabled="formProjectCreate.processing"
+                                        :disabled="formProjectCreate.processing || freezeView"
                                         style="height:40px"
                                         class="w-full px-4 py-2 text-sm font-medium tracking-wide text-white capitalize transition-colors duration-300 transform bg-blue-700 rounded-md hover:bg-blue-600 focus:outline-none focus:bg-blue-600"
                                     >
-                                        <span v-if="editProject">Updat{{formProjectCreate.processing ? 'ing...' : 'e'}}</span>
-                                        <span v-else>{{formProjectCreate.processing ? 'Extracting...' : 'Extract materials'}}</span>
+                                        <span v-if="editProject">Updat{{(formProjectCreate.processing || freezeView) ? 'ing...' : 'e'}}</span>
+                                        <span v-else>{{(formProjectCreate.processing || freezeView) ? 'Extracting...' : 'Extract materials'}}</span>
                                     </button>
                                 </div>
                             </div>
@@ -387,6 +406,7 @@
                 <!-- Edit project -->
                 <div
                     v-else-if="isEdit()"
+                    style="height:300px"
                     class="px-6 pt-4 pb-4 mx-auto text-center"
                 >
                     <h1 class="text-3xl font-semibold text-gray-800 dark:text-gray-100">
@@ -409,84 +429,16 @@
                                     <div v-if="formProjectCreate.errors.name" class="text-sm text-red-500">{{ formProjectCreate.errors.name }}</div>
                                 </div>
 
-                                <!-- Project reference -->
-                                <!--                                <div>-->
-                                <!--                                    <label class="text-gray-700 dark:text-gray-200 ml-1">Project reference</label>-->
-                                <!--                                    <input-->
-                                <!--                                        v-model="formProjectCreate.reference"-->
-                                <!--                                        type="text"-->
-                                <!--                                        class="w-full px-4 py-2 text-gray-700 bg-white border rounded-md dark:bg-gray-900 dark:text-gray-300 dark:border-gray-600 focus:border-blue-400 dark:focus:border-blue-300 focus:outline-none focus:ring focus:ring-blue-300 focus:ring-opacity-40"-->
-                                <!--                                        placeholder="Reference ID"-->
-                                <!--                                        required-->
-                                <!--                                    >-->
-                                <!--                                    <div v-if="formProjectCreate.errors.reference" class="text-sm text-red-500">{{ formProjectCreate.errors.reference }}</div>-->
-                                <!--                                </div>-->
-
-                                <!-- Date materials required -->
-                                <!--                                <div>-->
-                                <!--                                    <label class="text-gray-700 dark:text-gray-200 ml-1">Materials required by</label>-->
-                                <!--                                    <input-->
-                                <!--                                        v-model="formProjectCreate.date_materials_required"-->
-                                <!--                                        type="date"-->
-                                <!--                                        class="w-full px-4 py-2 text-gray-700 bg-white border rounded-md dark:bg-gray-900 dark:text-gray-300 dark:border-gray-600 focus:border-blue-400 dark:focus:border-blue-300 focus:outline-none focus:ring focus:ring-blue-300 focus:ring-opacity-40"-->
-                                <!--                                        required-->
-                                <!--                                    >-->
-                                <!--                                    <div v-if="formProjectCreate.errors.date_materials_required" class="text-sm text-red-500">{{ formProjectCreate.errors.date_materials_required }}</div>-->
-                                <!--                                </div>-->
-
-                                <!-- Name -->
-                                <div>
-                                    <label class="text-gray-700 dark:text-gray-200 ml-1">Upload 1 or more BOM Excel files</label>
-                                    <br>
-                                    <div
-                                        v-if="formProjectCreate.excel.length > 0"
-                                        class="pl-1 pt-3 pb-3 font-semibold"
-                                    >
-                                        <div
-                                            v-for="(file,index) in formProjectCreate.excel"
-                                            class="grid grid-cols-5"
-                                            :key="index"
-                                        >
-                                            <p class="col-span-4">
-                                                {{file.name}}
-                                            </p>
-                                            <p
-                                                class="text-right"
-                                                @click="removeFile(file.name)"
-                                                :style="formProjectCreate.processing ? 'pointer-events: none;' : ''"
-                                            >
-                                                <i class="fa-solid fa-xmark text-red-500"></i>
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <label class="text-blue-700 font-semibold hover:text-blue-900">
-                                        + upload BOM
-                                        <input
-                                            type="file"
-                                            class="hidden"
-                                            multiple
-                                            accept=".xls,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                                            @input="addFiles($event.target.files)"
-                                            style="cursor: pointer;"
-                                        />
-                                    </label>
-                                    <div
-                                        v-if="formProjectCreate.errors.excel"
-                                        class="text-sm text-red-500 mt-2"
-                                    >
-                                        {{ formProjectCreate.errors.excel }}
-                                    </div>
-                                </div>
                                 <!-- submit button -->
                                 <div>
                                     <button
                                         type="submit"
-                                        :disabled="formProjectCreate.processing"
+                                        :disabled="(formProjectCreate.processing || freezeView)"
                                         style="height:40px"
                                         class="w-full px-4 py-2 text-sm font-medium tracking-wide text-white capitalize transition-colors duration-300 transform bg-blue-700 rounded-md hover:bg-blue-600 focus:outline-none focus:bg-blue-600"
                                     >
-                                        <span v-if="editProject">Updat{{formProjectCreate.processing ? 'ing...' : 'e'}}</span>
-                                        <span v-else>{{formProjectCreate.processing ? 'Adding...' : 'Add Project'}}</span>
+                                        <span v-if="editProject">Updat{{(formProjectCreate.processing || freezeView) ? 'ing...' : 'e'}}</span>
+                                        <span v-else>{{(formProjectCreate.processing || freezeView)? 'Adding...' : 'Add Project'}}</span>
                                     </button>
                                 </div>
                             </div>
@@ -498,7 +450,7 @@
 
                 <!-- Clarifications  -->
                 <section
-                    v-if="isClarify()"
+                    v-else-if="isClarify()"
                     style="height:300px"
                     class="pl-5 overflow-y-auto"
                 >
@@ -538,9 +490,9 @@
                             <button
                                 type="submit"
                                 class="bg-blue-500 rounded px-4 py-2 text-white"
-                                :disabled="formClarifications.processing"
+                                :disabled="(formProjectCreate.processing || freezeView)"
                             >
-                                {{formClarifications.processing ? 'Saving..' : 'Save clarifications'}}
+                                {{(formProjectCreate.processing || freezeView) ? 'Saving..' : 'Save clarifications'}}
                             </button>
                         </div>
 
