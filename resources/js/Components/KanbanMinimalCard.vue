@@ -82,7 +82,7 @@
     >
         <div
             v-if="usageStats && atLeastOneProjectIsYours"
-            class="w-full mb-2 text-center"
+            class="w-full text-center"
         >
             <p
                 v-if="usageStats.METERAGE?.efficiency > 0"
@@ -100,7 +100,7 @@
 
         <div
             v-for="(project,index) in projects"
-            class="w-full border-gray-200 rounded-lg border-[1px] p-2 bg-gray-50"
+            class="w-full border-gray-200 rounded-lg border-[1px] p-2 bg-gray-50 mb-2 mt-2"
         >
             <h4 class="col-span-4 text-base font-medium">
                 {{ shared.cropText(shared.capitalizeWords(project.name),24) }}
@@ -126,23 +126,23 @@
                 />
             </div>
         </div>
-        <div class="mt-3">
-            <p
-                v-if="kanbanColumn === 'NESTING'"
-                class="text-blue-700 font-semibold text-sm"
-                @click="$emit('addProject')"
-                style="cursor: pointer;"
-            >
-                + add project
-            </p>
-            <p
-                v-else
-                class="text-gray-500 font-semibold text-sm"
-            >
-                + add project
-            </p>
-        </div>
-        <div class="w-full grid grid-cols-2 gap-1 border-t-[1px] border-gray-200 mt-2 pt-3 pb-3">
+<!--        <div class="mt-3">-->
+<!--            <p-->
+<!--                v-if="kanbanColumn === 'NESTING'"-->
+<!--                class="text-blue-700 font-semibold text-sm"-->
+<!--                @click="$emit('addProject')"-->
+<!--                style="cursor: pointer;"-->
+<!--            >-->
+<!--                + add project-->
+<!--            </p>-->
+<!--            <p-->
+<!--                v-else-->
+<!--                class="text-gray-500 font-semibold text-sm"-->
+<!--            >-->
+<!--                + add project-->
+<!--            </p>-->
+<!--        </div>-->
+        <div class="w-full grid grid-cols-2 gap-1 mt-2 pt-3 pb-3"><!-- border-t-[1px] border-gray-200 -->
             <!-- Nesting -->
             <Link
                 v-if="kanbanColumn === 'NESTING'"
@@ -173,7 +173,7 @@
                 class="w-full flex gap-x-2 justify-between items-center"
             >
                 <CardButtonForward
-                    label="Batch now"
+                    label="Start quoting"
                     @click="$emit('pageLoadingOn',null);$emit('quoteNow')"
                 />
             </div>

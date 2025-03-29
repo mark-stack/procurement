@@ -15,7 +15,7 @@
 
     //Form
     const formCalculator = useForm({
-        annualSpendMillions:2.0,
+        annualSpendMillions:1.5,
         wastePct:5,
         scrapRefundPct:13,
     });
@@ -24,12 +24,14 @@
     const user = usePage().props.auth.user;
 
     //Variables
-    const trial_months = 2;
+    const trial_months = 3;
     const savings_period_years = 3;
-    const fullPriceAnnual = 5000;
+    const fullPriceMultiYear = 6000;
+    const fullPriceAnnual = 4000;
     const fullPriceMonthly = 300;
-    const firstYearDiscount = 60;
-    const whichPlan = "ANNUAL"; //"MONTHLY","ANNUAL"
+    const fullPriceWeekly = 29;
+    const firstYearDiscount = 0;
+    const whichPlan = "MULTI_YEAR"; //"MONTHLY","ANNUAL", "WEEKLY", "MULTI_YEAR"
 
 
     //Shared Methods
@@ -84,9 +86,6 @@
     <!-- Nav -->
     <LandingNav/>
 
-
-
-
     <!-- Hero -->
     <div class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">
         <div class="flex flex-col items-center justify-between lg:flex-row">
@@ -98,9 +97,9 @@
                         </p>
                     </div>
                     <h2 class="max-w-lg mb-6 font-sans text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl sm:leading-none">
-                        Prevent
-                        <span class="inline-block text-orange-900">${{beforeFees()}} of <u>waste</u></span>
-                        in steel fabrication procurement.
+                        Reaching <u>maximum</u> steel nesting efficiency could save you
+                        <span v-if="savings_period_years === 1" class="inline-block text-deep-purple-accent-400">${{beforeFees()}} annually</span>
+                        <span v-else class="inline-block text-orange-900">${{beforeFees()}} in <u>waste</u></span>
                     </h2>
                     <p class="text-base text-gray-700 md:text-lg">
                         <b>Centralised procurement is the key to:</b>
@@ -140,8 +139,10 @@
                     <SavingsCalculator
                         :formCalculator="formCalculator"
                         :years="savings_period_years"
+                        :fullPriceMultiYear="fullPriceMultiYear"
                         :fullPriceAnnual="fullPriceAnnual"
                         :fullPriceMonthly="fullPriceMonthly"
+                        :fullPriceWeekly="fullPriceWeekly"
                         :whichPlan="whichPlan"
                         :firstYearDiscount="firstYearDiscount"
                     />
@@ -153,7 +154,10 @@
 
     <div class="px-4 py-16 mx-auto max-w-6xl md:px-24 lg:px-8 lg:py-20">
         <div class="mb-10 md:mx-auto sm:text-center md:mb-12">
-            <h2 class="mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">
+            <h2 v-if="savings_period_years === 1" class="mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">
+                How you can prevent ${{beforeFees()}} of waste each year:
+            </h2>
+            <h2 v-else class="mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">
                 How you can prevent ${{beforeFees()}} of waste over {{savings_period_years}} years:
             </h2>
         </div>
@@ -446,8 +450,10 @@
                 <SavingsCalculator
                     :formCalculator="formCalculator"
                     :years="savings_period_years"
+                    :fullPriceMultiYear="fullPriceMultiYear"
                     :fullPriceAnnual="fullPriceAnnual"
                     :fullPriceMonthly="fullPriceMonthly"
+                    :fullPriceWeekly="fullPriceWeekly"
                     :whichPlan="whichPlan"
                     :firstYearDiscount="firstYearDiscount"
                 />
@@ -694,6 +700,15 @@
             <div class="flex flex-col justify-between p-5 bg-white border rounded shadow-sm">
                 <div class="mb-6">
                     <div class="flex items-center justify-between pb-6 mb-6 border-b">
+                        <!-- Multi year -->
+                        <div v-if="whichPlan === 'MULTI_YEAR'">
+                            <p class="text-sm font-bold tracking-wider uppercase">
+                                {{savings_period_years}} year licence
+                            </p>
+
+                            <p class="text-5xl font-extrabold">A${{ fullPriceMultiYear.toLocaleString('en-US') }}</p>
+                        </div>
+
                         <!-- Annual plan -->
                         <div v-if="whichPlan === 'ANNUAL'">
                             <p class="text-sm font-bold tracking-wider uppercase">
@@ -720,6 +735,20 @@
                                 </p>
                             </div>
                             <p class="text-5xl font-extrabold">A${{ (fullPriceMonthly*((100-firstYearDiscount)/100)).toLocaleString('en-US') }}<span class="text-xl">/month</span></p>
+                        </div>
+
+                        <!-- Weekly plan -->
+                        <div v-if="whichPlan === 'WEEKLY'">
+                            <p class="text-sm font-bold tracking-wider uppercase">
+                                Unlimited plan
+                            </p>
+
+                            <div v-if="firstYearDiscount > 0" class="mt-4 flex items-baseline justify-start">
+                                <p class="text-3xl font-extrabold">
+                                    <s class="font-medium">${{ fullPriceWeekly.toLocaleString('en-US') }}</s><span class="font-bold text-xl">/week</span>
+                                </p>
+                            </div>
+                            <p class="text-5xl font-extrabold">A${{ (fullPriceWeekly*((100-firstYearDiscount)/100)).toLocaleString('en-US') }}<span class="text-xl">/week</span></p>
                         </div>
                     </div>
                     <div>

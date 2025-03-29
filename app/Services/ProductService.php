@@ -106,6 +106,9 @@ class ProductService
          * Add derived product label to every option. e.g "200PFC SS316"
          */
         $decodedGeneralProductsRaw = unserialize($rawMaterialQuote->general_product_matches);
+        if(gettype($decodedGeneralProductsRaw) === 'string'){
+            $decodedGeneralProductsRaw = unserialize($decodedGeneralProductsRaw);
+        }
 
         $decodedGeneralProducts = [];
         foreach ($decodedGeneralProductsRaw['results'] as $option) {
@@ -119,9 +122,11 @@ class ProductService
          */
         $decodedCustomProductsRaw = unserialize($rawMaterialQuote->custom_product_matches);
         $decodedCustomProducts = [];
-        foreach ($decodedCustomProductsRaw as $option) {
-            $option['product_derived_label'] = $this->getDerivedProductLabel($option);
-            $decodedCustomProducts[] = $option;
+        if($decodedCustomProductsRaw){
+            foreach ($decodedCustomProductsRaw as $option) {
+                $option['product_derived_label'] = $this->getDerivedProductLabel($option);
+                $decodedCustomProducts[] = $option;
+            }
         }
 
         /**

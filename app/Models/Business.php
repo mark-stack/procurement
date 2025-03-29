@@ -58,20 +58,15 @@ class Business extends Model
     public function supplierGroupIsCurrentPlan($supplierGroup): bool
     {
         /**
-         * No filter by supplier group. e.g "steel merchant". Filter by algo instead like "meterage"
+         * Filter out supplier groups
          */
-        return true;
 
-//        //Upgraded has all supplier groups
-//        if ($this->upgraded) {
-//            $supplierGroupIsCurrentPlan = true;
-//        }
-//        //Lite plan is 'steel merchant' only
-//        else {
-//            if ($supplierGroup === SupplierGroupEnums::STEEL_MERCHANT->value) {
-//                $supplierGroupIsCurrentPlan = true;
-//            }
-//        }
+        $supplierGroupIsCurrentPlan = true;
+        if ($supplierGroup === SupplierGroupEnums::PROFILE_CUTTING->value) {
+            $supplierGroupIsCurrentPlan = false;
+        }
+
+        return $supplierGroupIsCurrentPlan;
     }
 
     //Collection

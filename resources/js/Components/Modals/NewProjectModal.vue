@@ -5,7 +5,6 @@
     //Component Imports
     import Modal from "@/Layouts/Modal.vue";
     import {computed, ref, toRefs, watch} from "vue";
-    import CustomProductForm from "@/Components/CustomProductForm.vue";
 
     //Props
     const props = defineProps({
@@ -209,6 +208,20 @@
         return showUserCustomProducts.value && hasUserCustomProducts();
     }
 
+    function deleteOneClarification(rawMaterialQuoteId){
+        let message = "Are you sure you want delete this item?";
+        const userConfirmed = confirm(message);
+        if (userConfirmed) {
+            //Add to list of "promise to delete" to actually delete after submitting form
+            formClarifications.deletedIds.push(rawMaterialQuoteId);
+
+            //If delete all the items, then auto submit the form
+            if(thisDownloadedBomData(props.bomData).partialProductMatches.length === formClarifications.deletedIds.length){
+                submitClarifications();
+            }
+        }
+    }
+
     /*
     Watchers
      */
@@ -232,11 +245,23 @@
         showUserCustomProducts.value = hasUserCustomProducts();
         projectAfterUploadRef.value = props.projectAfterUpload;
 
-        console.log("thisDownloadedBomData",thisDownloadedBomData(props.bomData));
-
         if(thisDownloadedBomData(props.bomData)){
-            formClarifications = useForm(Object.assign({}, thisDownloadedBomData(props.bomData).partialProductMatches, {deletedIds:[]}));
-            formCustomisations = useForm(Object.assign({}, thisDownloadedBomData(props.bomData).requiresCustom, {deletedIds:[]}));
+            /*
+              Clarifications
+             */
+            let partialProductMatches = thisDownloadedBomData(props.bomData).partialProductMatches;
+            formClarifications = useForm(Object.assign({}, partialProductMatches, {deletedIds:[]}));
+            if(partialProductMatches.length === 0){
+               //Close if no clarifications
+               emit("closeModalOnSuccess")
+            }
+
+            /*
+              Custom
+             */
+            let requiresCustom = thisDownloadedBomData(props.bomData).requiresCustom;
+            formCustomisations = useForm(Object.assign({}, requiresCustom, {deletedIds:[]}));
+            console.log("custom qty",formCustomisations.length);
         }
     });
 </script>
@@ -509,14 +534,16 @@
                             </div>
                         </template>
 
+                        <div class="flex justify-center p-6">
+                            <button
+                                type="submit"
+                                class="bg-blue-500 rounded px-4 py-2 text-white"
+                                :disabled="formClarifications.processing"
+                            >
+                                {{formClarifications.processing ? 'Saving..' : 'Save clarifications'}}
+                            </button>
+                        </div>
 
-                        <button
-                            type="submit"
-                            class="bg-green-500 rounded px-2 py-1"
-                            :disabled="formClarifications.processing"
-                        >
-                            {{formClarifications.processing ? 'Saving..' : 'Save all'}}
-                        </button>
                     </form>
                 </section>
 

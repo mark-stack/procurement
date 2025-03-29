@@ -160,16 +160,34 @@
     }
 
     function thisDownloadedBomData(bomData){
+        /**
+         Get just the data component from payload
+         */
         let data = null;
 
-        if(bomData){
-            let rawData = Object.values(bomData).find(item => item.project_id == props.project.id);
-            if(rawData){
-                data = rawData.data;
+        if(bomData && props.project){
+            if(bomData.project_id === props.project.id){
+                data = bomData.data;
             }
         }
 
         return data;
+
+        // let data = null;
+        //
+        // console.log("bomData",bomData.data);
+        // console.log("project id", props.project.id);
+        //
+        // if(bomData){
+        //     let rawData = Object.values(bomData).find(item => item.project_id == props.project.id);
+        //     if(rawData){
+        //         data = rawData.data;
+        //     }
+        // }
+        //
+        // console.log("data",data);
+        //
+        // return data;
     }
 
     function submitClarifications(){
@@ -619,7 +637,8 @@
                                 class="text-left"
                             >
 
-                                <div v-if="thisDownloadedBomData(props.bomData).itemsNotFound && thisDownloadedBomData(props.bomData).business.meterage_only" class="mt-2 flex justify-between rounded-lg py-2 px-4 bg-[#fff2b2] text-[#7c620c]">
+                                <!-- v-if="thisDownloadedBomData(props.bomData).itemsNotFound && thisDownloadedBomData(props.bomData).business.meterage_only" -->
+                                <div v-if="thisDownloadedBomData(props.bomData).itemsNotFound" class="mt-2 flex justify-between rounded-lg py-2 px-4 bg-[#fff2b2] text-[#7c620c]">
                                     <p class="font-sans text-xs">
                                         Items from your uploaded BOM's for this project that are not recognised as linear stock:
                                         <br><span class="text-sm">{{thisDownloadedBomData(props.bomData).itemsNotFound}}</span>
@@ -742,7 +761,7 @@
                                                                     <div class="flex items-center gap-x-2">
                                                                         <div>
                                                                             <h2 class="font-medium text-gray-800 dark:text-white italic">
-                                                                                "{{ row.assembly_mark }}"
+                                                                                {{row.assembly_mark ? ('"'+row.assembly_mark+'"') : ''}}
                                                                             </h2>
                                                                         </div>
                                                                     </div>

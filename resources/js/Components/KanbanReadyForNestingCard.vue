@@ -163,7 +163,7 @@
             class="mt-3 w-full flex gap-x-2 justify-between items-center"
         >
             <CardButtonForward
-                label="Start quoting/ordering"
+                label="Start quoting"
                 @click="$emit('pageLoadingOn',null);$emit('quoteNow')"
             />
         </div>

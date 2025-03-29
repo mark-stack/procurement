@@ -9,8 +9,10 @@
     const props = defineProps({
         formCalculator: Object,
         years: Number,
+        fullPriceMultiYear: Number,
         fullPriceAnnual: Number,
         fullPriceMonthly: Number,
+        fullPriceWeekly: Number,
         whichPlan: String,
         firstYearDiscount: Number,
     });
@@ -89,6 +91,9 @@
         let priceAfterFirstYearFullPrice = null;
         let priceOverSavingsPeriod = null;
 
+        if(props.whichPlan === "MULTI_YEAR"){
+            priceOverSavingsPeriod = props.fullPriceMultiYear;
+        }
         if(props.whichPlan === "ANNUAL"){
             priceFirstYearAfterDiscount = props.fullPriceAnnual*((100-props.firstYearDiscount)/100);
             priceAfterFirstYearFullPrice = props.fullPriceAnnual;
@@ -97,6 +102,11 @@
         if(props.whichPlan === "MONTHLY"){
             priceFirstYearAfterDiscount = 12*props.fullPriceMonthly*((100-props.firstYearDiscount)/100);
             priceAfterFirstYearFullPrice = 12*props.fullPriceMonthly;
+            priceOverSavingsPeriod = priceFirstYearAfterDiscount + ((props.years - 1) * priceAfterFirstYearFullPrice);
+        }
+        if(props.whichPlan === "WEEKLY"){
+            priceFirstYearAfterDiscount = 52*props.fullPriceWeekly*((100-props.firstYearDiscount)/100);
+            priceAfterFirstYearFullPrice = 52*props.fullPriceWeekly;
             priceOverSavingsPeriod = priceFirstYearAfterDiscount + ((props.years - 1) * priceAfterFirstYearFullPrice);
         }
 
@@ -124,7 +134,7 @@
 
             <!-- Value Display -->
             <div class="mt-2 text-gray-800 font-semibold">
-                Steel Spend: ${{formCalculator.annualSpendMillions}}m/year
+                Steel Sections Spend: ${{formCalculator.annualSpendMillions}}m/year
             </div>
         </div>
 

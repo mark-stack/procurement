@@ -269,68 +269,68 @@
         />
 
         <div>
-            <div class="mx-auto max-w-screen">
+            <div class="mx-auto max-w-7xl">
                 <section>
 
                     <!-- kanban -->
-                    <div class="grid grid-cols-5">
-                        <!-- New projects-->
-                        <div class="border-r-2 border-gray-200 border-dashed p-3">
-                            <!-- header -->
-                            <div>
-                                <h2 class="text-xl font-bold text-center text-gray-900">
-                                    <span class="text-indigo-300 text-base">1.</span> New Projects
-                                </h2>
-                            </div>
-                            <!-- body -->
-                            <div
-                                class="pt-3 overflow-y-auto"
-                                :style="'height:'+kanbanHeight+'px'"
-                            >
-                                <!-- cards -->
-                                <template v-for="(project,index) in projects['NEW_PROJECTS'].data">
-                                    <KanbanNeedsImportingCard
-                                        :project="project"
-                                        class="mb-3"
-                                        @toggleArchive="p => toggleArchive(p)"
-                                        @editMode="p => editMode(p)"
-                                        @showBom="args => showBom(args)"
-                                        @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
-                                        @pageLoadingOff="pageLoading = false"
-                                    />
-                                </template>
+                    <div class="grid grid-cols-4">
+<!--                        &lt;!&ndash; New projects&ndash;&gt;-->
+<!--                        <div class="border-r-2 border-gray-200 border-dashed p-3">-->
+<!--                            &lt;!&ndash; header &ndash;&gt;-->
+<!--                            <div>-->
+<!--                                <h2 class="text-xl font-bold text-center text-gray-900">-->
+<!--                                    <span class="text-indigo-300 text-base">1.</span> New Projects-->
+<!--                                </h2>-->
+<!--                            </div>-->
+<!--                            &lt;!&ndash; body &ndash;&gt;-->
+<!--                            <div-->
+<!--                                class="pt-3 overflow-y-auto"-->
+<!--                                :style="'height:'+kanbanHeight+'px'"-->
+<!--                            >-->
+<!--                                &lt;!&ndash; cards &ndash;&gt;-->
+<!--                                <template v-for="(project,index) in projects['NEW_PROJECTS'].data">-->
+<!--                                    <KanbanNeedsImportingCard-->
+<!--                                        :project="project"-->
+<!--                                        class="mb-3"-->
+<!--                                        @toggleArchive="p => toggleArchive(p)"-->
+<!--                                        @editMode="p => editMode(p)"-->
+<!--                                        @showBom="args => showBom(args)"-->
+<!--                                        @pageLoadingOn="seconds => pageLoaderTimer(seconds)"-->
+<!--                                        @pageLoadingOff="pageLoading = false"-->
+<!--                                    />-->
+<!--                                </template>-->
 
-                                <!-- toggle archived projects -->
-                                <div v-if="archivedProjects.data.length > 0" class="text-center">
-                                    <button
-                                        @click="showArchivedProjects = !showArchivedProjects"
-                                        class="text-center text-blue-500 underline mt-6 mb-2"
-                                    >
-                                        {{showArchivedProjects ? 'Hide' : 'Show'}} {{archivedProjects.data.length}} Archived Project{{archivedProjects.data.length > 1 ? 's' : ''}}
-                                    </button>
-                                    <div v-if="showArchivedProjects">
-                                        <table class="w-full">
-                                            <tr>
-                                                <th class="p-1">Name</th>
-                                                <th class="p-1">Actions</th>
-                                            </tr>
-                                            <tr v-for="project in archivedProjects.data">
-                                                <td class="p-1">{{project.name}}</td>
-                                                <td class="p-1">
-                                                    <span style="cursor: pointer; " class="underline text-blue-500" @click="toggleArchive(project)">restore</span>
-                                                </td>
-                                            </tr>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+<!--                                &lt;!&ndash; toggle archived projects &ndash;&gt;-->
+<!--                                <div v-if="archivedProjects.data.length > 0" class="text-center">-->
+<!--                                    <button-->
+<!--                                        @click="showArchivedProjects = !showArchivedProjects"-->
+<!--                                        class="text-center text-blue-500 underline mt-6 mb-2"-->
+<!--                                    >-->
+<!--                                        {{showArchivedProjects ? 'Hide' : 'Show'}} {{archivedProjects.data.length}} Archived Project{{archivedProjects.data.length > 1 ? 's' : ''}}-->
+<!--                                    </button>-->
+<!--                                    <div v-if="showArchivedProjects">-->
+<!--                                        <table class="w-full">-->
+<!--                                            <tr>-->
+<!--                                                <th class="p-1">Name</th>-->
+<!--                                                <th class="p-1">Actions</th>-->
+<!--                                            </tr>-->
+<!--                                            <tr v-for="project in archivedProjects.data">-->
+<!--                                                <td class="p-1">{{project.name}}</td>-->
+<!--                                                <td class="p-1">-->
+<!--                                                    <span style="cursor: pointer; " class="underline text-blue-500" @click="toggleArchive(project)">restore</span>-->
+<!--                                                </td>-->
+<!--                                            </tr>-->
+<!--                                        </table>-->
+<!--                                    </div>-->
+<!--                                </div>-->
+<!--                            </div>-->
+<!--                        </div>-->
                         <!-- Ready for auto nesting -->
                         <div class="border-r-2 border-gray-200 border-dashed p-3">
                             <!-- header -->
                             <div>
                                 <h2 class="text-xl font-bold text-center">
-                                    <span class="text-indigo-300 text-base">2.</span> Nesting
+                                    <span class="text-indigo-300 text-base">1.</span> Nesting
                                 </h2>
                             </div>
                             <!-- body -->
@@ -345,7 +345,7 @@
                                         @click="addProject()"
                                         class="w-full text-center p-5 border-2 text-gray-600 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 border-gray-400 hover:border-gray-500 border-dashed rounded-lg font-semibold text-lg"
                                     >
-                                        + Add new project
+                                        + Add project to nesting
                                     </button>
                                 </div>
 
@@ -388,7 +388,7 @@
                             <!-- header -->
                             <div>
                                 <h2 class="text-xl font-bold text-center">
-                                    <span class="text-indigo-300 text-base">3.</span> Quoting
+                                    <span class="text-indigo-300 text-base">2.</span> Quoting
                                 </h2>
                             </div>
                             <!-- body -->
@@ -426,7 +426,7 @@
                                     @addProject="addProject()"
                                 />
                                 <div class="text-center text-sm text-gray-500 mx-auto" style="width:250px">
-                                    Nested batches move to here after selecting <i>"Start quoting/ordering"</i>
+                                    Nested batches move to here after selecting <i>"Start quoting"</i>
                                 </div>
                             </div>
                         </div>
@@ -435,7 +435,7 @@
                             <!-- header -->
                             <div>
                                 <h2 class="text-xl font-bold text-center">
-                                    <span class="text-indigo-300 text-base">4.</span> Ordering
+                                    <span class="text-indigo-300 text-base">3.</span> Ordering
                                 </h2>
                             </div>
                             <!-- body -->
@@ -483,7 +483,7 @@
                             <!-- header -->
                             <div>
                                 <h2 class="text-xl font-bold text-center">
-                                    <span class="text-indigo-300 text-base">5.</span> Delivering
+                                    <span class="text-indigo-300 text-base">4.</span> Delivering
                                 </h2>
                             </div>
                             <!-- body -->
