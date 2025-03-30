@@ -24,14 +24,14 @@
     const user = usePage().props.auth.user;
 
     //Variables
-    const trial_months = 3;
+    const trial_months = 2;
     const savings_period_years = 3;
     const fullPriceMultiYear = 10000;
-    const fullPriceAnnual = 4000;
+    const fullPriceAnnual = 2900;
     const fullPriceMonthly = 300;
     const fullPriceWeekly = 49;
     const firstYearDiscount = 0;
-    const whichPlan = "MULTI_YEAR"; //"MONTHLY","ANNUAL", "WEEKLY", "MULTI_YEAR"
+    const whichPlan = "ANNUAL"; //"MONTHLY","ANNUAL", "WEEKLY", "MULTI_YEAR"
 
 
     //Shared Methods
@@ -145,114 +145,230 @@
     </div>
 
 
-    <div class="px-4 py-16 mx-auto max-w-6xl md:px-24 lg:px-8 lg:py-20">
-        <div class="mb-10 md:mx-auto sm:text-center md:mb-12">
-            <h2 v-if="savings_period_years === 1" class="mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">
-                How you can prevent ${{beforeFees()}} of waste each year:
-            </h2>
-            <h2 v-else class="mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">
-                How you can prevent ${{beforeFees()}} of waste over {{savings_period_years}} years:
+    <div class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">
+        <div class="mb-16 md:mx-auto sm:text-center">
+            <h2 class="max-w-4xl mb-6 font-sans text-5xl font-bold leading-none tracking-tight text-gray-900 md:mx-auto">
+                An <u>unrivaled</u> nesting software for Australian fabricators would require:
             </h2>
         </div>
-
-        <div class="grid gap-8 row-gap-5 md:grid-cols-2">
-            <div class="relative p-px overflow-hidden transition duration-300 transform border rounded shadow-sm hover:scale-105 group hover:shadow-xl">
-                <div class="absolute bottom-0 left-0 w-full h-1 duration-300 origin-left transform scale-x-0 bg-deep-purple-accent-400 group-hover:scale-x-100"></div>
-                <div class="absolute bottom-0 left-0 w-1 h-full duration-300 origin-bottom transform scale-y-0 bg-deep-purple-accent-400 group-hover:scale-y-100"></div>
-                <div class="absolute top-0 left-0 w-full h-1 duration-300 origin-right transform scale-x-0 bg-deep-purple-accent-400 group-hover:scale-x-100"></div>
-                <div class="absolute bottom-0 right-0 w-1 h-full duration-300 origin-top transform scale-y-0 bg-deep-purple-accent-400 group-hover:scale-y-100"></div>
-                <div class="relative flex flex-col h-full p-5 bg-white rounded-sm lg:flex-row">
-<!--                    <div class="mb-6 mr-6 lg:mb-0">-->
-<!--                        <div class="flex items-center justify-center w-20 h-20 rounded-full bg-indigo-50 lg:w-32 lg:h-32">-->
-<!--                            <svg class="w-16 h-16 text-deep-purple-accent-400 lg:w-20 lg:h-20" stroke="currentColor" viewBox="0 0 52 52">-->
-<!--                                <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>-->
-<!--                            </svg>-->
-<!--                        </div>-->
-<!--                    </div>-->
-                    <div class="flex flex-col justify-between flex-grow">
-                        <div>
-                            <h6 class="mb-2 font-bold leading-5 text-2xl">
-                                Cross-project nesting
-                            </h6>
-                            <p class="mb-2 text-base text-gray-900">
-                                Nest multiple concurrent projects to drive up material yield with no extra effort. Each project manager simply upload their material lists
-                            </p>
-                            <div class="grid grid-cols-1 grid-rows-2 gap-2 row-gap-2 text-sm">
-                                <li class="flex items-start">
-                                    <span class="mr-1"><svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52"><polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon></svg></span>
-                                    Increase material yield
-                                </li>
-                                <li class="flex items-start">
-                                    <span class="mr-1"><svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52"><polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon></svg></span>
-                                    Longer, more resuable offcuts
-                                </li>
-                                <li class="flex items-start">
-                                    <span class="mr-1"><svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52"><polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon></svg></span>
-                                    Cross-project nesting fills gaps with parts from other jobs, reducing scrap
-                                </li>
-                                <li class="flex items-start">
-                                    <span class="mr-1"><svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52"><polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon></svg></span>
-                                    Less scrap = less orders = less delivery costs
-                                </li>
-                                <li class="flex items-start">
-                                    <span class="mr-1"><svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52"><polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon></svg></span>
-                                    All cuts 100% distinguished between projects
-                                </li>
-                            </div>
+        <div class="grid max-w-screen-lg mx-auto space-y-6 lg:grid-cols-2 lg:space-y-0 lg:divide-x">
+            <div class="space-y-6 sm:px-16">
+                <div class="flex flex-col max-w-md sm:flex-row">
+                    <div class="mb-4 mr-4">
+                        <div class="flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50">
+                            <svg class="w-8 h-8 text-deep-purple-accent-400 sm:w-10 sm:h-10" stroke="currentColor" viewBox="0 0 52 52">
+                                <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
+                            </svg>
                         </div>
+                    </div>
+                    <div>
+                        <h6 class="mb-3 text-xl font-bold leading-5">
+                            Mathematical maximum material efficiency
+                        </h6>
+                        <p class="text-sm text-gray-900">
+                            Webtwo ipsum orkut reddit meebo skype vimeo jajah spock empressr zimbra, mobly napster.
+                        </p>
+                    </div>
+                </div>
+                <div class="flex flex-col max-w-md sm:flex-row">
+                    <div class="mb-4 mr-4">
+                        <div class="flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50">
+                            <svg class="w-8 h-8 text-deep-purple-accent-400 sm:w-10 sm:h-10" stroke="currentColor" viewBox="0 0 52 52">
+                                <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
+                            </svg>
+                        </div>
+                    </div>
+                    <div>
+                        <h6 class="mb-3 text-xl font-bold leading-5">
+                            Automatic importing of cut lists from any source
+                        </h6>
+                        <p class="text-sm text-gray-900">
+                            Import materials from Tekla, Inventor, Advance Steel, or any CAD that exports a BOM
+                        </p>
+                    </div>
+                </div>
+                <div class="flex flex-col max-w-md sm:flex-row">
+                    <div class="mb-4 mr-4">
+                        <div class="flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50">
+                            <svg class="w-8 h-8 text-deep-purple-accent-400 sm:w-10 sm:h-10" stroke="currentColor" viewBox="0 0 52 52">
+                                <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
+                            </svg>
+                        </div>
+                    </div>
+                    <div>
+                        <h6 class="mb-3 text-xl font-bold leading-5">
+                            100% Material traceability
+                        </h6>
+                        <p class="text-sm text-gray-900">
+                            The first mate and his Skipper too will do their very best to make the others comfortable.
+                        </p>
                     </div>
                 </div>
             </div>
-            <div class="relative p-px overflow-hidden transition duration-300 transform border rounded shadow-sm hover:scale-105 group hover:shadow-xl">
-                <div class="absolute bottom-0 left-0 w-full h-1 duration-300 origin-left transform scale-x-0 bg-deep-purple-accent-400 group-hover:scale-x-100"></div>
-                <div class="absolute bottom-0 left-0 w-1 h-full duration-300 origin-bottom transform scale-y-0 bg-deep-purple-accent-400 group-hover:scale-y-100"></div>
-                <div class="absolute top-0 left-0 w-full h-1 duration-300 origin-right transform scale-x-0 bg-deep-purple-accent-400 group-hover:scale-x-100"></div>
-                <div class="absolute bottom-0 right-0 w-1 h-full duration-300 origin-top transform scale-y-0 bg-deep-purple-accent-400 group-hover:scale-y-100"></div>
-                <div class="relative flex flex-col h-full p-5 bg-white rounded-sm lg:flex-row">
-<!--                    <div class="mb-6 mr-6 lg:mb-0">-->
-<!--                        <div class="flex items-center justify-center w-20 h-20 rounded-full bg-indigo-50 lg:w-32 lg:h-32">-->
-<!--                            <svg class="w-16 h-16 text-deep-purple-accent-400 lg:w-20 lg:h-20" stroke="currentColor" viewBox="0 0 52 52">-->
-<!--                                <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>-->
-<!--                            </svg>-->
-<!--                        </div>-->
-<!--                    </div>-->
-                    <div class="flex flex-col justify-between flex-grow">
-                        <div>
-                            <h6 class="mb-2 font-bold leading-5 text-2xl">
-                                Optimised offcut inventory placement
-                            </h6>
-                            <p class="mb-2 text-base text-gray-900">
-                                The system knows all the available offcut inventory without ever needing to do stocktaking
-                            </p>
-                            <div class="grid grid-cols-1  gap-2 row-gap-2 text-sm">
-                                <li class="flex items-start">
-                                    <span class="mr-1"><svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52"><polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon></svg></span>
-                                    100% material certificate traceability over every single cut. Safely reuse rather than scrapping.
-                                </li>
-                                <li class="flex items-start">
-                                    <span class="mr-1"><svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52"><polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon></svg></span>
-                                    Avoids not using an offcut because unsure who "owns" it
-                                </li>
-                                <li class="flex items-start">
-                                    <span class="mr-1"><svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52"><polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon></svg></span>
-                                    Labour looking around is reduced. e.g a PM walking around the yard
-                                </li>
-                                <li class="flex items-start">
-                                    <span class="mr-1"><svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52"><polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon></svg></span>
-                                    Nesting within offcuts = less orders = save money
-                                </li>
-                                <li class="flex items-start">
-                                    <span class="mr-1"><svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52"><polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon></svg></span>
-                                    Avoids assumptions that an offcut isn't reusable
-                                </li>
-                            </div>
+            <div class="space-y-6 sm:px-16">
+                <div class="flex flex-col max-w-md sm:flex-row">
+                    <div class="mb-4 mr-4">
+                        <div class="flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50">
+                            <svg class="w-8 h-8 text-deep-purple-accent-400 sm:w-10 sm:h-10" stroke="currentColor" viewBox="0 0 52 52">
+                                <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
+                            </svg>
                         </div>
+                    </div>
+                    <div>
+                        <h6 class="mb-3 text-xl font-bold leading-5">
+                            Simple order tracking
+                        </h6>
+                        <p class="text-sm text-gray-900">
+                            Skate ipsum dolor sit amet, alley oop vert mute-air Colby Carter flail 180 berm over the sea.
+                        </p>
+                    </div>
+                </div>
+                <div class="flex flex-col max-w-md sm:flex-row">
+                    <div class="mb-4 mr-4">
+                        <div class="flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50">
+                            <svg class="w-8 h-8 text-deep-purple-accent-400 sm:w-10 sm:h-10" stroke="currentColor" viewBox="0 0 52 52">
+                                <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
+                            </svg>
+                        </div>
+                    </div>
+                    <div>
+                        <h6 class="mb-3 text-xl font-bold leading-5">
+                            Built 100% in Australia for Australians
+                        </h6>
+                        <p class="text-sm text-gray-900">
+                            Cheese on toast airedale the big cheese. Danish fontina cheesy grin airedale danish fontina.
+                        </p>
+                    </div>
+                </div>
+                <div class="flex flex-col max-w-md sm:flex-row">
+                    <div class="mb-4 mr-4">
+                        <div class="flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50">
+                            <svg class="w-8 h-8 text-deep-purple-accent-400 sm:w-10 sm:h-10" stroke="currentColor" viewBox="0 0 52 52">
+                                <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
+                            </svg>
+                        </div>
+                    </div>
+                    <div>
+                        <h6 class="mb-3 text-xl font-bold leading-5">
+                            The simplest interface your grandma could use
+                        </h6>
+                        <p class="text-sm text-gray-900">
+                            A flower in my garden, a mystery in my panties. Heart attack never stopped old Big Bear.
+                        </p>
                     </div>
                 </div>
             </div>
         </div>
-
     </div>
+
+<!--    <div class="px-4 py-16 mx-auto max-w-6xl md:px-24 lg:px-8 lg:py-20">-->
+<!--        <div class="mb-10 md:mx-auto sm:text-center md:mb-12">-->
+<!--            <h2 v-if="savings_period_years === 1" class="mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">-->
+<!--                How you can prevent ${{beforeFees()}} of waste each year:-->
+<!--            </h2>-->
+<!--            <h2 v-else class="mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">-->
+<!--                How you can prevent ${{beforeFees()}} of waste over {{savings_period_years}} years:-->
+<!--            </h2>-->
+<!--        </div>-->
+
+<!--        <div class="grid gap-8 row-gap-5 md:grid-cols-2">-->
+<!--            <div class="relative p-px overflow-hidden transition duration-300 transform border rounded shadow-sm hover:scale-105 group hover:shadow-xl">-->
+<!--                <div class="absolute bottom-0 left-0 w-full h-1 duration-300 origin-left transform scale-x-0 bg-deep-purple-accent-400 group-hover:scale-x-100"></div>-->
+<!--                <div class="absolute bottom-0 left-0 w-1 h-full duration-300 origin-bottom transform scale-y-0 bg-deep-purple-accent-400 group-hover:scale-y-100"></div>-->
+<!--                <div class="absolute top-0 left-0 w-full h-1 duration-300 origin-right transform scale-x-0 bg-deep-purple-accent-400 group-hover:scale-x-100"></div>-->
+<!--                <div class="absolute bottom-0 right-0 w-1 h-full duration-300 origin-top transform scale-y-0 bg-deep-purple-accent-400 group-hover:scale-y-100"></div>-->
+<!--                <div class="relative flex flex-col h-full p-5 bg-white rounded-sm lg:flex-row">-->
+<!--&lt;!&ndash;                    <div class="mb-6 mr-6 lg:mb-0">&ndash;&gt;-->
+<!--&lt;!&ndash;                        <div class="flex items-center justify-center w-20 h-20 rounded-full bg-indigo-50 lg:w-32 lg:h-32">&ndash;&gt;-->
+<!--&lt;!&ndash;                            <svg class="w-16 h-16 text-deep-purple-accent-400 lg:w-20 lg:h-20" stroke="currentColor" viewBox="0 0 52 52">&ndash;&gt;-->
+<!--&lt;!&ndash;                                <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>&ndash;&gt;-->
+<!--&lt;!&ndash;                            </svg>&ndash;&gt;-->
+<!--&lt;!&ndash;                        </div>&ndash;&gt;-->
+<!--&lt;!&ndash;                    </div>&ndash;&gt;-->
+<!--                    <div class="flex flex-col justify-between flex-grow">-->
+<!--                        <div>-->
+<!--                            <h6 class="mb-2 font-bold leading-5 text-2xl">-->
+<!--                                Cross-project nesting-->
+<!--                            </h6>-->
+<!--                            <p class="mb-2 text-base text-gray-900">-->
+<!--                                Nest multiple concurrent projects to drive up material yield with no extra effort. Each project manager simply upload their material lists-->
+<!--                            </p>-->
+<!--                            <div class="grid grid-cols-1 grid-rows-2 gap-2 row-gap-2 text-sm">-->
+<!--                                <li class="flex items-start">-->
+<!--                                    <span class="mr-1"><svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52"><polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon></svg></span>-->
+<!--                                    Increase material yield-->
+<!--                                </li>-->
+<!--                                <li class="flex items-start">-->
+<!--                                    <span class="mr-1"><svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52"><polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon></svg></span>-->
+<!--                                    Longer, more resuable offcuts-->
+<!--                                </li>-->
+<!--                                <li class="flex items-start">-->
+<!--                                    <span class="mr-1"><svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52"><polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon></svg></span>-->
+<!--                                    Cross-project nesting fills gaps with parts from other jobs, reducing scrap-->
+<!--                                </li>-->
+<!--                                <li class="flex items-start">-->
+<!--                                    <span class="mr-1"><svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52"><polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon></svg></span>-->
+<!--                                    Less scrap = less orders = less delivery costs-->
+<!--                                </li>-->
+<!--                                <li class="flex items-start">-->
+<!--                                    <span class="mr-1"><svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52"><polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon></svg></span>-->
+<!--                                    All cuts 100% distinguished between projects-->
+<!--                                </li>-->
+<!--                            </div>-->
+<!--                        </div>-->
+<!--                    </div>-->
+<!--                </div>-->
+<!--            </div>-->
+<!--            <div class="relative p-px overflow-hidden transition duration-300 transform border rounded shadow-sm hover:scale-105 group hover:shadow-xl">-->
+<!--                <div class="absolute bottom-0 left-0 w-full h-1 duration-300 origin-left transform scale-x-0 bg-deep-purple-accent-400 group-hover:scale-x-100"></div>-->
+<!--                <div class="absolute bottom-0 left-0 w-1 h-full duration-300 origin-bottom transform scale-y-0 bg-deep-purple-accent-400 group-hover:scale-y-100"></div>-->
+<!--                <div class="absolute top-0 left-0 w-full h-1 duration-300 origin-right transform scale-x-0 bg-deep-purple-accent-400 group-hover:scale-x-100"></div>-->
+<!--                <div class="absolute bottom-0 right-0 w-1 h-full duration-300 origin-top transform scale-y-0 bg-deep-purple-accent-400 group-hover:scale-y-100"></div>-->
+<!--                <div class="relative flex flex-col h-full p-5 bg-white rounded-sm lg:flex-row">-->
+<!--&lt;!&ndash;                    <div class="mb-6 mr-6 lg:mb-0">&ndash;&gt;-->
+<!--&lt;!&ndash;                        <div class="flex items-center justify-center w-20 h-20 rounded-full bg-indigo-50 lg:w-32 lg:h-32">&ndash;&gt;-->
+<!--&lt;!&ndash;                            <svg class="w-16 h-16 text-deep-purple-accent-400 lg:w-20 lg:h-20" stroke="currentColor" viewBox="0 0 52 52">&ndash;&gt;-->
+<!--&lt;!&ndash;                                <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>&ndash;&gt;-->
+<!--&lt;!&ndash;                            </svg>&ndash;&gt;-->
+<!--&lt;!&ndash;                        </div>&ndash;&gt;-->
+<!--&lt;!&ndash;                    </div>&ndash;&gt;-->
+<!--                    <div class="flex flex-col justify-between flex-grow">-->
+<!--                        <div>-->
+<!--                            <h6 class="mb-2 font-bold leading-5 text-2xl">-->
+<!--                                Optimised offcut inventory placement-->
+<!--                            </h6>-->
+<!--                            <p class="mb-2 text-base text-gray-900">-->
+<!--                                The system will track offcuts without ever needing to do stocktaking-->
+<!--                            </p>-->
+<!--                            <div class="grid grid-cols-1  gap-2 row-gap-2 text-sm">-->
+<!--                                <li class="flex items-start">-->
+<!--                                    <span class="mr-1"><svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52"><polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon></svg></span>-->
+<!--                                    100% material certificate traceability over every single cut. Safely reuse rather than scrapping.-->
+<!--                                </li>-->
+<!--                                <li class="flex items-start">-->
+<!--                                    <span class="mr-1"><svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52"><polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon></svg></span>-->
+<!--                                    Avoids not using an offcut because unsure who "owns" it-->
+<!--                                </li>-->
+<!--                                <li class="flex items-start">-->
+<!--                                    <span class="mr-1"><svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52"><polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon></svg></span>-->
+<!--                                    Labour looking around is reduced. e.g a PM walking around the yard-->
+<!--                                </li>-->
+<!--                                <li class="flex items-start">-->
+<!--                                    <span class="mr-1"><svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52"><polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon></svg></span>-->
+<!--                                    Nesting within offcuts = less orders = save money-->
+<!--                                </li>-->
+<!--                                <li class="flex items-start">-->
+<!--                                    <span class="mr-1"><svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52"><polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon></svg></span>-->
+<!--                                    Avoids assumptions that an offcut isn't reusable-->
+<!--                                </li>-->
+<!--                            </div>-->
+<!--                        </div>-->
+<!--                    </div>-->
+<!--                </div>-->
+<!--            </div>-->
+<!--        </div>-->
+
+<!--    </div>-->
 
 <!--    <div class="px-4 py-16 mx-auto max-w-5xl md:px-24 lg:px-8 lg:py-20">-->
 <!--        <div class="mb-10 md:mx-auto sm:text-center md:mb-12">-->
@@ -434,6 +550,147 @@
 <!--        </div>-->
 <!--    </div>-->
 
+<!--    <div class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">-->
+<!--        <div class="max-w-5xl mb-10 md:mx-auto sm:text-center md:mb-12">-->
+<!--            <h2 class="max-w-5xl mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">-->
+<!--                How does an online software achieve this?-->
+<!--            </h2>-->
+<!--        </div>-->
+<!--        <div class="grid gap-8 row-gap-0 lg:grid-cols-3">-->
+<!--            <div class="relative text-center">-->
+<!--                <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-50 sm:w-20 sm:h-20">-->
+<!--                    <svg class="w-12 h-12 text-deep-purple-accent-400 sm:w-16 sm:h-16" stroke="currentColor" viewBox="0 0 52 52">-->
+<!--                        <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>-->
+<!--                    </svg>-->
+<!--                </div>-->
+<!--                <h6 class="mb-2 text-2xl font-extrabold">-->
+<!--                    1) Import Material List-->
+<!--                </h6>-->
+<!--                <ul class="mb-4 -ml-1 space-y-2 mt-4 text-left">-->
+<!--                    <li class="flex items-start">-->
+<!--                        <p class="mr-1">-->
+<!--                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">-->
+<!--                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>-->
+<!--                            </svg>-->
+<!--                        </p>-->
+<!--                        Import materials from your BOM spreadsheet-->
+<!--                    </li>-->
+<!--                    <li class="flex items-start">-->
+<!--                        <p class="mr-1">-->
+<!--                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">-->
+<!--                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>-->
+<!--                            </svg>-->
+<!--                        </p>-->
+<!--                        Import materials from Tekla, Inventor, Advance Steel, or any CAD that exports a BOM-->
+<!--                    </li>-->
+<!--                    <li class="flex items-start">-->
+<!--                        <p class="mr-1">-->
+<!--                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">-->
+<!--                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>-->
+<!--                            </svg>-->
+<!--                        </p>-->
+<!--                        Compares against a database of 10,000+ items-->
+<!--                    </li>-->
+<!--                </ul>-->
+<!--                <div class="top-0 right-0 flex items-center justify-center h-24 lg:-mr-8 lg:absolute">-->
+<!--                    <svg class="w-8 text-gray-700 transform rotate-90 lg:rotate-0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">-->
+<!--                        <line fill="none" stroke-miterlimit="10" x1="2" y1="12" x2="22" y2="12"></line>-->
+<!--                        <polyline fill="none" stroke-miterlimit="10" points="15,5 22,12 15,19 "></polyline>-->
+<!--                    </svg>-->
+<!--                </div>-->
+<!--            </div>-->
+<!--            <div class="relative text-center">-->
+<!--                <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-50 sm:w-20 sm:h-20">-->
+<!--                    <svg class="w-12 h-12 text-deep-purple-accent-400 sm:w-16 sm:h-16" stroke="currentColor" viewBox="0 0 52 52">-->
+<!--                        <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>-->
+<!--                    </svg>-->
+<!--                </div>-->
+<!--                <h6 class="mb-2 text-2xl font-extrabold">-->
+<!--                    2) Automatic Nesting-->
+<!--                </h6>-->
+<!--                <ul class="mb-4 -ml-1 space-y-2 mt-4 text-left">-->
+<!--                    <li class="flex items-start">-->
+<!--                        <p class="mr-1">-->
+<!--                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">-->
+<!--                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>-->
+<!--                            </svg>-->
+<!--                        </p>-->
+<!--                        Cross-project nesting for less waste and higher likelihood of bulk discounts-->
+<!--                    </li>-->
+<!--                    <li class="flex items-start">-->
+<!--                        <p class="mr-1">-->
+<!--                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">-->
+<!--                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>-->
+<!--                            </svg>-->
+<!--                        </p>-->
+<!--                        Auto group materials together based on your suppliers for easier RFQ preparation.-->
+<!--                    </li>-->
+<!--                    &lt;!&ndash;                    <li class="flex items-start">&ndash;&gt;-->
+<!--                    &lt;!&ndash;                        <p class="mr-1">&ndash;&gt;-->
+<!--                    &lt;!&ndash;                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">&ndash;&gt;-->
+<!--                    &lt;!&ndash;                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>&ndash;&gt;-->
+<!--                    &lt;!&ndash;                            </svg>&ndash;&gt;-->
+<!--                    &lt;!&ndash;                        </p>&ndash;&gt;-->
+<!--                    &lt;!&ndash;                        Reminders for managing RFQs based on project deadlines&ndash;&gt;-->
+<!--                    &lt;!&ndash;                    </li>&ndash;&gt;-->
+<!--                </ul>-->
+<!--                <div class="top-0 right-0 flex items-center justify-center h-24 lg:-mr-8 lg:absolute">-->
+<!--                    <svg class="w-8 text-gray-700 transform rotate-90 lg:rotate-0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">-->
+<!--                        <line fill="none" stroke-miterlimit="10" x1="2" y1="12" x2="22" y2="12"></line>-->
+<!--                        <polyline fill="none" stroke-miterlimit="10" points="15,5 22,12 15,19 "></polyline>-->
+<!--                    </svg>-->
+<!--                </div>-->
+<!--            </div>-->
+<!--            <div class="relative text-center">-->
+<!--                <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-50 sm:w-20 sm:h-20">-->
+<!--                    <svg class="w-12 h-12 text-deep-purple-accent-400 sm:w-16 sm:h-16" stroke="currentColor" viewBox="0 0 52 52">-->
+<!--                        <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>-->
+<!--                    </svg>-->
+<!--                </div>-->
+<!--                <h6 class="mb-2 text-2xl font-extrabold">-->
+<!--                    3) Automatic Order batching-->
+<!--                </h6>-->
+<!--                <ul class="mb-4 -ml-1 space-y-2 mt-4 text-left">-->
+<!--                    <li class="flex items-start">-->
+<!--                        <p class="mr-1">-->
+<!--                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">-->
+<!--                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>-->
+<!--                            </svg>-->
+<!--                        </p>-->
+<!--                        Cross-project batched ordering-->
+<!--                    </li>-->
+<!--                    &lt;!&ndash;                    <li class="flex items-start">&ndash;&gt;-->
+<!--                    &lt;!&ndash;                        <p class="mr-1">&ndash;&gt;-->
+<!--                    &lt;!&ndash;                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">&ndash;&gt;-->
+<!--                    &lt;!&ndash;                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>&ndash;&gt;-->
+<!--                    &lt;!&ndash;                            </svg>&ndash;&gt;-->
+<!--                    &lt;!&ndash;                        </p>&ndash;&gt;-->
+<!--                    &lt;!&ndash;                        Supplier discounts based on exact product matches&ndash;&gt;-->
+<!--                    &lt;!&ndash;                    </li>&ndash;&gt;-->
+<!--                    <li class="flex items-start">-->
+<!--                        <p class="mr-1">-->
+<!--                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">-->
+<!--                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>-->
+<!--                            </svg>-->
+<!--                        </p>-->
+<!--                        Multiple Purchase order numbers handled-->
+<!--                    </li>-->
+<!--                    &lt;!&ndash;                    <li class="flex items-start">&ndash;&gt;-->
+<!--                    &lt;!&ndash;                        <p class="mr-1">&ndash;&gt;-->
+<!--                    &lt;!&ndash;                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">&ndash;&gt;-->
+<!--                    &lt;!&ndash;                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>&ndash;&gt;-->
+<!--                    &lt;!&ndash;                            </svg>&ndash;&gt;-->
+<!--                    &lt;!&ndash;                        </p>&ndash;&gt;-->
+<!--                    &lt;!&ndash;                        Reminders for managing orders based on project deadlines. No expensive expedited orders because something was forgotten.&ndash;&gt;-->
+<!--                    &lt;!&ndash;                    </li>&ndash;&gt;-->
+<!--                </ul>-->
+<!--            </div>-->
+<!--        </div>-->
+<!--    </div>-->
+
+
+
+
     <div class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">
         <div class="max-w-5xl mb-10 md:mx-auto sm:text-center md:mb-12">
             <h2 class="max-w-5xl mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">
@@ -458,177 +715,49 @@
         </div>
     </div>
 
+
     <div class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">
         <div class="max-w-5xl mb-10 md:mx-auto sm:text-center md:mb-12">
             <h2 class="max-w-5xl mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">
-                How does an online software achieve this?
+                Beautiful nesting...
             </h2>
         </div>
-        <div class="grid gap-8 row-gap-0 lg:grid-cols-3">
-            <div class="relative text-center">
-                <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-50 sm:w-20 sm:h-20">
-                    <svg class="w-12 h-12 text-deep-purple-accent-400 sm:w-16 sm:h-16" stroke="currentColor" viewBox="0 0 52 52">
-                        <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
-                    </svg>
-                </div>
-                <h6 class="mb-2 text-2xl font-extrabold">
-                    1) Import Material List
-                </h6>
-                <ul class="mb-4 -ml-1 space-y-2 mt-4 text-left">
-                    <li class="flex items-start">
-                        <p class="mr-1">
-                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">
-                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
-                            </svg>
-                        </p>
-                        Import materials from your BOM spreadsheet
-                    </li>
-                    <li class="flex items-start">
-                        <p class="mr-1">
-                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">
-                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
-                            </svg>
-                        </p>
-                        Import materials from Tekla, Inventor, Advance Steel, or any CAD that exports a BOM
-                    </li>
-                    <li class="flex items-start">
-                        <p class="mr-1">
-                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">
-                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
-                            </svg>
-                        </p>
-                        Compares against a database of 10,000+ items
-                    </li>
-                </ul>
-                <div class="top-0 right-0 flex items-center justify-center h-24 lg:-mr-8 lg:absolute">
-                    <svg class="w-8 text-gray-700 transform rotate-90 lg:rotate-0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                        <line fill="none" stroke-miterlimit="10" x1="2" y1="12" x2="22" y2="12"></line>
-                        <polyline fill="none" stroke-miterlimit="10" points="15,5 22,12 15,19 "></polyline>
-                    </svg>
-                </div>
-            </div>
-            <div class="relative text-center">
-                <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-50 sm:w-20 sm:h-20">
-                    <svg class="w-12 h-12 text-deep-purple-accent-400 sm:w-16 sm:h-16" stroke="currentColor" viewBox="0 0 52 52">
-                        <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
-                    </svg>
-                </div>
-                <h6 class="mb-2 text-2xl font-extrabold">
-                    2) Automatic Nesting
-                </h6>
-                <ul class="mb-4 -ml-1 space-y-2 mt-4 text-left">
-                    <li class="flex items-start">
-                        <p class="mr-1">
-                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">
-                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
-                            </svg>
-                        </p>
-                        Cross-project nesting for less waste and higher likelihood of bulk discounts
-                    </li>
-                    <li class="flex items-start">
-                        <p class="mr-1">
-                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">
-                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
-                            </svg>
-                        </p>
-                        Auto group materials together based on your suppliers for easier RFQ preparation.
-                    </li>
-<!--                    <li class="flex items-start">-->
-<!--                        <p class="mr-1">-->
-<!--                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">-->
-<!--                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>-->
-<!--                            </svg>-->
-<!--                        </p>-->
-<!--                        Reminders for managing RFQs based on project deadlines-->
-<!--                    </li>-->
-                </ul>
-                <div class="top-0 right-0 flex items-center justify-center h-24 lg:-mr-8 lg:absolute">
-                    <svg class="w-8 text-gray-700 transform rotate-90 lg:rotate-0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                        <line fill="none" stroke-miterlimit="10" x1="2" y1="12" x2="22" y2="12"></line>
-                        <polyline fill="none" stroke-miterlimit="10" points="15,5 22,12 15,19 "></polyline>
-                    </svg>
-                </div>
-            </div>
-            <div class="relative text-center">
-                <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-50 sm:w-20 sm:h-20">
-                    <svg class="w-12 h-12 text-deep-purple-accent-400 sm:w-16 sm:h-16" stroke="currentColor" viewBox="0 0 52 52">
-                        <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
-                    </svg>
-                </div>
-                <h6 class="mb-2 text-2xl font-extrabold">
-                    3) Automatic Order batching
-                </h6>
-                <ul class="mb-4 -ml-1 space-y-2 mt-4 text-left">
-                    <li class="flex items-start">
-                        <p class="mr-1">
-                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">
-                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
-                            </svg>
-                        </p>
-                        Cross-project batched ordering
-                    </li>
-<!--                    <li class="flex items-start">-->
-<!--                        <p class="mr-1">-->
-<!--                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">-->
-<!--                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>-->
-<!--                            </svg>-->
-<!--                        </p>-->
-<!--                        Supplier discounts based on exact product matches-->
-<!--                    </li>-->
-                    <li class="flex items-start">
-                        <p class="mr-1">
-                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">
-                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
-                            </svg>
-                        </p>
-                        Multiple Purchase order numbers handled
-                    </li>
-<!--                    <li class="flex items-start">-->
-<!--                        <p class="mr-1">-->
-<!--                            <svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">-->
-<!--                                <polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>-->
-<!--                            </svg>-->
-<!--                        </p>-->
-<!--                        Reminders for managing orders based on project deadlines. No expensive expedited orders because something was forgotten.-->
-<!--                    </li>-->
-                </ul>
-            </div>
-        </div>
+        <img src="/nesting.png" class="mx-auto" style="max-width:700px">
     </div>
 
-    <div
-        v-if="sampleNestingData"
-        id="nesting"
-        class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20"
-    >
-        <div class="max-w-7xl mb-10 md:mx-auto md:mb-12">
-            <h2 class="text-center max-w-5xl mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">
-                Example nesting 200PFC across 2 projects
-            </h2>
-            <div class="mx-auto px-4 py-8 mx-auto max-w-5xl">
-                <div class="grid gap-3 grid-cols-2">
-                    <div
-                        v-for="check in sampleNestingData.checks"
-                        class="flex gap-x-2"
-                    >
-                        <i
-                            :class="check.result ? 'fa-solid fa-check bg-teal-accent-400' : 'fa-solid fa-xmark bg-orange-400'"
-                            class="flex items-center justify-center text-lg rounded-full w-6 h-6"
-                        ></i>
-                        <span class="font-semibold text-sm">{{check.description}}{{check.number !== null ? (' ('+check.number+(check.suffix ?? '')+')') : ''}}</span>
-                    </div>
-                </div>
-            </div>
-            <Nesting
-                :width="900"
-                :projectsReadyForBatching="sampleNestingData.projectsReadyForBatching"
-                :lettersProjectArray="sampleNestingData.lettersProjectArray"
-                :usage="sampleNestingData.usage"
-                :piecesGroupedBySupplierGroup="sampleNestingData.piecesGroupedBySupplierGroup"
-                :currentSupplierGroup="Object.keys(sampleNestingData.piecesGroupedBySupplierGroup.assigned)[0]"
-            />
-        </div>
-    </div>
+<!--    <div-->
+<!--        v-if="sampleNestingData"-->
+<!--        id="nesting"-->
+<!--        class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20"-->
+<!--    >-->
+<!--        <div class="max-w-7xl mb-10 md:mx-auto md:mb-12">-->
+<!--            <h2 class="text-center max-w-5xl mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">-->
+<!--                Example nesting 200PFC across 2 projects-->
+<!--            </h2>-->
+<!--            <div class="mx-auto px-4 py-8 mx-auto max-w-5xl">-->
+<!--                <div class="grid gap-3 grid-cols-2">-->
+<!--                    <div-->
+<!--                        v-for="check in sampleNestingData.checks"-->
+<!--                        class="flex gap-x-2"-->
+<!--                    >-->
+<!--                        <i-->
+<!--                            :class="check.result ? 'fa-solid fa-check bg-teal-accent-400' : 'fa-solid fa-xmark bg-orange-400'"-->
+<!--                            class="flex items-center justify-center text-lg rounded-full w-6 h-6"-->
+<!--                        ></i>-->
+<!--                        <span class="font-semibold text-sm">{{check.description}}{{check.number !== null ? (' ('+check.number+(check.suffix ?? '')+')') : ''}}</span>-->
+<!--                    </div>-->
+<!--                </div>-->
+<!--            </div>-->
+<!--            <Nesting-->
+<!--                :width="900"-->
+<!--                :projectsReadyForBatching="sampleNestingData.projectsReadyForBatching"-->
+<!--                :lettersProjectArray="sampleNestingData.lettersProjectArray"-->
+<!--                :usage="sampleNestingData.usage"-->
+<!--                :piecesGroupedBySupplierGroup="sampleNestingData.piecesGroupedBySupplierGroup"-->
+<!--                :currentSupplierGroup="Object.keys(sampleNestingData.piecesGroupedBySupplierGroup.assigned)[0]"-->
+<!--            />-->
+<!--        </div>-->
+<!--    </div>-->
 
     <div class="px-4 py-16 mx-auto sm:max-w-7xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">
         <div class="max-w-7xl mb-10 md:mx-auto sm:text-center lg:max-w-7xl md:mb-12">
