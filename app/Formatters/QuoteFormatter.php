@@ -126,6 +126,7 @@ class QuoteFormatter
                             'supplier_group' => $supplierGroup,
                             'ordered_quote_id' => $orderOfSupplierGroup ? $orderOfSupplierGroup->quote->id : null,
                             'purchase_order_number' => $orderOfSupplierGroup ? $orderOfSupplierGroup->purchase_order_number : null,
+                            "material_cert_numbers" => $order->material_cert_numbers,
                         ],
                         'formUndoOrderSent' => [
                             'order_id' => $order->id,

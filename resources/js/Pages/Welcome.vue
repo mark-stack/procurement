@@ -194,6 +194,10 @@
                                     <span class="mr-1"><svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52"><polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon></svg></span>
                                     Less scrap = less orders = less delivery costs
                                 </li>
+                                <li class="flex items-start">
+                                    <span class="mr-1"><svg class="w-5 h-5 mt-px text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52"><polygon stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon></svg></span>
+                                    All cuts 100% distinguished between projects
+                                </li>
                             </div>
                         </div>
                     </div>
@@ -215,10 +219,10 @@
                     <div class="flex flex-col justify-between flex-grow">
                         <div>
                             <h6 class="mb-2 font-bold leading-5 text-2xl">
-                                Optimised offcut placement
+                                Optimised offcut inventory placement
                             </h6>
                             <p class="mb-2 text-base text-gray-900">
-                                The system knows all the available offcuts without complex inventory management or stocktaking.
+                                The system knows all the available offcut inventory without ever needing to do stocktaking
                             </p>
                             <div class="grid grid-cols-1  gap-2 row-gap-2 text-sm">
                                 <li class="flex items-start">

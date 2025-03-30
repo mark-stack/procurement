@@ -25,6 +25,7 @@ return new class extends Migration
             $table->boolean('order_confirmation_received')->default(false);
             $table->string('purchase_order_number')->nullable();
             $table->boolean('is_delivered')->default(false);
+            $table->text("material_cert_numbers")->nullable();
         });
     }
 

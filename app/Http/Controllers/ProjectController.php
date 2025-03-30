@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\SupplierGroupEnums;
 use App\Formatters\NestingFormatter;
 use App\Formatters\QuoteFormatter;
 use App\Http\Resources\ProjectResource;
@@ -198,6 +199,10 @@ class ProjectController extends Controller
             $orders = $batch->orders;
             $totalOrdersQty = $batchService->totalOrdersQty($batch);
             $totalDeliveredQty = $batch->orders()->where('is_delivered', true)->count();
+            $steelMerchantDeliveredButNoCertsYet = $batch->orders()
+                ->whereRelation("quote","supplier_category","=",SupplierGroupEnums::STEEL_MERCHANT->value)
+                ->where("material_cert_numbers",null)
+                ->exists();
 
             $delivered[$batch->id] = [
                 'info' => [
@@ -214,6 +219,7 @@ class ProjectController extends Controller
                     'sentOrdersQty' => $batch->orders()->where('order_sent', true)->count(),
                     "totalDeliveredQty" => $totalDeliveredQty,
                     "allDelivered" => $totalDeliveredQty === $totalOrdersQty,
+                    "steelMerchantDeliveredButNoCertsYet" => $steelMerchantDeliveredButNoCertsYet,
                     'all_project_manager_approvals' => (new OrderService)->allProjectManagersApproved($batch),
                 ],
             ];

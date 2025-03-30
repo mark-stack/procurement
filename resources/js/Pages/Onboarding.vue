@@ -38,18 +38,19 @@
                             Welcome
                         </h1>
                         <p class="mt-5">
-                            To get going, we need to shape the software to your construction company!
+                            To get going, we need to shape the software to how your company works.
                         </p>
                         <div class="mt-3">
-                            This means providing some docs to train the software:
+                            This means providing some basic docs to help us calibrate it for you:
 
                             <!-- Quote template -->
                             <div class="mt-3">
-                                <h3 class="font-semibold">Your project quoting template:</h3>
+                                <h3 class="font-semibold">Examples of your bill-of-materials templates:</h3>
                                 <ul>
-                                    <li>- From wherever you do quoting (often spreadsheets), download an export in Excel format.</li>
+                                    <li>- Excel exported from CAD like Tekla, Inventor, Advance Steel etc.</li>
+                                    <li>- Manually created Excel spreadsheets. </li>
                                     <li>- You might have multiple templates for different staff members. That's ok.</li>
-                                    <li>- We configure the software so it auto detects any quoting template your company uses and extracts all the materials.</li>
+                                    <li>- We configure the software to auto detects all your templates to then extracts all the materials.</li>
                                 </ul>
                             </div>
 
@@ -63,7 +64,7 @@
                             Send whatever you come up with to:
                             <br>
                             <a
-                                :href="'mailto:'+adminEmail+'?subject=Project%20templates%20and%20suppliers%20list'"
+                                :href="'mailto:'+adminEmail+'?subject=BOM%20templates%20and%20suppliers%20list'"
                                 target="_blank"
                                 class="underline text-blue-500 text-lg"
                             >

@@ -17,7 +17,7 @@
 
     //Forms
     const formProjectCreate = useForm({
-        name: null,
+        name: "",
         reference: null,
         date_materials_required: null,
         tentative: false,
@@ -40,12 +40,20 @@
     const showUserCustomProducts = ref(hasUserCustomProducts());
     const business = usePage().props.auth.business;
     const freezeView = ref(false);
-
+    const saveButtonDisabled = ref(calculateDisabled());
+    const fileInput = ref(null);
 
     //Shared Methods
     //
 
     //Methods
+    function calculateDisabled(){
+        return formProjectCreate.processing
+            || freezeView.value
+            || formProjectCreate.excel.length === 0
+            || formProjectCreate.name === "";
+    }
+
     function hasClarifications(){
         return thisDownloadedBomData(props.bomData)
             ? (thisDownloadedBomData(props.bomData).partialProductMatches.length > 0)
@@ -107,6 +115,7 @@
                 },
                 onError: errors => {
                     console.log('errors',errors);
+                    freezeView.value = false;
                 },
             });
         }
@@ -151,9 +160,14 @@
         });
 
         formProjectCreate.excel = newFilesList;
+
+        //Recalculate disabled submit button
+        saveButtonDisabled.value = calculateDisabled();
     }
 
     function addFiles(files){
+        console.log("addFiles");
+
         //Add files where unique names
         Object.values(files).forEach(file => {
             let exists = formProjectCreate.excel.find(uploadedFile => uploadedFile.name === file.name);
@@ -161,6 +175,12 @@
                 formProjectCreate.excel.push(file);
             }
         });
+
+        //Clear cache
+        fileInput.value.value = "";
+
+        //Recalculate disabled submit button
+        saveButtonDisabled.value = calculateDisabled();
     }
 
     function reloadAndDownloadModal(projectFlashed){
@@ -287,7 +307,7 @@
                     class="flex items-center justify-center text-center italic text-lg"
                     style="height:300px"
                 >
-                    Loading: Take a 10 second meditation
+                    Loading: Take a 10 second nap
                 </div>
 
                 <!-- Add project -->
@@ -305,7 +325,7 @@
                             <div class="grid grid-cols-1 gap-6 mt-4">
                                 <!-- Name -->
                                 <div>
-                                    <label class="text-gray-700 dark:text-gray-200 ml-1">Project Name</label>
+                                    <label class="text-gray-700 dark:text-gray-200 ml-1">Project Name *</label>
                                     <input
                                         v-model="formProjectCreate.name"
                                         type="text"
@@ -313,6 +333,7 @@
                                         placeholder="Name"
                                         required
                                         :disabled="formProjectCreate.processing || freezeView"
+                                        @input="saveButtonDisabled = calculateDisabled()"
                                     >
                                     <div v-if="formProjectCreate.errors.name" class="text-sm text-red-500">{{ formProjectCreate.errors.name }}</div>
                                 </div>
@@ -344,7 +365,7 @@
 
                                 <!-- BOM upload -->
                                 <div>
-                                    <label class="text-gray-700 dark:text-gray-200 ml-1">Upload 1 or more BOM Excel files</label>
+                                    <label class="text-gray-700 dark:text-gray-200 ml-1">Upload 1 or more BOM Excel files *</label>
                                     <br>
                                     <div
                                         v-if="formProjectCreate.excel.length > 0"
@@ -367,9 +388,11 @@
                                             </p>
                                         </div>
                                     </div>
+
                                     <label class="text-blue-700 font-semibold hover:text-blue-900">
                                         + upload BOM
                                         <input
+                                            ref="fileInput"
                                             type="file"
                                             class="hidden"
                                             multiple
@@ -390,9 +413,10 @@
                                 <div>
                                     <button
                                         type="submit"
-                                        :disabled="formProjectCreate.processing || freezeView"
+                                        :disabled="saveButtonDisabled"
                                         style="height:40px"
-                                        class="w-full px-4 py-2 text-sm font-medium tracking-wide text-white capitalize transition-colors duration-300 transform bg-blue-700 rounded-md hover:bg-blue-600 focus:outline-none focus:bg-blue-600"
+                                        :class="saveButtonDisabled ? 'bg-blue-300' : 'bg-blue-700 hover:bg-blue-600 focus:outline-none focus:bg-blue-600'"
+                                        class="w-full px-4 py-2 text-sm font-medium tracking-wide text-white capitalize transition-colors duration-300 transform rounded-md "
                                     >
                                         <span v-if="editProject">Updat{{(formProjectCreate.processing || freezeView) ? 'ing...' : 'e'}}</span>
                                         <span v-else>{{(formProjectCreate.processing || freezeView) ? 'Extracting...' : 'Extract materials'}}</span>
@@ -418,7 +442,7 @@
                             <div class="grid grid-cols-1 gap-6 mt-4">
                                 <!-- Name -->
                                 <div>
-                                    <label class="text-gray-700 dark:text-gray-200 ml-1">Project Name</label>
+                                    <label class="text-gray-700 dark:text-gray-200 ml-1">Project Name *</label>
                                     <input
                                         v-model="formProjectCreate.name"
                                         type="text"

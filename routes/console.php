@@ -11,4 +11,4 @@ Artisan::command('inspire', function () {
 
 $testMode = config('env.test_mode');
 $frequency = $testMode ? 'everyMinute' : 'hourly';
-Schedule::job(new HourlyNotificationsJob)->$frequency();
+//Schedule::job(new HourlyNotificationsJob)->$frequency();

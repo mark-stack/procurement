@@ -141,7 +141,7 @@
                             Back to Create
                         </p>
                         <p v-else class="max-w-md mx-auto mt-5 text-gray-500 dark:text-gray-400">
-                            Create user CSV importing templates that will auto-detect upon drag & drop.
+                            Create user Excel importing templates that will auto-detect upon drag & drop.
                         </p>
 
                         <div class="flex flex-col mt-4 space-y-3 sm:space-y-0 sm:flex-row sm:justify-center">

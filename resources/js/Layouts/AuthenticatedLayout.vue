@@ -28,16 +28,10 @@
             <div class="relative flex items-center justify-between">
                 <div class="flex items-center">
                     <Link href="/" aria-label="Company" title="Company" class="inline-flex items-center mr-8">
-<!--                        <svg class="w-8 text-teal-accent-400" viewBox="0 0 24 24" stroke-linejoin="round" stroke-width="2" stroke-linecap="round" stroke-miterlimit="10" stroke="currentColor" fill="none">-->
-<!--                            <rect x="3" y="1" width="7" height="12"></rect>-->
-<!--                            <rect x="3" y="17" width="7" height="6"></rect>-->
-<!--                            <rect x="14" y="1" width="7" height="6"></rect>-->
-<!--                            <rect x="14" y="11" width="7" height="12"></rect>-->
-<!--                        </svg>-->
                         <span class="ml-2 text-xl font-bold tracking-wide text-gray-100">SteelNesting.com.au</span>
                     </Link>
                     <ul class="flex items-center hidden space-x-8 lg:flex">
-                        <li>
+                        <li v-if="onboarded">
                             <Link
                                 :href="route('projects.index')"
                                 title="Current Projects"
@@ -66,21 +60,21 @@
                                 <div class="relative text-gray-700 transition-colors duration-300 transform dark:text-gray-200 hover:text-gray-600 dark:hover:text-gray-300">
                                     <div class="relative inline-block">
                                         <!-- Notifications button -->
-                                        <button
-                                            @click="showMenu = false; showNotifications = !showNotifications"
-                                            :disabled="notifications.length === 0"
-                                            class="relative z-10 block p-2 text-gray-700 bg-white border border-transparent rounded-md dark:text-white focus:border-blue-500 focus:ring-opacity-40 dark:focus:ring-opacity-40 focus:ring-blue-300 dark:focus:ring-blue-400 focus:ring dark:bg-gray-800 focus:outline-none"
-                                        >
-                                            <svg
-                                                :class="notifications.length > 0 ? 'animate-wiggle text-orange-800' : 'text-gray-800'"
-                                                class="w-5 h-5"
-                                                viewBox="0 0 24 24"
-                                                fill="none"
-                                                xmlns="http://www.w3.org/2000/svg"
-                                            >
-                                                <path d="M12 22C10.8954 22 10 21.1046 10 20H14C14 21.1046 13.1046 22 12 22ZM20 19H4V17L6 16V10.5C6 7.038 7.421 4.793 10 4.18V2H13C12.3479 2.86394 11.9967 3.91762 12 5C12 5.25138 12.0187 5.50241 12.056 5.751H12C10.7799 5.67197 9.60301 6.21765 8.875 7.2C8.25255 8.18456 7.94714 9.33638 8 10.5V17H16V10.5C16 10.289 15.993 10.086 15.979 9.9C16.6405 10.0366 17.3226 10.039 17.985 9.907C17.996 10.118 18 10.319 18 10.507V16L20 17V19ZM17 8C16.3958 8.00073 15.8055 7.81839 15.307 7.477C14.1288 6.67158 13.6811 5.14761 14.2365 3.8329C14.7919 2.5182 16.1966 1.77678 17.5954 2.06004C18.9942 2.34329 19.9998 3.5728 20 5C20 6.65685 18.6569 8 17 8Z" fill="currentColor"></path>
-                                            </svg>
-                                        </button>
+<!--                                        <button-->
+<!--                                            @click="showMenu = false; showNotifications = !showNotifications"-->
+<!--                                            :disabled="notifications.length === 0"-->
+<!--                                            class="relative z-10 block p-2 text-gray-700 bg-white border border-transparent rounded-md dark:text-white focus:border-blue-500 focus:ring-opacity-40 dark:focus:ring-opacity-40 focus:ring-blue-300 dark:focus:ring-blue-400 focus:ring dark:bg-gray-800 focus:outline-none"-->
+<!--                                        >-->
+<!--                                            <svg-->
+<!--                                                :class="notifications.length > 0 ? 'animate-wiggle text-orange-800' : 'text-gray-800'"-->
+<!--                                                class="w-5 h-5"-->
+<!--                                                viewBox="0 0 24 24"-->
+<!--                                                fill="none"-->
+<!--                                                xmlns="http://www.w3.org/2000/svg"-->
+<!--                                            >-->
+<!--                                                <path d="M12 22C10.8954 22 10 21.1046 10 20H14C14 21.1046 13.1046 22 12 22ZM20 19H4V17L6 16V10.5C6 7.038 7.421 4.793 10 4.18V2H13C12.3479 2.86394 11.9967 3.91762 12 5C12 5.25138 12.0187 5.50241 12.056 5.751H12C10.7799 5.67197 9.60301 6.21765 8.875 7.2C8.25255 8.18456 7.94714 9.33638 8 10.5V17H16V10.5C16 10.289 15.993 10.086 15.979 9.9C16.6405 10.0366 17.3226 10.039 17.985 9.907C17.996 10.118 18 10.319 18 10.507V16L20 17V19ZM17 8C16.3958 8.00073 15.8055 7.81839 15.307 7.477C14.1288 6.67158 13.6811 5.14761 14.2365 3.8329C14.7919 2.5182 16.1966 1.77678 17.5954 2.06004C18.9942 2.34329 19.9998 3.5728 20 5C20 6.65685 18.6569 8 17 8Z" fill="currentColor"></path>-->
+<!--                                            </svg>-->
+<!--                                        </button>-->
 
                                         <!-- Dropdown menu -->
                                         <div v-if="showNotifications && notifications.length > 0"
@@ -189,7 +183,7 @@
                     </li>
                 </ul>
                 <!-- Mobile menu -->
-                <div class="lg:hidden">
+                <div v-if="onboarded"  class="lg:hidden">
                     <button aria-label="Open Menu" title="Open Menu" class="p-2 -mr-1 transition duration-200 rounded focus:outline-none focus:shadow-outline">
                         <svg class="w-5 text-gray-600" viewBox="0 0 24 24">
                             <path fill="currentColor" d="M23,13H1c-0.6,0-1-0.4-1-1s0.4-1,1-1h22c0.6,0,1,0.4,1,1S23.6,13,23,13z"></path>

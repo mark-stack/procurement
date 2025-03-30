@@ -119,6 +119,7 @@ class OrderController extends Controller
 
         $validated = $request->validate([
             'purchase_order_number' => ['nullable'],
+            "material_cert_numbers" => ['nullable'],
         ]);
 
         $order->update($validated);

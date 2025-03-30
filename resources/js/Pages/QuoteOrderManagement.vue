@@ -27,6 +27,7 @@
         supplier_group: null,
         ordered_quote_id: null,
         purchase_order_number: null,
+        material_cert_numbers: null,
     });
 
     const formUndoOrderSent = useForm({});
@@ -57,6 +58,7 @@
                         quoted_lead_time: false,
                         supplier_quote_reference: false,
                         add_purchase_order: false,
+                        material_cert_numbers: false,
                     };
                 });
             }
@@ -66,34 +68,34 @@
         return resultArray;
     }
 
-    function showQuotedLeadTime(supplierId){
-        let showQuotedLeadTime = false;
+    // function showQuotedLeadTime(supplierId){
+    //     let showQuotedLeadTime = false;
+    //
+    //     if(showInputs.value.hasOwnProperty(supplierId)){
+    //         showQuotedLeadTime = showInputs.value[supplierId].quoted_lead_time;
+    //     }
+    //
+    //     return showQuotedLeadTime;
+    // }
+    //
+    // function showQuotedPrice(supplierId){
+    //     let showQuotedPrice = false;
+    //
+    //     if(showInputs.value.hasOwnProperty(supplierId)){
+    //         showQuotedPrice = showInputs.value[supplierId].quoted_price;
+    //     }
+    //
+    //     return showQuotedPrice;
+    // }
+
+    function showCertNumbers(supplierId){
+        let showCertNumbers = false;
 
         if(showInputs.value.hasOwnProperty(supplierId)){
-            showQuotedLeadTime = showInputs.value[supplierId].quoted_lead_time;
+            showCertNumbers = showInputs.value[supplierId].material_cert_numbers;
         }
 
-        return showQuotedLeadTime;
-    }
-
-    function showQuotedPrice(supplierId){
-        let showQuotedPrice = false;
-
-        if(showInputs.value.hasOwnProperty(supplierId)){
-            showQuotedPrice = showInputs.value[supplierId].quoted_price;
-        }
-
-        return showQuotedPrice;
-    }
-
-    function showSupplierQuoteReference(supplierId){
-        let showSupplierQuoteReference = false;
-
-        if(showInputs.value.hasOwnProperty(supplierId)){
-            showSupplierQuoteReference = showInputs.value[supplierId].supplier_quote_reference;
-        }
-
-        return showSupplierQuoteReference;
+        return showCertNumbers;
     }
 
     function showAddPurchaseOrder(supplierId){
@@ -137,6 +139,11 @@
         //add_purchase_order
         if(type === 'add_purchase_order'){
             showInputs.value[row.info.supplier.id].add_purchase_order = true;
+        }
+
+        //material_cert_numbers
+        if(type === 'material_cert_numbers'){
+            showInputs.value[row.info.supplier.id].material_cert_numbers = true;
         }
     }
 
@@ -182,6 +189,7 @@
         let url = route("orders.update",row.formOrderUpdate.order_id);
 
         formOrderUpdate.purchase_order_number = row.formOrderUpdate.purchase_order_number;
+        formOrderUpdate.material_cert_numbers = row.formOrderUpdate.material_cert_numbers;
 
         formOrderUpdate.put(url, {
             preserveScroll: true,
@@ -295,6 +303,10 @@
 
         return shouldDisableQuoteSent;
     }
+
+    function format(string) {
+        return string.replace(/_/g, " ");
+    }
 </script>
 
 <template>
@@ -329,7 +341,7 @@
                         <!-- header -->
                         <div class="grid grid-cols-2">
                             <div>
-                                <h2 class="font-semibold">{{supplierGroup}}</h2>
+                                <h2 class="font-semibold">{{ format(supplierGroup)}}</h2>
                                 <p class="text-sm text-gray-400">{{data.info.includedProducts}}</p>
                             </div>
                             <div class="text-right">
@@ -357,7 +369,7 @@
                         <!-- Main-->
                         <div v-if="data.hasSuppliersForThisGroup" class="mt-3">
                             <!-- heading row -->
-                            <div class="grid grid-cols-6 text-xs text-gray-500 text-center mb-2 font-semibold">
+                            <div class="grid grid-cols-7 text-xs text-gray-500 text-center mb-2 font-semibold">
                                 <div class="col-span-2 text-left">
                                     Supplier
                                 </div>
@@ -382,12 +394,15 @@
                                 <div>
                                     Delivered
                                 </div>
+                                <div>
+                                    Material Certs
+                                </div>
                             </div>
                             <!-- rows -->
                             <div
                                 v-for="row in data.rows"
                                 :class="row.info.order_sent ? 'bg-green-50' : ''"
-                                class="grid grid-cols-6 text-center mb-2 p-1 rounded"
+                                class="grid grid-cols-7 text-center mb-2 p-1 rounded"
                             >
                                 <!-- supplier -->
                                 <div class="col-span-2 text-left pt-1">
@@ -602,6 +617,38 @@
                                         type="checkbox"
                                         :class="row.info.is_delivered ? 'text-gray-500' : ''"
                                     />
+                                </div>
+                                <!-- Certs -->
+                                <div class="col-span-1 pt-2">
+                                    <div v-if="row.info.is_delivered" class="italic text-sm">
+                                        <div v-if="showCertNumbers(row.info.supplier.id)">
+                                            <input
+                                                v-model="row.formOrderUpdate.material_cert_numbers"
+                                                required
+                                                type="text"
+                                                class="w-full text-sm rounded"
+                                                style="width:90px"
+                                                minlength="1"
+                                            />
+                                            <div class="flex gap-x-1 justify-center">
+                                                <template v-if="formOrderUpdate.processing">
+                                                    <span class="text-xs text-green-500 font-bold">Saving...</span>
+                                                </template>
+                                                <template v-else>
+                                                    <button @click="updateOrder(row,true)" class="text-xs underline text-green-500 font-bold">Save</button>
+                                                    <button @click="hideInput()" class="text-xs underline">Cancel</button>
+                                                </template>
+                                            </div>
+                                        </div>
+                                        <div v-else>
+                                            <p
+                                                class="text-blue-500 underline text-xs"
+                                                @click="toggleShowInput(row,'material_cert_numbers')"
+                                            >
+                                                {{row.formOrderUpdate.material_cert_numbers ?? 'Add certs'}}
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

@@ -106,20 +106,23 @@
                 {{ shared.cropText(shared.capitalizeWords(project.name),30) }}
             </h4>
 
-            <div class="flex gap-x-1 w-full mt-3 text-xs font-medium text-gray-900">
+            <div class="grid grid-cols-7 gap-x-1 w-full mt-3 text-xs font-medium text-gray-900">
                 <CardButtonGreen
                     @click="$emit('pageLoadingOn',null);$emit('showBom',project)"
                     :label="project.qtyMaterialRows + ' pieces'"
                     :highlight="false"
                     :icon="false"
+                    class="col-span-3"
                 />
                 <CardButtonRed
                     @click="$emit('toggleArchive',project)"
                     label="Archive"
                     :fullWidth="false"
                     :disabled="kanbanColumn !== 'NESTING'"
+                    class="col-span-2"
                 />
                 <CardButtonYellow
+                    class="col-span-2"
                     @click="$emit('editMode',project)"
                     label="Edit"
                     :fullWidth="false"
@@ -220,8 +223,15 @@
             />
 
             <!-- All delivered (suggest mark as done) -->
+            <div
+                v-if="kanbanColumn === 'DELIVERED' && props.batchInfo.steelMerchantDeliveredButNoCertsYet"
+                class="col-span-2 text-orange-700 text-sm text-center mt-3"
+            >
+                <i class="fa-solid fa-triangle-exclamation"></i> The steel merchant order has no attached material certs. This is required to keep all offcuts 100% traceable.
+            </div>
+
             <CardButtonForward
-                v-if="kanbanColumn === 'DELIVERED' && allDelivered()"
+                v-if="kanbanColumn === 'DELIVERED' && allDelivered() && !props.batchInfo.steelMerchantDeliveredButNoCertsYet"
                 :label="formMarkAsPastProject.processing ? 'Moving...' : 'Move to done'"
                 @click="markAsPastProject()"
                 class="col-span-2"

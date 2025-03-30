@@ -51,7 +51,7 @@
             <section class="container mt-5">
                 <div
                     v-if="projectsReadyForBatching.data.length > 0"
-                    class="grid grid-cols-5"
+                    class="grid grid-cols-5 text-left"
                 >
                     <!-- included projects -->
                     <div class="col-span-2">
