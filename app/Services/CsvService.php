@@ -33,12 +33,30 @@ class CsvService
             $this->processTemplate($detectedTables, $project);
 
             //Return back with project ID
-            $return =back()->with("project",$project);
+            $return = back()->with("project",$project);
         } else {
             $return = back()->with('warning', $errorMsg);
         }
 
         return $return;
+    }
+
+    public function validateTemplateExists(array $csvArray): bool
+    {
+        $templateExists = false;
+
+        //Eligible Tables
+        $eligibleTables = $this->eligibleTables();
+
+        //Detected Tables
+        $detectedTables = $this->detectedTables($csvArray, $eligibleTables);
+
+        //Should have at least 1 result
+        if (count($detectedTables) > 0) {
+            $templateExists = true;
+        }
+
+        return $templateExists;
     }
 
     public function eligibleTables(): array

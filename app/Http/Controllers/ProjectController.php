@@ -21,6 +21,7 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Validation\ValidationException;
 
 class ProjectController extends Controller
 {
@@ -300,6 +301,46 @@ class ProjectController extends Controller
             'name.not_in' => 'Pick a name different to currently active projects', // Custom error message
         ]);
 
+        //Services
+        $csvService = new CsvService;
+
+        //Store the uploaded files temporarily
+        $files = $request->file('excel');
+
+        /*
+         * Validate templates exist
+         */
+        $validFiles = [];
+        $invalidFiles = [];
+        foreach($files as $file){
+            $path = $file->store('uploads');
+
+            //Read the CSV
+            $csvArray = null;
+            try {
+                $csvArray = Excel::toArray(new ExcelImport, $file)[0];
+
+                if($csvService->validateTemplateExists($csvArray)){
+                    $validFiles[] = $file->getClientOriginalName();
+                }
+                else{
+                    $invalidFiles[] = $file->getClientOriginalName();
+                }
+            }
+            catch (\Throwable $e) {
+                $invalidFiles[] = $file->getClientOriginalName();
+            }
+
+            // Delete the file after processing
+            unlink(storage_path("app/private/{$path}"));
+        }
+
+        if(count($invalidFiles) > 0){
+            throw ValidationException::withMessages([
+                'invalid_template' => [$invalidFiles],
+            ]);
+        }
+
         /*
          * Create project
          */
@@ -314,12 +355,6 @@ class ProjectController extends Controller
         /*
          * Process Excel
          */
-        //Services
-        $csvService = new CsvService;
-
-        //Store the uploaded file temporarily
-        $files = $request->file('excel');
-
         $return = back();
 
         foreach($files as $file){
@@ -329,7 +364,7 @@ class ProjectController extends Controller
             $csvArray = Excel::toArray(new ExcelImport, $file)[0];
 
             //Process the CSV
-            $errorMsg = "The file didn't auto-detect properly. Did the template change? Please email the file to mark.laravel.coder@gmail to have it re-calibrated quickly.";
+            $errorMsg = "The file didn't auto-detect properly. Did the template change? Please email the file to mark.laravel.coder@gmail.com to have it re-calibrated quickly.";
 
             //Users to get nice error message, admin to throw error.
             if ($user->isAdmin()) {

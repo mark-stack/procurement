@@ -207,7 +207,7 @@ class ProductController extends Controller
         $csvArray = Excel::toArray(new ExcelImport, $file)[0];
 
         //Process the CSV
-        $errorMsg = "The file didn't auto-detect properly. Did the template change? Please email the file to mark.laravel.coder@gmail to have it re-calibrated quickly.";
+        $errorMsg = "The spreadsheet didn't auto-detect properly. Did the template change? Please email the file to mark.laravel.coder@gmail.com to have it re-calibrated quickly.";
 
         //Users to get nice error message, admin to throw error.
         if ($user->isAdmin()) {

@@ -31,7 +31,7 @@
     const fullPriceMonthly = 300;
     const fullPriceWeekly = 49;
     const firstYearDiscount = 0;
-    const whichPlan = "ANNUAL"; //"MONTHLY","ANNUAL", "WEEKLY", "MULTI_YEAR"
+    const whichPlan = "MULTI_YEAR"; //"MONTHLY","ANNUAL", "WEEKLY", "MULTI_YEAR"
 
 
     //Shared Methods
@@ -163,10 +163,23 @@
                     </div>
                     <div>
                         <h6 class="mb-3 text-xl font-bold leading-5">
-                            Mathematical maximum material efficiency
+                            Mathematical maximum nesting efficiency
                         </h6>
                         <p class="text-sm text-gray-900">
-                            Webtwo ipsum orkut reddit meebo skype vimeo jajah spock empressr zimbra, mobly napster.
+                            <ul>
+                                <li>
+                                    <span class="font-semibold">- Cross-project nesting:</span> multiple concurrent projects to drive up material yield with no extra effort. Each project manager simply upload their material lists
+                                </li>
+                                <li>
+                                    <span class="font-semibold">- Real time offcut tracking & placement:</span>
+                                </li>
+                                <li>
+                                    <span class="font-semibold">- Multiple algorithms</span>
+                                </li>
+                                <li>
+                                    <span class="font-semibold">- Iterative algorithms (best of 1000)</span>
+                                </li>
+                            </ul>
                         </p>
                     </div>
                 </div>
@@ -183,7 +196,7 @@
                             Automatic importing of cut lists from any source
                         </h6>
                         <p class="text-sm text-gray-900">
-                            Import materials from Tekla, Inventor, Advance Steel, or any CAD that exports a BOM
+                            Import materials from Tekla, Inventor, Advance Steel, or any CAD that exports a BOM. Also, manually created spreadsheets are supported.
                         </p>
                     </div>
                 </div>
@@ -200,7 +213,14 @@
                             100% Material traceability
                         </h6>
                         <p class="text-sm text-gray-900">
-                            The first mate and his Skipper too will do their very best to make the others comfortable.
+                            <ul>
+                                <li>
+                                    <span class="font-semibold">- Material certificates:</span> Attach Material certificates from steel order.
+                                </li>
+                                <li>
+                                    <span class="font-semibold">- xxx:</span> All cuts completely distinguished when doing cross-project nesting
+                                </li>
+                            </ul>
                         </p>
                     </div>
                 </div>
@@ -219,7 +239,11 @@
                             Simple order tracking
                         </h6>
                         <p class="text-sm text-gray-900">
-                            Skate ipsum dolor sit amet, alley oop vert mute-air Colby Carter flail 180 berm over the sea.
+                            BOM importing automatically sorts materials into a supplier group. E.g sections, purlins, piping, timber
+                            Track quoting > ordering > delivering of nested batches
+                            1 click BOM-to-email list for getting quotes and placing orders
+                            Easy to read kanban of concurrent orders
+
                         </p>
                     </div>
                 </div>
@@ -233,10 +257,12 @@
                     </div>
                     <div>
                         <h6 class="mb-3 text-xl font-bold leading-5">
-                            Built 100% in Australia for Australians
+                            Built 100% in Australia for Australian Fabricators
                         </h6>
                         <p class="text-sm text-gray-900">
-                            Cheese on toast airedale the big cheese. Danish fontina cheesy grin airedale danish fontina.
+                            10,000 products as sourced from the product catalogues of all the major steel merchants
+                            Local support
+
                         </p>
                     </div>
                 </div>
@@ -832,8 +858,9 @@
                             <p class="text-sm font-bold tracking-wider uppercase">
                                 {{savings_period_years}} year licence
                             </p>
-
-                            <p class="text-5xl font-extrabold">A${{ fullPriceMultiYear.toLocaleString('en-US') }}</p>
+                            <p class="text-5xl font-extrabold">
+                                A${{ fullPriceMultiYear.toLocaleString('en-US') }}<span class="font-light text-lg"> (ex GST)</span>
+                            </p>
                         </div>
 
                         <!-- Annual plan -->
@@ -844,10 +871,12 @@
 
                             <div v-if="firstYearDiscount > 0" class="mt-4 flex items-baseline justify-start">
                                 <p class="text-3xl font-extrabold">
-                                    <s class="font-medium">${{ fullPriceAnnual.toLocaleString('en-US') }}</s><span class="font-bold text-xl">/year</span>
+                                    <s class="font-medium">${{ fullPriceAnnual.toLocaleString('en-US') }}</s><span class="font-bold text-xl">/year</span><span class="font-light text-lg"> (ex GST)</span>
                                 </p>
                             </div>
-                            <p class="text-5xl font-extrabold">A${{ (fullPriceAnnual*((100-firstYearDiscount)/100)).toLocaleString('en-US') }}<span class="text-xl">/year</span></p>
+                            <p class="text-5xl font-extrabold">
+                                A${{ (fullPriceAnnual*((100-firstYearDiscount)/100)).toLocaleString('en-US') }}<span class="text-xl">/year</span><span class="font-light text-lg"> (ex GST)</span>
+                            </p>
                         </div>
 
                         <!-- Monthly plan -->
@@ -858,10 +887,12 @@
 
                             <div v-if="firstYearDiscount > 0" class="mt-4 flex items-baseline justify-start">
                                 <p class="text-3xl font-extrabold">
-                                    <s class="font-medium">${{ fullPriceMonthly.toLocaleString('en-US') }}</s><span class="font-bold text-xl">/month</span>
+                                    <s class="font-medium">${{ fullPriceMonthly.toLocaleString('en-US') }}</s><span class="font-bold text-xl">/month</span><span class="font-light text-lg"> (ex GST)</span>
                                 </p>
                             </div>
-                            <p class="text-5xl font-extrabold">A${{ (fullPriceMonthly*((100-firstYearDiscount)/100)).toLocaleString('en-US') }}<span class="text-xl">/month</span></p>
+                            <p class="text-5xl font-extrabold">
+                                A${{ (fullPriceMonthly*((100-firstYearDiscount)/100)).toLocaleString('en-US') }}<span class="text-xl">/month</span><span class="font-light text-lg"> (ex GST)</span>
+                            </p>
                         </div>
 
                         <!-- Weekly plan -->
@@ -872,10 +903,12 @@
 
                             <div v-if="firstYearDiscount > 0" class="mt-4 flex items-baseline justify-start">
                                 <p class="text-3xl font-extrabold">
-                                    <s class="font-medium">${{ fullPriceWeekly.toLocaleString('en-US') }}</s><span class="font-bold text-xl">/week</span>
+                                    <s class="font-medium">${{ fullPriceWeekly.toLocaleString('en-US') }}</s><span class="font-bold text-xl">/week</span><span class="font-light text-lg"> (ex GST)</span>
                                 </p>
                             </div>
-                            <p class="text-5xl font-extrabold">A${{ (fullPriceWeekly*((100-firstYearDiscount)/100)).toLocaleString('en-US') }}<span class="text-xl">/week</span></p>
+                            <p class="text-5xl font-extrabold">
+                                A${{ (fullPriceWeekly*((100-firstYearDiscount)/100)).toLocaleString('en-US') }}<span class="text-xl">/week</span><span class="font-light text-lg"> (ex GST)</span>
+                            </p>
                         </div>
                     </div>
                     <div>
@@ -929,14 +962,14 @@
                         </ul>
                     </div>
                 </div>
-<!--                <div>-->
-<!--                    <Link-->
-<!--                        :href="route('register')"-->
-<!--                        class="inline-flex items-center justify-center w-full h-12 px-6 mb-4 font-medium tracking-wide text-white transition duration-200 rounded shadow-md bg-deep-purple-accent-400 hover:bg-deep-purple-accent-700 focus:shadow-outline focus:outline-none"-->
-<!--                    >-->
-<!--                        Get started-->
-<!--                    </Link>-->
-<!--                </div>-->
+                <div v-if="user">
+                    <a
+                        href="mailto:mark@steelnesting.com.au?subject=Request%20an%20invoice%20for%20SteelNesting.com.au"
+                        class="inline-flex items-center justify-center w-full h-12 px-6 mb-4 font-medium tracking-wide text-white transition duration-200 bg-deep-purple-accent-400 rounded shadow-md hover:bg-deep-purple-accent-500 focus:shadow-outline focus:outline-none"
+                    >
+                        Request invoice by email
+                    </a>
+                </div>
             </div>
         </div>
     </div>

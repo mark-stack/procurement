@@ -42,6 +42,7 @@
     const freezeView = ref(false);
     const saveButtonDisabled = ref(calculateDisabled());
     const fileInput = ref(null);
+    //const showInvalidTemplateMessage = ref(false);
 
     //Shared Methods
     //
@@ -83,8 +84,6 @@
             formProjectCreate.put(url, {
                 preserveScroll: true,
                 onSuccess: () => {
-                    formProjectCreate.reset();
-
                     //Close modal
                     freezeView.value = false;
                     emit('closeModalOnSuccess');
@@ -110,12 +109,25 @@
                 onSuccess: () => {
                     formProjectCreate.reset();
 
-                    //Download BOM data
-                    reloadAndDownloadModal(projectFlashed.value);
+                    //Excel upload was valid and successful
+                    if(projectFlashed.value){
+                        //Download BOM data
+                        reloadAndDownloadModal(projectFlashed.value);
+                    }
+                    //Excel was invalid (prompt to get support help)
+                    else{
+                        //Hide loader
+                        freezeView.value = false;
+                    }
                 },
                 onError: errors => {
                     console.log('errors',errors);
+
+                    //Hide loader
                     freezeView.value = false;
+
+                    //Clear attached files
+                    formProjectCreate.excel = [];
                 },
             });
         }
@@ -304,16 +316,16 @@
                 <!-- Loading -->
                 <div
                     v-if="freezeView"
-                    class="flex items-center justify-center text-center italic text-lg"
+                    class="flex items-center justify-center text-center text-lg"
                     style="height:300px"
                 >
-                    Loading: Take a 10 second nap
+                    Loading: Take a 15 second nap 😴
                 </div>
 
                 <!-- Add project -->
                 <div
                     v-else-if="isAdd()"
-                    style="height:300px"
+
                     class="px-6 pt-4 pb-4 mx-auto text-center"
                 >
                     <h1 class="text-3xl font-semibold text-gray-800 dark:text-gray-100">
@@ -364,9 +376,66 @@
                                 <!--                                </div>-->
 
                                 <!-- BOM upload -->
-                                <div>
-                                    <label class="text-gray-700 dark:text-gray-200 ml-1">Upload 1 or more BOM Excel files *</label>
-                                    <br>
+                                <div class="overflow-y-auto" style="max-height:180px">
+<!--                                    <label class="text-gray-700 dark:text-gray-200 ml-1">-->
+<!--                                        Upload 1 or more BOM Excel files *-->
+<!--                                    </label>-->
+<!--                                    <br>-->
+
+                                    <!-- invalid template (ref to admin support)-->
+                                    <template v-if="formProjectCreate.errors.invalid_template">
+                                        <div class="text-orange-700 text-sm border-2 border-orange-300 rounded-2xl p-3">
+                                            <!-- one file -->
+                                            <div v-if="Object.keys(formProjectCreate.errors.invalid_template).length === 1">
+                                                <b><i>"{{formProjectCreate.errors.invalid_template[0]}}"</i></b> didn't auto-detect properly. Did the template change?
+                                                Please email the file to <a href="mailto:mark.laravel.coder@gmail.com" class="text-orange-700 font-semibold underline">mark.laravel.coder@gmail.com</a> to have it re-calibrated quickly.
+                                            </div>
+                                            <!-- multiple files -->
+                                            <div v-else-if="Object.keys(formProjectCreate.errors.invalid_template).length > 1">
+                                                A following files didn't auto-detect properly. Did the templates change?
+                                                Please email them to <a href="mailto:mark.laravel.coder@gmail.com" class="text-orange-700 font-semibold underline">mark.laravel.coder@gmail.com</a> to have them re-calibrated quickly.
+                                                <br>
+                                                <ul>
+                                                    <li v-for="file in formProjectCreate.errors.invalid_template">
+                                                        - {{file}}
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                        <div
+                                            class="text-center font-semibold underline mt-2 text-sm"
+                                            @click="formProjectCreate.errors.invalid_template = null"
+                                        >
+                                            Ok, got it
+                                        </div>
+                                    </template>
+
+
+                                    <template v-if="!formProjectCreate.errors.invalid_template">
+                                        <label class="text-blue-700 font-semibold hover:text-blue-900">
+                                            + add Excel Material Lists
+                                            <input
+                                                ref="fileInput"
+                                                type="file"
+                                                class="hidden"
+                                                multiple
+                                                accept=".xls,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                                @input="addFiles($event.target.files)"
+                                                style="cursor: pointer;"
+                                                :disabled="formProjectCreate.processing || freezeView"
+                                                @click="formProjectCreate.errors.invalid_template = null"
+                                            />
+                                        </label>
+                                        <div
+                                            v-if="formProjectCreate.errors.excel"
+                                            class="text-sm text-red-500 mt-2"
+                                        >
+                                            {{ formProjectCreate.errors.excel }}
+                                        </div>
+                                    </template>
+
+
+
                                     <div
                                         v-if="formProjectCreate.excel.length > 0"
                                         class="pl-1 pt-3 pb-3 font-semibold"
@@ -388,29 +457,10 @@
                                             </p>
                                         </div>
                                     </div>
-
-                                    <label class="text-blue-700 font-semibold hover:text-blue-900">
-                                        + upload BOM
-                                        <input
-                                            ref="fileInput"
-                                            type="file"
-                                            class="hidden"
-                                            multiple
-                                            accept=".xls,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                                            @input="addFiles($event.target.files)"
-                                            style="cursor: pointer;"
-                                            :disabled="formProjectCreate.processing || freezeView"
-                                        />
-                                    </label>
-                                    <div
-                                        v-if="formProjectCreate.errors.excel"
-                                        class="text-sm text-red-500 mt-2"
-                                    >
-                                        {{ formProjectCreate.errors.excel }}
-                                    </div>
                                 </div>
+
                                 <!-- submit button -->
-                                <div>
+                                <div v-if="!formProjectCreate.errors.invalid_template">
                                     <button
                                         type="submit"
                                         :disabled="saveButtonDisabled"
@@ -430,7 +480,7 @@
                 <!-- Edit project -->
                 <div
                     v-else-if="isEdit()"
-                    style="height:300px"
+                    style="height:380px"
                     class="px-6 pt-4 pb-4 mx-auto text-center"
                 >
                     <h1 class="text-3xl font-semibold text-gray-800 dark:text-gray-100">
@@ -475,7 +525,7 @@
                 <!-- Clarifications  -->
                 <section
                     v-else-if="isClarify()"
-                    style="height:300px"
+                    style="height:380px"
                     class="pl-5 overflow-y-auto"
                 >
                     <h2 class="font-bold text-lg">Clarify {{ thisDownloadedBomData(bomData).project.name }} materials</h2>
@@ -526,7 +576,7 @@
                 <!-- Custom products -->
                 <section
                     v-else-if="isCustomProducts()"
-                    style="height:400px"
+                    style="height:380px"
                 >
                     [customisation]
                     <!--                        <h2 class="font-bold text-lg">Custom products (add to price book)</h2>-->
