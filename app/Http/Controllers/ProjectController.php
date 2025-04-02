@@ -294,7 +294,7 @@ class ProjectController extends Controller
             'reference' => 'nullable',
             'date_materials_required' => 'nullable|date|after:today',
             'tentative' => 'required',
-            'excel' => 'required|array',
+            'excel' => ['required','array','max:5'],
         ],
         //Rules
         [

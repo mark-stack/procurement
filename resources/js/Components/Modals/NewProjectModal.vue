@@ -42,6 +42,7 @@
     const freezeView = ref(false);
     const saveButtonDisabled = ref(calculateDisabled());
     const fileInput = ref(null);
+    const validateMaxFilesMessage = ref(false);
     //const showInvalidTemplateMessage = ref(false);
 
     //Shared Methods
@@ -52,7 +53,8 @@
         return formProjectCreate.processing
             || freezeView.value
             || formProjectCreate.excel.length === 0
-            || formProjectCreate.name === "";
+            || formProjectCreate.name === ""
+            || validateMaxFilesMessage.value;
     }
 
     function hasClarifications(){
@@ -171,20 +173,39 @@
             }
         });
 
+        //Update list
         formProjectCreate.excel = newFilesList;
+
+        //Check if qty validation still needed
+        if(formProjectCreate.excel.length > 5){
+            validateMaxFilesMessage.value = true;
+        }
+        else{
+            validateMaxFilesMessage.value = false;
+        }
 
         //Recalculate disabled submit button
         saveButtonDisabled.value = calculateDisabled();
     }
 
     function addFiles(files){
-        console.log("addFiles");
-
         //Add files where unique names
         Object.values(files).forEach(file => {
+            //Unique items added
             let exists = formProjectCreate.excel.find(uploadedFile => uploadedFile.name === file.name);
             if(!exists){
+                //Add to list (might exceed limit, but user can remove)
                 formProjectCreate.excel.push(file);
+
+                //Maximum 5 files
+                let existingFilesQty = formProjectCreate.excel.length;
+                let proposedFilesQty = existingFilesQty + 1;
+                if(proposedFilesQty > 5){
+                    validateMaxFilesMessage.value = true;
+                }
+                else{
+                    validateMaxFilesMessage.value = false;
+                }
             }
         });
 
@@ -193,6 +214,7 @@
 
         //Recalculate disabled submit button
         saveButtonDisabled.value = calculateDisabled();
+
     }
 
     function reloadAndDownloadModal(projectFlashed){
@@ -316,7 +338,7 @@
                 <!-- Loading -->
                 <div
                     v-if="freezeView"
-                    class="flex items-center justify-center text-center text-lg"
+                    class="flex items-center justify-center text-center text-xl"
                     style="height:300px"
                 >
                     Loading: Take a 15 second nap 😴
@@ -376,7 +398,7 @@
                                 <!--                                </div>-->
 
                                 <!-- BOM upload -->
-                                <div class="overflow-y-auto" style="max-height:180px">
+                                <div class="overflow-y-auto" style="max-height:200px">
 <!--                                    <label class="text-gray-700 dark:text-gray-200 ml-1">-->
 <!--                                        Upload 1 or more BOM Excel files *-->
 <!--                                    </label>-->
@@ -387,7 +409,7 @@
                                         <div class="text-orange-700 text-sm border-2 border-orange-300 rounded-2xl p-3">
                                             <!-- one file -->
                                             <div v-if="Object.keys(formProjectCreate.errors.invalid_template).length === 1">
-                                                <b><i>"{{formProjectCreate.errors.invalid_template[0]}}"</i></b> didn't auto-detect properly. Did the template change?
+                                                <b><i>"{{formProjectCreate.errors.invalid_template[0]}}"</i></b> didn't auto-detect properly. Did this template change?
                                                 Please email the file to <a href="mailto:mark.laravel.coder@gmail.com" class="text-orange-700 font-semibold underline">mark.laravel.coder@gmail.com</a> to have it re-calibrated quickly.
                                             </div>
                                             <!-- multiple files -->
@@ -432,6 +454,12 @@
                                         >
                                             {{ formProjectCreate.errors.excel }}
                                         </div>
+                                        <div
+                                            v-if="validateMaxFilesMessage"
+                                            class="text-sm text-red-500 mt-2 font-semibold"
+                                        >
+                                            Maximum 5 BOM files can be uploaded. Click the "X" to remove.
+                                        </div>
                                     </template>
 
 
@@ -442,7 +470,8 @@
                                     >
                                         <div
                                             v-for="(file,index) in formProjectCreate.excel"
-                                            class="grid grid-cols-5"
+                                            class="grid grid-cols-5 p-2"
+                                            :class="index > 0 ? 'border-t-[1px] border-gray-300' : ''"
                                             :key="index"
                                         >
                                             <p class="col-span-4">

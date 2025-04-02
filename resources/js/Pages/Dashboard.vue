@@ -542,7 +542,7 @@
     <!-- Modals -->
     <NewProjectModal
         v-show="showNewProjectModal"
-        width="500"
+        width="550"
         :editProject="editProject"
         :bomData="bomData"
         :refreshNewProject="refreshNewProject"
