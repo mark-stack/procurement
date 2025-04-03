@@ -762,7 +762,7 @@
                 Beautiful nesting...
             </h2>
         </div>
-        <img src="/nesting.png" class="mx-auto" style="max-width:700px">
+        <img src="/nesting.png" class="mx-auto" style="width:100%; max-width:700px">
     </div>
 
 <!--    <div-->
@@ -826,7 +826,7 @@
                                         <circle cx="12" cy="12" fill="none" r="11" stroke="currentColor"></circle>
                                     </svg>
                                 </div>
-                                <p class="font-medium text-gray-800">Unlimited import templates</p>
+                                <p class="font-medium text-gray-800">Unlimited import sources</p>
                             </li>
                             <li class="flex items-center">
                                 <div class="mr-2">
@@ -844,7 +844,7 @@
                                         <circle cx="12" cy="12" fill="none" r="11" stroke="currentColor"></circle>
                                     </svg>
                                 </div>
-                                <p class="font-medium text-gray-800">Unlimited projects</p>
+                                <p class="font-medium text-gray-800">Unlimited nesting</p>
                             </li>
                             <li class="flex items-center">
                                 <div class="mr-2">
@@ -944,7 +944,7 @@
                                         <circle cx="12" cy="12" fill="none" r="11" stroke="currentColor"></circle>
                                     </svg>
                                 </div>
-                                <p class="font-medium text-gray-800">Unlimited import templates</p>
+                                <p class="font-medium text-gray-800">Unlimited import sources</p>
                             </li>
                             <li class="flex items-center">
                                 <div class="mr-2">
@@ -962,7 +962,7 @@
                                         <circle cx="12" cy="12" fill="none" r="11" stroke="currentColor"></circle>
                                     </svg>
                                 </div>
-                                <p class="font-medium text-gray-800">Unlimited projects</p>
+                                <p class="font-medium text-gray-800">Unlimited nesting</p>
                             </li>
                             <li class="flex items-center">
                                 <div class="mr-2">

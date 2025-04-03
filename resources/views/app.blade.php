@@ -13,6 +13,19 @@
         <!-- Fontawesome -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
+        <!-- analytics -->
+        <!-- Google tag (gtag.js) -->
+        @if (Str::contains(request()->url(), 'steelnesting'))
+            <script async src="https://www.googletagmanager.com/gtag/js?id=G-J6FQY25TJY"></script>
+            <script>
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+
+                gtag('config', 'G-J6FQY25TJY');
+            </script>
+        @endif
+
         <!-- Scripts -->
         @routes
         @vite(['resources/js/app.js', "resources/js/Pages/{$page['component']}.vue"])
