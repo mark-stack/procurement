@@ -388,6 +388,31 @@
 <!--                                <div v-else class="text-center text-sm text-gray-500 mx-auto" style="width:200px">-->
 <!--                                    Projects move to here after adding materials-->
 <!--                                </div>-->
+
+
+                                <!-- toggle archived projects -->
+                                <div v-if="archivedProjects.data.length > 0" class="text-center">
+                                    <button
+                                        @click="showArchivedProjects = !showArchivedProjects"
+                                        class="text-center text-blue-500 underline mt-6 mb-2"
+                                    >
+                                        {{showArchivedProjects ? 'Hide' : 'Show'}} {{archivedProjects.data.length}} Archived Project{{archivedProjects.data.length > 1 ? 's' : ''}}
+                                    </button>
+                                    <div v-if="showArchivedProjects">
+                                        <table class="w-full">
+                                            <tr>
+                                                <th class="p-1">Name</th>
+                                                <th class="p-1">Actions</th>
+                                            </tr>
+                                            <tr v-for="project in archivedProjects.data">
+                                                <td class="p-1">{{project.name}}</td>
+                                                <td class="p-1">
+                                                    <span style="cursor: pointer; " class="underline text-blue-500" @click="toggleArchive(project)">restore</span>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <!-- Quoted -->

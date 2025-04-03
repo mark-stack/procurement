@@ -16,9 +16,36 @@ class AdminSupplierIndexController extends Controller
      */
     public function __invoke(Request $request, Business $business): Response
     {
+        $suppliers = $business->suppliers()->orderBy('name')->get();
+
+        //Category and included products
+        $categories = (new SupplierFormatter)->supplierGroups($business);
+
+        //Category, included products, user attached suppliers
+        $byCategory = [];
+        foreach ($categories as $categoryLabel => $includedProducts) {
+            $suppliersWithThisCategory = [];
+            foreach ($suppliers as $supplier) {
+                $supplierCategories = unserialize($supplier->supplier_categories);
+                foreach ($supplierCategories as $thisCategoryLabel => $value) {
+                    //Is set
+                    if ($value && $thisCategoryLabel === $categoryLabel) {
+                        $suppliersWithThisCategory[] = $supplier->name;
+                    }
+                }
+            }
+
+            $byCategory[$categoryLabel] = [
+                'includedProductsArray' => $includedProducts,
+                'includedProductsString' => implode(', ', $includedProducts),
+                'suppliersArray' => $suppliersWithThisCategory,
+                'suppliersString' => implode(', ', $suppliersWithThisCategory),
+            ];
+        }
+
         return Inertia::render('AdminSuppliersIndex', [
-            'suppliers' => SupplierResource::collection($business->suppliers()->orderBy('name')->get()),
-            'byCategory' => (new SupplierFormatter)->supplierGroups($business),
+            'suppliers' => SupplierResource::collection($suppliers),
+            'byCategory' => $byCategory,
             'business' => $business,
         ]);
     }

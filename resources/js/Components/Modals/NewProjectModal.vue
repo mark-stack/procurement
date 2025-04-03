@@ -50,11 +50,19 @@
 
     //Methods
     function calculateDisabled(){
+        let atLeastOneTooLarge = false;
+        Object.values(formProjectCreate.excel).forEach(file => {
+            if(file.size > 1000000){
+                atLeastOneTooLarge = true;
+            }
+        });
+
         return formProjectCreate.processing
             || freezeView.value
             || formProjectCreate.excel.length === 0
             || formProjectCreate.name === ""
-            || validateMaxFilesMessage.value;
+            || validateMaxFilesMessage.value
+            || atLeastOneTooLarge;
     }
 
     function hasClarifications(){
@@ -191,6 +199,9 @@
     function addFiles(files){
         //Add files where unique names
         Object.values(files).forEach(file => {
+            let sizeKb = Math.round(file.size/1000);
+            //validateFileSize.value = false;
+
             //Unique items added
             let exists = formProjectCreate.excel.find(uploadedFile => uploadedFile.name === file.name);
             if(!exists){
@@ -205,6 +216,11 @@
                 }
                 else{
                     validateMaxFilesMessage.value = false;
+                }
+
+                //Maximum file size
+                if(sizeKb > 1000){
+                    //
                 }
             }
         });
@@ -474,8 +490,11 @@
                                             :class="index > 0 ? 'border-t-[1px] border-gray-300' : ''"
                                             :key="index"
                                         >
-                                            <p class="col-span-4">
-                                                {{file.name}}
+                                            <p
+                                                :class="file.size > 1000000 ? 'text-red-500' : ''"
+                                                class="col-span-4"
+                                            >
+                                                {{file.name}} <span class="block text-xs" v-if="file.size > 1000000">(Exceeds 1Mb limit - please remove)</span>
                                             </p>
                                             <p
                                                 class="text-right"

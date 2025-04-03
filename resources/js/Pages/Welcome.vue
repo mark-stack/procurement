@@ -24,14 +24,14 @@
     const user = usePage().props.auth.user;
 
     //Variables
-    const trial_months = 2;
+    const trial_months = 1;
     const savings_period_years = 3;
     const fullPriceMultiYear = 10000;
     const fullPriceAnnual = 2900;
     const fullPriceMonthly = 300;
     const fullPriceWeekly = 49;
     const firstYearDiscount = 0;
-    const whichPlan = "MULTI_YEAR"; //"MONTHLY","ANNUAL", "WEEKLY", "MULTI_YEAR"
+    const whichPlan = "WEEKLY"; //"MONTHLY","ANNUAL", "WEEKLY", "MULTI_YEAR"
 
 
     //Shared Methods
@@ -116,7 +116,7 @@
                         :href="route('login')"
                         class="inline-flex items-center justify-center w-full h-12 px-6 mb-3 font-medium tracking-wide text-white transition duration-200 rounded shadow-md md:w-auto md:mr-4 md:mb-0 bg-deep-purple-accent-400 hover:bg-deep-purple-accent-700 focus:shadow-outline focus:outline-none"
                     >
-                        <span class="mr-3">{{trial_months}} Months FREE TRIAL</span>
+                        <span class="mr-3">{{trial_months}} Month{{trial_months > 1 ? 's' : ''}} FREE TRIAL</span>
                     </Link>
                 </div>
             </div>
@@ -193,10 +193,10 @@
                     </div>
                     <div>
                         <h6 class="mb-3 text-xl font-bold leading-5">
-                            Automatic importing of cut lists from any source
+                            Automatically import cut lists from any source
                         </h6>
                         <p class="text-sm text-gray-900">
-                            Import materials from Tekla, Inventor, Advance Steel, or any CAD that exports a BOM. Also, manually created spreadsheets are supported.
+                            Import materials from Tekla, Inventor, Advance Steel, or any CAD that exports a BOM to Excel. Also, manually created spreadsheets are supported.
                         </p>
                     </div>
                 </div>
@@ -218,7 +218,7 @@
                                     <span class="font-semibold">- Material certificates:</span> Attach Material certificates from steel order.
                                 </li>
                                 <li>
-                                    <span class="font-semibold">- xxx:</span> All cuts completely distinguished when doing cross-project nesting
+                                    <span class="font-semibold">- Clarity:</span> All cuts completely distinguished when doing cross-project nesting
                                 </li>
                             </ul>
                         </p>
@@ -239,11 +239,20 @@
                             Simple order tracking
                         </h6>
                         <p class="text-sm text-gray-900">
-                            BOM importing automatically sorts materials into a supplier group. E.g sections, purlins, piping, timber
-                            Track quoting > ordering > delivering of nested batches
-                            1 click BOM-to-email list for getting quotes and placing orders
-                            Easy to read kanban of concurrent orders
-
+                            <ul>
+                                <li>
+                                    <span class="font-semibold">- Supplier grouping:</span> BOM importing automatically sorts materials into a supplier group. E.g sections, purlins, piping, timber.
+                                </li>
+                                <li>
+                                    <span class="font-semibold">- Order tracking: </span> Track quoting > ordering > delivering of nested batches.
+                                </li>
+                                <li>
+                                    <span class="font-semibold">- 1-click BOM-to-email: </span> Instantly launch an email with table of materials ready to send for quoting and ordering.
+                                </li>
+                                <li>
+                                    <span class="font-semibold">- Kanban:</span> Easy to read kanban of concurrent batched orders
+                                </li>
+                            </ul>
                         </p>
                     </div>
                 </div>
@@ -260,9 +269,14 @@
                             Built 100% in Australia for Australian Fabricators
                         </h6>
                         <p class="text-sm text-gray-900">
-                            10,000 products as sourced from the product catalogues of all the major steel merchants
-                            Local support
-
+                            <ul>
+                                <li>
+                                    <span class="font-semibold">- Australian steel standards:</span> 1000's of products as sourced from the product catalogues of all the major steel merchants.
+                                </li>
+                                <li>
+                                    <span class="font-semibold">- Local support:</span> we're in Melbourne.
+                                </li>
+                            </ul>
                         </p>
                     </div>
                 </div>
@@ -278,9 +292,9 @@
                         <h6 class="mb-3 text-xl font-bold leading-5">
                             The simplest interface your grandma could use
                         </h6>
-                        <p class="text-sm text-gray-900">
-                            A flower in my garden, a mystery in my panties. Heart attack never stopped old Big Bear.
-                        </p>
+<!--                        <p class="text-sm text-gray-900">-->
+<!--                            A flower in my garden, a mystery in my panties. Heart attack never stopped old Big Bear.-->
+<!--                        </p>-->
                     </div>
                 </div>
             </div>
@@ -797,7 +811,7 @@
                     <div class="flex items-center justify-between pb-6 mb-6 border-b">
                         <div>
                             <p class="text-sm font-bold tracking-wider uppercase">
-                                {{trial_months}} Months Trial
+                                {{trial_months}} Month{{trial_months > 1 ? 's' : ''}} Trial
                             </p>
                             <p class="text-5xl font-extrabold">Free</p>
                         </div>
@@ -846,7 +860,7 @@
                 </div>
                 <div>
                     <Link :href="route('register')" class="inline-flex items-center justify-center w-full h-12 px-6 mb-4 font-medium tracking-wide text-white transition duration-200 bg-green-600 rounded shadow-md hover:bg-green-700 focus:shadow-outline focus:outline-none">
-                        Start {{trial_months}} Months Free Trial
+                        Start {{trial_months}} Month{{trial_months > 1 ? 's' : ''}} Free Trial
                     </Link>
                 </div>
             </div>
