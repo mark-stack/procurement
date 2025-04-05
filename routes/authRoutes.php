@@ -515,7 +515,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('suggested-nesting', SuggestedNestingController::class)->name('suggested.nesting');
 
         //Batch Nesting
-        Route::get('batch-nesting/{batch}/{redirect}', BatchNestingController::class)->name('batch.nesting');
+        Route::get('batch-nesting/{batch}/{redirect}/{print}', BatchNestingController::class)->name('batch.nesting');
     });
 
     //Batches

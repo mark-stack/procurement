@@ -50,7 +50,7 @@
                                     <li>- Excel exported from CAD like Tekla, Inventor, Advance Steel etc.</li>
                                     <li>- Manually created Excel spreadsheets. </li>
                                     <li>- You might have multiple templates for different staff members. That's ok.</li>
-                                    <li>- We configure the software to auto detects all your templates to then extracts all the materials.</li>
+                                    <li>- We configure the software to auto detects all your templates to then extract all the materials.</li>
                                 </ul>
                             </div>
 

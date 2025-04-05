@@ -333,7 +333,7 @@
             <!-- Nesting details -->
             <p class="w-full mt-2">
                 <Link
-                    :href="route('batch.nesting',[props.info.batch.id,'current'])"
+                    :href="route('batch.nesting',[props.info.batch.id,'current',0])"
                     @click="loadingButton = 'NESTING_DETAILS'"
                 >
                     <CardButtonBlue

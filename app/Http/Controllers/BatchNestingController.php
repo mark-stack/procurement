@@ -14,7 +14,7 @@ class BatchNestingController extends Controller
     /**
      * Handle the incoming request.
      */
-    public function __invoke(Request $request, Batch $batch, string $redirect): Response
+    public function __invoke(Request $request, Batch $batch, string $redirect, int $print): Response
     {
         Gate::authorize('owned', $batch);
 
@@ -31,8 +31,11 @@ class BatchNestingController extends Controller
         $viewData = array_merge($viewData, [
             'width' => 900,
             "redirect" => $redirect,
+            "batch" => $batch,
         ]);
 
-        return Inertia::render('QuoteIndex', $viewData);
+        return $print === 1
+            ? Inertia::render('NestingPrintFriendly', $viewData)
+            : Inertia::render('QuoteIndex', $viewData);
     }
 }

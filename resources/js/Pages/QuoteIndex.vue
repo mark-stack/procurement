@@ -18,6 +18,7 @@
         width: Number,
         lettersProjectArray: Object,
         redirect: String,
+        batch: Object,
     });
 
     //Form
@@ -43,6 +44,8 @@
                 :usage="usage"
                 :piecesGroupedBySupplierGroup="piecesGroupedBySupplierGroup"
                 :currentSupplierGroup="currentSupplierGroup"
+                :redirect="redirect"
+                :batch="batch"
             />
         </Modal>
     </AuthenticatedLayout>

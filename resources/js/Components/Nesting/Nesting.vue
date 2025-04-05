@@ -9,6 +9,7 @@
     import VisualNestingOffcuts from "@/Components/VisualNestingOffcuts.vue";
     import VisualOrderList from "@/Components/VisualOrderList.vue";
     import VisualBundleNest from "@/Components/VisualBundleNest.vue";
+    import {Link} from "@inertiajs/vue3";
 
     //Props
     const props = defineProps({
@@ -18,6 +19,8 @@
         usage: Object,
         piecesGroupedBySupplierGroup: Object,
         currentSupplierGroup: String,
+        redirect: String,
+        batch: Object,
     });
 
     //Form
@@ -42,8 +45,29 @@
 <template>
     <div class="overflow-x-auto mx-auto" :style="'width:'+width+'px'">
         <!-- header -->
-        <div>
-            <h2 class="text-center font-bold text-lg">NESTING</h2>
+        <div class="grid grid-cols-10">
+            <div class="col-span-2"></div>
+            <div class="col-span-6">
+                <h2 class="text-center font-bold text-lg">NESTING</h2>
+            </div>
+            <div class="col-span-2 pr-5 flex justify-end gap-x-2">
+                <div>
+                    <Link
+                        type="button"
+                        :href="route('batch.nesting',[batch.id,'current',1])"
+                    >
+                        Print friendly
+                    </Link>
+                </div>
+                <div v-if="redirect">
+                    <Link
+                        type="button"
+                        :href="redirect === 'current' ? route('dashboard') : route('past.projects.index')"
+                    >
+                        <i class="fa-solid fa-xmark"></i>
+                    </Link>
+                </div>
+            </div>
         </div>
         <!-- body -->
         <div class="overflow-y-auto p-5">
