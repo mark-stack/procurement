@@ -4,21 +4,13 @@
     import { useVueToPrint } from "vue-to-print";
 
     //Component Imports
-    //...
-
-    //Props
-    import Nesting from "@/Components/Nesting/Nesting.vue";
     import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
     import VisualNestingOffcuts from "@/Components/VisualNestingOffcuts.vue";
-    import ListPurchasables from "@/Components/ListPurchasables.vue";
     import VisualNestingWithBars from "@/Components/VisualNestingWithBars.vue";
-    import VisualBundleNest from "@/Components/VisualBundleNest.vue";
-    import VisualOrderList from "@/Components/VisualOrderList.vue";
-    import DisplayPiecesList from "@/Components/DisplayPiecesList.vue";
     import PrintingSpec from "@/Components/Nesting/PrintingSpec.vue";
     import PrintingHeader from "@/Components/Nesting/PrintingHeader.vue";
 
-
+    //Props
     const props = defineProps({
         pieces: Object,
         projectsReadyForBatching: Object,
@@ -38,7 +30,6 @@
     //...
 
     //Variables
-    const currentSupplierGroup = ref(Object.keys(props.piecesGroupedBySupplierGroup.assigned)[0]);
     const printPreview = ref(true);
     const pageHeightPixels = getPageHeightPixels();
 
@@ -52,7 +43,7 @@
         documentTitle: "AwesomeFileName",
     });
 
-    function availableNestingHeight(pieces){
+    function availableNestingHeight(){
         let pageMargin = 15;
         let header = 56;
         let margin1 = 20;
@@ -60,38 +51,6 @@
         let margin2 = 20;
 
         return pageHeightPixels - (pageMargin + header + margin1 + row1 + margin2);
-    }
-
-    function offcutConsumedHeight(item){
-        let consumedHeight = 0;
-        //Meterage
-        if(item.algo === 'METERAGE'){
-            let offcutsQty = Object.values(item.nested.bestResultOffcuts.utilisedOffcutBars).length;
-            if(offcutsQty > 0){
-                let heading = 28;
-                consumedHeight = consumedHeight + heading + (offcutsQty * 86);
-            }
-        }
-
-        return consumedHeight;
-    }
-
-    function newStockConsumedHeight(item){
-        let consumedHeight = 0;
-        //Meterage
-        if(item.algo === 'METERAGE'){
-            let newStockQty = Object.values(item.nested.utilisedBars).length;
-            if(newStockQty > 0){
-                let heading = 28;
-                consumedHeight = consumedHeight + heading + (newStockQty * 86);
-            }
-        }
-
-        return consumedHeight;
-    }
-
-    function scrapHeightFits(item){
-        return offcutConsumedHeight(item) < availableNestingHeight(item.pieces);
     }
 
     function getPageHeightPixels() {
@@ -141,7 +100,7 @@
 
         //Heights
         let heading = 28;
-        let availableHeightForRows = availableNestingHeight(item.pieces) - heading;
+        let availableHeightForRows = availableNestingHeight() - heading;
         let lastPageAvailableHeight = availableHeightForRows;
         let rowsPerPage = Math.floor(availableHeightForRows/86);
 
@@ -184,17 +143,6 @@
             // First page
             let qtyFitThisPage = Math.floor(lastPageAvailableHeight/86);
 
-            //todo debug
-            if(item.product_derived_label === "75x50x2.5 RHS"){
-                console.log("75x50x2.5 RHS");
-                console.log("planning after offcuts",pagePlanning);
-                console.log("qtyFitThisPage",qtyFitThisPage);
-                console.log("had offcuts?",offcuts.length > 0);
-                console.log("has newStock. Qty=",newStock.length);
-                console.log("carry over Page Number from offcuts",currentPageNumber);
-                console.log("lastPageAvailableHeight",lastPageAvailableHeight);
-            }
-
             if(qtyFitThisPage > 0){
 
                 //Has a page #1
@@ -217,14 +165,6 @@
                 currentPageNumber++;
             }
 
-            //todo debug
-            if(item.product_derived_label === "75x50x2.5 RHS"){
-                console.log("planning after 1st page",pagePlanning);
-                console.log("current page",currentPageNumber);
-            }
-
-
-
             //Remaining pages
             while (index < newStock.length) {
                 let thisPage = pagePlanning[currentPageNumber - 1];
@@ -246,12 +186,6 @@
             }
         }
 
-        //todo debug
-        if(item.product_derived_label === "75x50x2.5 RHS"){
-            console.log("planning final",pagePlanning);
-            console.log("current page",currentPageNumber);
-        }
-
         return pagePlanning;
     }
 </script>
@@ -271,7 +205,6 @@
             </p>
         </div>
 
-<!--        <p @click="printPreview = !printPreview">Toggle display</p>-->
         <div
             ref="componentRef"
             style="width: 21cm;"
@@ -284,13 +217,8 @@
                 <!-- Header -->
                 <div class="grid grid-cols-3 p-4">
                     <div class="font-bold"></div>
-                    <div class="flex gap-x-3 justify-center">
-                        <div>
-                            Batch: {{batch.id}}
-                        </div>
-                        <div>
-                            p[x]/[x]
-                        </div>
+                    <div class="text-center">
+                        Batch: {{batch.id}}
                     </div>
                     <div class="text-right">
                         SteelNesting.com.au
@@ -336,6 +264,14 @@
                         </tr>
                     </table>
                 </div>
+
+                <!-- see below -->
+                <div class="text-center p-36">
+                    <p class="text-xl mb-3">
+                        Cutting diagrams below
+                    </p>
+                    <i class="fa-regular fa-hand-point-down text-5xl"></i>
+                </div>
             </div>
 
             <template v-for="(batchGroup,batchLabel) in piecesGroupedBySupplierGroup.assigned">
@@ -360,7 +296,7 @@
 
                             <div
                                 class="bg-white"
-                                :style="'height:'+(availableNestingHeight(item.pieces))+'px'"
+                                :style="'height:'+(availableNestingHeight())+'px'"
                             >
                                 <!-- Nesting -->
                                 <div class="col-span-4">
@@ -384,12 +320,6 @@
                                                 :utilisedBars="page.newStock"
                                                 :measurementUnit="item.nominal_units"
                                             />
-<!--                                            <p-->
-<!--                                                v-if="item.nested.tooLong.length > 0"-->
-<!--                                                class="text-red-500 font-bold mt-2"-->
-<!--                                            >-->
-<!--                                                Pieces too long: <span v-for="unfit in item.nested.tooLong">{{ parseFloat(unfit.length).toLocaleString()}} mm ({{unfit.letter}}), </span>-->
-<!--                                            </p>-->
                                         </template>
                                     </div>
                                 </div>
@@ -411,17 +341,6 @@
                 Set printer to A4
             </p>
         </div>
-
-<!--        <Nesting-->
-<!--            :width="width"-->
-<!--            :projectsReadyForBatching="projectsReadyForBatching"-->
-<!--            :lettersProjectArray="lettersProjectArray"-->
-<!--            :usage="usage"-->
-<!--            :piecesGroupedBySupplierGroup="piecesGroupedBySupplierGroup"-->
-<!--            :currentSupplierGroup="currentSupplierGroup"-->
-<!--            :redirect="redirect"-->
-<!--            :batch="batch"-->
-<!--        />-->
     </AuthenticatedLayout>
 </template>
 

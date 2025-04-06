@@ -80,7 +80,7 @@
     <div
         class="bg-white relative flex flex-col items-start pt-2 pl-4 pr-4 pb-4 rounded-lg group border-[1px] border-gray-300 shadow-lg"
     >
-        <div class="text-sm">
+        <div v-if="batchInfo" class="text-sm">
             Batch ID: <b>{{ batchInfo.batch.id }}</b>
         </div>
         <div
@@ -163,7 +163,7 @@
             </Link>
             <Link
                 v-else
-                :href="route('batch.nesting',[batchInfo.batch.id,'current',0])"
+                :href="route('batch.nesting',[batchInfo.batch.id,'current',1])"
                 @click="loadingButton = 'NESTING_DETAILS'"
                 class="w-full col-span-1"
             >

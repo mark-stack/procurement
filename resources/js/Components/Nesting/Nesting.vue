@@ -51,7 +51,7 @@
                 <h2 class="text-center font-bold text-lg">NESTING</h2>
             </div>
             <div class="col-span-2 pr-5 flex justify-end gap-x-2">
-                <div>
+                <div v-if="batch">
                     <Link
                         type="button"
                         :href="route('batch.nesting',[batch.id,'current',1])"
