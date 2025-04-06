@@ -15,6 +15,8 @@
     import VisualBundleNest from "@/Components/VisualBundleNest.vue";
     import VisualOrderList from "@/Components/VisualOrderList.vue";
     import DisplayPiecesList from "@/Components/DisplayPiecesList.vue";
+    import PrintingSpec from "@/Components/Nesting/PrintingSpec.vue";
+    import PrintingHeader from "@/Components/Nesting/PrintingHeader.vue";
 
 
     const props = defineProps({
@@ -38,6 +40,7 @@
     //Variables
     const currentSupplierGroup = ref(Object.keys(props.piecesGroupedBySupplierGroup.assigned)[0]);
     const printPreview = ref(true);
+    const pageHeightPixels = getPageHeightPixels();
 
     //Shared Methods
     //...
@@ -49,7 +52,208 @@
         documentTitle: "AwesomeFileName",
     });
 
+    function availableNestingHeight(pieces){
+        let pageMargin = 15;
+        let header = 56;
+        let margin1 = 20;
+        let row1 = 112; //24 + 24 + (pieces.length * 20);
+        let margin2 = 20;
 
+        return pageHeightPixels - (pageMargin + header + margin1 + row1 + margin2);
+    }
+
+    function offcutConsumedHeight(item){
+        let consumedHeight = 0;
+        //Meterage
+        if(item.algo === 'METERAGE'){
+            let offcutsQty = Object.values(item.nested.bestResultOffcuts.utilisedOffcutBars).length;
+            if(offcutsQty > 0){
+                let heading = 28;
+                consumedHeight = consumedHeight + heading + (offcutsQty * 86);
+            }
+        }
+
+        return consumedHeight;
+    }
+
+    function newStockConsumedHeight(item){
+        let consumedHeight = 0;
+        //Meterage
+        if(item.algo === 'METERAGE'){
+            let newStockQty = Object.values(item.nested.utilisedBars).length;
+            if(newStockQty > 0){
+                let heading = 28;
+                consumedHeight = consumedHeight + heading + (newStockQty * 86);
+            }
+        }
+
+        return consumedHeight;
+    }
+
+    function scrapHeightFits(item){
+        return offcutConsumedHeight(item) < availableNestingHeight(item.pieces);
+    }
+
+    function getPageHeightPixels() {
+        const div = document.createElement("div");
+        div.style.width = "1in";
+        div.style.height = "1in";
+        div.style.position = "absolute";
+        div.style.top = "-100%"; // Hide it off-screen
+        document.body.appendChild(div);
+
+        const dpi = {
+            x: div.offsetWidth,
+            y: div.offsetHeight
+        };
+
+        document.body.removeChild(div);
+
+        let height;
+        switch (dpi.x) {
+            case 72:
+                height = 842;
+                break;
+            case 96:
+                height = 1123;
+                break;
+            case 150:
+                height = 1754;
+                break;
+            case 300:
+                height = 3508;
+                break;
+            case 600:
+                height = 7016;
+                break;
+            default:
+                console.warn("Unsupported DPI. Using default formula.");
+                height = Math.round(11.69 * dpi); // fallback calculation
+        }
+
+        return height;
+    }
+
+    function pagePlanning(item){
+        //Quantities
+        let offcuts = Object.values(item.nested.bestResultOffcuts.utilisedOffcutBars);
+        let newStock = Object.values(item.nested.utilisedBars);
+
+        //Heights
+        let heading = 28;
+        let availableHeightForRows = availableNestingHeight(item.pieces) - heading;
+        let lastPageAvailableHeight = availableHeightForRows;
+        let rowsPerPage = Math.floor(availableHeightForRows/86);
+
+        //Placement
+        let currentPageNumber = 1;
+        let pagePlanning = [];
+
+        /*
+            Has offcuts?
+         */
+        if(offcuts.length > 0){
+            let index = 0;
+            while (index < offcuts.length) {
+                let thisPage = pagePlanning[currentPageNumber-1];
+                if(thisPage){
+                    thisPage.offcuts = offcuts.slice(index, index + rowsPerPage);
+                }
+                else{
+                    pagePlanning.push(
+                        {
+                            offcuts:offcuts.slice(index, index + rowsPerPage)
+                        }
+                    );
+                }
+
+                //Increment page
+                index += rowsPerPage;
+
+                //Last page (overwrites)
+                lastPageAvailableHeight = availableHeightForRows - (offcuts.length * 86);
+            }
+        }
+
+        /*
+            Has new stock?
+         */
+        if(newStock.length > 0){
+            let index = 0;
+
+            // First page
+            let qtyFitThisPage = Math.floor(lastPageAvailableHeight/86);
+
+            //todo debug
+            if(item.product_derived_label === "75x50x2.5 RHS"){
+                console.log("75x50x2.5 RHS");
+                console.log("planning after offcuts",pagePlanning);
+                console.log("qtyFitThisPage",qtyFitThisPage);
+                console.log("had offcuts?",offcuts.length > 0);
+                console.log("has newStock. Qty=",newStock.length);
+                console.log("carry over Page Number from offcuts",currentPageNumber);
+                console.log("lastPageAvailableHeight",lastPageAvailableHeight);
+            }
+
+            if(qtyFitThisPage > 0){
+
+                //Has a page #1
+                let relativeFirstPage = pagePlanning[currentPageNumber - 1];
+                if(relativeFirstPage){
+                    relativeFirstPage.newStock = newStock.slice(index, index + qtyFitThisPage);
+                }
+                //Need to create page #1
+                else{
+                    pagePlanning.push(
+                        {
+                            offcuts:[],
+                            newStock:newStock.slice(index, index + qtyFitThisPage),
+                        }
+                    );
+                }
+
+                //Increment page
+                index += qtyFitThisPage;
+                currentPageNumber++;
+            }
+
+            //todo debug
+            if(item.product_derived_label === "75x50x2.5 RHS"){
+                console.log("planning after 1st page",pagePlanning);
+                console.log("current page",currentPageNumber);
+            }
+
+
+
+            //Remaining pages
+            while (index < newStock.length) {
+                let thisPage = pagePlanning[currentPageNumber - 1];
+                if(thisPage){
+                    thisPage.newStock = newStock.slice(index, index + rowsPerPage);
+                }
+                else{
+                    pagePlanning.push(
+                        {
+                            offcuts:[],
+                            newStock:newStock.slice(index, index + rowsPerPage),
+                        }
+                    );
+                }
+
+                //Increment page
+                index += rowsPerPage;
+                currentPageNumber++;
+            }
+        }
+
+        //todo debug
+        if(item.product_derived_label === "75x50x2.5 RHS"){
+            console.log("planning final",pagePlanning);
+            console.log("current page",currentPageNumber);
+        }
+
+        return pagePlanning;
+    }
 </script>
 
 <template>
@@ -71,7 +275,7 @@
         <div
             ref="componentRef"
             style="width: 21cm;"
-            class="mx-auto"
+            class="mx-auto mb-5"
         >
             <div
                 :class="printPreview ? 'pagePrint' : 'pageDisplay'"
@@ -102,7 +306,6 @@
                 <!-- batch created by -->
                 <div class="col-span-2 mt-5">
                     <h2><b>Batch generated by:</b> {{batch.user.name}} ({{batch.user.email}})</h2>
-
                 </div>
 
                 <!-- included projects -->
@@ -136,113 +339,77 @@
             </div>
 
             <template v-for="(batchGroup,batchLabel) in piecesGroupedBySupplierGroup.assigned">
-
                 <div class="grid grid-cols-1">
                     <div v-for="item in batchGroup">
-
+                        <!-- 1st page of material. e.g 200PFC -->
                         <div
+                            v-for="(page,index) in pagePlanning(item)"
                             :class="printPreview ? 'pagePrint' : 'pageDisplay'"
                             size="A4"
                         >
-                            <!-- Header -->
-                            <div class="grid grid-cols-3 p-4">
-                                <div class="font-bold">
-                                    {{item.product_derived_label}}
-                                </div>
-                                <div class="flex gap-x-3 justify-center">
-                                    <div>
-                                        Batch: {{batch.id}}
-                                    </div>
-                                    <div>
-                                        p[x]/[x]
-                                    </div>
-                                </div>
-                                <div class="text-right">
-                                    SteelNesting.com.au
-                                </div>
-                            </div>
+                            <PrintingHeader
+                                :item="item"
+                                :batch="batch"
+                                :index="index"
+                                :qty="pagePlanning(item).length"
+                            />
 
-                            <div class="grid grid-cols-4 p-5 gap-3">
-                                <!-- Spec -->
-                                <div>
-                                    <h2 class="font-bold">Material Spec</h2>
-                                    {{item.product_derived_label}}
-                                    <p class="text-xs">
-                                        <span class="block">Product: {{item.product_category}}</span>
-                                        <span class="block">Material: {{item.material}}</span>
-                                        <span class="block">Grade: {{item.grade}}</span>
-                                        <span class="block">Surface: {{item.surface}}</span>
-                                    </p>
-                                </div>
-                                <!-- Pieces -->
-                                <div>
-                                    <h2 class="font-bold">Pieces</h2>
-                                    <DisplayPiecesList
-                                        :nestingAlgo="item.algo"
-                                        :measurementUnit="item.nominal_units"
-                                        :pieces="item.pieces"
-                                        :lettersProjectArray="lettersProjectArray"
-                                    />
-                                </div>
-                   
-                                <!-- order list -->
-                                <div>
-                                    <h2 class="font-bold">Order List</h2>
-                                    <template v-for="bar in item.nested.orderList">
-                                        <VisualOrderList
-                                            :stockLength="bar.result"
-                                            :pieces="bar.result.pieces"
-                                            :measurementUnit="item.nominal_units"
-                                            :waste="bar.result.waste"
-                                            :qty="bar.count"
-                                        />
-                                    </template>
-                                </div>
+                            <PrintingSpec
+                                :item="item"
+                            />
+
+                            <div
+                                class="bg-white"
+                                :style="'height:'+(availableNestingHeight(item.pieces))+'px'"
+                            >
                                 <!-- Nesting -->
                                 <div class="col-span-4">
-
                                     <!-- Nesting algorithm: meterage -->
                                     <div v-if="item.algo === 'METERAGE'">
-
                                         <!-- offcuts -->
                                         <div v-if="Object.values(item.nested.bestResultOffcuts.utilisedOffcutBars).length > 0">
                                             <h2 class="font-bold text-xl">Offcut usage</h2>
                                             <VisualNestingOffcuts
-                                                :utilisedOffcutBars="item.nested.bestResultOffcuts.utilisedOffcutBars"
+                                                v-for="offcut in page.offcuts"
+                                                :offcut="offcut"
                                                 :measurementUnit="item.nominal_units"
                                             />
                                         </div>
 
+                                        <!-- New Stock -->
                                         <template v-if="Object.values(item.nested.utilisedBars).length > 0">
-                                            <h2 class="font-bold text-xl mt-5">New stock usage</h2>
+                                            <h2 class="font-bold text-xl">New stock usage</h2>
                                             <!-- new stock nesting -->
                                             <VisualNestingWithBars
-                                                :utilisedBars="item.nested.utilisedBars"
+                                                :utilisedBars="page.newStock"
                                                 :measurementUnit="item.nominal_units"
                                             />
-                                            <p
-                                                v-if="item.nested.tooLong.length > 0"
-                                                class="text-red-500 font-bold mt-2"
-                                            >
-                                                Pieces too long: <span v-for="unfit in item.nested.tooLong">{{ parseFloat(unfit.length).toLocaleString()}} mm ({{unfit.letter}}), </span>
-                                            </p>
+<!--                                            <p-->
+<!--                                                v-if="item.nested.tooLong.length > 0"-->
+<!--                                                class="text-red-500 font-bold mt-2"-->
+<!--                                            >-->
+<!--                                                Pieces too long: <span v-for="unfit in item.nested.tooLong">{{ parseFloat(unfit.length).toLocaleString()}} mm ({{unfit.letter}}), </span>-->
+<!--                                            </p>-->
                                         </template>
-                                    </div>
-                                    <!-- Nesting algorithm: bundle -->
-                                    <div v-if="item.algo === 'BUNDLE'">
-                                        <VisualBundleNest
-                                            :nestData="item.nested"
-                                        />
                                     </div>
                                 </div>
                             </div>
                         </div>
-
-
-
                     </div>
                 </div>
             </template>
+        </div>
+
+        <div class="text-center p-3 mb-10">
+            <button
+                @click="handlePrint"
+                class="bg-green-50 px-3 py-2 rounded border-2 border-green-200"
+            >
+                Print <i class="fa-solid fa-print"></i>
+            </button>
+            <p class="text-xs text-gray-700">
+                Set printer to A4
+            </p>
         </div>
 
 <!--        <Nesting-->

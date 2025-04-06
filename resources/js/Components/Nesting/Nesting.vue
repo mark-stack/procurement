@@ -188,7 +188,8 @@
                                             <div v-if="Object.values(item.nested.bestResultOffcuts.utilisedOffcutBars).length > 0">
                                                 <h2 class="font-bold text-xl">Offcut usage</h2>
                                                 <VisualNestingOffcuts
-                                                    :utilisedOffcutBars="item.nested.bestResultOffcuts.utilisedOffcutBars"
+                                                    v-for="offcut in item.nested.bestResultOffcuts.utilisedOffcutBars"
+                                                    :offcut="offcut"
                                                     :measurementUnit="item.nominal_units"
                                                 />
                                             </div>

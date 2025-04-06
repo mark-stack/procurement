@@ -7,7 +7,7 @@
 
     //Props
     const props = defineProps({
-        utilisedOffcutBars: Object,
+        offcut: Object,
         measurementUnit: String,
     });
 
@@ -55,20 +55,19 @@
         return getPieces;
     }
 
-    function getEfficiencyPct(stockLength,unused){
-        let used = stockLength - unused;
-
-        return (used/stockLength*100).toFixed(1);
-    }
+    // function getEfficiencyPct(stockLength,unused){
+    //     let used = stockLength - unused;
+    //
+    //     return (used/stockLength*100).toFixed(1);
+    // }
 </script>
 
 <template>
     <div class="grid grid-cols-1 gap-x-10">
-        <div v-for="offcut in utilisedOffcutBars" class="w-full pt-4 pb-4">
+        <div class="w-full pt-4 pb-4">
             <div>
                 <span class="font-bold">1 off {{offcut.offcutLength}}{{ displayUnits() }}:</span> <span>(Used {{Math.round(offcut.cutLength/offcut.offcutLength*100)}}%)</span>
             </div>
-
             <div class="shadow w-full bg-red-200 flex flex-row border-2 border-black">
                 <div
                     v-for="cut in getPieces(offcut)"
