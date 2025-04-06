@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Formatters\SupplierFormatter;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -42,13 +43,42 @@ class Offcut extends Model
         return Batch::findOrFail($this->batch_from_id);
     }
 
-    public function batchTo(): Batch
+    public function batchTo(): Batch|null
     {
-        return Batch::findOrFail($this->batch_to_id);
+        return Batch::find($this->batch_to_id);
     }
 
     public function pieceTo(): Batch
     {
         return Piece::findOrFail($this->piece_to_id);
+    }
+
+    //Order
+    public function deliveredOrder(): Order|null
+    {
+        /**
+         * Order of the original batch
+         */
+        $batchFrom = $this->batchFrom();
+
+        //Get list of ALL supplier categories with contained products. e.g "steel merchant" contains "PFC, UB, etc"
+        $business = $batchFrom->user->business;
+        $categories = (new SupplierFormatter)->supplierGroups($business);
+
+        //Find supplier categories of this offcut. e,g "STEEL_MERCHANT"
+        $supplierCategoryFromOffcut = null;
+        foreach($categories as $supplierCategory => $includedProducts){
+            foreach($includedProducts as $includedProduct){
+                if($includedProduct === $this->product_category){
+                    $supplierCategoryFromOffcut = $supplierCategory;
+                }
+            }
+        }
+
+        //Get delivered order that matches this supplier category
+        return $batchFrom->orders()
+            ->where("is_delivered",true)
+            ->whereRelation("quote","supplier_category","=",$supplierCategoryFromOffcut)
+            ->first();
     }
 }

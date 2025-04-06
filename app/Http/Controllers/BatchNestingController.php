@@ -32,6 +32,8 @@ class BatchNestingController extends Controller
             'width' => 900,
             "redirect" => $redirect,
             "batch" => $batch,
+            "newStockOrdersWithCertificates" => $batch->newStockOrdersWithCertificates(),
+            "offcutOrdersWithCertificates" => $batch->offcutOrdersWithCertificates($business),
         ]);
 
         return $print === 1

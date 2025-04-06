@@ -25,6 +25,7 @@ class SaveNesting
         $piecesNested = $nestingFormatter->piecesNested($piecesReadyForBatching, $lettersProjectArray, $business);
 
         //Create new bars
+        //todo creating offcuts before delivery (or sent, but that can be reverted) is too risky
         $meterageNesting = $piecesNested["METERAGE"] ?? collect([]);
         CreateBars::run($meterageNesting, $batch);
 

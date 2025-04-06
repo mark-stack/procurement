@@ -20,7 +20,7 @@
     //...
 
     //Shared Methods
-    //...
+    import shared from "@/Shared/shared.js";
 
     //Methods
     //...
@@ -29,11 +29,11 @@
 </script>
 
 <template>
-    <div class="grid grid-cols-3 p-5 gap-3">
+    <div class="grid grid-cols-2 p-5 gap-3">
         <!-- Spec -->
         <div>
             <h2 class="font-bold">Material Spec</h2>
-            {{item.product_derived_label}}
+            {{shared.cropText(shared.capitalizeWords(item.product_derived_label),35)}}
             <p class="text-xs">
                 <span class="block">Product: {{item.product_category}}</span>
                 <span class="block">Material: {{item.material}}</span>

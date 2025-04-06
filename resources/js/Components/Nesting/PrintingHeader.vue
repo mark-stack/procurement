@@ -22,8 +22,8 @@
     //Variables
     //...
 
-    //Shared Methods
-    //...
+    //Shared methods
+    import shared from "@/Shared/shared.js";
 
     //Methods
     function subPageQty(){
@@ -37,19 +37,15 @@
 </script>
 
 <template>
-    <div class="grid grid-cols-3 p-4">
-        <div>
-            <b>{{item.product_derived_label}}</b>{{subPageQty()}}
+    <div class="grid grid-cols-5 pt-4 pb-4 pr-5 pl-5">
+        <div class="col-span-2">
+            <b>{{shared.cropText(shared.capitalizeWords(item.product_derived_label),23)}}</b>{{subPageQty()}}
         </div>
         <div class="text-center">
             Batch: {{batch.id}}
         </div>
-        <div class="text-right">
+        <div class="col-span-2 text-right">
             SteelNesting.com.au
         </div>
     </div>
 </template>
-
-<style scoped>
-
-</style>

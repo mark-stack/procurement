@@ -179,8 +179,19 @@ class Business extends Model
             }
         }
 
-        return Offcut::query()
+        $tentativeOffcuts = Offcut::query()
             ->whereIn("batch_from_id",$businessBatchesIds)
-            ->where("batch_to_id",null);
+            ->where("batch_to_id",null)
+            ->get();
+
+        $availableOffcutsIds = [];
+        foreach($tentativeOffcuts as $offcut){
+            $deliveredOrder = $offcut->deliveredOrder();
+            if($deliveredOrder){
+                $availableOffcutsIds[] = $offcut->id;
+            }
+        }
+
+        return Offcut::query()->whereIn("id",$availableOffcutsIds);
     }
 }

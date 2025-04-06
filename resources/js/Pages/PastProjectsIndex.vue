@@ -124,7 +124,7 @@
                                                             <div>
                                                                 <h2 class="font-medium text-gray-800 dark:text-white ">
                                                                     <Link
-                                                                        :href="route('batch.nesting',[batch.id,'past',0])"
+                                                                        :href="route('batch.nesting',[batch.id,'past',1])"
                                                                         class="w-full"
                                                                         @click="loadingButton = 'NESTING_DETAILS'"
                                                                     >
