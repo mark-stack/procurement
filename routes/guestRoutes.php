@@ -25,6 +25,12 @@ Route::get('/', function () {
     ]);
 });
 
+Route::get("guest-onboarding",function(){
+    return Inertia::render('GuestOnboarding', [
+        //
+    ]);
+})->name("guest.onboarding");
+
 //Try nesting
 Route::get('/try-nesting', function () {
     //Formatter

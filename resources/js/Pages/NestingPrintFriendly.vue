@@ -283,7 +283,7 @@
                     <div>
                         <h2 class="font-bold">Material Certificates from reused offcuts:</h2>
                         <template v-if="offcutOrdersWithCertificates === 'NO_OFFCUTS'">
-                            This batch sued no offcuts
+                            This batch used no offcuts
                         </template>
                         <template v-else>
                             <ul v-if="Object.values(offcutOrdersWithCertificates).length > 0">

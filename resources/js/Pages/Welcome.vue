@@ -1,7 +1,7 @@
 <script setup>
     //General Imports
     import {Head, Link, useForm, usePage} from '@inertiajs/vue3';
-    import {ref} from "vue";
+    import {computed, ref} from "vue";
 
     //Component Imports
     import SavingsCalculator from "@/Components/SavingsCalculator.vue";
@@ -22,6 +22,7 @@
 
     //Shared data
     const user = usePage().props.auth.user;
+    const loginAvailable = computed(() => usePage().props.loginAvailable);
 
     //Variables
     const trial_months = 1;
@@ -859,7 +860,18 @@
                     </div>
                 </div>
                 <div>
-                    <Link :href="route('register')" class="inline-flex items-center justify-center w-full h-12 px-6 mb-4 font-medium tracking-wide text-white transition duration-200 bg-green-600 rounded shadow-md hover:bg-green-700 focus:shadow-outline focus:outline-none">
+                    <Link
+                        v-if="loginAvailable"
+                        :href="route('register')"
+                        class="inline-flex items-center justify-center w-full h-12 px-6 mb-4 font-medium tracking-wide text-white transition duration-200 bg-green-600 rounded shadow-md hover:bg-green-700 focus:shadow-outline focus:outline-none"
+                    >
+                        Start {{trial_months}} Month{{trial_months > 1 ? 's' : ''}} Free Trial
+                    </Link>
+                    <Link
+                        v-else
+                        :href="route('guest.onboarding')"
+                        class="inline-flex items-center justify-center w-full h-12 px-6 mb-4 font-medium tracking-wide text-white transition duration-200 bg-green-600 rounded shadow-md hover:bg-green-700 focus:shadow-outline focus:outline-none"
+                    >
                         Start {{trial_months}} Month{{trial_months > 1 ? 's' : ''}} Free Trial
                     </Link>
                 </div>

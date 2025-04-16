@@ -48,6 +48,7 @@ class HandleInertiaRequests extends Middleware
                 "project" => fn () => $request->session()->get('project'),
             ],
             'adminEmail' => config('env.admin_email'),
+            "loginAvailable" => env("LOGIN_AVAILABLE"),
         ];
     }
 }

@@ -116,7 +116,7 @@
                 class="font-bold bg-green-100 text-xs leading-none py-2 text-center text-black border-r-4 border-black"
                 :style="'width: '+(bar.result.unused/bar.result['bar_length']*100)+'%'"
             >
-                Reuse
+                <i>["3" (3rd oldest)]</i>
 <!--                Reuse [{{bar.result}}]<i v-if="bar.result.uniqueId">"{{bar.result.uniqueId}}"</i>-->
             </div>
         </div>

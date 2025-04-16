@@ -20,6 +20,7 @@
     //Variables
     const showMobileNav = ref(false);
     const user = computed(() => usePage().props.auth.user);
+    const loginAvailable = computed(() => usePage().props.loginAvailable);
 
     //Shared Methods
     //...
@@ -35,25 +36,9 @@
             <div class="relative flex items-center justify-between">
                 <div class="flex items-center">
                     <Link href="/" aria-label="Company" title="Company" class="inline-flex items-center mr-8">
-<!--                        <svg class="w-8 text-teal-accent-400" viewBox="0 0 24 24" stroke-linejoin="round" stroke-width="2" stroke-linecap="round" stroke-miterlimit="10" stroke="currentColor" fill="none">-->
-<!--                            <rect x="3" y="1" width="7" height="12"></rect>-->
-<!--                            <rect x="3" y="17" width="7" height="6"></rect>-->
-<!--                            <rect x="14" y="1" width="7" height="6"></rect>-->
-<!--                            <rect x="14" y="11" width="7" height="12"></rect>-->
-<!--                        </svg>-->
                         <span class="ml-2 text-xl font-bold tracking-wide text-gray-100">SteelNesting.com.au</span>
                     </Link>
                     <ul class="flex items-center hidden space-x-8 lg:flex">
-                        <li>
-                            <Link
-                                href="/#nesting"
-                                aria-label="Nesting"
-                                title="Try Nesting"
-                                class="font-medium tracking-wide text-gray-100 transition-colors duration-200 hover:text-teal-accent-400"
-                            >
-                                Nesting
-                            </Link>
-                        </li>
                         <li>
                             <Link
                                 href="/#pricing"
@@ -66,7 +51,7 @@
                         </li>
                     </ul>
                 </div>
-                <ul class="flex items-center hidden space-x-8 lg:flex">
+                <ul v-if="loginAvailable" class="flex items-center hidden space-x-8 lg:flex">
                     <li>
                         <Link
                             v-if="!user"
@@ -114,12 +99,6 @@
                             <div class="flex items-center justify-between mb-4">
                                 <div>
                                     <Link href="/" aria-label="Company" title="Company" class="inline-flex items-center">
-<!--                                        <svg class="w-8 text-deep-purple-accent-400" viewBox="0 0 24 24" stroke-linejoin="round" stroke-width="2" stroke-linecap="round" stroke-miterlimit="10" stroke="currentColor" fill="none">-->
-<!--                                            <rect x="3" y="1" width="7" height="12"></rect>-->
-<!--                                            <rect x="3" y="17" width="7" height="6"></rect>-->
-<!--                                            <rect x="14" y="1" width="7" height="6"></rect>-->
-<!--                                            <rect x="14" y="11" width="7" height="12"></rect>-->
-<!--                                        </svg>-->
                                         <span class="ml-2 text-xl font-bold tracking-wide text-gray-800 uppercase">SteelNesting.com.au</span>
                                     </Link>
                                 </div>
@@ -151,17 +130,7 @@
                                             Pricing
                                         </a>
                                     </li>
-                                    <li>
-                                        <a
-                                            href="/#nesting"
-                                            aria-label="Nesting"
-                                            title="Nesting"
-                                            class="font-medium tracking-wide text-gray-700 transition-colors duration-200 hover:text-deep-purple-accent-400"
-                                        >
-                                            Nesting
-                                        </a>
-                                    </li>
-                                    <li>
+                                    <li v-if="loginAvailable">
                                         <Link
                                             v-if="!user"
                                             :href="route('login')"
@@ -172,7 +141,7 @@
                                             Sign in
                                         </Link>
                                     </li>
-                                    <li>
+                                    <li v-if="loginAvailable">
                                         <Link
                                             v-if="user"
                                             :href="route('dashboard')"
