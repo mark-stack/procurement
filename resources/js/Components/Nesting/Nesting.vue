@@ -89,20 +89,24 @@
                     <!-- Usage stats-->
                     <div class="col-span-3">
                         <table class="w-full">
-                            <tr>
-                                <th>Total Material</th>
-                                <th>Total Used Material</th>
-                                <th>Total Reusable</th>
-                                <th>Total Scrap</th>
-                                <th>Efficiency</th>
-                            </tr>
-                            <tr>
-                                <td>{{ (usage.METERAGE.totalPurchasedMaterial/1000).toLocaleString() }}m</td>
-                                <td>{{ (usage.METERAGE.totalUsedMaterial/1000).toLocaleString() }}m</td>
-                                <td>{{ (usage.METERAGE.totalReusable/1000).toLocaleString() }}m</td>
-                                <td>{{ (usage.METERAGE.totalScrap/1000).toLocaleString() }}m</td>
-                                <td>{{ usage.METERAGE.efficiency }}%</td>
-                            </tr>
+                            <thead>
+                                <tr>
+                                    <th>Total Material</th>
+                                    <th>Total Used Material</th>
+                                    <th>Total Reusable</th>
+                                    <th>Total Scrap</th>
+                                    <th>Efficiency</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>{{ (usage.METERAGE.totalPurchasedMaterial/1000).toLocaleString() }}m</td>
+                                    <td>{{ (usage.METERAGE.totalUsedMaterial/1000).toLocaleString() }}m</td>
+                                    <td>{{ (usage.METERAGE.totalReusable/1000).toLocaleString() }}m</td>
+                                    <td>{{ (usage.METERAGE.totalScrap/1000).toLocaleString() }}m</td>
+                                    <td>{{ usage.METERAGE.efficiency }}%</td>
+                                </tr>
+                            </tbody>
                         </table>
                     </div>
                 </div>

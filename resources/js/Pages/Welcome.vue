@@ -25,14 +25,14 @@
     const loginAvailable = computed(() => usePage().props.loginAvailable);
 
     //Variables
-    const trial_months = 1;
+    const trial_months = 2;
     const savings_period_years = 3;
     const fullPriceMultiYear = 10000;
     const fullPriceAnnual = 2900;
     const fullPriceMonthly = 300;
     const fullPriceWeekly = 49;
     const firstYearDiscount = 0;
-    const whichPlan = "WEEKLY"; //"MONTHLY","ANNUAL", "WEEKLY", "MULTI_YEAR"
+    const whichPlan = "MULTI_YEAR"; //"MONTHLY","ANNUAL", "WEEKLY", "MULTI_YEAR"
 
 
     //Shared Methods
@@ -145,6 +145,60 @@
         </div>
     </div>
 
+    <div class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">
+        <div class="mb-16 md:mx-auto sm:text-center">
+            <h2 class="max-w-3xl mb-6 font-sans text-5xl font-bold leading-none tracking-tight text-gray-900 md:mx-auto">
+                How to reach maximum steel nesting efficiency?
+            </h2>
+        </div>
+        <div class="grid gap-8 row-gap-0 lg:grid-cols-3">
+            <div class="relative text-center">
+                <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-50 sm:w-20 sm:h-20">
+                    <svg class="w-12 h-12 text-deep-purple-accent-400 sm:w-16 sm:h-16" stroke="currentColor" viewBox="0 0 52 52">
+                        <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
+                    </svg>
+                </div>
+                <h6 class="mb-2 text-2xl font-extrabold">Cross-project nesting</h6>
+                <p class="max-w-md mb-3 text-sm text-gray-900 sm:mx-auto">
+                    Multiple concurrent projects drive up material yield with no extra effort. The tool manages crystal clear distinction between cuts.
+                </p>
+                <div class="top-0 right-0 flex items-center justify-center h-24 lg:-mr-8 lg:absolute">
+                    <svg class="w-8 text-gray-700 transform rotate-90 lg:rotate-0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <line fill="none" stroke-miterlimit="10" x1="2" y1="12" x2="22" y2="12"></line>
+                        <polyline fill="none" stroke-miterlimit="10" points="15,5 22,12 15,19 "></polyline>
+                    </svg>
+                </div>
+            </div>
+            <div class="relative text-center">
+                <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-50 sm:w-20 sm:h-20">
+                    <svg class="w-12 h-12 text-deep-purple-accent-400 sm:w-16 sm:h-16" stroke="currentColor" viewBox="0 0 52 52">
+                        <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
+                    </svg>
+                </div>
+                <h6 class="mb-2 text-2xl font-extrabold">Auto nest offcut inventory</h6>
+                <p class="max-w-md mb-3 text-sm text-gray-900 sm:mx-auto">
+                    Real time offcut tracking & placement. No stocktaking necessary as the tool knows it's own history so knows exactly what offcuts you have in stock.
+                </p>
+                <div class="top-0 right-0 flex items-center justify-center h-24 lg:-mr-8 lg:absolute">
+                    <svg class="w-8 text-gray-700 transform rotate-90 lg:rotate-0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <line fill="none" stroke-miterlimit="10" x1="2" y1="12" x2="22" y2="12"></line>
+                        <polyline fill="none" stroke-miterlimit="10" points="15,5 22,12 15,19 "></polyline>
+                    </svg>
+                </div>
+            </div>
+            <div class="relative text-center">
+                <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-50 sm:w-20 sm:h-20">
+                    <svg class="w-12 h-12 text-deep-purple-accent-400 sm:w-16 sm:h-16" stroke="currentColor" viewBox="0 0 52 52">
+                        <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
+                    </svg>
+                </div>
+                <h6 class="mb-2 text-2xl font-extrabold">Iterative algorithms</h6>
+                <p class="max-w-md mb-3 text-sm text-gray-900 sm:mx-auto">
+                    The tool tries multiple algorithms and iterates to find best of 1000 nesting combinations.
+                </p>
+            </div>
+        </div>
+    </div>
 
     <div class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">
         <div class="mb-16 md:mx-auto sm:text-center">
@@ -164,40 +218,10 @@
                     </div>
                     <div>
                         <h6 class="mb-3 text-xl font-bold leading-5">
-                            Mathematical maximum nesting efficiency
-                        </h6>
-                        <p class="text-sm text-gray-900">
-                            <ul>
-                                <li>
-                                    <span class="font-semibold">- Cross-project nesting:</span> multiple concurrent projects to drive up material yield with no extra effort. Each project manager simply upload their material lists
-                                </li>
-                                <li>
-                                    <span class="font-semibold">- Real time offcut tracking & placement:</span>
-                                </li>
-                                <li>
-                                    <span class="font-semibold">- Multiple algorithms</span>
-                                </li>
-                                <li>
-                                    <span class="font-semibold">- Iterative algorithms (best of 1000)</span>
-                                </li>
-                            </ul>
-                        </p>
-                    </div>
-                </div>
-                <div class="flex flex-col max-w-md sm:flex-row">
-                    <div class="mb-4 mr-4">
-                        <div class="flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50">
-                            <svg class="w-8 h-8 text-deep-purple-accent-400 sm:w-10 sm:h-10" stroke="currentColor" viewBox="0 0 52 52">
-                                <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
-                            </svg>
-                        </div>
-                    </div>
-                    <div>
-                        <h6 class="mb-3 text-xl font-bold leading-5">
                             Automatically import cut lists from any source
                         </h6>
                         <p class="text-sm text-gray-900">
-                            Import materials from Tekla, Inventor, Advance Steel, or any CAD that exports a BOM to Excel. Also, manually created spreadsheets are supported.
+                            Import BOMs from Tekla, Inventor, Advance Steel, or any CAD that exports to Excel — manual spreadsheets supported too.
                         </p>
                     </div>
                 </div>
@@ -214,14 +238,24 @@
                             100% Material traceability
                         </h6>
                         <p class="text-sm text-gray-900">
-                            <ul>
-                                <li>
-                                    <span class="font-semibold">- Material certificates:</span> Attach Material certificates from steel order.
-                                </li>
-                                <li>
-                                    <span class="font-semibold">- Clarity:</span> All cuts completely distinguished when doing cross-project nesting
-                                </li>
-                            </ul>
+                            Attach material certificates from steel orders so that every single cut is traceable. Every cut ties to exact project when cross-project nesting is used.
+                        </p>
+                    </div>
+                </div>
+                <div class="flex flex-col max-w-md sm:flex-row">
+                    <div class="mb-4 mr-4">
+                        <div class="flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50">
+                            <svg class="w-8 h-8 text-deep-purple-accent-400 sm:w-10 sm:h-10" stroke="currentColor" viewBox="0 0 52 52">
+                                <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
+                            </svg>
+                        </div>
+                    </div>
+                    <div>
+                        <h6 class="mb-3 text-xl font-bold leading-5">
+                            Built 100% in Australia for Australian Fabricators
+                        </h6>
+                        <p class="text-sm text-gray-900">
+                            Thousands of Australian-standard products from major steel catalogs. Local support from Melbourne
                         </p>
                     </div>
                 </div>
@@ -240,23 +274,11 @@
                             Simple order tracking
                         </h6>
                         <p class="text-sm text-gray-900">
-                            <ul>
-                                <li>
-                                    <span class="font-semibold">- Supplier grouping:</span> BOM importing automatically sorts materials into a supplier group. E.g sections, purlins, piping, timber.
-                                </li>
-                                <li>
-                                    <span class="font-semibold">- Order tracking: </span> Track quoting > ordering > delivering of nested batches.
-                                </li>
-                                <li>
-                                    <span class="font-semibold">- 1-click BOM-to-email: </span> Instantly launch an email with table of materials ready to send for quoting and ordering.
-                                </li>
-                                <li>
-                                    <span class="font-semibold">- Kanban:</span> Easy to read kanban of concurrent batched orders
-                                </li>
-                            </ul>
+                            Track quoting to delivery of nested batches, with a clear Kanban view of active orders
                         </p>
                     </div>
                 </div>
+
                 <div class="flex flex-col max-w-md sm:flex-row">
                     <div class="mb-4 mr-4">
                         <div class="flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50">
@@ -267,20 +289,15 @@
                     </div>
                     <div>
                         <h6 class="mb-3 text-xl font-bold leading-5">
-                            Built 100% in Australia for Australian Fabricators
+                           1-click BOM to Email
                         </h6>
                         <p class="text-sm text-gray-900">
-                            <ul>
-                                <li>
-                                    <span class="font-semibold">- Australian steel standards:</span> 1000's of products as sourced from the product catalogues of all the major steel merchants.
-                                </li>
-                                <li>
-                                    <span class="font-semibold">- Local support:</span> we're in Melbourne.
-                                </li>
-                            </ul>
+                            Instantly launch an email with table of materials ready to send for quoting and ordering.
                         </p>
                     </div>
                 </div>
+
+
                 <div class="flex flex-col max-w-md sm:flex-row">
                     <div class="mb-4 mr-4">
                         <div class="flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50">
@@ -293,9 +310,9 @@
                         <h6 class="mb-3 text-xl font-bold leading-5">
                             The simplest interface your grandma could use
                         </h6>
-<!--                        <p class="text-sm text-gray-900">-->
-<!--                            A flower in my garden, a mystery in my panties. Heart attack never stopped old Big Bear.-->
-<!--                        </p>-->
+                        <p class="text-sm text-gray-900">
+                            Software shouldn't have a learning curve and 50 buttons. Just bare minimum what you need to get the job done.
+                        </p>
                     </div>
                 </div>
             </div>

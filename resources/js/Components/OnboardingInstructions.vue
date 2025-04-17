@@ -44,7 +44,7 @@
                 <div class="mt-3">
                     <!-- Quote template -->
                     <div class="mt-3">
-                        <h3 class="font-semibold">Examples of your bill-of-materials templates:</h3>
+                        <h3 class="font-semibold">Examples of your bill-of-materials:</h3>
                         <ul>
                             <li>- Excel exported from CAD like Tekla, Inventor, Advance Steel etc.</li>
                             <li>- Manually created Excel spreadsheets. </li>
