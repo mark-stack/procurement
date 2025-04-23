@@ -6,6 +6,10 @@ node_modules/
 /public/storage
 /storage/*.key
 /storage/pail
+# Ignore everything in storage
+/storage/*
+# But NOT master material list
+!storage/app/private/master_materials.csv
 storage/*.key
 /vendor
 /vendor/
