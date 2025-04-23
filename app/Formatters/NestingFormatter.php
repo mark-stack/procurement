@@ -910,6 +910,7 @@ class NestingFormatter
                 $purchasableStockLengths,
                 $business,
                 true,
+                $newPieceSpec,
             );
 
             $results[$singleRun["efficiency"]] = $singleRun["result"];
@@ -922,6 +923,7 @@ class NestingFormatter
             $purchasableStockLengths,
             $business,
             false,
+            $newPieceSpec,
         );
 
         $results[$singleRun["efficiency"]] = $singleRun["result"];
@@ -1118,7 +1120,7 @@ class NestingFormatter
         array $purchasableStockLengths,
         Business $business,
         bool $random,
-
+        Object|null $newPieceSpec,
     ): array
     {
         // 2C) Start with an empty list of bins
@@ -1176,6 +1178,7 @@ class NestingFormatter
                         $utilisedBars,
                         $lettersProjectArray,
                         $business,
+                        $newPieceSpec,
                     );
                 }
 
@@ -1244,7 +1247,8 @@ class NestingFormatter
         int $barLength,
         array $utilisedBars,
         array $lettersProjectArray,
-        Business $business
+        Business $business,
+        object|null $newPieceSpec,
     ): array
     {
         /*
@@ -1263,9 +1267,42 @@ class NestingFormatter
                 'projectId' => $projectId,
                 'letter' => $lettersProjectArray[$projectId],
             ]],
+            "unique_scrap_id" => ($unused > $business->scrap_threshold_mm && $newPieceSpec)
+                ? $this->uniqueScrapId($business,$projectId,$unused,$newPieceSpec)
+                : null,
         ];
 
         return $utilisedBars;
+    }
+
+    private function uniqueScrapId(Business $business, int $projectId, int $unused, object $newPieceSpec): string
+    {
+        /*
+         * Scrap ID:
+         * [business id]---[project-id]---[length]---[product_category]---[material]---[grade]---[surface]---[nominal_units]---[nominal_height]---[kg_per_m]---[product_derived_label]
+         * Put "???" where null
+         */
+
+        return $business->id."---".
+            $projectId.
+            "---".
+            $unused.
+            "---".
+            $newPieceSpec->product_category.
+            "---".
+            ($newPieceSpec->material ?? "???").
+            "---".
+            ($newPieceSpec->grade ?? "???").
+            "---".
+            ($newPieceSpec->surface ?? "???").
+            "---".
+            ($newPieceSpec->nominal_units ?? "???").
+            "---".
+            ($newPieceSpec->nominal_height ?? "???").
+            "---".
+            ($newPieceSpec->kg_per_m ?? "???").
+            "---".
+            ($newPieceSpec->product_derived_label ?? "???");
     }
 
     private function tryPlaceCutIntoUtilisedBars(array $cut, array $utilisedBars, array $lettersProjectArray): array

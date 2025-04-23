@@ -204,7 +204,7 @@
     <div class="max-w-5xl mx-auto">
         <CadLogosBanner/>
     </div>
-    
+
     <div class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">
         <div class="mb-16 md:mx-auto sm:text-center">
             <h2 class="max-w-4xl mb-6 font-sans text-5xl font-bold leading-none tracking-tight text-gray-900 md:mx-auto">

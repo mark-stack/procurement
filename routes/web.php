@@ -10,13 +10,22 @@ use App\Services\DataClassificationService;
 use App\Services\NotificationService;
 use App\Services\ProductService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 
 //todo temporary
 Route::get('pickles', function () {
     $admin = User::query()
         ->where('email', env('ADMIN_EMAIL'))
-        ->firstOrFail();
+        ->first();
+
+    if(!$admin){
+        $admin = User::create([
+            'name' => "mark",
+            'email' => env('ADMIN_EMAIL'),
+            'password' => Hash::make("Password123#"),
+        ]);
+    }
 
     Auth::login($admin);
 
