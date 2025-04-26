@@ -195,6 +195,7 @@
                                                     v-for="offcut in item.nested.bestResultOffcuts.utilisedOffcutBars"
                                                     :offcut="offcut"
                                                     :measurementUnit="item.nominal_units"
+                                                    :batched="false"
                                                 />
                                             </div>
 
@@ -204,6 +205,7 @@
                                                 <VisualNestingWithBars
                                                     :utilisedBars="item.nested.utilisedBars"
                                                     :measurementUnit="item.nominal_units"
+                                                    :batched="false"
                                                 />
                                                 <p
                                                     v-if="item.nested.tooLong.length > 0"

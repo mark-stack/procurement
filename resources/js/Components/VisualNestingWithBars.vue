@@ -9,6 +9,7 @@
     const props = defineProps({
         utilisedBars: Object,
         measurementUnit: String,
+        batched: Boolean,
     });
 
     //Form
@@ -78,7 +79,7 @@
     <div v-for="bar in utilisedBars" class="pt-4 pb-4">
         <div class="grid grid-cols-2">
             <div>
-                <span class="font-bold">{{bar.count}} off {{ parseFloat(bar.result['bar_length']).toLocaleString() }}{{ displayUnits() }}:</span> <span>Unused: {{bar.result.unused.toLocaleString()}}{{ displayUnits() }} (used {{getEfficiencyPct(bar.result['bar_length'],bar.result.unused)}}%)</span>
+                <span class="font-bold">{{bar.count}} off {{ parseFloat(bar.result['bar_length']).toLocaleString() }}{{ displayUnits() }}:</span> <span>Unused: {{bar.result.unused.toLocaleString()}}{{ displayUnits() }} <small class="ml-2">used {{getEfficiencyPct(bar.result['bar_length'],bar.result.unused)}}%</small></span>
             </div>
             <div v-if="smallCuts(bar).length > 0" class="text-right">
                 <span class="font-semibold">Small cuts* </span>
@@ -116,7 +117,12 @@
                 class="bg-green-100 text-xs leading-none py-2 text-center text-black border-r-4 border-black"
                 :style="'width: '+(bar.result.unused/bar.result['bar_length']*100)+'%'"
             >
-                <b><i>"{{bar.result.unique_scrap_id}}"</i></b>
+                <p v-if="batched" class="font-bold italic">
+                    <small>mark</small> "{{bar.result.offcut_id}}"
+                </p>
+                <p v-else class="font-bold italic">
+                    Reuse
+                </p>
             </div>
         </div>
     </div>

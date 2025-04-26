@@ -357,7 +357,7 @@
                     class="flex items-center justify-center text-center text-xl"
                     style="height:300px"
                 >
-                    Loading: Take a 15 second nap 😴
+                    Processing: Have a sip of coffee ☕️
                 </div>
 
                 <!-- Add project -->

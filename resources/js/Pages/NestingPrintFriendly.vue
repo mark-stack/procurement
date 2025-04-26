@@ -342,6 +342,7 @@
                                                 v-for="offcut in page.offcuts"
                                                 :offcut="offcut"
                                                 :measurementUnit="item.nominal_units"
+                                                :batched="true"
                                             />
                                         </div>
 
@@ -352,6 +353,7 @@
                                             <VisualNestingWithBars
                                                 :utilisedBars="page.newStock"
                                                 :measurementUnit="item.nominal_units"
+                                                :batched="true"
                                             />
                                         </template>
                                     </div>

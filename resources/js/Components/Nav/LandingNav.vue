@@ -130,17 +130,17 @@
                                             Pricing
                                         </a>
                                     </li>
-                                    <li v-if="loginAvailable">
-                                        <Link
-                                            v-if="!user"
-                                            :href="route('login')"
-                                            aria-label="Sign in"
-                                            title="Sign in"
-                                            class="font-medium tracking-wide text-gray-700 transition-colors duration-200 hover:text-deep-purple-accent-400"
-                                        >
-                                            Sign in
-                                        </Link>
-                                    </li>
+<!--                                    <li v-if="loginAvailable">-->
+<!--                                        <Link-->
+<!--                                            v-if="!user"-->
+<!--                                            :href="route('login')"-->
+<!--                                            aria-label="Sign in"-->
+<!--                                            title="Sign in"-->
+<!--                                            class="font-medium tracking-wide text-gray-700 transition-colors duration-200 hover:text-deep-purple-accent-400"-->
+<!--                                        >-->
+<!--                                            Sign in-->
+<!--                                        </Link>-->
+<!--                                    </li>-->
                                     <li v-if="loginAvailable">
                                         <Link
                                             v-if="user"
@@ -162,6 +162,9 @@
                                         </Link>
                                     </li>
                                 </ul>
+                                <p class="block md:hidden text-sm mt-3">
+                                    Note that login is only available on desktop
+                                </p>
                             </nav>
                         </div>
                     </div>

@@ -9,6 +9,7 @@
     const props = defineProps({
         offcut: Object,
         measurementUnit: String,
+        batched: Boolean,
     });
 
     //Form
@@ -38,8 +39,8 @@
     }
 
     function getPieces(offcut){
-        let offcutLength = offcut.offcutLength;
-        let cuts = offcut.cuts;
+        let offcutLength = offcut.sourceOffcut.offcutLength;
+        let cuts = offcut.sourceOffcut.cuts;
 
         let getPieces = [];
         Object.values(cuts).forEach(cut => {
@@ -66,7 +67,7 @@
     <div class="grid grid-cols-1 gap-x-10">
         <div class="w-full pt-4 pb-4">
             <div>
-                <span class="font-bold">1 off {{offcut.offcutLength}}{{ displayUnits() }}:</span> <span>(Used {{Math.round(offcut.cutLength/offcut.offcutLength*100)}}%)</span>
+                <span class="font-bold">1 off {{offcut.sourceOffcut.offcutLength}}{{ displayUnits() }}:</span> <span class="ml-1 italic"><small>marked</small> "{{offcut.sourceOffcut.offcutId}}"</span> <small class="ml-3">Used {{Math.round(offcut.sourceOffcut.cutLength/offcut.sourceOffcut.offcutLength*100)}}%</small>
             </div>
             <div class="shadow w-full bg-red-200 flex flex-row border-2 border-black">
                 <div
@@ -78,17 +79,20 @@
                         {{cut.length}} {{'('+cut.letter+')'}}
                     </p>
                 </div>
-                <!-- reusable -->
+                <!-- reusable (there's "reusableLength" and "scrapLength") -->
                 <div
-                    v-if="offcut.reusableLength > 0"
+                    v-if="offcut.offcutFromOffcut.reusableLength > 0"
                     class="font-bold bg-green-100 text-xs leading-none py-2 text-center text-black border-r-4 border-black"
-                    :style="'width: '+(offcut.reusableLength/offcut.offcutLength*100)+'%'"
+                    :style="'width: '+(offcut.offcutFromOffcut.reusableLength/offcut.sourceOffcut.offcutLength*100)+'%'"
                 >
-                    Reuse
-<!--                    Reuse <i v-if="offcut.uniqueId">"{{offcut.uniqueId}}"</i>-->
+                    <p v-if="batched" class="italic">
+                        <small>mark</small> "{{offcut.offcutFromOffcut.offcut_of_offcut_id}}"
+                    </p>
+                    <p v-else>
+                        Reuse
+                    </p>
                 </div>
             </div>
-
         </div>
     </div>
 </template>

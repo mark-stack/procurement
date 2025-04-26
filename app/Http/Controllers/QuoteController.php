@@ -62,13 +62,6 @@ class QuoteController extends Controller
                     'user_id' => $user->id,
                 ]);
 
-                //todo soon to be redundant
-                $nestingFormatter = new NestingFormatter();
-                $lettersProjectArray = $nestingFormatter->getLetterProjectArray($piecesReadyForBatching);
-                $piecesNested = $nestingFormatter->piecesNested($piecesReadyForBatching, $lettersProjectArray, $business);
-                $batch->nested_state = serialize($piecesNested);
-                $batch->save();
-
                 //Attach pieces to batch
                 AttachPiecesToBatch::run($piecesReadyForBatching, $batch);
 

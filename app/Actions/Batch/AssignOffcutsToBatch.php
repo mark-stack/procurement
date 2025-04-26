@@ -5,6 +5,7 @@ namespace App\Actions\Batch;
 use App\Models\Batch;
 use App\Models\Offcut;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Lorisleiva\Actions\Concerns\AsAction;
 
 class AssignOffcutsToBatch
@@ -17,13 +18,22 @@ class AssignOffcutsToBatch
          * Assign offcuts to this batch
          */
          if($meterageNesting->count() > 0){
-             foreach($meterageNesting as $product){
+             foreach($meterageNesting as $index => $product){
+                 /*
+                  * Offcuts
+                  */
                  $bestResultOffcuts = $product->nested['bestResultOffcuts'];
                  if(count($bestResultOffcuts['utilisedOffcutBars']) > 0){
-                     foreach($bestResultOffcuts['utilisedOffcutBars'] as $offcutData){
-                         $offcut = Offcut::findOrFail($offcutData["offcutId"]);
-                         $offcut->batch_to_id = $batch->id;
-                         $offcut->save();
+                     //Loop individual offcuts
+                     foreach($bestResultOffcuts['utilisedOffcutBars'] as $offcutData) {
+                         $offcut = Offcut::find($offcutData["sourceOffcut"]["offcutId"]);
+                         if ($offcut) {
+                             $offcut->batch_to_id = $batch->id;
+                             $offcut->save();
+                         }
+                         else {
+                             Log::error("Offcut with ID wasn't found: ", [$offcutData["sourceOffcut"]["offcutId"]]);
+                         }
                      }
                  }
              }

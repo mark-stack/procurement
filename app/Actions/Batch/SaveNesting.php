@@ -2,7 +2,7 @@
 
 namespace App\Actions\Batch;
 
-use App\Actions\Bar\CreateBars;
+use App\Actions\Bar\CreateBarsAndOffcuts;
 use App\Formatters\NestingFormatter;
 use App\Models\Batch;
 use App\Models\Business;
@@ -24,16 +24,11 @@ class SaveNesting
         //Pieces nested
         $piecesNested = $nestingFormatter->piecesNested($piecesReadyForBatching, $lettersProjectArray, $business);
 
-        //Create new bars
-        //todo creating offcuts before delivery (or sent, but that can be reverted) is too risky
+        //Create bars, offcuts, and store nested state
         $meterageNesting = $piecesNested["METERAGE"] ?? collect([]);
-        CreateBars::run($meterageNesting, $batch);
+        CreateBarsAndOffcuts::run($meterageNesting, $batch);
 
         //Assign offcuts to batch
         AssignOffcutsToBatch::run($meterageNesting, $batch);
-
-        //Update the offcut inventory to remove allocated offcuts from circulation
-        //todo incomplete
-        RemoveOffcutsFromInventory::run($piecesNested);
     }
 }

@@ -1,6 +1,6 @@
 <script setup>
     //General Imports
-    import {Head, useForm} from '@inertiajs/vue3';
+    import {Head, Link, useForm} from '@inertiajs/vue3';
     import {ref, toRefs, watch} from "vue";
     import axios from 'axios';
 
@@ -277,7 +277,25 @@
 
         <div>
             <div class="mx-auto max-w-7xl">
-                <section>
+                <!-- Mobile view -->
+                <div class="md:hidden pt-5">
+                    <p class="w-full text-center">This is site requires desktop login</p>
+                    <div class="flex mx-auto justify-center mt-5">
+                        <Link
+                            :href="route('logout')"
+                            method="post"
+                            class="pt-1 pl-2 font-bold flex text-gray-500 transition-colors duration-200 dark:text-gray-400 rtl:rotate-0 hover:text-blue-500 dark:hover:text-blue-400"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mt-1">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+                            </svg>
+                            <span class="pl-2" style="margin-top:2px">Logout</span>
+                        </Link>
+                    </div>
+                </div>
+
+                <!-- desktop view -->
+                <section class="hidden md:block">
 
                     <!-- kanban -->
                     <div class="grid grid-cols-4">

@@ -32,7 +32,7 @@
 </script>
 
 <template>
-    <div class="flex items-center justify-center gap-8 py-4 bg-white shadow-md rounded-2xl">
+    <div class="grid grid-cols-3 md:grid-cols-6 justify-center gap-8 p-4 bg-white shadow-md rounded-2xl">
         <div
             v-for="logo in logos"
             :key="logo.name"

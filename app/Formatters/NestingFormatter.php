@@ -505,7 +505,7 @@ class NestingFormatter
             $sumOffcutCuts = 0;
             $utilisedOffcutBars = $product->nested["bestResultOffcuts"]["utilisedOffcutBars"];
             foreach($utilisedOffcutBars as $utilisedOffcutBar){
-                foreach($utilisedOffcutBar["cuts"] as $cut){
+                foreach($utilisedOffcutBar["sourceOffcut"]["cuts"] as $cut){
                     $sumOffcutCuts = $sumOffcutCuts + $cut["length"];
                 }
             }
@@ -538,7 +538,7 @@ class NestingFormatter
             //Sum offcut cuts
             $qtyOffcutCuts = 0;
             foreach($utilisedOffcutBars as $utilisedOffcutBar){
-                $qtyOffcutCuts = $qtyOffcutCuts + count($utilisedOffcutBar["cuts"]);
+                $qtyOffcutCuts = $qtyOffcutCuts + count($utilisedOffcutBar["sourceOffcut"]["cuts"]);
             }
 
             if($qtyPieces === ($qtyCuts + $qtyTooLong + $qtyOffcutCuts)){
@@ -576,7 +576,7 @@ class NestingFormatter
 
             $sumOffcutFullLength = 0;
             foreach($utilisedOffcutBars as $utilisedOffcutBar){
-                $sumOffcutFullLength = $sumOffcutFullLength + $utilisedOffcutBar["offcutLength"];
+                $sumOffcutFullLength = $sumOffcutFullLength + $utilisedOffcutBar["sourceOffcut"]["offcutLength"];
             }
             if($sumOffcutFullLength <= $availableOffcuts->sum("length")){
                 $countQ5++;
@@ -603,7 +603,7 @@ class NestingFormatter
              */
             $countSumCutsLessThanLength = 0;
             foreach($utilisedOffcutBars as $utilisedOffcutBar){
-                if($utilisedOffcutBar["cutLength"] < $utilisedOffcutBar["offcutLength"]){
+                if($utilisedOffcutBar["sourceOffcut"]["cutLength"] < $utilisedOffcutBar["sourceOffcut"]["offcutLength"]){
                     $countSumCutsLessThanLength++;
                 }
             }
@@ -882,7 +882,7 @@ class NestingFormatter
         if(count($bestResultOffcuts) > 0){
             foreach($bestResultOffcuts["utilisedOffcutBars"] as $offcutBar){
                 //Loop cuts
-                foreach($offcutBar["cuts"] as $cut){
+                foreach($offcutBar["sourceOffcut"]["cuts"] as $cut){
                     foreach($cutLengthsRequiredAfterOffcutAllocation as $index => $requiredLength){
                         if($cut["length"] === (int) $requiredLength["length"]){
                             unset($cutLengthsRequiredAfterOffcutAllocation[$index]);
@@ -997,19 +997,25 @@ class NestingFormatter
         );
 
         $utilisedOffcutBars = [];
-        foreach($nestRequiredCutsIntoOffcuts as $offcut){
-            $offcutLength = $offcut["length"];
-            $usedLength = $offcutLength - $offcut["unused"];
+        foreach($nestRequiredCutsIntoOffcuts as $originalOffcut){
+            $offcutLength = $originalOffcut["length"];
+            $usedLength = $offcutLength - $originalOffcut["unused"];
 
             $utilisedOffcutBars[] = [
-                "offcutLength" => $offcut["length"],
-                "cutLength" => $usedLength,
-                "reusableLength" => (($offcutLength - $usedLength) > $business->scrap_threshold_mm) ? ($offcutLength - $usedLength) : 0,
-                "scrapLength" => (($offcutLength - $usedLength) > $business->scrap_threshold_mm) ? 0 : ($offcutLength - $usedLength),
-                "offcutId" => $offcut["offcut_id"],
-                "batchFromId" => $offcut["batch_from_id"],
-                "scrap_threshold_mm" => $business->scrap_threshold_mm,
-                "cuts" => $offcut["cuts"], //length, projectId, piece_id, letter
+                "sourceOffcut" => [
+                    "offcutLength" => $originalOffcut["length"],
+                    "cutLength" => $usedLength,
+                    "offcutId" => $originalOffcut["offcut_id"],
+                    "batchFromId" => $originalOffcut["batch_from_id"],
+                    "scrap_threshold_mm" => $business->scrap_threshold_mm,
+                    "cuts" => $originalOffcut["cuts"], //length, projectId, piece_id, letter
+                ],
+                "offcutFromOffcut" => [
+                    "reusableLength" => (($offcutLength - $usedLength) > $business->scrap_threshold_mm) ? ($offcutLength - $usedLength) : 0,
+                ],
+                "scrap" => [
+                    "scrapLength" => (($offcutLength - $usedLength) > $business->scrap_threshold_mm) ? 0 : ($offcutLength - $usedLength),
+                ],
             ];
         }
 
@@ -1022,10 +1028,10 @@ class NestingFormatter
         $totalUsedOffcuts = 0;
         $totalReusableLength = 0;
         foreach($utilisedOffcutBars as $utilisedOffcutBar){
-            $totalOffcutsLength = $totalOffcutsLength + $utilisedOffcutBar["offcutLength"];
-            $totalUsedOffcuts = $totalUsedOffcuts + $utilisedOffcutBar["cutLength"];
-            $totalScrapLength = $totalScrapLength + $utilisedOffcutBar["scrapLength"];
-            $totalReusableLength = $totalReusableLength + $utilisedOffcutBar["reusableLength"];
+            $totalOffcutsLength = $totalOffcutsLength + $utilisedOffcutBar["sourceOffcut"]["offcutLength"];
+            $totalUsedOffcuts = $totalUsedOffcuts + $utilisedOffcutBar["sourceOffcut"]["cutLength"];
+            $totalScrapLength = $totalScrapLength + $utilisedOffcutBar["scrap"]["scrapLength"];
+            $totalReusableLength = $totalReusableLength + $utilisedOffcutBar["offcutFromOffcut"]["reusableLength"];
         }
 
         return [
@@ -1267,9 +1273,7 @@ class NestingFormatter
                 'projectId' => $projectId,
                 'letter' => $lettersProjectArray[$projectId],
             ]],
-            "unique_scrap_id" => ($unused > $business->scrap_threshold_mm && $newPieceSpec)
-                ? $this->uniqueScrapId($business,$projectId,$unused,$newPieceSpec)
-                : null,
+            "offcut_id" => null //This gets carried over via serialisation, but before offcut ID is created
         ];
 
         return $utilisedBars;

@@ -55,15 +55,20 @@
         <!-- order list -->
         <div>
             <h2 class="font-bold">Order List</h2>
-            <template v-for="bar in item.nested.orderList">
-                <VisualOrderList
-                    :stockLength="bar.result"
-                    :pieces="bar.result.pieces"
-                    :measurementUnit="item.nominal_units"
-                    :waste="bar.result.waste"
-                    :qty="bar.count"
-                />
+            <template v-if="item.nested.orderList.length > 0">
+                <template v-for="bar in item.nested.orderList">
+                    <VisualOrderList
+                        :stockLength="bar.result"
+                        :pieces="bar.result.pieces"
+                        :measurementUnit="item.nominal_units"
+                        :waste="bar.result.waste"
+                        :qty="bar.count"
+                    />
+                </template>
             </template>
+            <p v-else>
+                Stock offcuts only
+            </p>
         </div>
     </div>
 </template>

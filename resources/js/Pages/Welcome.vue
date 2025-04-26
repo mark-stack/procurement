@@ -26,14 +26,14 @@
     const loginAvailable = computed(() => usePage().props.loginAvailable);
 
     //Variables
-    const trial_months = 2;
-    const savings_period_years = 3;
+    const trial_months = 1;
+    const savings_period_years = 1;
     const fullPriceMultiYear = 10000;
     const fullPriceAnnual = 2900;
     const fullPriceMonthly = 300;
     const fullPriceWeekly = 49;
-    const firstYearDiscount = 0;
-    const whichPlan = "MULTI_YEAR"; //"MONTHLY","ANNUAL", "WEEKLY", "MULTI_YEAR"
+    const firstYearDiscount = 50;
+    const whichPlan = "ANNUAL"; //"MONTHLY","ANNUAL", "WEEKLY", "MULTI_YEAR"
 
 
     //Shared Methods
@@ -93,25 +93,11 @@
         <div class="flex flex-col items-center justify-between lg:flex-row">
             <div class="mb-10 lg:max-w-lg lg:pr-5 lg:mb-0">
                 <div class="max-w-xl mb-16">
-<!--                    <div>-->
-<!--                        <p class="inline-block px-3 py-px mb-4 text-xs font-semibold tracking-wider text-teal-900 uppercase rounded-full bg-teal-accent-400">-->
-<!--                            New in 2025-->
-<!--                        </p>-->
-<!--                    </div>-->
                     <h2 class="max-w-lg mb-6 font-sans text-5xl font-bold tracking-tight text-gray-900 sm:leading-none">
                         Maximum steel nesting efficiency could save you
-                        <span v-if="savings_period_years === 1" class="inline-block text-deep-purple-accent-400">${{beforeFees()}} annually</span>
+                        <span v-if="savings_period_years === 1" class="inline-block text-orange-900">${{beforeFees()}} in <u>waste</u></span>
                         <span v-else class="inline-block text-orange-900">${{beforeFees()}} in <u>waste</u></span>
                     </h2>
-<!--                    <p class="text-base text-gray-700 md:text-lg">-->
-<!--                        <b>How to reach maximum efficiency?</b>-->
-<!--                        <br>-->
-<!--                        - Cross-project nesting.-->
-<!--                        <br>-->
-<!--                        - Optimised offcut placement.-->
-<!--                        <br>-->
-<!--                        - Algorithm that finds best of 1000 iterations.-->
-<!--                    </p>-->
                 </div>
                 <div class="flex flex-col items-center md:flex-row">
                     <Link
