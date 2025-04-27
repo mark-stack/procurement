@@ -1006,6 +1006,7 @@ class NestingFormatter
                     "offcutLength" => $originalOffcut["length"],
                     "cutLength" => $usedLength,
                     "offcutId" => $originalOffcut["offcut_id"],
+                    "unique_mark" => $originalOffcut["unique_mark"],
                     "batchFromId" => $originalOffcut["batch_from_id"],
                     "scrap_threshold_mm" => $business->scrap_threshold_mm,
                     "cuts" => $originalOffcut["cuts"], //length, projectId, piece_id, letter
@@ -1102,6 +1103,7 @@ class NestingFormatter
                         $utilisedOffcuts[] = [
                             "length" => $offcutData["length"],
                             "offcut_id" => $offcutData["id"],
+                            "unique_mark" => $offcutData["unique_mark"],
                             'unused' => $offcutLength - $cutLength,
                             "batch_from_id" => $offcutData["batch_from_id"],
                             'cuts' => [$cutData],
@@ -1277,36 +1279,6 @@ class NestingFormatter
         ];
 
         return $utilisedBars;
-    }
-
-    private function uniqueScrapId(Business $business, int $projectId, int $unused, object $newPieceSpec): string
-    {
-        /*
-         * Scrap ID:
-         * [business id]---[project-id]---[length]---[product_category]---[material]---[grade]---[surface]---[nominal_units]---[nominal_height]---[kg_per_m]---[product_derived_label]
-         * Put "???" where null
-         */
-
-        return $business->id."---".
-            $projectId.
-            "---".
-            $unused.
-            "---".
-            $newPieceSpec->product_category.
-            "---".
-            ($newPieceSpec->material ?? "???").
-            "---".
-            ($newPieceSpec->grade ?? "???").
-            "---".
-            ($newPieceSpec->surface ?? "???").
-            "---".
-            ($newPieceSpec->nominal_units ?? "???").
-            "---".
-            ($newPieceSpec->nominal_height ?? "???").
-            "---".
-            ($newPieceSpec->kg_per_m ?? "???").
-            "---".
-            ($newPieceSpec->product_derived_label ?? "???");
     }
 
     private function tryPlaceCutIntoUtilisedBars(array $cut, array $utilisedBars, array $lettersProjectArray): array

@@ -67,7 +67,7 @@
     <div class="grid grid-cols-1 gap-x-10">
         <div class="w-full pt-4 pb-4">
             <div>
-                <span class="font-bold">1 off {{offcut.sourceOffcut.offcutLength}}{{ displayUnits() }}:</span> <span class="ml-1 italic"><small>marked</small> "{{offcut.sourceOffcut.offcutId}}"</span> <small class="ml-3">Used {{Math.round(offcut.sourceOffcut.cutLength/offcut.sourceOffcut.offcutLength*100)}}%</small>
+                <span class="font-bold">1 off {{offcut.sourceOffcut.offcutLength}}{{ displayUnits() }}:</span> <span class="ml-1 italic"><small>marked</small> "{{offcut.sourceOffcut.unique_mark}}"</span> <small class="ml-3">Used {{Math.round(offcut.sourceOffcut.cutLength/offcut.sourceOffcut.offcutLength*100)}}%</small>
             </div>
             <div class="shadow w-full bg-red-200 flex flex-row border-2 border-black">
                 <div
@@ -86,7 +86,7 @@
                     :style="'width: '+(offcut.offcutFromOffcut.reusableLength/offcut.sourceOffcut.offcutLength*100)+'%'"
                 >
                     <p v-if="batched" class="italic">
-                        <small>mark</small> "{{offcut.offcutFromOffcut.offcut_of_offcut_id}}"
+                        <small>mark</small> "{{offcut.offcutFromOffcut.unique_mark}}"
                     </p>
                     <p v-else>
                         Reuse

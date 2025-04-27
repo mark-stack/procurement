@@ -36,6 +36,7 @@ return new class extends Migration
 
             //Other
             $table->float('length');
+            $table->string("unique_mark");
         });
     }
 

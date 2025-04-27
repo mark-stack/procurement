@@ -2,6 +2,7 @@
 
 namespace App\Actions\Offcut;
 
+use App\Formatters\UniqueLetterIDGenerator;
 use App\Models\Batch;
 use App\Models\Offcut;
 use Lorisleiva\Actions\Concerns\AsAction;
@@ -43,9 +44,17 @@ class GenerateOffcuts
                     //Multiple items
                     for ($i = 0; $i < $qty; $i++) {
                         Offcut::create([
+                            //Batch
                             'batch_from_id' => $batch->id,
                             'batch_to_id' => null,
+
+                            //Piece
                             'piece_to_id' => null,
+
+                            //Bar
+                            "bar_id" => $bar->id,
+
+                            //Product attributes
                             'product_category' => $meterageProduct->product_category,
                             'material' => $meterageProduct->material ?? null,
                             'grade' => $meterageProduct->grade ?? null,
@@ -58,6 +67,9 @@ class GenerateOffcuts
                             'precise_height' => $meterageProduct->precise_height ?? null,
                             'wall' => $meterageProduct->wall ?? null,
                             'length' => $unused,
+
+                            //Unique mark
+                            "unique_mark" => (new UniqueLetterIDGenerator())->generate($meterageProduct->product_category),
                         ]);
                     }
                 }

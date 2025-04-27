@@ -187,6 +187,8 @@ class TestingFormatter
             'precise_height' => null,
             'wall' => null,
             'length' => $length,
+
+            "unique_mark" => (new UniqueLetterIDGenerator())->generate(ProductEnums::PFC->value),
         ]);
     }
 }

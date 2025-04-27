@@ -13,6 +13,7 @@ use App\Http\Controllers\BatchController;
 use App\Http\Controllers\BatchNestingController;
 use App\Http\Controllers\MarkAsPastProjectController;
 use App\Http\Controllers\MarkNotificationStatusController;
+use App\Http\Controllers\OffcutController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PastProjectsController;
@@ -29,21 +30,15 @@ use App\Http\Controllers\RawMaterialQuoteController;
 use App\Http\Controllers\SuggestedNestingController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Middleware\BusinessReadyMiddleware;
-use App\Http\Resources\ProjectResource;
 use App\Models\Batch;
-use App\Models\Offcut;
 use App\Models\Order;
 use App\Models\Project;
 use App\Models\Quote;
-use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\BatchService;
-use App\Services\OrderService;
 use App\Services\ProductService;
-use App\Services\QuoteService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 Route::middleware(['auth', 'verified'])->group(function () {
 
@@ -449,6 +444,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         //Quotes
         Route::resource('quotes', QuoteController::class);
+
+        //Offcuts
+        Route::resource('offcuts', OffcutController::class);
 
         //Orders
         Route::resource('orders', OrderController::class);

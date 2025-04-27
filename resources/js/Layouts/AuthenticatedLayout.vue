@@ -133,6 +133,13 @@
                                                 label="Suppliers"
                                                 icon="fa-solid fa-cubes"
                                             />
+                                            <!-- Offcuts -->
+                                            <NavButton
+                                                v-if="onboarded"
+                                                :route="route('offcuts.index')"
+                                                label="Offcuts"
+                                                icon="fa-solid fa-scissors"
+                                            />
                                             <!-- Profile -->
                                             <NavButton
                                                 v-if="onboarded"

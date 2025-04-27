@@ -118,7 +118,7 @@
                 :style="'width: '+(bar.result.unused/bar.result['bar_length']*100)+'%'"
             >
                 <p v-if="batched" class="font-bold italic">
-                    <small>mark</small> "{{bar.result.offcut_id}}"
+                    <small>mark</small> "{{bar.result.unique_mark}}"
                 </p>
                 <p v-else class="font-bold italic">
                     Reuse

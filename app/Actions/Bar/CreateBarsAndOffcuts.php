@@ -2,6 +2,7 @@
 
 namespace App\Actions\Bar;
 
+use App\Formatters\UniqueLetterIDGenerator;
 use App\Models\Bar;
 use App\Models\Batch;
 use App\Models\Offcut;
@@ -54,6 +55,9 @@ class CreateBarsAndOffcuts
 
                         //Should make offcut
                         if($unused >= $threshold){
+                            //Unique mark
+                            $uniqueMark = (new UniqueLetterIDGenerator())->generate($product->product_category);
+
                             //Create offcut
                             $offcut = Offcut::create([
                                 //Batch
@@ -79,10 +83,14 @@ class CreateBarsAndOffcuts
                                 'precise_height' => $product->precise_height ?? null,
                                 'wall' => $product->wall ?? null,
                                 'length' => $unused,
+
+                                //Unique mark
+                                "unique_mark" => $uniqueMark,
                             ]);
 
                             //Add ID to serialised nesting data
                             $meterageNesting[$index]->nested["utilisedBars"][$indexUtilisedBar]["result"]["offcut_id"] = $offcut->id;
+                            $meterageNesting[$index]->nested["utilisedBars"][$indexUtilisedBar]["result"]["unique_mark"] = $uniqueMark;
                         }
                     }
                 }
@@ -111,6 +119,10 @@ class CreateBarsAndOffcuts
                          */
                         $offcutOfOffcutLength = $offcutData["offcutFromOffcut"]["reusableLength"];
                         if($offcutOfOffcutLength > 0){
+                            //Unique mark
+                            $uniqueMark = (new UniqueLetterIDGenerator())->generate($product->product_category);
+
+                            //Create offcut
                             $offcutOfOffcut = Offcut::create([
                                 //Batch
                                 'batch_from_id' => $batch->id,
@@ -135,10 +147,14 @@ class CreateBarsAndOffcuts
                                 'precise_height' => $product->precise_height ?? null,
                                 'wall' => $product->wall ?? null,
                                 'length' => $offcutOfOffcutLength,
+
+                                //Unique mark
+                                "unique_mark" => $uniqueMark,
                             ]);
 
                             //Add ID to serialised nesting data
                             $meterageNesting[$index]->nested["bestResultOffcuts"]["utilisedOffcutBars"][$indexOffcut]["offcutFromOffcut"]["offcut_of_offcut_id"] = $offcutOfOffcut->id;
+                            $meterageNesting[$index]->nested["bestResultOffcuts"]["utilisedOffcutBars"][$indexOffcut]["offcutFromOffcut"]["unique_mark"] = $uniqueMark;
                         }
                     }
                 }

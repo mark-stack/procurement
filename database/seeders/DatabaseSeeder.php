@@ -7,6 +7,7 @@ use App\Enums\MaterialEnums;
 use App\Enums\ProductEnums;
 use App\Enums\SurfaceEnums;
 use App\Formatters\TestingFormatter;
+use App\Formatters\UniqueLetterIDGenerator;
 use App\Models\Batch;
 use App\Models\Business;
 use App\Models\Offcut;
@@ -140,6 +141,8 @@ class DatabaseSeeder extends Seeder
             'precise_height' => null,
             'wall' => null,
             'length' => 2200,
+
+            "unique_mark" => (new UniqueLetterIDGenerator())->generate(ProductEnums::PFC->value),
         ]);
 
         $sampleOffcut2 = Offcut::create([
@@ -158,6 +161,8 @@ class DatabaseSeeder extends Seeder
             'precise_height' => null,
             'wall' => null,
             'length' => 1750,
+
+            "unique_mark" => (new UniqueLetterIDGenerator())->generate(ProductEnums::PFC->value),
         ]);
 
 
