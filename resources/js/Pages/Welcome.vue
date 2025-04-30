@@ -31,9 +31,9 @@
     const fullPriceMultiYear = 10000;
     const fullPriceAnnual = 2900;
     const fullPriceMonthly = 200;
-    const fullPriceWeekly = 49;
+    const fullPriceWeekly = 39;
     const firstYearDiscount = 0;
-    const whichPlan = "MONTHLY"; //"MONTHLY","ANNUAL", "WEEKLY", "MULTI_YEAR"
+    const whichPlan = "WEEKLY"; //"MONTHLY","ANNUAL", "WEEKLY", "MULTI_YEAR"
 
 
     //Shared Methods
@@ -109,7 +109,7 @@
     <LandingNav/>
 
     <!-- Hero -->
-    <div class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">
+    <div class="p-5 lg:p-20 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl lg:py-20">
         <div class="flex flex-col items-center justify-between lg:flex-row">
             <div class="mb-10 lg:max-w-lg lg:pr-5 lg:mb-0">
                 <div class="max-w-xl mb-16">
@@ -128,7 +128,7 @@
                     </Link>
                 </div>
             </div>
-            <div class="lg:w-1/2 pt-10">
+            <div class="lg:w-1/2">
                 <div class="relative">
 
                     <img
@@ -154,7 +154,7 @@
 
     <div class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">
         <div class="mb-16 md:mx-auto sm:text-center">
-            <h2 class="max-w-3xl mb-6 font-sans text-5xl font-bold leading-none tracking-tight text-gray-900 md:mx-auto">
+            <h2 class="text-center max-w-3xl mb-6 font-sans text-5xl font-bold leading-none tracking-tight text-gray-900 md:mx-auto">
                 How to reach maximum steel nesting efficiency?
             </h2>
         </div>
@@ -259,7 +259,7 @@
                         <td class="text-center text-xs">❌</td><!--smartcut-->
                     </tr>
                     <tr class="bg-gray-50">
-                        <td class="py-3 font-medium text-gray-800">Multiple stock lengths</td>
+                        <td class="py-3 font-medium text-gray-800">Range of stock lengths</td>
                         <td class="text-center">✅</td><!--SteelNesting.com.au-->
                         <td class="text-center">✅</td><!--StruMIS-->
                         <td class="text-center">✅</td><!--Tekla PowerFab-->
@@ -346,7 +346,7 @@
 
     <div class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">
         <div class="mb-16 md:mx-auto sm:text-center">
-            <h2 class="max-w-4xl mb-6 font-sans text-5xl font-bold leading-none tracking-tight text-gray-900 md:mx-auto">
+            <h2 class="text-center max-w-4xl mb-6 font-sans text-5xl font-bold leading-none tracking-tight text-gray-900 md:mx-auto">
                 An <u>unrivaled</u> nesting software for Australian fabricators would require:
             </h2>
         </div>
@@ -463,7 +463,7 @@
         </div>
     </div>
 
-    <div class="mb-5 mt-5 md:mx-auto sm:text-center">
+    <div class="mb-5 mt-5 mx-auto text-center">
         <h2 class="max-w-4xl font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 md:mx-auto">
             Auto Import BOM lists from:
         </h2>
@@ -502,10 +502,14 @@
     <div class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">
         <div class="max-w-5xl mb-10 md:mx-auto sm:text-center md:mb-12">
             <h2 class="max-w-5xl mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">
-                Beautiful nesting...
+                A4 Print friendly
             </h2>
         </div>
-        <img src="/nesting.png" class="mx-auto" style="width:100%; max-width:700px">
+        <img
+            src="/nesting.png"
+            class="mx-auto"
+            style="width:100%; max-width:700px; box-shadow: -6px -6px 6px rgba(0,0,0,0.1), 6px -6px 6px rgba(0,0,0,0.1);"
+        >
     </div>
 
 <!--    <div-->

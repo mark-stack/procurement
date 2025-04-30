@@ -4,7 +4,9 @@ use App\Formatters\NestingFormatter;
 use App\Models\Bar;
 use App\Models\Batch;
 use App\Models\Offcut;
+use App\Models\Order;
 use App\Models\Piece;
+use App\Models\Quote;
 use App\Models\Scrap;
 use App\Services\DataClassificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -31,8 +33,35 @@ it('would be a disaster if meterage nesting with an offcut was not working corre
     $this->actingAs($user);
     $project = createProject($user, true);
 
-    //batch & offcuts
+    /*
+     * batch
+     */
     $batchFrom = Batch::factory()->forUser($user->id)->create();
+    $deliveredQuote = Quote::create([
+        'user_id' => $user->id,
+        'batch_id' => $batchFrom->id,
+        'supplier_id' => null,
+        'supplier_category' => "STEEL_MERCHANT",
+        'supplier_quote_reference' => null,
+        'quote_sent' => true,
+        'quoted_price' => null,
+        'quoted_lead_time' => null,
+    ]);
+    $deliveredOrder = Order::create([
+        'user_id' => $user->id,
+        'batch_id' => $batchFrom->id,
+        'supplier_id' => null,
+        'quote_id' => $deliveredQuote->id,
+        'order_sent' => true,
+        'order_confirmation_received' => true,
+        'purchase_order_number' => "123",
+        'is_delivered' => true,
+        "material_cert_numbers" => null,
+    ]);
+
+    /*
+     * offcuts
+     */
     $offcutLengths = nestingTestCasesWithOffcuts()[$testCaseIndex]['offcuts'];
     $expectedQtyOffcutsUsed = nestingTestCasesWithOffcuts()[$testCaseIndex]['expectedQtyOffcutsUsed'];
     foreach($offcutLengths as $offcutLength){
@@ -155,6 +184,32 @@ it("would be a disaster if offcut of an offcut didn't work", function () {
 
     $this->actingAs($user);
     $this->post(route('quotes.store'));
+
+    /*
+     * Order and mark as delivered (this makes offcuts available)
+     */
+    $batchFrom = Batch::first();
+    $deliveredQuote = Quote::create([
+        'user_id' => $user->id,
+        'batch_id' => $batchFrom->id,
+        'supplier_id' => null,
+        'supplier_category' => "STEEL_MERCHANT",
+        'supplier_quote_reference' => null,
+        'quote_sent' => true,
+        'quoted_price' => null,
+        'quoted_lead_time' => null,
+    ]);
+    $deliveredOrder = Order::create([
+        'user_id' => $user->id,
+        'batch_id' => $batchFrom->id,
+        'supplier_id' => null,
+        'quote_id' => $deliveredQuote->id,
+        'order_sent' => true,
+        'order_confirmation_received' => true,
+        'purchase_order_number' => "123",
+        'is_delivered' => true,
+        "material_cert_numbers" => null,
+    ]);
 
     //Check offcut created
     $offcuts = Offcut::all();

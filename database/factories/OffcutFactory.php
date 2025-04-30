@@ -40,6 +40,8 @@ class OffcutFactory extends Factory
             'precise_height' => null,
             'wall' => 2.5,
             'length' => null,
+
+            "unique_mark" => "ABC",
         ];
     }
 

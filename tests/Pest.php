@@ -385,22 +385,4 @@ function csvArray(): ?array
 function create_offcut_200PFC(int $length, int $batchFromId): Offcut
 {
     return (new TestingFormatter())->create_offcut_200PFC($length, $batchFromId);
-
-//    return Offcut::create([
-//        'batch_from_id' => $batchFromId,
-//        'batch_to_id' => null,
-//        'piece_to_id' => null,
-//        'product_category' => ProductEnums::PFC,
-//        'material' => MaterialEnums::PLAIN_CARBON_STEEL,
-//        'grade' => GradeEnums::GR300,
-//        'surface' => SurfaceEnums::NONE,
-//        'nominal_length' => null,
-//        'precise_length' => null,
-//        'nominal_width' => null,
-//        'precise_width' => null,
-//        'nominal_height' => 200,
-//        'precise_height' => null,
-//        'wall' => null,
-//        'length' => $length,
-//    ]);
 }

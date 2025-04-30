@@ -1652,7 +1652,6 @@ class NestingFormatter
 
         $newPieceSpec->offcutInventoryLengths = $offcutInventory;
 
-
         /*
          * Nesting
          */
