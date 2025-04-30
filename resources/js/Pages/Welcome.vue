@@ -30,10 +30,10 @@
     const savings_period_years = 1;
     const fullPriceMultiYear = 10000;
     const fullPriceAnnual = 2900;
-    const fullPriceMonthly = 300;
+    const fullPriceMonthly = 200;
     const fullPriceWeekly = 49;
-    const firstYearDiscount = 50;
-    const whichPlan = "ANNUAL"; //"MONTHLY","ANNUAL", "WEEKLY", "MULTI_YEAR"
+    const firstYearDiscount = 0;
+    const whichPlan = "MONTHLY"; //"MONTHLY","ANNUAL", "WEEKLY", "MULTI_YEAR"
 
 
     //Shared Methods
@@ -79,6 +79,26 @@
         }
 
         return display;
+    }
+
+    function costPerMonth(){
+        let firstYearCostPerMonth = 0;
+        let fractionalPrice = (100-firstYearDiscount)/100;
+
+        if(whichPlan === "ANNUAL"){
+            firstYearCostPerMonth = Math.round((fullPriceAnnual*fractionalPrice)/12);
+        }
+        if(whichPlan === "MONTHLY"){
+            firstYearCostPerMonth = fullPriceMonthly*fractionalPrice;
+        }
+        if(whichPlan === "WEEKLY"){
+            firstYearCostPerMonth = Math.round((fullPriceWeekly*fractionalPrice)*4.33);
+        }
+        if(whichPlan === "MULTI_YEAR"){
+            firstYearCostPerMonth = Math.round((fullPriceMultiYear*fractionalPrice)/savings_period_years/12);
+        }
+
+        return firstYearCostPerMonth;
     }
 </script>
 
@@ -187,9 +207,142 @@
         </div>
     </div>
 
-    <div class="max-w-5xl mx-auto">
-        <CadLogosBanner/>
+    <div class="px-4 mx-auto sm:max-w-6xl md:px-24 lg:px-8">
+        <div class="overflow-x-auto px-4 py-8">
+            <table class="min-w-full table-fixed border-separate border-spacing-y-2 text-sm text-left">
+                <thead>
+                    <tr>
+                        <th class="w-48 font-semibold text-gray-700"></th>
+                        <th class="text-center">SteelNesting<small>.com.au</small></th>
+                        <th class="text-center">StruMIS<small>.com</small></th>
+                        <th class="text-center">Tekla PowerFab</th>
+                        <th class="text-center">1d-solutions<small>.com</small></th>
+                        <th class="text-center">smartcut<small>.pro</small></th>
+                        <th class="text-center">astrokettle<small>.com</small></th>
+                        <th class="text-center">opticutter<small>.com</small></th>
+
+                        <!--https://optimalprograms.com/realcut1d.htm#Price_Buy-->
+                        <!--http://www.nirvanatec.com/order.html-->
+                        <!--https://apps.autodesk.com/INVNTOR/en/Detail/Index?id=4775763541516569961&appLang=en&os=Win64-->
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    <tr class="bg-white">
+                        <td class="py-3 font-medium text-gray-800">Cross-project nesting</td>
+                        <td class="text-center">✅</td><!--SteelNesting.com.au-->
+                        <td class="text-center">✅</td><!--StruMIS-->
+                        <td class="text-center">✅</td><!--Tekla PowerFab-->
+                        <td class="text-center text-xs">❌</td><!--1d-solutions-->
+                        <td class="text-center text-xs">❌</td><!--astrokettle-->
+                        <td class="text-center text-xs">❌</td><!--opticutter-->
+                        <td class="text-center text-xs">❌</td><!--smartcut-->
+                    </tr>
+                    <tr class="bg-gray-50">
+                        <td class="py-3 font-medium text-gray-800">Offcut Inventory</td>
+                        <td class="text-center">✅</td><!--SteelNesting.com.au-->
+                        <td class="text-center">✅</td><!--StruMIS-->
+                        <td class="text-center">✅</td><!--Tekla PowerFab-->
+                        <td class="text-center text-xs">❌</td><!--1d-solutions-->
+                        <td class="text-center text-xs">❌</td><!--astrokettle-->
+                        <td class="text-center text-xs">❌</td><!--opticutter-->
+                        <td class="text-center text-xs">❌</td><!--smartcut-->
+                    </tr>
+
+                    <tr class="bg-white">
+                        <td class="py-3 font-medium text-gray-800">Material traceability</td>
+                        <td class="text-center">✅</td><!--SteelNesting.com.au-->
+                        <td class="text-center">✅</td><!--StruMIS-->
+                        <td class="text-center">✅</td><!--Tekla PowerFab-->
+                        <td class="text-center text-xs">❌</td><!--1d-solutions-->
+                        <td class="text-center text-xs">❌</td><!--astrokettle-->
+                        <td class="text-center text-xs">❌</td><!--opticutter-->
+                        <td class="text-center text-xs">❌</td><!--smartcut-->
+                    </tr>
+                    <tr class="bg-gray-50">
+                        <td class="py-3 font-medium text-gray-800">Multiple stock lengths</td>
+                        <td class="text-center">✅</td><!--SteelNesting.com.au-->
+                        <td class="text-center">✅</td><!--StruMIS-->
+                        <td class="text-center">✅</td><!--Tekla PowerFab-->
+                        <td class="text-center">✅</td><!--1d-solutions-->
+                        <td class="text-center">✅</td><!--astrokettle-->
+                        <td class="text-center">✅</td><!--opticutter-->
+                        <td class="text-center">✅</td><!--smartcut-->
+                    </tr>
+                    <tr class="bg-white">
+                        <td class="py-3 font-medium text-gray-800">FIFO (First in first out)</td>
+                        <td class="text-center">✅</td><!--SteelNesting.com.au-->
+                        <td class="text-center">✅</td><!--StruMIS-->
+                        <td class="text-center">✅</td><!--Tekla PowerFab-->
+                        <td class="text-center text-xs">❌</td><!--1d-solutions-->
+                        <td class="text-center text-xs">❌</td><!--astrokettle-->
+                        <td class="text-center text-xs">❌</td><!--opticutter-->
+                        <td class="text-center text-xs">❌</td><!--smartcut-->
+                    </tr>
+                    <tr class="bg-gray-50">
+                        <td class="py-3 font-medium text-gray-800">Mitre cuts</td>
+                        <td class="text-center text-xs">❌</td><!--SteelNesting.com.au-->
+                        <td class="text-center">✅</td><!--StruMIS-->
+                        <td class="text-center">✅</td><!--Tekla PowerFab-->
+                        <td class="text-center text-xs">❌</td><!--1d-solutions-->
+                        <td class="text-center text-xs">❌</td><!--astrokettle-->
+                        <td class="text-center text-xs">❌</td><!--opticutter-->
+                        <td class="text-center text-xs">❌</td><!--smartcut-->
+                    </tr>
+                    <tr class="bg-white">
+                        <td class="py-3 font-medium text-gray-800">Multiple CAD</td>
+                        <td class="text-center">✅</td><!--SteelNesting.com.au-->
+                        <td class="text-center">✅</td><!--StruMIS-->
+                        <td class="text-center">❌</td><!--Tekla PowerFab-->
+                        <td class="text-center">✅</td><!--1d-solutions-->
+                        <td class="text-center">✅</td><!--astrokettle-->
+                        <td class="text-center">✅</td><!--opticutter-->
+                        <td class="text-center">✅</td><!--smartcut-->
+                    </tr>
+                    <tr class="bg-gray-50">
+                        <td class="py-3 font-medium text-gray-800">Bulk Import</td>
+                        <td class="text-center">✅</td><!--SteelNesting.com.au-->
+                        <td class="text-center">✅</td><!--StruMIS-->
+                        <td class="text-center">✅</td><!--Tekla PowerFab-->
+                        <td class="text-center">✅<br><small>Tedious</small></td><!--1d-solutions-->
+                        <td class="text-center">✅<br><small>Tedious</small></td><!--astrokettle-->
+                        <td class="text-center">✅<br><small>Tedious</small></td><!--opticutter-->
+                        <td class="text-center">✅<br><small>Tedious</small></td><!--smartcut-->
+                    </tr>
+                    <tr class="bg-white">
+                        <td class="py-3 font-medium text-gray-800">A4 print formatted</td>
+                        <td class="text-center">✅</td><!--SteelNesting.com.au-->
+                        <td class="text-center">✅</td><!--StruMIS-->
+                        <td class="text-center">✅</td><!--Tekla PowerFab-->
+                        <td class="text-center">✅</td><!--1d-solutions-->
+                        <td class="text-center text-xs">❌</td><!--astrokettle-->
+                        <td class="text-center">✅</td><!--opticutter-->
+                        <td class="text-center">✅</td><!--smartcut-->
+                    </tr>
+                    <tr class="bg-gray-50">
+                        <td class="py-3 font-medium text-gray-800">Designed for<br>Australian Standards</td>
+                        <td class="text-center">✅</td><!--SteelNesting.com.au-->
+                        <td class="text-center text-xs">❌</td><!--StruMIS-->
+                        <td class="text-center text-xs">❌</td><!--Tekla PowerFab-->
+                        <td class="text-center text-xs">❌</td><!--1d-solutions-->
+                        <td class="text-center text-xs">❌</td><!--astrokettle-->
+                        <td class="text-center text-xs">❌</td><!--opticutter-->
+                        <td class="text-center text-xs">❌</td><!--smartcut-->
+                    </tr>
+                    <tr class="bg-white">
+                        <td class="py-3 font-medium text-gray-800">$AUD/month</td>
+                        <td class="text-center text-green-500 font-bold">${{costPerMonth()}}</td><!--SteelNesting.com.au-->
+                        <td class="text-center text-red-500 font-bold">$2,000+</td><!--StruMIS-->
+                        <td class="text-center text-red-500 font-bold">$2,000+</td><!--Tekla PowerFab-->
+                        <td class="text-center text-green-500 font-bold">$88</td><!--1d-solutions-->
+                        <td class="text-center text-green-500 font-bold">$48</td><!--astrokettle-->
+                        <td class="text-center text-green-500 font-bold">$34</td><!--opticutter-->
+                        <td class="text-center text-green-500 font-bold">$26</td><!--smartcut-->
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
+
 
     <div class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">
         <div class="mb-16 md:mx-auto sm:text-center">
@@ -310,14 +463,21 @@
         </div>
     </div>
 
+    <div class="mb-5 mt-5 md:mx-auto sm:text-center">
+        <h2 class="max-w-4xl font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 md:mx-auto">
+            Auto Import BOM lists from:
+        </h2>
+    </div>
+    <div class="max-w-5xl mx-auto">
+        <CadLogosBanner/>
+    </div>
 
 
 
-
-    <div class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">
+    <div class="px-4 pb-16 pt-28 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8">
         <div class="max-w-5xl mb-10 md:mx-auto sm:text-center md:mb-12">
             <h2 class="max-w-5xl mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">
-                See the difference even a 3% yield increase can make...
+                See the financial effect of even modest yield increases
             </h2>
         </div>
 
