@@ -9,13 +9,10 @@ use App\Enums\ProductEnums;
 use App\Http\Resources\ProjectResource;
 use App\Models\Batch;
 use App\Models\Business;
-use App\Models\Offcut;
 use App\Models\Piece;
 use App\Models\Product;
-use App\Models\Scrap;
 use App\Services\ProductService;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Str;
 
 class NestingFormatter
 {

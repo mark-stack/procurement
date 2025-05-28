@@ -63,7 +63,7 @@
         }
     }
     function submitStore(){
-        let url = route("admin.templates.store",props.business.id);
+        let url = route("admin.businesses.templates.store",props.business.id);
         formTemplateCreate.post(url, {
             preserveScroll: true,
             onSuccess: () => {
@@ -79,7 +79,7 @@
         let msg = "Are you sure you want to delete this template? It might be used.";
         const userConfirmed = confirm(msg);
         if (userConfirmed) {
-            let url = route("admin.templates.destroy",id);
+            let url = route("admin.businesses.templates.destroy",[props.business.id,id]);
             formTemplateDelete.delete(url, {
                 preserveScroll: true,
                 onSuccess: () => {
@@ -92,7 +92,7 @@
         }
     }
     function submitUpdate(){
-        let url = route("admin.templates.update",[editId.value,props.business.id]);
+        let url = route("admin.businesses.templates.update",[props.business.id,editId.value]);
         formTemplateCreate.put(url, {
             preserveScroll: true,
             onSuccess: () => {

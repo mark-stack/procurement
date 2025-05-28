@@ -41,7 +41,7 @@ class QuoteController extends Controller
         $business = $user->business;
 
         //Prerequisites
-        $piecesReadyForBatching = (new NestingFormatter)->piecesReadyForBatching($business);
+        $piecesReadyForBatching = (new NestingFormatter())->piecesReadyForBatching($business);
         $projectsReadyForBatching = $business->projectsReadyForBatching($piecesReadyForBatching,$business); //Note get this before updating pieces because it gets modified
 
         //Prerequisite conditions

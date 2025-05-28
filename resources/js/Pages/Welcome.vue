@@ -1,7 +1,7 @@
 <script setup>
     //General Imports
     import {Head, Link, useForm, usePage} from '@inertiajs/vue3';
-    import {computed, ref} from "vue";
+    import {computed} from "vue";
 
     //Component Imports
     import SavingsCalculator from "@/Components/SavingsCalculator.vue";
@@ -65,22 +65,6 @@
         return display;
     }
 
-    function afterFees(){
-        let sum = calculate() - 10000;
-        let display = "";
-
-        //Thousands
-        if(sum < 1000000){
-            display = (sum/1000).toFixed(0) + "K";
-        }
-        //Millions
-        else{
-            display = (sum/1000000).toFixed(1) + "M";
-        }
-
-        return display;
-    }
-
     function costPerMonth(){
         let firstYearCostPerMonth = 0;
         let fractionalPrice = (100-firstYearDiscount)/100;
@@ -121,7 +105,15 @@
                 </div>
                 <div class="flex flex-col items-center md:flex-row">
                     <Link
-                        :href="route('login')"
+                        v-if="loginAvailable"
+                        :href="route('register')"
+                        class="inline-flex items-center justify-center w-full h-12 px-6 mb-3 font-medium tracking-wide text-white transition duration-200 rounded shadow-md md:w-auto md:mr-4 md:mb-0 bg-deep-purple-accent-400 hover:bg-deep-purple-accent-700 focus:shadow-outline focus:outline-none"
+                    >
+                        <span class="mr-3">{{trial_months}} Month{{trial_months > 1 ? 's' : ''}} FREE TRIAL</span>
+                    </Link>
+                    <Link
+                        v-else
+                        :href="route('guest.onboarding')"
                         class="inline-flex items-center justify-center w-full h-12 px-6 mb-3 font-medium tracking-wide text-white transition duration-200 rounded shadow-md md:w-auto md:mr-4 md:mb-0 bg-deep-purple-accent-400 hover:bg-deep-purple-accent-700 focus:shadow-outline focus:outline-none"
                     >
                         <span class="mr-3">{{trial_months}} Month{{trial_months > 1 ? 's' : ''}} FREE TRIAL</span>
@@ -512,39 +504,39 @@
         >
     </div>
 
-<!--    <div-->
-<!--        v-if="sampleNestingData"-->
-<!--        id="nesting"-->
-<!--        class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20"-->
-<!--    >-->
-<!--        <div class="max-w-7xl mb-10 md:mx-auto md:mb-12">-->
-<!--            <h2 class="text-center max-w-5xl mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">-->
-<!--                Example nesting 200PFC across 2 projects-->
-<!--            </h2>-->
-<!--            <div class="mx-auto px-4 py-8 mx-auto max-w-5xl">-->
-<!--                <div class="grid gap-3 grid-cols-2">-->
-<!--                    <div-->
-<!--                        v-for="check in sampleNestingData.checks"-->
-<!--                        class="flex gap-x-2"-->
-<!--                    >-->
-<!--                        <i-->
-<!--                            :class="check.result ? 'fa-solid fa-check bg-teal-accent-400' : 'fa-solid fa-xmark bg-orange-400'"-->
-<!--                            class="flex items-center justify-center text-lg rounded-full w-6 h-6"-->
-<!--                        ></i>-->
-<!--                        <span class="font-semibold text-sm">{{check.description}}{{check.number !== null ? (' ('+check.number+(check.suffix ?? '')+')') : ''}}</span>-->
-<!--                    </div>-->
-<!--                </div>-->
-<!--            </div>-->
-<!--            <Nesting-->
-<!--                :width="900"-->
-<!--                :projectsReadyForBatching="sampleNestingData.projectsReadyForBatching"-->
-<!--                :lettersProjectArray="sampleNestingData.lettersProjectArray"-->
-<!--                :usage="sampleNestingData.usage"-->
-<!--                :piecesGroupedBySupplierGroup="sampleNestingData.piecesGroupedBySupplierGroup"-->
-<!--                :currentSupplierGroup="Object.keys(sampleNestingData.piecesGroupedBySupplierGroup.assigned)[0]"-->
-<!--            />-->
-<!--        </div>-->
-<!--    </div>-->
+    <div
+        v-if="sampleNestingData"
+        id="nesting"
+        class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20"
+    >
+        <div class="max-w-7xl mb-10 md:mx-auto md:mb-12">
+            <h2 class="text-center max-w-5xl mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">
+                Example nesting 200PFC across 2 projects
+            </h2>
+            <div class="px-4 py-8 mx-auto max-w-5xl">
+                <div class="grid gap-3 grid-cols-2">
+                    <div
+                        v-for="check in sampleNestingData.checks"
+                        class="flex gap-x-2"
+                    >
+                        <i
+                            :class="check.result ? 'fa-solid fa-check bg-teal-accent-400' : 'fa-solid fa-xmark bg-orange-400'"
+                            class="flex items-center justify-center text-lg rounded-full w-6 h-6"
+                        ></i>
+                        <span class="font-semibold text-sm">{{check.description}}{{check.number !== null ? (' ('+check.number+(check.suffix ?? '')+')') : ''}}</span>
+                    </div>
+                </div>
+            </div>
+            <Nesting
+                :width="900"
+                :projectsReadyForBatching="sampleNestingData.projectsReadyForBatching"
+                :lettersProjectArray="sampleNestingData.lettersProjectArray"
+                :usage="sampleNestingData.usage"
+                :piecesGroupedBySupplierGroup="sampleNestingData.piecesGroupedBySupplierGroup"
+                :currentSupplierGroup="Object.keys(sampleNestingData.piecesGroupedBySupplierGroup.assigned)[0]"
+            />
+        </div>
+    </div>
 
     <div class="px-4 py-16 mx-auto sm:max-w-7xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">
         <div class="max-w-7xl mb-10 md:mx-auto sm:text-center lg:max-w-7xl md:mb-12">

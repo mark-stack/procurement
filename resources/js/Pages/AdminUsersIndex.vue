@@ -63,7 +63,7 @@
                                     <Link
                                         class="underline"
                                         :class="user.templates.length > 0 ? 'text-blue-500' : 'text-red-500 font-bold'"
-                                        :href="route('admin.templates.index',user.business.id)"
+                                        :href="route('admin.businesses.templates.index',user.business.id)"
                                     >
                                         {{user.templates.length}}
                                     </Link>

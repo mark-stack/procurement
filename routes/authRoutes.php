@@ -1,21 +1,19 @@
 <?php
 
-use App\Actions\Offcut\GenerateOffcuts;
-use App\Actions\Order\SetOrderSentForBatchSupplierGroup;
-use App\Actions\OrderApproval\UpdateOrderApprovalStatus;
-use App\Actions\Piece\AttachPiecesToOrder;
-use App\Actions\Piece\DetachPiecesFromOrder;
-use App\Formatters\NestingFormatter;
-use App\Formatters\ProductFormatter;
-use App\Formatters\QuoteFormatter;
-use App\Formatters\SupplierFormatter;
 use App\Http\Controllers\BatchController;
 use App\Http\Controllers\BatchNestingController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DownloadBomController;
+use App\Http\Controllers\DownloadNesting;
+use App\Http\Controllers\DownloadUsageController;
 use App\Http\Controllers\MarkAsPastProjectController;
 use App\Http\Controllers\MarkNotificationStatusController;
 use App\Http\Controllers\OffcutController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\OrderMarkDeliveredController;
+use App\Http\Controllers\OrderSentController;
+use App\Http\Controllers\OrderUndoSentController;
 use App\Http\Controllers\PastProjectsController;
 use App\Http\Controllers\PricebookController;
 use App\Http\Controllers\ProductController;
@@ -30,16 +28,11 @@ use App\Http\Controllers\RawMaterialQuoteController;
 use App\Http\Controllers\SuggestedNestingController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Middleware\BusinessReadyMiddleware;
-use App\Models\Batch;
-use App\Models\Order;
-use App\Models\Project;
-use App\Models\Quote;
-use App\Services\BatchService;
-use App\Services\ProductService;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 
+/*
+ * Auth & verified
+ */
 Route::middleware(['auth', 'verified'])->group(function () {
 
     //Onboarding
@@ -51,19 +44,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     //Dashboard
-    Route::get('/dashboard', function () {
-        $user = auth()->user();
-        $business = $user->business;
-
-        //Onboarding complete
-        if ($business->admin_setup_complete) {
-            return redirect()->route('projects.index');
-        }
-        //Not onboarded yet
-        else {
-            return redirect()->route('onboarding');
-        }
-    })->name('dashboard');
+    Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
     //Notifications
     //Route::post("mark-as-read", NotificationMarkAsReadController::class)->name("notification.mark.as.read");
@@ -79,347 +60,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post("mark-as-past-project/{batch}", MarkAsPastProjectController::class)->name("mark.as.past.project");
 
         //Products
-        Route::controller(ProductController::class)->group(function () {
-            Route::get('/{project}/products', 'index')->name('products.index'); //GET	/photos	index	photos.index
-            //Route::get('/products/{id}', 'products.show')->name("products.show"); //GET	/photos/{photo}	show	photos.show
-            Route::post('/{project}/products', 'store')->name('products.store'); //POST	/photos	store	photos.store
-        });
-        //GET	/photos/create	create	photos.create
-        //GET	/photos/{photo}/edit	edit	photos.edit
-        //PUT/PATCH	/photos/{photo}	update	photos.update
-        //DELETE	/photos/{photo}	destroy	photos.destroy
+        Route::resource('projects.products', ProductController::class);
 
-        Route::get('download-bom/{project}', function (Request $request, Project $project) {
-            /**
-             * Single purpose: upload, clarify, and display consolidated BOM for a project
-             */
-            Gate::authorize('owned', $project);
+        Route::get('download-bom/{project}', DownloadBomController::class)->name('download.bom');
 
-            //Formatter
-            $nestingFormatter = new NestingFormatter();
-            $productService = new ProductService();
-
-            //Prerequisite variables
-            $user = $project->user;
-            $business = $user->business;
-
-            /**
-             * Sort the user's material rows into groups:
-             * 1) Non-price book (will be user custom product)
-             * 2) Price book exact match
-             * 3) price book partial match (requires confirmation)
-             */
-            $materialListRows = [];
-            $productCategories = [];
-            $partialProductMatches = [];
-            $allCertificateProductLabels = $nestingFormatter->getCertificateProductLabels();
-            $hasCertificateProducts = []; //todo: get from master_materials
-            $requiresCustom = [];
-
-            //Loop user's material rows
-            foreach ($project->rawMaterialQuotes as $rawMaterialQuote) {
-                //Append Array
-                $nesting_algo = ($rawMaterialQuote->product_category && $nestingFormatter->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category))
-                    ? $nestingFormatter->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category)[0]
-                    : null;
-                $rawMaterialQuote->nesting_algo = $nesting_algo;
-                $rawMaterialQuote->status = $rawMaterialQuote->status();
-
-                //If should include row based on plan. e.g only "steel merchant" supplier group
-                $getProductMatchOptions = $productService->getProductMatchOptions($business, $rawMaterialQuote);
-
-                if ($getProductMatchOptions) {
-                    /**
-                     * 1) Non-price book (will be user custom product)
-                     * if business "allow_custom_products"
-                     */
-                    if ($getProductMatchOptions['status'] === 'CUSTOM') {
-                        if ($business->allow_custom_products) {
-                            $requiresCustom[] = (new ProductFormatter())->requiresCustomForm($rawMaterialQuote);
-                        }
-                    }
-
-                    /**
-                     * 2) Price book exact match
-                     */
-                    elseif ($getProductMatchOptions['status'] === 'EXACT') {
-                        //Supplier group belongs to current plan
-                        $supplierGroup = $getProductMatchOptions['supplierGroup'];
-                        if ($business->supplierGroupIsCurrentPlan($supplierGroup)) {
-                            $rawMaterialQuote['product'] = $getProductMatchOptions['decodedOption'];
-                        }
-                    }
-
-                    /**
-                     * 3) Price book partial match (requires confirmation)
-                     */
-                    elseif ($getProductMatchOptions['status'] === 'PARTIAL') {
-                        //Supplier group belongs to current plan
-                        $supplierGroup = $getProductMatchOptions['supplierGroup'];
-                        if ($business->supplierGroupIsCurrentPlan($supplierGroup)) {
-                            $partialProductMatches[] = [
-                                'selected' => null,
-                                'data' => $rawMaterialQuote, //todo needs "nesting_algo"
-                                'options' => $getProductMatchOptions['decodedOptions'],
-                                'custom' => $getProductMatchOptions['custom'],
-                            ];
-                        }
-                    }
-                }
-
-                /**
-                 * product categories
-                 */
-                $productCategories[] = $rawMaterialQuote['product_category'];
-
-                /**
-                 * Mill products //todo: get from master_materials
-                 */
-                foreach ($allCertificateProductLabels as $mp) {
-                    //Could be enum or string
-                    $value = gettype($mp) === 'object' ? $mp->value : $mp;
-
-                    if (strtoupper($rawMaterialQuote->product_category) == strtoupper($value)) {
-                        $hasCertificateProducts = true;
-                    }
-                }
-
-                //Append Array
-                $materialListRows[] = $rawMaterialQuote;
-            }
-
-            /**
-             * Sense checks
-             */
-            $productCategories = array_filter(array_unique($productCategories));
-            $senseChecks = $productService->senseChecks($materialListRows, $productCategories, $hasCertificateProducts);
-
-            /**
-             * Custom options (form select options)
-             */
-            $allGrades = (new nestingFormatter())->allGradeLabels();
-            $allMeasurements = $nestingFormatter->allMeasurementUnitLabels();
-            $formDependentData = $nestingFormatter->buildDependencyArray2();
-
-            /**
-             * Nesting groups
-             */
-            $nestingGroups = $nestingFormatter->getNestingGroups();
-
-            return response()->json([
-                'downloadedBomData' => [
-                    'project_id' => $project->id,
-                    'data' => [
-                        "itemsNotFound" => $project->items_not_found
-                            ? implode(", ",unserialize($project->items_not_found))
-                            : null,
-                        'percentageOfMaterialsQuoted' => $project->percentageOfMaterialsQuoted(),
-                        'percentageOfMaterialsOrdered' => $project->percentageOfMaterialsOrdered(),
-                        'project' => $project,
-                        'materialListRows' => $materialListRows,
-                        'senseChecks' => $senseChecks,
-                        'partialProductMatches' => $partialProductMatches,
-                        'requiresCustom' => $requiresCustom,
-                        'allMeasurements' => $allMeasurements,
-                        'formDependentData' => $formDependentData,
-                        'allGrades' => $allGrades,
-                        'business' => $project->user->business,
-                        'nestingGroups' => $nestingGroups,
-                    ],
-                ],
-            ]);
-        })->name('download.bom');
-
-        /**
-         * @deprecated
-         */
-        Route::get('download-nesting/{batch_id}', function (Request $request, int $batch_id) {
-            /**
-             * batch_id = 0 represents "ready to nest" which has no batch object created yet
-             */
-            $batch = $batch_id === 0 ? null : Batch::findOrFail($batch_id);
-
-            //Formatter
-            $nestingFormatter = new NestingFormatter;
-
-            //Prerequisite variables
-            $user = auth()->user();
-            $business = $user->business;
-
-            //View data
-            $batchData = $batch
-                //Batch nesting
-                ? $nestingFormatter->nestingViewData('BATCH', $business, $batch)
-
-                //Suggested
-                : $nestingFormatter->nestingViewData('SUGGESTED', $business, null);
-
-            return response()->json([
-                'downloadedNestingData' => [
-                    'batch_id' => $batch ? $batch->id : 0,
-                    'data' => $batchData,
-                ],
-            ]);
-        })->name('download.nesting');
+        Route::get('download-nesting/{batch_id}', DownloadNesting::class)->name('download.nesting');
 
         Route::get('quote-order-management/{batch}', QuoteOrderManagementController::class)->name('quote.order.management');
 
-        /**
-         * @deprecated
-         */
-        Route::get('download-quotes-data/{batch}', function (Request $request, Batch $batch) {
-
-            Gate::authorize('owned', $batch);
-
-            //Formatter
-            $batchService = new BatchService;
-            $nestingFormatter = new NestingFormatter;
-            $supplierService = new SupplierFormatter;
-
-            //Prerequisite variables
-            $user = auth()->user();
-            $business = $user->business;
-
-            /**
-             * "Quotes and orders"
-             * 1) Assign a letter to each project. A, B, C, etc
-             * 2) Get all nested pieces
-             * 3) Group nested pieces by nesting algorithm. e.g "meterage"
-             * 4) get list of supplier categories available to the business
-             * 5) filter out categories not features in the nesting list
-             */
-            $supplierGroupCards = [];
-
-            //1) Assign a letter to each project. A, B, C, etc
-            $lettersProjectArray = $nestingFormatter->getLetterProjectArray($batch->pieces);
-
-            //2) Get all nested pieces
-            $piecesNested = $nestingFormatter->piecesNested($batch->pieces, $lettersProjectArray, $business);
-
-            //3) Group nested pieces by nesting algorithm. e.g "meterage"
-            $piecesGroupedBySupplierGroup = $nestingFormatter->piecesGroupedBySupplierGroup($piecesNested, $business);
-
-            //4) get list of supplier categories available to the business
-            $supplierGroupsAvailableToBusiness = $supplierService->supplierGroupsAvailableToBusiness($business);
-
-            //5) filter out categories not features in the nesting list
-            foreach ($supplierGroupsAvailableToBusiness as $supplierGroup => $includedProducts) {
-
-                //has pieces for this supplier group
-                $batchGroup = $piecesGroupedBySupplierGroup['assigned'][$supplierGroup] ?? null;
-
-                if ($batchGroup) {
-
-                    $rows = [];
-                    $suppliers = $supplierService->suppliersForSupplierGroup($supplierGroup, $business);
-
-                    $orderedOrder = $batch->orders()
-                        ->where('order_sent', true)
-                        ->first();
-
-                    foreach ($suppliers as $supplier) {
-                        $quote = Quote::firstOrCreate(
-                            [
-                                'batch_id' => $batch->id,
-                                'supplier_id' => $supplier->id,
-                                'supplier_category' => $supplierGroup,
-                            ],
-                            [
-                                'user_id' => $user->id,
-                                'supplier_quote_reference' => null,
-                                'quote_sent' => false,
-                            ]
-                        );
-
-                        $order = Order::firstOrCreate(
-                            [
-                                'quote_id' => $quote->id,
-                            ],
-                            [
-                                'user_id' => $quote->user_id,
-                                'batch_id' => $quote->batch_id,
-                                'supplier_id' => $quote->supplier_id,
-                                'order_sent' => false,
-                            ]
-                        );
-
-                        $rows[] = [
-                            'info' => [
-                                'supplier' => $supplier,
-                                'order_sent' => $order->order_sent,
-                            ],
-                            'formQuoteUpdate' => [
-                                'batch_id' => $batch->id,
-                                'quote_id' => $quote->id,
-                                'quote_sent' => $quote->quote_sent,
-                                'supplier_quote_reference' => $quote->supplier_quote_reference,
-                                'quoted_price' => $quote->quoted_price,
-                                'quoted_lead_time' => $quote->quoted_lead_time,
-                            ],
-                            'formOrderUpdate' => [
-                                'batch_id' => $batch->id,
-                                'order_id' => $order->id,
-                                'supplier_group' => $supplierGroup,
-                                'ordered_quote_id' => $orderedOrder ? $orderedOrder->quote->id : null,
-                                'purchase_order_number' => $orderedOrder ? $orderedOrder->purchase_order_number : null,
-                            ],
-                            'formUndoOrderSent' => [
-                                'order_id' => $order->id,
-                            ],
-                        ];
-                    }
-
-                    $supplierGroupCards[$supplierGroup] = [
-                        'info' => [
-                            'supplierGroup' => $supplierGroup,
-                            'batchGroup' => $batchGroup,
-                            'includedProducts' => $includedProducts,
-                            'qtyQuotes' => $batch->quotes()
-                                ->where('supplier_category', $supplierGroup)
-                                ->where('quote_sent', true)
-                                ->count(),
-                            'purchaseOrderNumber' => '123-TEST', //todo
-                            'delivered' => true, //todo placeholder
-                        ],
-                        'rows' => $rows,
-                    ];
-                }
-            }
-
-            //Total orders qty
-            $totalOrdersQty = $batchService->totalOrdersQty($batch);
-
-            $quotesAndOrders = [
-                'info' => [
-                    'totalQuotesQty' => $batch->quotes()->count(),
-                    'sentQuotesQty' => $batch->quotes()->where('quote_sent', true)->count(),
-                    'totalOrdersQty' => $totalOrdersQty,
-                    'sentOrdersQty' => $batch->orders()->where('order_sent', true)->count(),
-                    'projectManagerApprovalMessage' => $batchService->projectManagerApprovalMessage($batch),
-                ],
-                'supplierGroupCards' => $supplierGroupCards,
-            ];
-
-            return response()->json([
-                'downloadedQuotesData' => $quotesAndOrders,
-            ]);
-        })->name('download.quotes.data');
-
-        Route::get('download-usage-data', function (Request $request) {
-            //Formatter
-            $nestingFormatter = new NestingFormatter;
-
-            $user = auth()->user();
-            $business = $user->business;
-
-            $piecesReadyForBatching = $nestingFormatter->piecesReadyForBatching($business);
-            $lettersProjectArray = $nestingFormatter->getLetterProjectArray($piecesReadyForBatching);
-            $piecesNested = $nestingFormatter->piecesNested($piecesReadyForBatching, $lettersProjectArray, $business);
-
-            return response()->json([
-                'usageData' => $nestingFormatter->usageStats($piecesNested),
-            ]);
-        })->name('download.usage.data');
+        Route::get('download-usage-data', DownloadUsageController::class)->name('download.usage.data');
 
         //Raw Material Quotes
         Route::name('raw.material.quote.')->group(function () {
@@ -450,64 +99,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         //Orders
         Route::resource('orders', OrderController::class);
-        Route::post('order-sent/{batch}', function (Request $request, Batch $batch) {
-            /**
-             * Update or create quote & order based on BATCH and SUPPLIER_CATEGORY
-             * Action 1: SetOrderSentForBatchSupplierGroup
-             *   Action 1A: UpdateOrderSentStatus
-             * Action 2: AttachPiecesToOrder
-             * Action 3: UpdateOrderApprovalsForBatch
-             */
+        Route::post('order-sent/{batch}', OrderSentController::class)->name('order.sent');
 
-            Gate::authorize('owned', $batch);
+        Route::post('order-undo-sent/{order}', OrderUndoSentController::class)->name('order.undo.sent');
 
-            $validated = $request->validate([
-                'order_id' => ['required'],
-            ]);
-
-            $orderedOrder = Order::findOrFail($validated['order_id']);
-
-            //Only 1 order in the batch supplier group can be TRUE
-            SetOrderSentForBatchSupplierGroup::run($orderedOrder, $batch);
-
-            //Attach pieces to order
-            AttachPiecesToOrder::run($batch, $orderedOrder);
-
-            //All project managers approve ordering materials
-            UpdateOrderApprovalStatus::run($batch, true);
-
-            return back();
-        })->name('order.sent');
-
-        Route::post('order-undo-sent/{order}', function (Request $request, Order $order) {
-            /**
-             * Undo order sent
-             */
-            Gate::authorize('owned', $order);
-
-            $order->order_sent = false;
-            $order->is_delivered = false;
-            $order->save();
-
-            //Detach pieces to order
-            DetachPiecesFromOrder::run($order->batch, $order);
-
-            return back();
-
-        })->name('order.undo.sent');
-
-        Route::post("order-mark-delivered/{order}",function(Request $request, Order $order){
-            Gate::authorize('owned', $order);
-
-            //Mark delivered
-            $order->is_delivered = !$order->is_delivered;
-            $order->save();
-
-            //Generate offcuts
-            //GenerateOffcuts::run($order->batch);
-
-            return back();
-        })->name("order.mark.delivered");
+        Route::post("order-mark-delivered/{order}", OrderMarkDeliveredController::class)->name("order.mark.delivered");
 
         //Suggested Nesting
         Route::get('suggested-nesting', SuggestedNestingController::class)->name('suggested.nesting');

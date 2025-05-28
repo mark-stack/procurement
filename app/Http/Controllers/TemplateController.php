@@ -59,7 +59,7 @@ class TemplateController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Template $template)
+    public function show(Business $business, Template $template)
     {
         //
     }
@@ -67,7 +67,7 @@ class TemplateController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Template $template)
+    public function edit(Business $business, Template $template)
     {
         //
     }
@@ -75,7 +75,7 @@ class TemplateController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Template $template): RedirectResponse
+    public function update(Request $request, Business $business, Template $template): RedirectResponse
     {
         $validated = $request->validate([
             'name' => ['required', 'string'],
@@ -97,7 +97,7 @@ class TemplateController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Template $template): RedirectResponse
+    public function destroy(Business $business, Template $template): RedirectResponse
     {
         $template->delete();
 

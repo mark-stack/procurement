@@ -124,7 +124,7 @@
             return;
         }
 
-        let url = route("products.store",props.project.id);
+        let url = route("projects.products.store",props.project.id);
 
         formStore.post(url, {
             preserveScroll: true,

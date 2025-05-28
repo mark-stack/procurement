@@ -192,7 +192,7 @@
 <!--                    <h6 class="text-xs text-gray-500">Quote/order by [4/2/24]</h6>-->
 <!--                    <div class="text-xs">-->
 <!--                        <div class="grid grid-cols-3 justify-between">-->
-<!--&lt;!&ndash;                            <Link :href="route('products.index',project.id)">&ndash;&gt;-->
+<!--&lt;!&ndash;                            <Link :href="route('projects.products.index',project.id)">&ndash;&gt;-->
 <!--&lt;!&ndash;                                BOM (page)&ndash;&gt;-->
 <!--&lt;!&ndash;                            </Link>&ndash;&gt;-->
 <!--                            <button @click="$emit('showBom',project)">-->

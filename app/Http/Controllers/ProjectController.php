@@ -38,7 +38,7 @@ class ProjectController extends Controller
         //Prerequisite variables
         $user = auth()->user();
         $business = $user->business;
-        $piecesReadyForBatching = (new NestingFormatter)->piecesReadyForBatching($business);
+        $piecesReadyForBatching = (new NestingFormatter())->piecesReadyForBatching($business);
 
         $projects = [
             //Kanban column 1
@@ -246,7 +246,7 @@ class ProjectController extends Controller
         /*
          * Prerequisite Gates
          */
-        $piecesReadyForBatching = (new NestingFormatter)->piecesReadyForBatching($business);
+        $piecesReadyForBatching = (new NestingFormatter())->piecesReadyForBatching($business);
         $projectsReadyForBatching = $business->projectsReadyForBatching($piecesReadyForBatching,$business); //Note get this before updating pieces because it gets modified
         $prerequisiteStartQuoting = (new PrerequisiteConditions())->startQuoting(
             $user,
