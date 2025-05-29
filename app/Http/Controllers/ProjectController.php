@@ -11,6 +11,7 @@ use App\Imports\ExcelImport;
 use App\Models\Project;
 use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\CsvService;
+use App\Services\TemplateService;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -105,31 +106,7 @@ class ProjectController extends Controller
         /*
          * Validate templates exist
          */
-        $validFiles = [];
-        $invalidFiles = [];
-        foreach($files as $file){
-            $path = $file->store('uploads');
-
-            //Read the CSV
-            $csvArray = null;
-            try {
-                $csvArray = Excel::toArray(new ExcelImport, $file)[0];
-
-                if($csvService->validateTemplateExists($csvArray)){
-                    $validFiles[] = $file->getClientOriginalName();
-                }
-                else{
-                    $invalidFiles[] = $file->getClientOriginalName();
-                }
-            }
-            catch (\Throwable $e) {
-                $invalidFiles[] = $file->getClientOriginalName();
-            }
-
-            // Delete the file after processing
-            unlink(storage_path("app/private/{$path}"));
-        }
-
+        $invalidFiles = (new TemplateService())->invalidFiles($files);
         if(count($invalidFiles) > 0){
             throw ValidationException::withMessages([
                 'invalid_template' => [$invalidFiles],
