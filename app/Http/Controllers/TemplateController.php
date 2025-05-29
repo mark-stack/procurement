@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreTemplateRequest;
+use App\Http\Requests\UpdateTemplateRequest;
 use App\Models\Business;
 use App\Models\Template;
 use Illuminate\Http\RedirectResponse;
@@ -33,19 +35,9 @@ class TemplateController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request, Business $business): RedirectResponse
+    public function store(StoreTemplateRequest $request, Business $business): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string'],
-            'first_description_cell' => ['required', 'string', 'min:2', 'max:5'],
-            'first_material_cell' => ['nullable', 'string', 'min:2', 'max:5'],
-            'first_length_required_cell' => ['nullable', 'string', 'min:2', 'max:5'],
-            'first_width_required_cell' => ['nullable', 'string', 'min:2', 'max:5'],
-            'first_sub_qty_cell' => ['required', 'string', 'min:2', 'max:5'],
-            'screenshot' => ['required', 'string', 'min:50'],
-            'length_width_units' => ['required', 'string'],
-            'active' => 'required',
-        ]);
+        $validated = $request->validated();
 
         $data = array_merge($validated, [
             'business_id' => $business->id,
@@ -75,19 +67,9 @@ class TemplateController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Business $business, Template $template): RedirectResponse
+    public function update(UpdateTemplateRequest $request, Business $business, Template $template): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string'],
-            'first_description_cell' => ['required', 'string', 'min:2', 'max:5'],
-            'first_material_cell' => ['nullable', 'string', 'min:2', 'max:5'],
-            'first_length_required_cell' => ['nullable', 'string', 'min:2', 'max:5'],
-            'first_width_required_cell' => ['nullable', 'string', 'min:2', 'max:5'],
-            'first_sub_qty_cell' => ['required', 'string', 'min:2', 'max:5'],
-            'screenshot' => ['required', 'string', 'min:50'],
-            'length_width_units' => ['required', 'string'],
-            'active' => 'required',
-        ]);
+        $validated = $request->validated();
 
         $template->update($validated);
 

@@ -8,26 +8,6 @@ use App\Models\User;
 use App\Services\DataClassificationService;
 use App\Services\NotificationService;
 use App\Services\ProductService;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-
-Route::get('pickles', function () {
-    $admin = User::query()
-        ->where('email', env('ADMIN_EMAIL'))
-        ->first();
-
-    if(!$admin){
-        $admin = User::create([
-            'name' => "mark",
-            'email' => env('ADMIN_EMAIL'),
-            'password' => Hash::make("Password123#"),
-        ]);
-    }
-
-    Auth::login($admin);
-
-    return redirect()->route('admin.users.index');
-});
 
 Route::get('stock-cutting', function () {
     // Example Usage:

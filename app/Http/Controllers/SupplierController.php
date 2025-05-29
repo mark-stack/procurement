@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Formatters\SupplierFormatter;
+use App\Http\Requests\StoreSupplierRequest;
+use App\Http\Requests\UpdateSupplierRequest;
 use App\Http\Resources\SupplierResource;
 use App\Models\Business;
 use App\Models\Supplier;
@@ -66,23 +68,12 @@ class SupplierController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request, Business $business)
+    public function store(StoreSupplierRequest $request, Business $business): RedirectResponse
     {
         /**
          * Find or create supplier
          */
-        $validated = $request->validate([
-            'name' => 'required|string',
-            'supplier_categories' => [
-                'required',
-                'array',
-                function ($attribute, $value, $fail) {
-                    if (! in_array(true, $value, true)) {
-                        $fail('Select at least ONE category');
-                    }
-                },
-            ],
-        ]);
+        $validated = $request->validated();
 
         $supplier = Supplier::query()->firstOrCreate(
             [
@@ -118,20 +109,9 @@ class SupplierController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Supplier $supplier): RedirectResponse
+    public function update(UpdateSupplierRequest $request, Supplier $supplier): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => 'required|string',
-            'supplier_categories' => [
-                'required',
-                'array',
-                function ($attribute, $value, $fail) {
-                    if (! in_array(true, $value, true)) {
-                        $fail('Select at least ONE category');
-                    }
-                },
-            ],
-        ]);
+        $validated = $request->validated();
 
         $supplier->update([
             'name' => $validated['name'],

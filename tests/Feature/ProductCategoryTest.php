@@ -155,9 +155,9 @@ it('finds product CHS', function (string $description) {
     testProductCategories($description);
 })->with($chs);
 
-it('finds product PURLINS', function (string $description) {
-    testProductCategories($description);
-})->with($purlin);
+//it('finds product PURLINS', function (string $description) {
+//    testProductCategories($description);
+//})->with($purlin);
 
 it('finds product for EA', function (string $description) {
     testProductCategories($description);

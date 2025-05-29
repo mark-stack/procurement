@@ -7,6 +7,7 @@ use App\Actions\Batch\SaveNesting;
 use App\Actions\OrderApproval\CreatePendingOrderApprovals;
 use App\Actions\Piece\AttachPiecesToBatch;
 use App\Formatters\NestingFormatter;
+use App\Http\Requests\UpdateQuoteRequest;
 use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Models\Batch;
 use App\Models\Quote;
@@ -32,10 +33,6 @@ class QuoteController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
-            //
-        ]);
-
         //Prerequisite variables
         $user = auth()->user();
         $business = $user->business;
@@ -89,17 +86,11 @@ class QuoteController extends Controller
         Gate::authorize('owned', $quote);
     }
 
-    public function update(Request $request, Quote $quote): RedirectResponse
+    public function update(UpdateQuoteRequest $request, Quote $quote): RedirectResponse
     {
         Gate::authorize('owned', $quote);
 
-        $validated = $request->validate([
-            'batch_id' => 'required',
-            'quote_sent' => 'required',
-            'supplier_quote_reference' => 'nullable',
-            'quoted_price' => 'nullable',
-            'quoted_lead_time' => 'nullable',
-        ]);
+        $validated = $request->validated();
 
         //Attempting to mark as sent
         if(!$quote->quote_sent && $validated['quote_sent']){
