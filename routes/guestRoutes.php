@@ -1,54 +1,19 @@
 <?php
 
 use App\Formatters\NestingFormatter;
+use App\Http\Controllers\GuestOnboardingController;
+use App\Http\Controllers\LandingController;
+use App\Http\Controllers\NestingExampleController;
 use App\Models\Business;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 //Landing page
-Route::get('/', function () {
-    //Formatter
-    $nestingFormatter = new NestingFormatter();
+Route::get('/', LandingController::class);
 
-    $sampleBusiness = Business::query()
-        ->where('name',"SAMPLE")
-        ->where('domain','sample.com')
-        ->first();
-
-    $sampleData = null;
-    if($sampleBusiness){
-        $sampleData = $nestingFormatter->nestingViewData('SUGGESTED', $sampleBusiness, null);
-    }
-
-    return Inertia::render('Welcome', [
-        "sampleNestingData" => $sampleData,
-    ]);
-});
-
-Route::get("guest-onboarding",function(){
-    return Inertia::render('GuestOnboarding', [
-        //
-    ]);
-})->name("guest.onboarding");
+//Guest onboarding
+Route::get("guest-onboarding", GuestOnboardingController::class)->name("guest.onboarding");
 
 //Try nesting
-Route::get('/try-nesting', function () {
-    //Formatter
-    $nestingFormatter = new NestingFormatter();
-
-    /*
-     * Get sample nesting data
-     */
-
-    $sampleBusiness = Business::query()
-        ->where('name',"SAMPLE")
-        ->where('domain','sample.com')
-        ->first();
-
-    $sampleData = $nestingFormatter->nestingViewData('SUGGESTED', $sampleBusiness, null);
-
-    return Inertia::render('TryNesting', [
-        "sampleNestingData" => $sampleData
-    ]);
-})->name("try.nesting");
+Route::get('/try-nesting', NestingExampleController::class)->name("try.nesting");
 
