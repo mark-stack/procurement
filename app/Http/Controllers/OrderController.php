@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Batch;
 use App\Models\Order;
 use App\Models\OrderApproval;
-use App\Models\Quote;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -39,7 +38,7 @@ class OrderController extends Controller
          */
         //Validate
         $validated = $request->validate([
-            'batch_id' => 'nullable',
+            'batch_id' => ['nullable', 'integer'],
         ]);
 
         /*
@@ -47,7 +46,9 @@ class OrderController extends Controller
          */
         $user = auth()->user();
         $business = $user->business;
-        $batchId = $validated['batch_id'];
+
+        //"nullable" means validated() has no key at all when the field is missing
+        $batchId = $validated['batch_id'] ?? null;
 
         abort_if(! $batchId, 401);
 
@@ -58,12 +59,15 @@ class OrderController extends Controller
         //Get batch
         $batch = Batch::findOrFail($batchId);
 
+        //Nothing else here scoped the batch to the caller, so any batch id could be ordered against
+        Gate::authorize('owned', $batch);
+
         //Get quote (if exists)
         $quotes = $batch->quotes;
 
         //Create pending orders (1:1 with quotes) and attach to batch
         foreach ($quotes as $quote) {
-            $order = Order::firstOrCreate(
+            Order::firstOrCreate(
                 [
                     'batch_id' => $batch->id,
                     'quote_id' => $quote->id,
@@ -138,17 +142,11 @@ class OrderController extends Controller
          * 1) No order has been made
          */
         if (! $order->order_sent) {
-            //Create quote if doesn't exist
-            $quote = Quote::firstOrCreate(
-                [
-                    'batch_id' => $order->batch_id,
-                ],
-                [
-                    'user_id' => $order->user_id,
-                    'quote_requests' => null,
-                    'quote_responses' => null,
-                ]
-            );
+            /*
+             * This used to also firstOrCreate a Quote with quote_requests / quote_responses. Neither
+             * column exists on the quotes table, so with $guarded = [] the insert always failed - and a
+             * quote with no supplier or category is not something detaching an order should mint anyway.
+             */
 
             //Detach order from batch
             $order->batch_id = null;

@@ -15,6 +15,20 @@ class Quote extends Model
 
     protected $guarded = [];
 
+    protected function casts(): array
+    {
+        /*
+         * quote_sent reached the page as the int 1/0 MySQL hands back, and the checkbox sent 1/0 back,
+         * so the page had to guess the type on every comparison - and got it wrong in one place.
+         * Casting here makes it a real boolean on both sides of the wire.
+         */
+        return [
+            'quote_sent' => 'boolean',
+            'quoted_price' => 'float',
+            'quoted_lead_time' => 'integer',
+        ];
+    }
+
     //Relationships
     public function user(): BelongsTo
     {

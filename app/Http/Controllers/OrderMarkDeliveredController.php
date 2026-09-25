@@ -13,6 +13,10 @@ class OrderMarkDeliveredController extends Controller
     {
         Gate::authorize('owned', $order);
 
+        //Delivery only means anything for an order that was actually sent. The page hides the checkbox
+        //until then, but the route is reachable directly
+        abort_if(! $order->order_sent, 403, 'Order has not been sent');
+
         //Mark delivered
         //Offcuts are created up front by Actions/Bar/CreateBarsAndOffcuts when the batch is nested;
         //delivery only decides whether they count as available (see Business::availableOffcuts)

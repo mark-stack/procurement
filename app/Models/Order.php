@@ -14,6 +14,15 @@ class Order extends Model
 
     protected $guarded = [];
 
+    protected function casts(): array
+    {
+        return [
+            'order_sent' => 'boolean',
+            'order_confirmation_received' => 'boolean',
+            'is_delivered' => 'boolean',
+        ];
+    }
+
     //Relationships
     public function user(): BelongsTo
     {

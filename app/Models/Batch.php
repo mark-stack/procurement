@@ -34,6 +34,10 @@ class Batch extends Model
 
     private ?EloquentCollection $projectSummariesMemo = null;
 
+    private ?EloquentCollection $projectsMemo = null;
+
+    private ?EloquentCollection $projectApprovalFlagsMemo = null;
+
     protected function casts(): array
     {
         return [
@@ -76,9 +80,26 @@ class Batch extends Model
         /*
          * Read the ids off the pieces rather than walking $piece->project, which loaded one project
          * per piece. The relations are the ones ProjectResource walks for every row it renders.
+         *
+         * Memoised like projectSummaries() below - undoStartQuoting alone walks this three times on
+         * the same batch instance, and each walk is the full eager-loaded tree.
          */
-        return Project::query()
+        return $this->projectsMemo ??= Project::query()
             ->with(['user', 'rawMaterialQuotes.piece.quotes', 'rawMaterialQuotes.piece.order'])
+            ->whereIn('id', $this->pieces()->distinct()->pluck('project_id'))
+            ->get();
+    }
+
+    public function projectApprovalFlags(): EloquentCollection
+    {
+        /*
+         * Just the owner and archive state, for the prerequisite conditions. Those read nothing but
+         * $project->user_id and $project->archive, while projects() above eager-loads the
+         * rawMaterialQuotes/piece/quote/order tree that ProjectResource needs - several queries per
+         * call, and markQuoteAsSent/undoMarkQuoteAsSent together call it four times per supplier row.
+         */
+        return $this->projectApprovalFlagsMemo ??= Project::query()
+            ->select(['id', 'user_id', 'archive'])
             ->whereIn('id', $this->pieces()->distinct()->pluck('project_id'))
             ->get();
     }

@@ -15,7 +15,12 @@ class AttachPiecesToOrder
         /**
          * Attach PIECE to ORDER.
          */
-        $supplierGroupOfOrderedOrder = $orderedOrder->quote->supplier_category;
+        //quote_id is nullable - an order with no quote belongs to no supplier group, so no piece matches
+        $supplierGroupOfOrderedOrder = $orderedOrder->quote?->supplier_category;
+
+        if ($supplierGroupOfOrderedOrder === null) {
+            return;
+        }
 
         foreach ($batch->pieces as $piece) {
             //Pieces from batch belonging to this supplier group

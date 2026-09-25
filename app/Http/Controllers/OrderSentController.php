@@ -29,10 +29,18 @@ class OrderSentController extends Controller
         Gate::authorize('owned', $batch);
 
         $validated = $request->validate([
-            'order_id' => ['required'],
+            'order_id' => ['required', 'integer'],
         ]);
 
         $orderedOrder = Order::findOrFail($validated['order_id']);
+
+        /*
+         * The gate above only covers the batch. order_id arrives from the request, so it needs its own
+         * check - otherwise your own batch id plus somebody else's order id marked their order sent and
+         * pointed your pieces at it.
+         */
+        Gate::authorize('owned', $orderedOrder);
+        abort_if($orderedOrder->batch_id !== $batch->id, 404);
 
         //Only 1 order in the batch supplier group can be TRUE
         SetOrderSentForBatchSupplierGroup::run($orderedOrder, $batch);

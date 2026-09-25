@@ -5,7 +5,11 @@
 
     //Component Imports
     import Modal from "@/Layouts/Modal.vue";
+    import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
     import ConfirmModal from "@/Components/Modals/ConfirmModal.vue";
+
+    //Shared Methods
+    import shared from '@/Shared/shared';
     import useConfirm from "@/Shared/useConfirm.js";
 
     //Props
@@ -16,18 +20,11 @@
 
     //Forms
     const formQuoteUpdate = useForm({
-        batch_id: null,
         quote_sent: null,
-        supplier_quote_reference: null,
-        quoted_price: null,
-        quoted_lead_time: null,
     });
 
     const formOrderUpdate = useForm({
-        batch_id: null,
         order_id: null,
-        supplier_group: null,
-        ordered_quote_id: null,
         purchase_order_number: null,
         material_cert_numbers: null,
     });
@@ -40,23 +37,21 @@
     const currentInputEditRow = ref(null);
     const height = window.innerHeight - 250;
 
-    //Shared Methods
-    import shared from '@/Shared/shared';
-    import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
     const {confirmDialog, askToConfirm, confirmDialogAccepted, confirmDialogCancelled} = useConfirm();
 
     //Methods
     function setupShowInputs(){
-        let resultArray = [];
+        /*
+         * Keyed by order id, not supplier id. A supplier can sit in more than one supplier group, and
+         * those rows were sharing one open/closed state - opening an input on one opened it on the other.
+         */
+        const result = {};
 
         //hasSuppliersForThisGroup
         Object.values(props.quotesData.supplierGroupCards).forEach(data => {
             if(data.rows !== undefined){
                 Object.values(data.rows).forEach(row => {
-                    resultArray[row.info.supplier.id] = {
-                        quoted_price: false,
-                        quoted_lead_time: false,
-                        supplier_quote_reference: false,
+                    result[row.formOrderUpdate.order_id] = {
                         add_purchase_order: false,
                         material_cert_numbers: false,
                     };
@@ -64,55 +59,24 @@
             }
         });
 
-
-        return resultArray;
+        return result;
     }
 
-    // function showQuotedLeadTime(supplierId){
-    //     let showQuotedLeadTime = false;
-    //
-    //     if(showInputs.value.hasOwnProperty(supplierId)){
-    //         showQuotedLeadTime = showInputs.value[supplierId].quoted_lead_time;
-    //     }
-    //
-    //     return showQuotedLeadTime;
-    // }
-    //
-    // function showQuotedPrice(supplierId){
-    //     let showQuotedPrice = false;
-    //
-    //     if(showInputs.value.hasOwnProperty(supplierId)){
-    //         showQuotedPrice = showInputs.value[supplierId].quoted_price;
-    //     }
-    //
-    //     return showQuotedPrice;
-    // }
-
-    function showCertNumbers(supplierId){
-        let showCertNumbers = false;
-
-        if(showInputs.value.hasOwnProperty(supplierId)){
-            showCertNumbers = showInputs.value[supplierId].material_cert_numbers;
-        }
-
-        return showCertNumbers;
+    function showCertNumbers(orderId){
+        return showInputs.value[orderId]?.material_cert_numbers ?? false;
     }
 
-    function showAddPurchaseOrder(supplierId){
-        let showAddPurchaseOrder = false;
-
-        if(showInputs.value.hasOwnProperty(supplierId)){
-            showAddPurchaseOrder = showInputs.value[supplierId].add_purchase_order;
-        }
-
-        return showAddPurchaseOrder;
+    function showAddPurchaseOrder(orderId){
+        return showInputs.value[orderId]?.add_purchase_order ?? false;
     }
 
     function toggleShowInput(row,type){
-        //Save any currently open
+        /*
+         * Save whatever is already open. Both editable fields belong to the order, so this saves the
+         * order - it used to save the quote, and the quote save forced quote_sent to true on that row.
+         */
         if(currentInputEditRow.value){
-            console.log("has open input. Save it.",currentInputEditRow.value);
-            updateQuote(currentInputEditRow.value,false);
+            updateOrder(currentInputEditRow.value);
         }
 
         //Set current row
@@ -121,30 +85,7 @@
         //hide any currently open
         showInputs.value = setupShowInputs();
 
-        //quoted_lead_time
-        if(type === 'quoted_lead_time'){
-            showInputs.value[row.info.supplier.id].quoted_lead_time = true;
-        }
-
-        //quotedPrice
-        if(type === 'quoted_price'){
-            showInputs.value[row.info.supplier.id].quoted_price = true;
-        }
-
-        //supplierQuoteReference
-        if(type === 'supplier_quote_reference'){
-            showInputs.value[row.info.supplier.id].supplier_quote_reference = true;
-        }
-
-        //add_purchase_order
-        if(type === 'add_purchase_order'){
-            showInputs.value[row.info.supplier.id].add_purchase_order = true;
-        }
-
-        //material_cert_numbers
-        if(type === 'material_cert_numbers'){
-            showInputs.value[row.info.supplier.id].material_cert_numbers = true;
-        }
+        showInputs.value[row.formOrderUpdate.order_id][type] = true;
     }
 
     function hideInput(){
@@ -153,57 +94,23 @@
 
         //Clear current input selection
         currentInputEditRow.value = null;
-        console.log("cancel. current row",currentInputEditRow.value);
-    }
-
-    function updateQuote(row,autoCloseAll){
-        let url = route("quotes.update",row.formQuoteUpdate.quote_id);
-
-        formQuoteUpdate.batch_id = row.formQuoteUpdate.batch_id;
-        formQuoteUpdate.quote_sent = row.formQuoteUpdate.quote_sent === "0" ? false : true;
-        formQuoteUpdate.supplier_quote_reference = row.formQuoteUpdate.supplier_quote_reference;
-        formQuoteUpdate.quoted_price = row.formQuoteUpdate.quoted_price;
-        formQuoteUpdate.quoted_lead_time = row.formQuoteUpdate.quoted_lead_time;
-
-        formQuoteUpdate.put(url, {
-            preserveScroll: true,
-            onSuccess: () => {
-                console.log('success');
-
-                //Close all inputs
-                if(autoCloseAll){
-                    console.log("autoCloseAll because there's NO open input");
-                    showInputs.value = setupShowInputs();
-                }
-
-                //Clear current input selection
-                currentInputEditRow.value = null;
-            },
-            onError: errors => {
-                console.log('errors',errors);
-            },
-        });
     }
 
     function updateOrder(row){
         let url = route("orders.update",row.formOrderUpdate.order_id);
 
+        formOrderUpdate.order_id = row.formOrderUpdate.order_id;
         formOrderUpdate.purchase_order_number = row.formOrderUpdate.purchase_order_number;
         formOrderUpdate.material_cert_numbers = row.formOrderUpdate.material_cert_numbers;
 
         formOrderUpdate.put(url, {
             preserveScroll: true,
             onSuccess: () => {
-                console.log('success');
-
                 //Close all inputs
                 showInputs.value = setupShowInputs();
 
                 //Clear current input selection
                 currentInputEditRow.value = null;
-            },
-            onError: errors => {
-                console.log('errors',errors);
             },
         });
     }
@@ -211,64 +118,29 @@
     function quoteSentCheckbox(row){
         let url = route("quotes.update",row.formQuoteUpdate.quote_id);
 
-        formQuoteUpdate.batch_id = row.formQuoteUpdate.batch_id;
-        formQuoteUpdate.quote_sent = row.formQuoteUpdate.quote_sent === 0 ? false : true;
-        formQuoteUpdate.supplier_quote_reference = row.formQuoteUpdate.supplier_quote_reference;
-        formQuoteUpdate.quoted_price = row.formQuoteUpdate.quoted_price;
-        formQuoteUpdate.quoted_lead_time = row.formQuoteUpdate.quoted_lead_time;
+        //quote_sent is a real boolean on both sides of the wire now
+        formQuoteUpdate.quote_sent = row.formQuoteUpdate.quote_sent;
 
-        formQuoteUpdate.put(url, {
-            preserveScroll: true,
-            onSuccess: (page) => {
-                console.log('success',page);
-            },
-            onError: errors => {
-                console.log('errors',errors);
-            },
-        });
+        formQuoteUpdate.put(url, {preserveScroll: true});
     }
 
     function orderSentCheckbox(row){
         let url = route("order.sent",row.formOrderUpdate.batch_id);
 
         formOrderUpdate.order_id = row.formOrderUpdate.order_id;
-        formOrderUpdate.post(url, {
-            preserveScroll: true,
-            onSuccess: () => {
-                console.log('success');
-            },
-            onError: errors => {
-                console.log('errors',errors);
-            },
-        });
+        formOrderUpdate.post(url, {preserveScroll: true});
     }
 
     function deliveredCheckbox(row){
         let url = route("order.mark.delivered",row.formDelivered.order_id);
 
-        formDelivered.post(url, {
-            preserveScroll: true,
-            onSuccess: () => {
-                console.log('success');
-            },
-            onError: errors => {
-                console.log('errors',errors);
-            },
-        });
+        formDelivered.post(url, {preserveScroll: true});
     }
 
     function undoOrderSent(row){
         let url = route("order.undo.sent",row.formUndoOrderSent.order_id);
 
-        formUndoOrderSent.post(url, {
-            preserveScroll: true,
-            onSuccess: () => {
-                console.log('success');
-            },
-            onError: errors => {
-                console.log('errors',errors);
-            },
-        });
+        formUndoOrderSent.post(url, {preserveScroll: true});
     }
 
     function projectManagersApprovalBeforeOrderSent(row) {
@@ -279,14 +151,7 @@
             confirmLabel: "Yes, approved",
             cancelLabel: "Not yet",
             tone: "primary",
-            onConfirmed: () => {
-                row.formOrderUpdate.ordered_quote_id = row.formQuoteUpdate.quote_id;
-
-                orderSentCheckbox(row);
-            },
-            onCancelled: () => {
-                row.formOrderUpdate.ordered_quote_id = null;
-            },
+            onConfirmed: () => orderSentCheckbox(row),
         });
     }
 
@@ -385,15 +250,6 @@
                                 <div>
                                     Sent Quote
                                 </div>
-<!--                                <div>-->
-<!--                                    Price-->
-<!--                                </div>-->
-<!--                                <div>-->
-<!--                                    Lead time (days)-->
-<!--                                </div>-->
-<!--                                <div class="col-span-2">-->
-<!--                                    Quote reference-->
-<!--                                </div>-->
                                 <div>
                                     Sent order
                                 </div>
@@ -428,146 +284,16 @@
                                     <!-- formQuoteUpdate -->
                                     <input
                                         v-model="row.formQuoteUpdate.quote_sent"
-                                        :true-value="1"
-                                        :false-value="0"
                                         :disabled="shouldDisableQuoteSent(row)"
                                         :class="shouldDisableQuoteSent(row) ? 'bg-gray-300 checked:bg-gray-400 hover:checked:bg-gray-400' : ''"
                                         @change="quoteSentCheckbox(row)"
                                         type="checkbox"
                                     />
                                 </div>
-                                <!-- Price -->
-<!--                                <div class="pt-1">-->
-<!--                                    &lt;!&ndash; has quote details &ndash;&gt;-->
-<!--                                    <div v-if="showQuotedPrice(row.info.supplier.id)">-->
-<!--                                        &lt;!&ndash; formQuoteUpdate &ndash;&gt;-->
-<!--                                        <input-->
-<!--                                            v-model="row.formQuoteUpdate.quoted_price"-->
-<!--                                            type="number"-->
-<!--                                            class="w-full text-sm rounded"-->
-<!--                                            style="width:80px"-->
-<!--                                            min="1"-->
-<!--                                            max="99"-->
-<!--                                        />-->
-<!--                                        <div class="flex gap-x-1 justify-center">-->
-<!--                                            <template v-if="formQuoteUpdate.processing">-->
-<!--                                                <span class="text-xs text-green-500 font-bold">Saving...</span>-->
-<!--                                            </template>-->
-<!--                                            <template v-else>-->
-<!--                                                <button @click="updateQuote(row,true)" class="text-xs underline text-green-500 font-bold">Save</button>-->
-<!--                                                <button @click="hideInput()" class="text-xs underline">Cancel</button>-->
-<!--                                            </template>-->
-<!--                                        </div>-->
-<!--                                    </div>-->
-
-<!--                                    <template v-else>-->
-<!--                                        &lt;!&ndash; formQuoteUpdate &ndash;&gt;-->
-<!--                                        <button-->
-<!--                                            v-if="row.formQuoteUpdate.quoted_price"-->
-<!--                                            class="text-sm text-blue-500 underline italic"-->
-<!--                                            @click="toggleShowInput(row,'quoted_price')"-->
-<!--                                        >-->
-<!--                                            ${{ row.formQuoteUpdate.quoted_price.toFixed(2) }}-->
-<!--                                        </button>-->
-<!--                                        <button-->
-<!--                                            v-else-->
-<!--                                            class="text-xs text-blue-500 underline"-->
-<!--                                            @click="toggleShowInput(row,'quoted_price')"-->
-<!--                                        >-->
-<!--                                            Add-->
-<!--                                        </button>-->
-<!--                                    </template>-->
-<!--                                </div>-->
-
-<!--                                &lt;!&ndash; Lead time &ndash;&gt;-->
-<!--                                <div class="pt-1">-->
-<!--                                    <div v-if="showQuotedLeadTime(row.info.supplier.id)">-->
-<!--                                        &lt;!&ndash; formQuoteUpdate &ndash;&gt;-->
-<!--                                        <input-->
-<!--                                            v-model="row.formQuoteUpdate.quoted_lead_time"-->
-<!--                                            required-->
-<!--                                            type="number"-->
-<!--                                            class="w-full text-sm rounded"-->
-<!--                                            style="width:60px"-->
-<!--                                            min="1"-->
-<!--                                            max="99"-->
-<!--                                        />-->
-<!--                                        <div class="flex gap-x-1 justify-center">-->
-<!--                                            <template v-if="formQuoteUpdate.processing">-->
-<!--                                                <span class="text-xs text-green-500 font-bold">Saving...</span>-->
-<!--                                            </template>-->
-<!--                                            <template v-else>-->
-<!--                                                <button @click="updateQuote(row,true)" class="text-xs underline text-green-500 font-bold">Save</button>-->
-<!--                                                <button @click="hideInput()" class="text-xs underline">Cancel</button>-->
-<!--                                            </template>-->
-<!--                                        </div>-->
-<!--                                    </div>-->
-
-<!--                                    <template v-else>-->
-<!--                                        &lt;!&ndash; formQuoteUpdate &ndash;&gt;-->
-<!--                                        <button-->
-<!--                                            v-if="row.formQuoteUpdate.quoted_lead_time"-->
-<!--                                            class="text-sm text-blue-500 underline italic"-->
-<!--                                            @click="toggleShowInput(row,'quoted_lead_time')"-->
-<!--                                        >-->
-<!--                                            {{ row.formQuoteUpdate.quoted_lead_time }} days-->
-<!--                                        </button>-->
-<!--                                        <button-->
-<!--                                            v-else-->
-<!--                                            class="text-xs text-blue-500 underline"-->
-<!--                                            @click="toggleShowInput(row,'quoted_lead_time')"-->
-<!--                                        >-->
-<!--                                            Add-->
-<!--                                        </button>-->
-<!--                                    </template>-->
-<!--                                </div>-->
-<!--                                &lt;!&ndash; Quote reference &ndash;&gt;-->
-<!--                                <div class="col-span-2 pt-2">-->
-<!--                                    <div class="italic text-sm">-->
-<!--                                        &lt;!&ndash; formQuoteUpdate &ndash;&gt;-->
-<!--                                        <div v-if="showSupplierQuoteReference(row.info.supplier.id)">-->
-<!--                                            <input-->
-<!--                                                v-model="row.formQuoteUpdate.supplier_quote_reference"-->
-<!--                                                required-->
-<!--                                                type="text"-->
-<!--                                                class="w-full text-sm rounded"-->
-<!--                                                style="width:90px"-->
-<!--                                                minlength="1"-->
-<!--                                            />-->
-<!--                                            <div class="flex gap-x-1 justify-center">-->
-<!--                                                <template v-if="formQuoteUpdate.processing">-->
-<!--                                                    <span class="text-xs text-green-500 font-bold">Saving...</span>-->
-<!--                                                </template>-->
-<!--                                                <template v-else>-->
-<!--                                                    <button @click="updateQuote(row,true)" class="text-xs underline text-green-500 font-bold">Save</button>-->
-<!--                                                    <button @click="hideInput()" class="text-xs underline">Cancel</button>-->
-<!--                                                </template>-->
-<!--                                            </div>-->
-<!--                                        </div>-->
-
-<!--                                        &lt;!&ndash; formQuoteUpdate &ndash;&gt;-->
-<!--                                        <template v-else>-->
-<!--                                            <button-->
-<!--                                                v-if="row.formQuoteUpdate.supplier_quote_reference"-->
-<!--                                                class="text-sm text-blue-500 underline italic"-->
-<!--                                                @click="toggleShowInput(row,'supplier_quote_reference')"-->
-<!--                                            >-->
-<!--                                                {{ shared.cropText(row.formQuoteUpdate.supplier_quote_reference,8) }}-->
-<!--                                            </button>-->
-<!--                                            <button-->
-<!--                                                v-else-->
-<!--                                                class="text-xs text-blue-500 underline"-->
-<!--                                                @click="toggleShowInput(row,'supplier_quote_reference')"-->
-<!--                                            >-->
-<!--                                                Add-->
-<!--                                            </button>-->
-<!--                                        </template>-->
-<!--                                    </div>-->
-<!--                                </div>-->
                                 <!-- Sent order -->
                                 <div class="pt-1">
                                     <!-- formOrderUpdate -->
-                                    <template v-if="!showAddPurchaseOrder(row.info.supplier.id)">
+                                    <template v-if="!showAddPurchaseOrder(row.formOrderUpdate.order_id)">
                                         <input
                                             v-if="row.info.order_sent"
                                             @click="undoOrderSent(row)"
@@ -581,17 +307,17 @@
                                             @click.prevent="projectManagersApprovalBeforeOrderSent(row)"
                                             type="checkbox"
                                         />
+
+                                        <button
+                                            v-if="row.info.order_sent"
+                                            @click="toggleShowInput(row,'add_purchase_order')"
+                                            class="text-xs underline text-blue-500"
+                                        >
+                                            {{row.formOrderUpdate.purchase_order_number ? 'Edit PO number' :'Add PO number'}}
+                                        </button>
                                     </template>
 
-<!--                                    <button-->
-<!--                                        v-if="row.info.order_sent && !showAddPurchaseOrder(row.info.supplier.id)"-->
-<!--                                        @click="toggleShowInput(row,'add_purchase_order')"-->
-<!--                                        class="text-xs underline text-blue-500"-->
-<!--                                    >-->
-<!--                                        {{row.formOrderUpdate.purchase_order_number ? 'Edit PO number' :'Add PO number'}}-->
-<!--                                    </button>-->
-
-                                    <div v-if="showAddPurchaseOrder(row.info.supplier.id)">
+                                    <div v-if="showAddPurchaseOrder(row.formOrderUpdate.order_id)">
                                         <input
                                             v-model="row.formOrderUpdate.purchase_order_number"
                                             required
@@ -616,8 +342,6 @@
                                     <input
                                         v-if="row.info.order_sent"
                                         v-model="row.info.is_delivered"
-                                        :true-value="1"
-                                        :false-value="0"
                                         @change="deliveredCheckbox(row)"
                                         :disabled="row.info.is_delivered"
                                         type="checkbox"
@@ -627,7 +351,7 @@
                                 <!-- Certs -->
                                 <div class="col-span-1 pt-2">
                                     <div v-if="row.info.is_delivered" class="italic text-sm">
-                                        <div v-if="showCertNumbers(row.info.supplier.id)">
+                                        <div v-if="showCertNumbers(row.formOrderUpdate.order_id)">
                                             <input
                                                 v-model="row.formOrderUpdate.material_cert_numbers"
                                                 required
@@ -641,7 +365,7 @@
                                                     <span class="text-xs text-green-500 font-bold">Saving...</span>
                                                 </template>
                                                 <template v-else>
-                                                    <button @click="updateOrder(row,true)" class="text-xs underline text-green-500 font-bold">Save</button>
+                                                    <button @click="updateOrder(row)" class="text-xs underline text-green-500 font-bold">Save</button>
                                                     <button @click="hideInput()" class="text-xs underline">Cancel</button>
                                                 </template>
                                             </div>

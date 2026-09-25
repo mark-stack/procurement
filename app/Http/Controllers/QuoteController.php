@@ -102,6 +102,9 @@ class QuoteController extends Controller
 
         $validated = $request->validated();
 
+        //"boolean" accepts 1/0/"1"/"0" as well as true/false, so settle on the real thing once
+        $validated['quote_sent'] = $request->boolean('quote_sent');
+
         //Attempting to mark as sent
         if(!$quote->quote_sent && $validated['quote_sent']){
             $canMarkQuoteAsSent = (new PrerequisiteConditions())->markQuoteAsSent(
