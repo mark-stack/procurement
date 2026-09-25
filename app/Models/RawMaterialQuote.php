@@ -34,7 +34,8 @@ class RawMaterialQuote extends Model
         $sentQuotes = false;
 
         if ($piece) {
-            $orderedOrder = $piece->order ? $piece->order->order_sent === 1 : null;
+            //order_sent is cast to bool on the model, so the old "=== 1" would never have matched again
+            $orderedOrder = $piece->order ? $piece->order->order_sent : null;
 
             $sentQuotes = $piece->quotes()
                 ->where('quote_sent', true)

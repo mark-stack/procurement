@@ -109,13 +109,16 @@ class BatchService
         /**
          * Count total orders required for this batch.
          * Note: not all order objects are actually ordered, so count the unique supplier categories. e,g steel merchant, fasteners
+         *
+         * quote_id is nullable, so an order without a quote carries no supplier category and is not
+         * counted - reading through it unguarded was a fatal waiting for the first such order.
          */
-        $orders = $batch->orders;
-        $supplierCategories = [];
-        foreach ($orders as $order) {
-            $supplierCategories[] = $order->quote->supplier_category;
-        }
-
-        return count(array_unique($supplierCategories));
+        return $batch->orders()
+            ->with('quote:id,supplier_category')
+            ->get()
+            ->map(fn ($order) => $order->quote?->supplier_category)
+            ->filter()
+            ->unique()
+            ->count();
     }
 }

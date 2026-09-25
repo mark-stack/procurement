@@ -10,6 +10,7 @@ use App\Models\Quote;
 use App\Models\User;
 use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\BatchService;
+use Illuminate\Support\Facades\DB;
 
 class QuoteFormatter
 {
@@ -28,6 +29,7 @@ class QuoteFormatter
         $batchService = new BatchService;
         $nestingFormatter = new NestingFormatter();
         $supplierService = new SupplierFormatter;
+        $prerequisiteConditions = new PrerequisiteConditions();
 
         $supplierGroupCards = [];
 
@@ -46,8 +48,17 @@ class QuoteFormatter
          */
         $supplierGroupsAvailableToBusiness = $supplierService->supplierGroupsAvailableToBusiness($business);
 
+        /*
+         * Sent quotes per supplier group, in one query rather than one per group. Provisioning below
+         * only ever inserts quote_sent = false rows, so this stays correct for the whole render.
+         */
+        $sentQuoteCountsByGroup = $batch->quotes()
+            ->where('quote_sent', true)
+            ->selectRaw('supplier_category, count(*) as aggregate')
+            ->groupBy('supplier_category')
+            ->pluck('aggregate', 'supplier_category');
+
         //4B) get list of required supplier groups for this batch (note business might not have all suppliers added yet)
-        $requiredSupplierGroups = [];
         foreach ($piecesGroupedBySupplierGroup['assigned'] as $supplierGroup => $includedProducts) {
             //Business has a supplier for this supplier group
             if (isset($supplierGroupsAvailableToBusiness[$supplierGroup])) {
@@ -63,28 +74,33 @@ class QuoteFormatter
                 $suppliers = $supplierService->suppliersForSupplierGroup($supplierGroup, $business);
 
                 foreach ($suppliers as $supplier) {
-                    $quote = Quote::query()
-                        ->where('batch_id', $batch->id)
-                        ->where('supplier_id', $supplier->id)
-                        ->where('supplier_category', $supplierGroup)
-                        ->first();
-
-                    //Need to Create
-                    if (! $quote) {
-                        $quote = Quote::create(
+                    /*
+                     * Quotes and orders are provisioned lazily, on a GET, the first time a supplier
+                     * appears on this page. That used to be a lookup followed by a create, so two
+                     * concurrent loads could both miss and both insert. firstOrCreate plus the unique
+                     * indexes from 2026_09_25_150000 makes the loser of the race read the winner's row.
+                     */
+                    $quote = DB::transaction(function () use ($batch, $supplier, $supplierGroup, $user) {
+                        $quote = Quote::firstOrCreate(
                             [
                                 'batch_id' => $batch->id,
                                 'supplier_id' => $supplier->id,
                                 'supplier_category' => $supplierGroup,
+                            ],
+                            [
                                 'user_id' => $user->id,
                                 'supplier_quote_reference' => null,
                                 'quote_sent' => false,
                             ]
                         );
 
-                        //Attach pieces to quote
-                        AttachPiecesToQuote::run($batch, $quote);
-                    }
+                        //Attach pieces to quote - only the load that actually created it
+                        if ($quote->wasRecentlyCreated) {
+                            AttachPiecesToQuote::run($batch, $quote);
+                        }
+
+                        return $quote;
+                    });
 
                     $order = Order::firstOrCreate(
                         [
@@ -98,34 +114,46 @@ class QuoteFormatter
                         ]
                     );
 
+                    /*
+                     * Hand the prerequisites the batch and order we already have. Walking $quote->batch
+                     * reloaded the batch once per quote, and each fresh instance re-ran the project
+                     * lookup its conditions memoise - four times per row.
+                     */
+                    $quote->setRelation('batch', $batch);
+                    $quote->setRelation('order', $order);
+
                     $rows[] = [
                         'info' => [
                             'supplier' => $supplier,
                             'order_sent' => $order->order_sent,
                             "is_delivered" => $order->is_delivered,
                         ],
+                        /*
+                         * Only what the page reads. The price / lead time / quote reference columns
+                         * were commented out of the template, and shipping their values as form state
+                         * meant every quote save wrote them back over themselves.
+                         */
                         'formQuoteUpdate' => [
-                            'batch_id' => $batch->id,
                             'quote_id' => $quote->id,
                             'quote_sent' => $quote->quote_sent,
-                            'supplier_quote_reference' => $quote->supplier_quote_reference,
-                            'quoted_price' => $quote->quoted_price,
-                            'quoted_lead_time' => $quote->quoted_lead_time,
-                            "canMarkQuoteAsSent" => (new PrerequisiteConditions())->markQuoteAsSent(
+                            "canMarkQuoteAsSent" => $prerequisiteConditions->markQuoteAsSent(
                                 $user,
                                 $quote,
                             ),
-                            "canUndoMarkQuoteAsSent" => (new PrerequisiteConditions())->undoMarkQuoteAsSent(
+                            "canUndoMarkQuoteAsSent" => $prerequisiteConditions->undoMarkQuoteAsSent(
                                 $user,
                                 $quote,
                             ),
                         ],
+                        /*
+                         * Every field here is this row's own order. purchase_order_number used to be
+                         * read off the group's sent order, so saving certs on a row wrote another
+                         * order's PO number onto it - or blanked it when nothing was sent yet.
+                         */
                         'formOrderUpdate' => [
                             'batch_id' => $batch->id,
                             'order_id' => $order->id,
-                            'supplier_group' => $supplierGroup,
-                            'ordered_quote_id' => $orderOfSupplierGroup ? $orderOfSupplierGroup->quote->id : null,
-                            'purchase_order_number' => $orderOfSupplierGroup ? $orderOfSupplierGroup->purchase_order_number : null,
+                            'purchase_order_number' => $order->purchase_order_number,
                             "material_cert_numbers" => $order->material_cert_numbers,
                         ],
                         'formUndoOrderSent' => [
@@ -143,12 +171,9 @@ class QuoteFormatter
                         'supplierGroup' => $supplierGroup,
                         'batchGroup' => $piecesGroupedBySupplierGroup['assigned'][$supplierGroup],
                         'includedProducts' => $includedProductsString,
-                        'qtyQuotes' => $batch->quotes()
-                            ->where('supplier_category', $supplierGroup)
-                            ->where('quote_sent', true)
-                            ->count(),
+                        'qtyQuotes' => (int) ($sentQuoteCountsByGroup[$supplierGroup] ?? 0),
                         'order' => $orderOfSupplierGroup,
-                        'purchaseOrderNumber' => $orderOfSupplierGroup ? $orderOfSupplierGroup->purchase_order_number : null,
+                        'purchaseOrderNumber' => $orderOfSupplierGroup?->purchase_order_number,
                     ],
                     'rows' => $rows,
                 ];

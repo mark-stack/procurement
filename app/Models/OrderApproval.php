@@ -9,6 +9,13 @@ class OrderApproval extends Model
 {
     protected $guarded = [];
 
+    protected function casts(): array
+    {
+        return [
+            'project_manager_approved' => 'boolean',
+        ];
+    }
+
     //Relationships
     public function batch(): BelongsTo
     {

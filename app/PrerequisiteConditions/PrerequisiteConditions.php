@@ -3,7 +3,6 @@
 namespace App\PrerequisiteConditions;
 
 use App\Models\Batch;
-use App\Models\Business;
 use App\Models\Project;
 use App\Models\Quote;
 use App\Models\User;
@@ -108,21 +107,30 @@ class PrerequisiteConditions
         }
 
         //4) ORDER: no order sent
-        $condition_4 = $batch->orders()->where("order_sent")->count() === 0;
+        //A single-argument where() compiles to "order_sent is null", and the column is a non-nullable
+        //boolean - so this counted 0 every time and let a batch be unwound after it had been ordered
+        $condition_4 = $batch->orders()->where("order_sent", true)->count() === 0;
 
         //5) OFFCUT: Are your offcuts being released
+        //6) OFFCUT: "allocated_to" is this batch (released from)
+        //One pass for both - batchTo() is a Batch::find, so checking them separately doubled the queries
         $condition_5 = true;
+        $condition_6 = true;
         foreach($offcutsAssignedToThisBatch as $offcut){
-            $businessOwnership = $offcut->batchTo()->user->business->id === $user->business->id;
+            //batchTo() is nullable, and a released offcut with no destination belongs to nobody
+            $batchTo = $offcut->batchTo();
+            if(!$batchTo){
+                $condition_5 = false;
+                $condition_6 = false;
+                continue;
+            }
+
+            $businessOwnership = $batchTo->user->business->id === $user->business->id;
             if(!$businessOwnership){
                 $condition_5 = false;
             }
-        }
 
-        //6) OFFCUT: "allocated_to" is this batch (released from)
-        $condition_6 = true;
-        foreach($offcutsAssignedToThisBatch as $offcut){
-            $batchOwnership = $offcut->batchTo()->id === $batch->id;
+            $batchOwnership = $batchTo->id === $batch->id;
             if(!$batchOwnership){
                 $condition_6 = false;
             }
@@ -132,7 +140,7 @@ class PrerequisiteConditions
         $condition_7 = true;
         foreach($batch->pieces as $piece){
             if($piece->batch->id !== $batch->id){
-                $condition_4 = false;
+                $condition_7 = false;
             }
         }
 
@@ -182,129 +190,74 @@ class PrerequisiteConditions
             $condition_3 &&
             $condition_4;
     }
-    public function archiveProject(): bool
-    {
-
-    }
-
-    public function undoArchiveProject(): bool
-    {
-
-    }
-
     public function markQuoteAsSent(User $user, Quote $quote): bool
     {
-        /**
-         * 1) BUSINESS: is your business
-         * 2) USER: you're a PM on at least 1 project
-         * 3) PROJECT: project is not archived
-         * 4) QUOTE: quote is not sent
-         * 5) ORDER: order not sent
-         * 6) ORDER: order not delivered
-         */
-
-        //1) BUSINESS: is your business
-        $condition_1 = $quote->user->business->id === $user->business->id;
-
-        //2) USER: You're a PM on at least 1 project
-        $condition_2 = true;
-        foreach($quote->batch->projects() as $project){
-            if($project->user->id !== $user->id){
-                $condition_2 = false;
-            }
-        }
-
-        //3) PROJECT: all projects not archived
-        $condition_3 = true;
-        foreach($quote->batch->projects() as $project){
-            if($project->archive){
-                $condition_3 = false;
-            }
-        }
-
         //4) QUOTE: quote is not sent
-        $condition_4 = !$quote->quote_sent;
-
-        //5) ORDER: order not sent
-        $condition_5 = !$quote->order->order_sent;
-
-        //6) ORDER: order not delivered
-        $condition_6 = !$quote->order->is_delivered;
-
-        return
-            $condition_1 &&
-            $condition_2 &&
-            $condition_3 &&
-            $condition_4 &&
-            $condition_5 &&
-            $condition_6;
+        return $this->canChangeQuoteSentState($user, $quote) && ! $quote->quote_sent;
     }
 
     public function undoMarkQuoteAsSent(User $user, Quote $quote): bool
     {
+        //4) QUOTE: quote is sent
+        return $this->canChangeQuoteSentState($user, $quote) && $quote->quote_sent;
+    }
+
+    private function canChangeQuoteSentState(User $user, Quote $quote): bool
+    {
         /**
+         * Everything markQuoteAsSent and undoMarkQuoteAsSent share. Only condition 4 differs between
+         * them, and keeping two copies is how condition 2 came to contradict its own description in
+         * both of them.
+         *
          * 1) BUSINESS: is your business
          * 2) USER: you're a PM on at least 1 project
          * 3) PROJECT: project is not archived
-         * 4) QUOTE: quote is sent
          * 5) ORDER: order not sent
          * 6) ORDER: order not delivered
          */
+        $batch = $quote->batch;
+        $order = $quote->order;
+
+        //Both are optional on a quote, and conditions 2, 3, 5 and 6 all need them
+        if (! $batch || ! $order) {
+            return false;
+        }
 
         //1) BUSINESS: is your business
         $condition_1 = $quote->user->business->id === $user->business->id;
 
-        //2) USER: You're a PM on at least 1 project
-        $condition_2 = true;
-        foreach($quote->batch->projects() as $project){
-            if($project->user->id !== $user->id){
-                $condition_2 = false;
+        /*
+         * 2) USER: You're a PM on at least 1 project
+         * This read "set false unless you own every project", which deadlocked any batch spanning two
+         * project managers - nobody could mark a quote sent. startQuoting spells the same sentence the
+         * other way round, and that is the one that matches the description.
+         */
+        $condition_2 = false;
+        foreach($batch->projectApprovalFlags() as $project){
+            if($project->user_id === $user->id){
+                $condition_2 = true;
             }
         }
 
         //3) PROJECT: all projects not archived
         $condition_3 = true;
-        foreach($quote->batch->projects() as $project){
+        foreach($batch->projectApprovalFlags() as $project){
             if($project->archive){
                 $condition_3 = false;
             }
         }
 
-        //4) QUOTE: quote is sent
-        $condition_4 = $quote->quote_sent;
-
         //5) ORDER: order not sent
-        $condition_5 = !$quote->order->order_sent;
+        $condition_5 = !$order->order_sent;
 
         //6) ORDER: order not delivered
-        $condition_6 = !$quote->order->is_delivered;
+        $condition_6 = !$order->is_delivered;
 
         return
             $condition_1 &&
             $condition_2 &&
             $condition_3 &&
-            $condition_4 &&
             $condition_5 &&
             $condition_6;
-    }
-
-    public function markOrderAsSent(): bool
-    {
-
-    }
-
-    public function undoMarkOrderAsSent(): bool
-    {
-
-    }
-
-    public function markOrderAsDelivered(): bool
-    {
-
-    }
-
-    public function markBatchAsComplete(): bool
-    {
-
     }
 }
