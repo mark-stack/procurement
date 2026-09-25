@@ -1,6 +1,6 @@
 <script setup>
     //General Imports
-    import {ref} from "vue";
+    import {computed, ref} from "vue";
 
     //Component Imports
     import ListPurchasables from "@/Components/ListPurchasables.vue";
@@ -31,6 +31,15 @@
 
     //Variables
     const selectedSupplierGroup = ref(props.currentSupplierGroup);
+
+    //A nest with no meterage in it (bolts only, say) has nothing to report here
+    const meterageUsage = computed(() => props.usage?.METERAGE ?? {
+        totalPurchasedMaterial: 0,
+        totalUsedMaterial: 0,
+        totalReusable: 0,
+        totalScrap: 0,
+        efficiency: 0,
+    });
 
 
     //Shared Methods
@@ -100,11 +109,11 @@
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td>{{ (usage.METERAGE.totalPurchasedMaterial/1000).toLocaleString() }}m</td>
-                                    <td>{{ (usage.METERAGE.totalUsedMaterial/1000).toLocaleString() }}m</td>
-                                    <td>{{ (usage.METERAGE.totalReusable/1000).toLocaleString() }}m</td>
-                                    <td>{{ (usage.METERAGE.totalScrap/1000).toLocaleString() }}m</td>
-                                    <td>{{ usage.METERAGE.efficiency }}%</td>
+                                    <td>{{ (meterageUsage.totalPurchasedMaterial/1000).toLocaleString() }}m</td>
+                                    <td>{{ (meterageUsage.totalUsedMaterial/1000).toLocaleString() }}m</td>
+                                    <td>{{ (meterageUsage.totalReusable/1000).toLocaleString() }}m</td>
+                                    <td>{{ (meterageUsage.totalScrap/1000).toLocaleString() }}m</td>
+                                    <td>{{ meterageUsage.efficiency }}%</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -175,9 +184,7 @@
                                         <template v-for="bar in item.nested.orderList">
                                             <VisualOrderList
                                                 :stockLength="bar.result"
-                                                :pieces="bar.result.pieces"
                                                 :measurementUnit="item.nominal_units"
-                                                :waste="bar.result.waste"
                                                 :qty="bar.count"
                                             />
                                         </template>

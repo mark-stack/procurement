@@ -295,11 +295,136 @@ it("would be a disaster if offcut of an offcut didn't work", function () {
     expect($offcuts[2]->batch_to_id)->toBeNull();
 });
 
-it('would be a disaster if using offcuts that belong to another company', function () {});
+it('would be a disaster if using offcuts that belong to another company', function () {
+    /*
+     * Create admin & seed materials
+     */
+    $adminBusiness = createBusiness('admin', true);
+    $adminUser = createUser(1, $adminBusiness, true, true);
+    $this->actingAs($adminUser);
+    $this->get(route('admin.update.master.materials.spreadsheet'));
+
+    /*
+     * Business #1 has a delivered batch with a 9,000mm offcut sitting in its inventory
+     */
+    $business1 = createBusiness('biz1', true);
+    $user1 = createUser(2, $business1, false, true);
+    $this->actingAs($user1);
+
+    $batchFrom = Batch::factory()->forUser($user1->id)->create();
+    $deliveredQuote = Quote::create([
+        'user_id' => $user1->id,
+        'batch_id' => $batchFrom->id,
+        'supplier_id' => null,
+        'supplier_category' => "STEEL_MERCHANT",
+        'supplier_quote_reference' => null,
+        'quote_sent' => true,
+        'quoted_price' => null,
+        'quoted_lead_time' => null,
+    ]);
+    Order::create([
+        'user_id' => $user1->id,
+        'batch_id' => $batchFrom->id,
+        'supplier_id' => null,
+        'quote_id' => $deliveredQuote->id,
+        'order_sent' => true,
+        'order_confirmation_received' => true,
+        'purchase_order_number' => "123",
+        'is_delivered' => true,
+        "material_cert_numbers" => null,
+    ]);
+    create_offcut_200PFC(9000, $batchFrom->id);
+
+    //It really is available to its owner
+    expect($business1->availableOffcuts()->count())->toEqual(1);
+
+    /*
+     * Business #2 nests pieces that would fit that offcut perfectly
+     */
+    $business2 = createBusiness('biz2', true);
+    $user2 = createUser(3, $business2, false, true);
+    $this->actingAs($user2);
+    $project2 = createProject($user2);
+
+    $dataClassificationService = new dataClassificationService;
+    $sampleBOM = sampleBOM($project2, $dataClassificationService, nestingTestCases()[0]['nest']);
+    createPieces($sampleBOM, $project2, $dataClassificationService);
+
+    //Another company's offcut is not inventory this business can nest into
+    expect($business2->availableOffcuts()->count())->toEqual(0);
+
+    $response = $this->get(route('suggested.nesting'));
+    $response->assertStatus(200);
+    $response->assertInertia(fn (Assert $page) => $page
+        ->count('pieces.METERAGE.0.nested.bestResultOffcuts.utilisedOffcutBars', 0)
+    );
+});
 
 it('would be a disaster if offcuts not added to inventory', function () {});
 
-it('would be a disaster if using an offcut twice in the same project', function () {});
+it('would be a disaster if using an offcut twice in the same project', function () {
+    /**
+     * An offcut is a physical bar - once its length is spoken for it cannot be handed to a second
+     * bar in the same nest.
+     */
+    //Create admin & seed materials
+    $adminBusiness = createBusiness('admin', true);
+    $adminUser = createUser(1, $adminBusiness, true, true);
+    $this->actingAs($adminUser);
+    $this->get(route('admin.update.master.materials.spreadsheet'));
+
+    //Business with a delivered batch and three offcuts available
+    $business = createBusiness('biz', true);
+    $user = createUser(2, $business, false, true);
+    $this->actingAs($user);
+
+    $batchFrom = Batch::factory()->forUser($user->id)->create();
+    $deliveredQuote = Quote::create([
+        'user_id' => $user->id,
+        'batch_id' => $batchFrom->id,
+        'supplier_id' => null,
+        'supplier_category' => "STEEL_MERCHANT",
+        'supplier_quote_reference' => null,
+        'quote_sent' => true,
+        'quoted_price' => null,
+        'quoted_lead_time' => null,
+    ]);
+    Order::create([
+        'user_id' => $user->id,
+        'batch_id' => $batchFrom->id,
+        'supplier_id' => null,
+        'quote_id' => $deliveredQuote->id,
+        'order_sent' => true,
+        'order_confirmation_received' => true,
+        'purchase_order_number' => "123",
+        'is_delivered' => true,
+        "material_cert_numbers" => null,
+    ]);
+    foreach ([3000, 3000, 3000] as $length) {
+        create_offcut_200PFC($length, $batchFrom->id);
+    }
+
+    //Pieces that could each be cut from any of those offcuts
+    $project = createProject($user);
+    $dataClassificationService = new dataClassificationService;
+    $sampleBOM = sampleBOM($project, $dataClassificationService, [[2500, 5], [1500, 2]]);
+    createPieces($sampleBOM, $project, $dataClassificationService);
+
+    $response = $this->get(route('suggested.nesting'));
+    $response->assertStatus(200);
+
+    $utilisedOffcutBars = $response->viewData('page')['props']['pieces']['METERAGE'][0]
+        ->nested['bestResultOffcuts']['utilisedOffcutBars'];
+
+    //Every offcut used is a different physical offcut
+    $offcutIds = array_map(fn ($bar) => $bar['sourceOffcut']['offcutId'], $utilisedOffcutBars);
+    expect($offcutIds)->toEqual(array_unique($offcutIds));
+
+    //And none is cut past its own length
+    foreach ($utilisedOffcutBars as $bar) {
+        expect($bar['sourceOffcut']['cutLength'])->toBeLessThanOrEqual($bar['sourceOffcut']['offcutLength']);
+    }
+});
 
 it("would be a disaster if a cancelled order doesn't release offcuts back to available status", function () {});
 

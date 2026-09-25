@@ -21,14 +21,19 @@ class SaveNesting
         //Letter-project array
         $lettersProjectArray = $nestingFormatter->getLetterProjectArray($piecesReadyForBatching);
 
-        //Pieces nested
+        /*
+         * Pieces nested.
+         *
+         * This re-runs the nest the user was shown on the "suggested nesting" screen. It matches what
+         * they approved because meterageAlgorithm() seeds its randomiser from the pieces themselves.
+         */
         $piecesNested = $nestingFormatter->piecesNested($piecesReadyForBatching, $lettersProjectArray, $business);
 
-        //Create bars, offcuts, and store nested state
-        $meterageNesting = $piecesNested["METERAGE"] ?? collect([]);
-        CreateBarsAndOffcuts::run($meterageNesting, $batch);
-
-        //Assign offcuts to batch
-        AssignOffcutsToBatch::run($meterageNesting, $batch);
+        /*
+         * Create bars and offcuts, assign source offcuts to this batch, and store the nested state.
+         * Only meterage produces bars and offcuts, but every algo is persisted so the batch view shows
+         * the same materials the suggestion did.
+         */
+        CreateBarsAndOffcuts::run($piecesNested, $batch);
     }
 }

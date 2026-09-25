@@ -27,7 +27,7 @@ class PastProjectsController extends Controller
                 "id" => $pastBatch->id,
                 "createdAt" => Carbon::parse($pastBatch->created_at)->diffForHumans(),
                 "projectManager" => $pastBatch->user->name,
-                "nestingData" => unserialize($pastBatch->nested_state), //todo refactor this to collecting 'BAR' and 'OFFCUT' items
+                "nestingData" => $pastBatch->nested_state, //todo refactor this to collecting 'BAR' and 'OFFCUT' items
                 "projects" => $pastBatch->projects(),
                 "ordersQty" => $pastBatch->orders()->count(),
             ];

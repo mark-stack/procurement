@@ -59,9 +59,7 @@
                 <template v-for="bar in item.nested.orderList">
                     <VisualOrderList
                         :stockLength="bar.result"
-                        :pieces="bar.result.pieces"
                         :measurementUnit="item.nominal_units"
-                        :waste="bar.result.waste"
                         :qty="bar.count"
                     />
                 </template>

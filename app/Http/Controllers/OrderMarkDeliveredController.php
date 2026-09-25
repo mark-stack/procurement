@@ -14,11 +14,10 @@ class OrderMarkDeliveredController extends Controller
         Gate::authorize('owned', $order);
 
         //Mark delivered
+        //Offcuts are created up front by Actions/Bar/CreateBarsAndOffcuts when the batch is nested;
+        //delivery only decides whether they count as available (see Business::availableOffcuts)
         $order->is_delivered = !$order->is_delivered;
         $order->save();
-
-        //Generate offcuts
-        //GenerateOffcuts::run($order->batch);
 
         return back();
     }

@@ -24,7 +24,8 @@ class BatchController extends Controller
 
     public function store(Request $request)
     {
-        dd($request->all());
+        //Batches are created by QuoteController::store when a user starts quoting
+        abort(404);
     }
 
     public function show(Batch $batch)

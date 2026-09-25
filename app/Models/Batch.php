@@ -2,20 +2,32 @@
 
 namespace App\Models;
 
+use App\Casts\NestedState;
 use App\Formatters\SupplierFormatter;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 
+/**
+ * @property array<string, array<int, object>> $nested_state The saved nesting, keyed by nesting algo
+ */
 class Batch extends Model
 {
     /** @use HasFactory<\Database\Factories\BatchFactory> */
     use HasFactory;
 
     protected $guarded = [];
+
+    protected function casts(): array
+    {
+        return [
+            'nested_state' => NestedState::class,
+        ];
+    }
 
     //Relationships
     public function pieces(): HasMany
@@ -46,7 +58,7 @@ class Batch extends Model
     }
 
     //Collection
-    public function projects(): Collection
+    public function projects(): EloquentCollection
     {
         $pieces = $this->pieces;
         $projectIds = [];
@@ -78,7 +90,9 @@ class Batch extends Model
 
     public function scrap(): Collection
     {
-
+        //todo scrap is not tracked as its own record yet - see the per-bar scrap totals in
+        //NestingFormatter::singleRun, which are what the nesting screens report
+        return collect([]);
     }
 
     public function newStockOrdersWithCertificates(): Collection

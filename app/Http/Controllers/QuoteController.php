@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Actions\Batch\RemoveOffcutsFromInventory;
 use App\Actions\Batch\SaveNesting;
 use App\Actions\OrderApproval\CreatePendingOrderApprovals;
 use App\Actions\Piece\AttachPiecesToBatch;
@@ -14,8 +13,9 @@ use App\Models\Quote;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Exception;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class QuoteController extends Controller
 {
@@ -39,7 +39,7 @@ class QuoteController extends Controller
 
         //Prerequisites
         $piecesReadyForBatching = (new NestingFormatter())->piecesReadyForBatching($business);
-        $projectsReadyForBatching = $business->projectsReadyForBatching($piecesReadyForBatching,$business); //Note get this before updating pieces because it gets modified
+        $projectsReadyForBatching = $business->projectsReadyForBatching($piecesReadyForBatching); //Note get this before updating pieces because it gets modified
 
         //Prerequisite conditions
         $prerequisiteStartQuoting = (new PrerequisiteConditions())->startQuoting(
@@ -68,9 +68,19 @@ class QuoteController extends Controller
                 //Save the current nesting state (points offcuts to new batch)
                 SaveNesting::run($piecesReadyForBatching, $batch, $business);
             });
-        } catch (Exception $e) {
-            //dd($e->getMessage());
-            //todo throw an error
+        } catch (Throwable $e) {
+            /*
+             * The transaction rolled back, so no batch exists. Say so - redirecting silently made a
+             * failed "start quoting" look identical to a successful one.
+             */
+            Log::error('Failed to start quoting', [
+                'user_id' => $user->id,
+                'exception' => $e,
+            ]);
+
+            return back()->withErrors([
+                'batch' => 'Could not start quoting. The nesting was not saved, so nothing has changed.',
+            ]);
         }
 
         return back();

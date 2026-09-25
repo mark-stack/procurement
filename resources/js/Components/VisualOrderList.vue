@@ -7,10 +7,8 @@
 
     //Props
     const props = defineProps({
-        stockLength: String,
-        pieces: Array,
+        stockLength: Number,
         measurementUnit: String,
-        waste: Number,
         qty: Number,
     });
 

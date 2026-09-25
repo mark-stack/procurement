@@ -2,6 +2,7 @@
 
 namespace App\Actions\Bar;
 
+use App\Enums\NestingEnums;
 use App\Formatters\UniqueLetterIDGenerator;
 use App\Models\Bar;
 use App\Models\Batch;
@@ -14,11 +15,16 @@ class CreateBarsAndOffcuts
 {
     use AsAction;
 
-    public function handle(Collection $meterageNesting, Batch $batch): void
+    public function handle(array $piecesNested, Batch $batch): void
     {
         /**
          * Create bars and offcuts
+         *
+         * Only meterage has bars and offcuts, but the whole nest is serialised so that bundle and area
+         * materials survive onto the batch too.
          */
+        $meterageNesting = $piecesNested[NestingEnums::METERAGE->value] ?? collect([]);
+
         if($meterageNesting->count() > 0){
             foreach($meterageNesting as $index => $product){
                 /*
@@ -28,6 +34,13 @@ class CreateBarsAndOffcuts
                 foreach($utilisedBars as $indexUtilisedBar => $utilisedBar){
                     $unused = $utilisedBar["result"]["unused"];
                     $threshold = $utilisedBar["result"]["scrap_threshold_mm"];
+
+                    /*
+                     * "count" identical bars each produce their own offcut, so collect every id rather
+                     * than writing one key that each pass overwrites.
+                     */
+                    $offcutIds = [];
+                    $uniqueMarks = [];
 
                     for ($i = 1; $i <= $utilisedBar["count"]; $i++) {
                         /*
@@ -88,10 +101,19 @@ class CreateBarsAndOffcuts
                                 "unique_mark" => $uniqueMark,
                             ]);
 
-                            //Add ID to serialised nesting data
-                            $meterageNesting[$index]->nested["utilisedBars"][$indexUtilisedBar]["result"]["offcut_id"] = $offcut->id;
-                            $meterageNesting[$index]->nested["utilisedBars"][$indexUtilisedBar]["result"]["unique_mark"] = $uniqueMark;
+                            $offcutIds[] = $offcut->id;
+                            $uniqueMarks[] = $uniqueMark;
                         }
+                    }
+
+                    //Add IDs to serialised nesting data
+                    if(count($offcutIds) > 0){
+                        $nested = $meterageNesting[$index]->nested;
+                        $nested["utilisedBars"][$indexUtilisedBar]["result"]["offcut_id"] = $offcutIds[0];
+                        $nested["utilisedBars"][$indexUtilisedBar]["result"]["offcut_ids"] = $offcutIds;
+                        $nested["utilisedBars"][$indexUtilisedBar]["result"]["unique_mark"] = $uniqueMarks[0];
+                        $nested["utilisedBars"][$indexUtilisedBar]["result"]["unique_marks"] = $uniqueMarks;
+                        $meterageNesting[$index]->nested = $nested;
                     }
                 }
 
@@ -153,16 +175,29 @@ class CreateBarsAndOffcuts
                             ]);
 
                             //Add ID to serialised nesting data
-                            $meterageNesting[$index]->nested["bestResultOffcuts"]["utilisedOffcutBars"][$indexOffcut]["offcutFromOffcut"]["offcut_of_offcut_id"] = $offcutOfOffcut->id;
-                            $meterageNesting[$index]->nested["bestResultOffcuts"]["utilisedOffcutBars"][$indexOffcut]["offcutFromOffcut"]["unique_mark"] = $uniqueMark;
+                            $nested = $meterageNesting[$index]->nested;
+                            $nested["bestResultOffcuts"]["utilisedOffcutBars"][$indexOffcut]["offcutFromOffcut"]["offcut_of_offcut_id"] = $offcutOfOffcut->id;
+                            $nested["bestResultOffcuts"]["utilisedOffcutBars"][$indexOffcut]["offcutFromOffcut"]["unique_mark"] = $uniqueMark;
+                            $meterageNesting[$index]->nested = $nested;
                         }
                     }
                 }
             }
         }
 
-        //Save nested_state as serialized data
-        $batch->nested_state = serialize(["METERAGE" => $meterageNesting->toArray()]);
+        /*
+         * Save nested_state (the NestedState cast encodes it as JSON).
+         * Every algo is kept, not just meterage, so bundle and area materials stay visible on the batch.
+         */
+        $nestedState = [];
+        foreach($piecesNested as $algo => $items){
+            $nestedState[$algo] = $items instanceof Collection
+                ? $items->toArray()
+                : $items;
+        }
+        $nestedState[NestingEnums::METERAGE->value] = $meterageNesting->toArray();
+
+        $batch->nested_state = $nestedState;
         $batch->save();
     }
 }

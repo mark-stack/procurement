@@ -31,8 +31,10 @@ return [
     |
     */
 
+    //Logged rather than discarded: a silent deprecation channel hid a float-array-key bug in the
+    //nesting optimiser for as long as it existed
     'deprecations' => [
-        'channel' => env('LOG_DEPRECATIONS_CHANNEL', 'null'),
+        'channel' => env('LOG_DEPRECATIONS_CHANNEL', 'stack'),
         'trace' => env('LOG_DEPRECATIONS_TRACE', false),
     ],
 

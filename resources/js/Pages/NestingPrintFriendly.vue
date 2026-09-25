@@ -1,6 +1,6 @@
 <script setup>
     //General Imports
-    import {ref} from "vue";
+    import {computed, ref} from "vue";
     import { useVueToPrint } from "vue-to-print";
 
     //Component Imports
@@ -34,6 +34,15 @@
     //Variables
     const printPreview = ref(true);
     const pageHeightPixels = getPageHeightPixels();
+
+    //A nest with no meterage in it (bolts only, say) has nothing to report here
+    const meterageUsage = computed(() => props.usage?.METERAGE ?? {
+        totalPurchasedMaterial: 0,
+        totalUsedMaterial: 0,
+        totalReusable: 0,
+        totalScrap: 0,
+        efficiency: 0,
+    });
 
     //Shared Methods
     //...
@@ -258,11 +267,11 @@
                             <th>Efficiency</th>
                         </tr>
                         <tr>
-                            <td>{{ (usage.METERAGE.totalPurchasedMaterial/1000).toLocaleString() }}m</td>
-                            <td>{{ (usage.METERAGE.totalUsedMaterial/1000).toLocaleString() }}m</td>
-                            <td>{{ (usage.METERAGE.totalReusable/1000).toLocaleString() }}m</td>
-                            <td>{{ (usage.METERAGE.totalScrap/1000).toLocaleString() }}m</td>
-                            <td>{{ usage.METERAGE.efficiency }}%</td>
+                            <td>{{ (meterageUsage.totalPurchasedMaterial/1000).toLocaleString() }}m</td>
+                            <td>{{ (meterageUsage.totalUsedMaterial/1000).toLocaleString() }}m</td>
+                            <td>{{ (meterageUsage.totalReusable/1000).toLocaleString() }}m</td>
+                            <td>{{ (meterageUsage.totalScrap/1000).toLocaleString() }}m</td>
+                            <td>{{ meterageUsage.efficiency }}%</td>
                         </tr>
                     </table>
                 </div>

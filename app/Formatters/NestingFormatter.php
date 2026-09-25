@@ -13,6 +13,8 @@ use App\Models\Piece;
 use App\Models\Product;
 use App\Services\ProductService;
 use Illuminate\Support\Collection;
+use Random\Engine\Mt19937;
+use Random\Randomizer;
 
 class NestingFormatter
 {
@@ -381,7 +383,19 @@ class NestingFormatter
          * Sums of material totals, usage, and waste
          */
 
-        $result = [];
+        /*
+         * Always report a meterage block, even when nothing in this nest is meterage (a bolts-only
+         * batch, say). Both checks() and the nesting screens read usage.METERAGE unconditionally.
+         */
+        $result = [
+            NestingEnums::METERAGE->value => [
+                'totalPurchasedMaterial' => 0,
+                'totalUsedMaterial' => 0,
+                "totalReusable" => 0,
+                "totalScrap" => 0,
+                'efficiency' => 0,
+            ],
+        ];
 
         //Loop different supplier groups. e.g "steel merchant"
         foreach ($piecesNested as $algo => $items) {
@@ -441,7 +455,8 @@ class NestingFormatter
          10)
          */
 
-        $usageStatsMeterage = $usageStats["METERAGE"];
+        $usageStatsMeterage = $usageStats[NestingEnums::METERAGE->value];
+        $meteragePieces = $piecesNested[NestingEnums::METERAGE->value] ?? [];
 
         /*
          * 3) Efficiency 70%+
@@ -472,7 +487,7 @@ class NestingFormatter
 
         $countQ9 = 0;
 
-        foreach($piecesNested["METERAGE"] as $product){
+        foreach($meteragePieces as $product){
             /*
              * 1) Total length of input pieces = total length of output cuts
              */
@@ -634,14 +649,14 @@ class NestingFormatter
             //1
             "total_length_input_output" => [
                 "description" => "Total length of input pieces = total length of output cuts",
-                "result" => count($piecesNested["METERAGE"]) === $countQ1,
+                "result" => count($meteragePieces) === $countQ1,
                 "number" => $numberQ1,
                 "suffix" => "mm",
             ],
             //2
             "total_qty_input_output" => [
                 "description" => "Qty of input pieces = qty of output cuts",
-                "result" => count($piecesNested["METERAGE"]) === $countQ2,
+                "result" => count($meteragePieces) === $countQ2,
                 "number" => $numberQ2,
                 "suffix" => null,
             ],
@@ -655,42 +670,42 @@ class NestingFormatter
             //4
             "over_sized_cuts" => [
                 "description" => "A cut longer than max stock length is categorised as 'too long'",
-                "result" => count($piecesNested["METERAGE"]) === $countQ4,
+                "result" => count($meteragePieces) === $countQ4,
                 "number" => null,
                 "suffix" => null,
             ],
             //5
             "offcuts_qty" => [
                 "description" => "Total offcuts used less than total available",
-                "result" => count($piecesNested["METERAGE"]) === $countQ5,
+                "result" => count($meteragePieces) === $countQ5,
                 "number" => $numberQ5,
                 "suffix" => "mm",
             ],
             //6
             "unused_vs_offcuts" => [
                 "description" => "New offcuts + scrap = total unused",
-                "result" => count($piecesNested["METERAGE"]) === $countQ6,
+                "result" => count($meteragePieces) === $countQ6,
                 "number" => $numberQ6,
                 "suffix" => "mm",
             ],
             //7
             "cuts_within_bar" => [
                 "description" => "Each bar: sum of cuts less than bar",
-                "result" => count($piecesNested["METERAGE"]) === $countQ7,
+                "result" => count($meteragePieces) === $countQ7,
                 "number" => null,
                 "suffix" => null,
             ],
             //8
             "total_sums" => [
                 "description" => "Total cuts + total new offcuts + scrap = total bought + used offcuts",
-                "result" => count($piecesNested["METERAGE"]) === $countQ8,
+                "result" => count($meteragePieces) === $countQ8,
                 "number" => null,
                 "suffix" => null,
             ],
             //9
             "scrap_ratio" => [
                 "description" => "Using more old stock than scraping",
-                "result" => count($piecesNested["METERAGE"]) === $countQ9,
+                "result" => count($meteragePieces) === $countQ9,
                 "number" => null,
                 "suffix" => null,
             ],
@@ -708,23 +723,13 @@ class NestingFormatter
         $lettersProjectArray = [];
 
         foreach ($projectIds as $index => $id) {
-            $letter = match ($index) {
-                0 => 'A',
-                1 => 'B',
-                2 => 'C',
-                3 => 'D',
-                4 => 'E',
-                5 => 'F',
-                6 => 'G',
-                7 => 'H',
-                8 => 'I',
-                9 => 'J',
-                10 => 'K',
-                11 => 'L',
-                12 => 'M',
-                13 => 'N',
-                default => 'O', //shouldn't get this far
-            };
+            //A-Z, then AA, AB, ... so every project keeps a distinct mark on the cut drawings
+            $letter = '';
+            $remaining = $index;
+            do {
+                $letter = chr(65 + ($remaining % 26)).$letter;
+                $remaining = intdiv($remaining, 26) - 1;
+            } while ($remaining >= 0);
 
             $lettersProjectArray[$id] = $letter;
         }
@@ -786,7 +791,7 @@ class NestingFormatter
 
         //METERAGE = nominal_length
         if ($algo === NestingEnums::METERAGE->value) {
-            $query = Product::query();
+            $query = Product::query()->active();
             foreach ($pieceSpec as $field => $value) {
                 $query->where($field, $value);
             }
@@ -818,15 +823,23 @@ class NestingFormatter
         //BUNDLE = pack size
         if ($algo === NestingEnums::BUNDLE->value) {
 
-            $query = Product::query();
+            $query = Product::query()->active();
             foreach ($pieceSpec as $field => $value) {
                 $query->where($field, $value);
             }
             $allPacks = $query->get(['pack_size_1', 'pack_size_2', 'pack_size_3'])->toArray();
 
-            $result = isset($allPacks[0])
-                ? array_unique(array_values($allPacks[0]))
-                : null;
+            //Every usable pack size across the matching products, not just the first row's
+            $result = [];
+            foreach ($allPacks as $packs) {
+                foreach ($packs as $pack) {
+                    $pack = (int) $pack;
+                    if ($pack > 0) {
+                        $result[] = $pack;
+                    }
+                }
+            }
+            $result = array_values(array_unique($result));
         }
 
         return $result;
@@ -838,7 +851,7 @@ class NestingFormatter
         array $offcutInventory,
         array $lettersProjectArray,
         Business $business,
-        object $newPieceSpec = null,
+        ?object $newPieceSpec = null,
     ): array
     {
         /**
@@ -897,10 +910,29 @@ class NestingFormatter
          */
         $cutLengthsRequiredAfterOffcutAllocation = $this->sortCutLengthsDescending($cutLengthsRequiredAfterOffcutAllocation);
 
-        $results = [];
+        /*
+         * Deterministic randomness.
+         *
+         * The same inputs must always produce the same nesting, otherwise the plan the user approves on
+         * the "suggested nesting" screen is not the plan saved against the batch when they start quoting.
+         */
+        $randomizer = $this->seededRandomizer(
+            $cutLengthsRequiredAfterOffcutAllocation,
+            $purchasableStockLengths,
+            $business,
+        );
+
+        /*
+         * Keep the best run seen so far.
+         *
+         * Note efficiency is a float, so it cannot be used as an array key - PHP would truncate it to an
+         * int, collapsing (say) 96.9% and 96.1% onto the same key and discarding the better of the two.
+         */
+        $bestEfficiency = null;
+        $bestResult = null;
 
         //100+ random selection
-        for ($i = 1; $i <= config('env.nesting_iterations'); $i++) {
+        for ($i = 1; $i <= (int) config('env.nesting_iterations'); $i++) {
             $singleRun = $this->singleRun(
                 $cutLengthsRequiredAfterOffcutAllocation,
                 $lettersProjectArray,
@@ -908,9 +940,13 @@ class NestingFormatter
                 $business,
                 true,
                 $newPieceSpec,
+                $randomizer,
             );
 
-            $results[$singleRun["efficiency"]] = $singleRun["result"];
+            if ($bestEfficiency === null || $singleRun["efficiency"] > $bestEfficiency) {
+                $bestEfficiency = $singleRun["efficiency"];
+                $bestResult = $singleRun["result"];
+            }
         }
 
         //"Best fit" comparison
@@ -921,15 +957,18 @@ class NestingFormatter
             $business,
             false,
             $newPieceSpec,
+            $randomizer,
         );
 
-        $results[$singleRun["efficiency"]] = $singleRun["result"];
+        if ($bestEfficiency === null || $singleRun["efficiency"] > $bestEfficiency) {
+            $bestEfficiency = $singleRun["efficiency"];
+            $bestResult = $singleRun["result"];
+        }
 
         //2F) Iterate 100 times and choose the highest efficiency result
-        $highestEfficiencyKeyOfNewStock = max(array_keys($results));
-        $utilisedBars = $results[$highestEfficiencyKeyOfNewStock]["utilisedBars"];
-        $tooLong = $results[$highestEfficiencyKeyOfNewStock]["tooLong"];
-        $sums = $results[$highestEfficiencyKeyOfNewStock]["sums"];
+        $utilisedBars = $bestResult["utilisedBars"];
+        $tooLong = $bestResult["tooLong"];
+        $sums = $bestResult["sums"];
 
         /**
          * Consolidate utilised stock bars that are the same (same length and cuts array)
@@ -1008,11 +1047,13 @@ class NestingFormatter
                     "scrap_threshold_mm" => $business->scrap_threshold_mm,
                     "cuts" => $originalOffcut["cuts"], //length, projectId, piece_id, letter
                 ],
+                //">=" to match the per-bar test in Actions/Bar/CreateBarsAndOffcuts, which decides
+                //which drops actually become offcut records
                 "offcutFromOffcut" => [
-                    "reusableLength" => (($offcutLength - $usedLength) > $business->scrap_threshold_mm) ? ($offcutLength - $usedLength) : 0,
+                    "reusableLength" => (($offcutLength - $usedLength) >= $business->scrap_threshold_mm) ? ($offcutLength - $usedLength) : 0,
                 ],
                 "scrap" => [
-                    "scrapLength" => (($offcutLength - $usedLength) > $business->scrap_threshold_mm) ? 0 : ($offcutLength - $usedLength),
+                    "scrapLength" => (($offcutLength - $usedLength) >= $business->scrap_threshold_mm) ? 0 : ($offcutLength - $usedLength),
                 ],
             ];
         }
@@ -1126,6 +1167,7 @@ class NestingFormatter
         Business $business,
         bool $random,
         Object|null $newPieceSpec,
+        Randomizer $randomizer,
     ): array
     {
         // 2C) Start with an empty list of bins
@@ -1165,8 +1207,8 @@ class NestingFormatter
                      */
                     $selectedStockLength = null;
                     if($random){
-                        //Random length
-                        $randomKey = array_rand($purchasableStockLengthsLongEnough);
+                        //Random length (seeded, so the same inputs always nest the same way)
+                        $randomKey = $randomizer->getInt(0, count($purchasableStockLengthsLongEnough) - 1);
                         $selectedStockLength = $purchasableStockLengthsLongEnough[$randomKey];
                     }
                     /*
@@ -1200,12 +1242,27 @@ class NestingFormatter
 
         $totalPurchasedMaterial = 0;
         $totalUnused = 0;
+        $totalReusable = 0;
+        $totalScrap = 0;
         foreach($utilisedBars as $utilisedBar){
             $totalPurchasedMaterial = $totalPurchasedMaterial + $utilisedBar["bar_length"];
             $totalUnused = $totalUnused + $utilisedBar["unused"];
+
+            /*
+             * Reusable vs scrap is a property of the individual drop, not of the total.
+             * Ten bars each with 400mm left over is ten pieces of scrap, not 4m of reusable stock.
+             * This has to match the per-bar test in Actions/Bar/CreateBarsAndOffcuts, which decides
+             * which drops actually become offcut records.
+             */
+            if($utilisedBar["unused"] >= $business->scrap_threshold_mm){
+                $totalReusable = $totalReusable + $utilisedBar["unused"];
+            }
+            else{
+                $totalScrap = $totalScrap + $utilisedBar["unused"];
+            }
         }
         $totalUsedMaterial = $totalPurchasedMaterial - $totalUnused;
-        $efficiency = $totalUsedMaterial > 0
+        $efficiency = $totalPurchasedMaterial > 0
             ? round(($totalUsedMaterial/$totalPurchasedMaterial*100),1)
             : 0;
 
@@ -1218,8 +1275,8 @@ class NestingFormatter
                     "totalPurchasedMaterial" => $totalPurchasedMaterial,
                     "totalUsedMaterial" => $totalUsedMaterial,
                     "totalUnused" => $totalUnused,
-                    "totalReusable" => $totalUnused > $business->scrap_threshold_mm ? $totalUnused : 0,
-                    "totalScrap" => $totalUnused > $business->scrap_threshold_mm ? 0 : $totalUnused,
+                    "totalReusable" => $totalReusable,
+                    "totalScrap" => $totalScrap,
                 ],
             ]
         ];
@@ -1237,6 +1294,30 @@ class NestingFormatter
 //        $usedCodes[] = $code; // Store used code
 //        return $code;
 //    }
+
+    private function seededRandomizer(
+        array $cutLengthsRequired,
+        array $purchasableStockLengths,
+        Business $business,
+    ): Randomizer
+    {
+        /**
+         * Seed the randomiser from the inputs to the nest.
+         *
+         * Nesting is run twice for the same pieces: once to show the user a suggestion, and again by
+         * Actions/Batch/SaveNesting when they press "start quoting". An unseeded randomiser makes those
+         * two runs disagree, so the batch is ordered against a cut plan nobody looked at.
+         */
+        $lengths = array_map(fn ($cut) => (int) $cut['length'], $cutLengthsRequired);
+        sort($lengths);
+
+        $stockLengths = array_map('intval', $purchasableStockLengths);
+        sort($stockLengths);
+
+        $seed = crc32(implode(',', $lengths).'|'.implode(',', $stockLengths).'|'.$business->id);
+
+        return new Randomizer(new Mt19937($seed));
+    }
 
     private function sortCutLengthsDescending(array $cutLengthsRequired): array
     {
@@ -1317,18 +1398,30 @@ class NestingFormatter
     {
         $originalQty = $totalQty;
 
+        /*
+         * Drop anything that isn't a usable pack size BEFORE sorting, and re-index.
+         * array_filter preserves keys, so filtering afterwards leaves holes and "the last key" is
+         * then no longer the smallest box - or even a key that exists.
+         */
+        $boxSizes = array_values(array_filter(
+            array_map('intval', $boxSizes),
+            fn ($value) => $value > 0,
+        ));
+
         // Sort the box sizes in descending order
         rsort($boxSizes);
 
-        //Remove any empty values
-        $boxSizes = array_filter($boxSizes, function ($value) {
-            return $value !== '' && $value !== null;
-        });
+        //Nothing purchasable
+        if (count($boxSizes) === 0) {
+            return [
+                'totalBought' => 0,
+                'efficiency' => 0,
+                'boxes' => [],
+            ];
+        }
 
         $boxCounts = []; // To store the number of each box size used
         foreach ($boxSizes as $boxSize) {
-            $boxSize = (int) $boxSize;
-
             // Calculate how many of this box size we need
             $boxCounts[$boxSize] = intdiv($totalQty, $boxSize);
             // Reduce the total number of bolts left
@@ -1350,7 +1443,9 @@ class NestingFormatter
 
         return [
             'totalBought' => $totalBought,
-            'efficiency' => ($originalQty / $totalBought * 100),
+            'efficiency' => $totalBought > 0
+                ? ($originalQty / $totalBought * 100)
+                : 0,
             'boxes' => $boxCounts,
         ];
     }
@@ -1385,11 +1480,9 @@ class NestingFormatter
          * This list is unique stock length.
          * If 2 items area identical except the project refs are different, they'll be treated as the same.
          */
-        //Remove the project ID so they consolidate disregarding project refs
+        //Only the stock length matters here, so bars consolidate regardless of project refs
         $newResult = [];
         foreach ($utilisedBars as $bar) {
-            unset($bar['unused']);
-            unset($bar['pieces'][0][1]);
             $newResult[] = $bar['bar_length'];
         }
 
@@ -1457,6 +1550,8 @@ class NestingFormatter
             $projectsForBatching = $batch->projects();
 
             //Letter-project array
+            $projectsForBatching->loadMissing('pieces');
+
             $pieces = [];
             foreach($projectsForBatching as $project){
                 foreach($project->pieces as $piece){
@@ -1471,11 +1566,14 @@ class NestingFormatter
              * batch > offcut
              * offcut > bar
              */
-            $piecesNested = unserialize($batch->nested_state);
+            /*
+             * nested_state is nullable and only written by Actions/Batch/SaveNesting, so a batch can
+             * legitimately have none. The NestedState cast decodes it, and gives back an empty nest
+             * rather than something the callers below cannot read.
+             */
+            $piecesNested = $batch->nested_state;
 
-            //todo problem with this is it's random results. Probably the same, but not exact. [not deterministic]
 //            $piecesNested = $this->piecesNested($batch->pieces, $lettersProjectArray, $business);
-//            dd(2,$piecesNested);
 
 
             ////////////////////////////////////////////////////////////////////////////
@@ -1527,6 +1625,8 @@ class NestingFormatter
     public function piecesReadyForBatching(Business $business): Collection
     {
         return Piece::query()
+            //Every nesting algo reads $piece->project, once per piece and once per cut
+            ->with("project")
             ->whereRelation("project.user.business","id","=",$business->id)
             ->whereRelation("project","archive","=",false)
             ->doesntHave("batch")
@@ -1620,12 +1720,12 @@ class NestingFormatter
         foreach ($uniquePieceSpec as $field => $value) {
             $pieces = $pieces->where($field, $value);
         }
-        $pieces->sortBy('actual_length');
+        $pieces = $pieces->sortBy('actual_length');
 
         $piecesArray = [];
         foreach ($pieces as $piece) {
             $piecesArray[] = [
-                'project' => $piece->project()->first(),
+                'project' => $piece->project,
                 'length' => $piece->actual_length,
                 'nominal_units' => $piece->nominal_units,
                 'quantity' => $piece->actual_qty,
@@ -1654,9 +1754,11 @@ class NestingFormatter
          */
         $cutLengthsRequired = [];
         foreach ($pieces as $piece) {
+            $projectId = $piece->project->id;
+
             for ($i = 0; $i < (int) $piece->actual_qty; $i++) {
                 $cutLengthsRequired[] = [
-                    'project' => $piece->project()->first()->id,
+                    'project' => $projectId,
                     "piece_id" => $piece->id,
                     'length' => $piece->actual_length,
                 ];
@@ -1712,7 +1814,7 @@ class NestingFormatter
                 foreach ($uniquePieceSpec as $field => $value) {
                     $pieces = $pieces->where($field, $value);
                 }
-                $pieces->sortBy('product_category'); //todo something more useful
+                $pieces = $pieces->sortBy('product_category'); //todo something more useful
 
                 //Material spec
                 $appended = (object) $uniquePieceSpec;
@@ -1772,11 +1874,16 @@ class NestingFormatter
                 /*
                  * Get pieces that match spec
                  */
+                /*
+                 * Collection::where() returns a new collection - it does not filter in place.
+                 * Reassigning is what keeps each spec's quantity to its own pieces; without it every
+                 * spec was nested against every bundle piece and the order quantity multiplied.
+                 */
                 $pieces = $allPieces;
                 foreach ($uniquePieceSpec as $field => $value) {
-                    $pieces->where($field, $value);
+                    $pieces = $pieces->where($field, $value);
                 }
-                $pieces->sortBy('product_category'); //todo something more useful
+                $pieces = $pieces->sortBy('product_category'); //todo something more useful
 
                 //Material spec
                 $appended = (object) $uniquePieceSpec;
@@ -1793,7 +1900,7 @@ class NestingFormatter
                 $totalQty = 0;
                 foreach ($pieces as $piece) {
                     $piecesArray[] = [
-                        'project' => $piece->project()->first(),
+                        'project' => $piece->project,
                         'length' => null,
                         'nominal_units' => $piece->nominal_units,
                         'quantity' => $piece->actual_qty,
