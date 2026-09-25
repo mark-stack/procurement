@@ -60,26 +60,7 @@ function quoteAndOrder(
  * The minimum piece that makes a batch report a project - Batch::projects() and
  * Batch::projectApprovalFlags() both read project_id off the batch's pieces.
  */
-function pieceOnBatch(Project $project, Batch $batch): Piece
-{
-    $rawMaterialQuote = createRawMaterialQuote200Pfc(
-        $project,
-        MaterialEnums::PLAIN_CARBON_STEEL,
-        GradeEnums::GR300,
-        9000,
-    );
-
-    return Piece::create([
-        'project_id' => $project->id,
-        'raw_material_quote_id' => $rawMaterialQuote->id,
-        'batch_id' => $batch->id,
-        'product_category' => ProductEnums::PFC->value,
-        'material' => MaterialEnums::PLAIN_CARBON_STEEL->value,
-        'grade' => GradeEnums::GR300->value,
-        'surface' => SurfaceEnums::NONE->value,
-        'actual_length' => 9000,
-    ]);
-}
+//pieceOnBatch() now lives in tests/Pest.php - the offcut lifecycle tests build the same batch
 
 it("would be a disaster if another business's order could be marked as sent", function () {
     /*

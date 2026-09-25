@@ -196,17 +196,28 @@ class Business extends Model
                 foreach ($categories as $supplierCategory => $productCategories) {
                     $query->orWhere(function (Builder $query) use ($supplierCategory, $productCategories) {
                         $query->whereIn('product_category', $productCategories)
-                            ->whereExists(function ($query) use ($supplierCategory) {
-                                $query->selectRaw('1')
-                                    ->from('orders')
-                                    ->whereColumn('orders.batch_id', 'offcuts.batch_from_id')
-                                    ->where('orders.is_delivered', true)
+                            ->where(function (Builder $query) use ($supplierCategory) {
+                                $query
+                                    //Cut from new stock: it is only in the yard once that order lands
                                     ->whereExists(function ($query) use ($supplierCategory) {
                                         $query->selectRaw('1')
-                                            ->from('quotes')
-                                            ->whereColumn('quotes.id', 'orders.quote_id')
-                                            ->where('quotes.supplier_category', $supplierCategory);
-                                    });
+                                            ->from('orders')
+                                            ->whereColumn('orders.batch_id', 'offcuts.batch_from_id')
+                                            ->where('orders.is_delivered', true)
+                                            ->whereExists(function ($query) use ($supplierCategory) {
+                                                $query->selectRaw('1')
+                                                    ->from('quotes')
+                                                    ->whereColumn('quotes.id', 'orders.quote_id')
+                                                    ->where('quotes.supplier_category', $supplierCategory);
+                                            });
+                                    })
+                                    /*
+                                     * Cut from an offcut that was already in the yard. The material was
+                                     * delivered against the SOURCE offcut, not against this batch - and a
+                                     * batch that nested entirely out of inventory places no order at all,
+                                     * so requiring a delivered order here hid these offcuts forever.
+                                     */
+                                    ->orWhereNotNull('offcut_from_id');
                             });
                     });
                 }

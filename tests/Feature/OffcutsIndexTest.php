@@ -180,6 +180,89 @@ it('flags a batch that used no offcuts', function () {
         );
 });
 
+it('lists an offcut cut from another offcut even when its batch ordered nothing new', function () {
+    /*
+     * An offcut cut from an offcut was already in the yard - the delivery that put it there was against
+     * the SOURCE offcut's batch. A batch that nests entirely out of inventory places no order at all, so
+     * requiring a delivered order on its own batch hid these offcuts for good.
+     */
+    $user = offcutsIndexUser();
+    $this->actingAs($user);
+
+    $sourceBatch = batchWithDeliveredOrder($user, 'CERT-OLD');
+    $source = create_offcut_200PFC(3000, $sourceBatch->id);
+
+    //Consumed by a batch that bought nothing, so that batch has no order of any kind
+    $nestedFromStock = Batch::factory()->forUser($user->id)->create();
+    $source->batch_to_id = $nestedFromStock->id;
+    $source->save();
+
+    $child = create_offcut_200PFC(900, $nestedFromStock->id);
+    $child->offcut_from_id = $source->id;
+    $child->save();
+
+    $this->withoutExceptionHandling();
+    $this->get(route('offcuts.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('offcuts.data', 1)
+            ->where('offcuts.data.0.length', 900)
+            ->where('offcuts.data.0.offcut_from_id', $source->id)
+        );
+});
+
+it('keeps every certificate when one supplier certificated several source batches', function () {
+    /*
+     * The certificates were collected into an array KEYED by supplier name, so a merchant that supplied
+     * two of the source batches kept only the last certificate read and the rest fell out of the
+     * traceability trail.
+     */
+    $user = offcutsIndexUser();
+    $this->actingAs($user);
+
+    $supplier = Supplier::factory()->create(['name' => 'One Steel']);
+
+    $batch = batchWithDeliveredOrder($user, 'CERT-NEW');
+
+    foreach (['CERT-1', 'CERT-2'] as $cert) {
+        $olderBatch = batchWithDeliveredOrder($user, $cert, $supplier);
+
+        $consumed = create_offcut_200PFC(900, $olderBatch->id);
+        $consumed->batch_to_id = $batch->id;
+        $consumed->save();
+    }
+
+    create_offcut_200PFC(1500, $batch->id);
+
+    $this->withoutExceptionHandling();
+    $this->get(route('offcuts.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('offcuts.data', 1)
+            ->where('offcuts.data.0.offcutOrdersWithCertificates.certificates', [
+                ['supplier_name' => 'One Steel', 'material_cert_numbers' => 'CERT-1'],
+                ['supplier_name' => 'One Steel', 'material_cert_numbers' => 'CERT-2'],
+            ])
+        );
+});
+
+it('does not ship the source batch, and with it the whole saved nest, on every row', function () {
+    //batch_from carried the Batch model, nested_state included - once per offcut on the page
+    $user = offcutsIndexUser();
+    $this->actingAs($user);
+
+    $batch = batchWithDeliveredOrder($user);
+    create_offcut_200PFC(1500, $batch->id);
+
+    $this->withoutExceptionHandling();
+    $this->get(route('offcuts.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->missing('offcuts.data.0.batch_from')
+            ->where('offcuts.data.0.batch_from_id', $batch->id)
+        );
+});
+
 it('hides offcuts that are already assigned, or whose batch has no delivered order', function () {
     $user = offcutsIndexUser();
     $this->actingAs($user);

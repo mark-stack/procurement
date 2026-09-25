@@ -19,6 +19,7 @@ use App\Enums\ProductEnums;
 use App\Enums\SurfaceEnums;
 use App\Formatters\TestingFormatter;
 use App\Imports\ExcelImport;
+use App\Models\Batch;
 use App\Models\Business;
 use App\Models\Offcut;
 use App\Models\Piece;
@@ -255,6 +256,31 @@ function createRawMaterialQuote200Pfc(Project $project, MaterialEnums $material,
         'general_product_matches' => null,
         'custom_product_matches' => null,
         'assembly_mark' => '',
+    ]);
+}
+
+/**
+ * A 200PFC piece nested onto a batch. A batch with no pieces has no projects, and the undo-nesting
+ * gate refuses to unwind a batch that has no project of yours on it.
+ */
+function pieceOnBatch(Project $project, Batch $batch): Piece
+{
+    $rawMaterialQuote = createRawMaterialQuote200Pfc(
+        $project,
+        MaterialEnums::PLAIN_CARBON_STEEL,
+        GradeEnums::GR300,
+        9000,
+    );
+
+    return Piece::create([
+        'project_id' => $project->id,
+        'raw_material_quote_id' => $rawMaterialQuote->id,
+        'batch_id' => $batch->id,
+        'product_category' => ProductEnums::PFC->value,
+        'material' => MaterialEnums::PLAIN_CARBON_STEEL->value,
+        'grade' => GradeEnums::GR300->value,
+        'surface' => SurfaceEnums::NONE->value,
+        'actual_length' => 9000,
     ]);
 }
 

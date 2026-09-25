@@ -178,9 +178,6 @@ class Batch extends Model
         }
         $productCategories = array_unique($productCategories);
         $originalBatchIds = array_unique($originalBatchIds);
-        $originalBatches = Batch::query()
-            ->whereIn("id",$originalBatchIds)
-            ->get();
 
         //Get list of ALL supplier categories with contained products. e.g "steel merchant" contains "PFC, UB, etc"
         $categories = (new SupplierFormatter)->supplierGroups($business);
@@ -197,28 +194,42 @@ class Batch extends Model
         $supplierCategoriesFromOffcuts = array_unique($supplierCategoriesFromOffcuts);
 
 
-        //Get certificates from these original batches
+        /*
+         * Get certificates from these original batches.
+         *
+         * One query for the whole set. This used to load the batches, then call
+         * newStockOrdersWithCertificates() on each one, then read $order->quote per order - a query per
+         * batch plus a query per order, none of them eager-loaded.
+         */
+        $ordersWithCertificates = Order::query()
+            ->whereIn("batch_id",$originalBatchIds)
+            ->where("order_sent",true)
+            ->whereNotNull("material_cert_numbers")
+            ->with(["supplier:id,name","quote:id,supplier_category"])
+            ->get();
+
         $certificates = [];
-        foreach($originalBatches as $originalBatch){
-            $newStockOrdersWithCertificates = $originalBatch->newStockOrdersWithCertificates();
-            foreach($newStockOrdersWithCertificates as $order){
-                $supplierCategory = $order->quote?->supplier_category; //e.g "STEEL_MERCHANT"
-                if(in_array($supplierCategory,$supplierCategoriesFromOffcuts)){
-                    //supplier_id is nullable, so fall back rather than fatal on a missing supplier
-                    $certificates[$order->supplier?->name ?? 'Unknown supplier'] = $order->material_cert_numbers;
-                }
+        foreach($ordersWithCertificates as $order){
+            $supplierCategory = $order->quote?->supplier_category; //e.g "STEEL_MERCHANT"
+            if(in_array($supplierCategory,$supplierCategoriesFromOffcuts)){
+                //supplier_id is nullable, so fall back rather than fatal on a missing supplier
+                $supplierName = $order->supplier?->name ?? 'Unknown supplier';
+
+                /*
+                 * Keyed on the supplier/certificate PAIR. Keying on the supplier name alone meant one
+                 * merchant supplying two of the source batches kept only the last certificate read -
+                 * silently dropping the others from the traceability trail.
+                 */
+                $certificates[$supplierName."\0".$order->material_cert_numbers] = [
+                    'supplier_name' => $supplierName,
+                    'material_cert_numbers' => $order->material_cert_numbers,
+                ];
             }
         }
 
         return [
             'used_offcuts' => true,
-            'certificates' => collect($certificates)
-                ->map(fn (string $certNumbers, string $supplierName) => [
-                    'supplier_name' => $supplierName,
-                    'material_cert_numbers' => $certNumbers,
-                ])
-                ->values()
-                ->all(),
+            'certificates' => array_values($certificates),
         ];
     }
 

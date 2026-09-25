@@ -109,9 +109,10 @@
         }
     };
 
-    // Get total number of pages
+    // Get total number of pages. An empty table is still one (empty) page, so it does not read
+    // "Page 1 of 0" with both buttons dead
     const totalPages = computed(() => {
-        return Math.ceil(filteredData.value.length / itemsPerPage.value);
+        return Math.max(1, Math.ceil(filteredData.value.length / itemsPerPage.value));
     });
 
     // Paginate data based on the current page
@@ -149,7 +150,8 @@
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="(row, index) in paginatedData" :key="index">
+                <!-- Keyed by the offcut, not by its position - the list re-orders on every sort -->
+                <tr v-for="row in paginatedData" :key="row.id">
                     <td>{{ row.label }}</td>
                     <td>{{ row.length }}</td>
                     <td>{{ row.unique_mark }}</td>

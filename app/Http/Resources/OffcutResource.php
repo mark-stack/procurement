@@ -55,7 +55,8 @@ class OffcutResource extends JsonResource
             'bar' => $this->bar,
             //Derived from the offcut's own spec, because bar_id is nullable - see Offcut
             'label' => $this->product_derived_label,
-            'batch_from' => $batchFrom,
+            //The source batch is identified by batch_from_id/batch_projects above. The whole Batch used
+            //to be serialised here, which carries nested_state - the entire saved nest - once per row
             'newStockOrdersWithCertificates' => $batchFrom->newStockOrdersWithCertificates(),
             'offcutOrdersWithCertificates' => $batchFrom->offcutOrdersWithCertificates($business),
             'batch_projects' => $batchFrom->projectSummaries(),
