@@ -46,6 +46,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'hasSeedImport' => Product::count() > 0,
             'flash' => [
+                'success' => fn () => $request->session()->get('success'),
                 'warning' => fn () => $request->session()->get('warning'),
                 "project" => fn () => $request->session()->get('project'),
                 'materialsImport' => fn () => $request->session()->get('materialsImport'),

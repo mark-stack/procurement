@@ -1,7 +1,7 @@
 <script setup>
     //General Imports
     import {Link, usePage} from '@inertiajs/vue3';
-    import {computed, ref} from "vue";
+    import {computed, ref, watch} from "vue";
 
     //Component Imports
     import Notifications2 from "@/Components/Notifications2.vue";
@@ -17,12 +17,17 @@
 
     //The materials import used to answer with a bare string, which Inertia could not render
     const materialsImport = computed(() => usePage().props.flash?.materialsImport);
+    const success = computed(() => usePage().props.flash?.success);
 
     //Variables
     const showNotifications = ref(false);
     const showMenu = ref(false);
     const underNavScreenHeight = window.innerHeight - 68;
     const materialsImportDismissed = ref(false);
+    const successDismissed = ref(false);
+
+    //This layout survives Inertia visits, so a dismissal has to end with the message it dismissed
+    watch(success, () => successDismissed.value = false);
 </script>
 
 <template>
@@ -366,6 +371,23 @@
                     class="font-bold shrink-0"
                     aria-label="Dismiss"
                     @click="materialsImportDismissed = true"
+                >
+                    &times;
+                </button>
+            </div>
+
+            <!-- Flashed confirmation of something that has already happened -->
+            <div
+                v-if="success && !successDismissed"
+                role="status"
+                class="flex items-start justify-between gap-4 px-4 py-3 mt-4 text-sm border rounded-lg border-green-300 bg-green-50 text-green-900"
+            >
+                <p>{{ success }}</p>
+                <button
+                    type="button"
+                    class="font-bold shrink-0"
+                    aria-label="Dismiss"
+                    @click="successDismissed = true"
                 >
                     &times;
                 </button>

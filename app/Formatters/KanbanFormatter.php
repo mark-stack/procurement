@@ -198,8 +198,30 @@ class KanbanFormatter
             //Total orders qty
             $orders = $batch->orders;
             $totalOrdersQty = $batchService->totalOrdersQty($batch);
-            $totalDeliveredQty = $batch->orders()->where('is_delivered', true)->count();
+
+            /*
+             * The card's "everything is in" test has to be the one MarkAsPastProjectController applies,
+             * or the "Move to done" button it draws lies about what the post will do.
+             *
+             * This used to read "delivered rows === unique supplier categories", which compares two
+             * different units. Orders are created one per quote and quotes one per supplier in a group
+             * (QuoteFormatter), so two steel merchants delivered on the one batch read 2 === 1 and the
+             * batch could never be closed - and "done" is written nowhere else.
+             */
+            $allDelivered = ! $batch->orders()
+                ->where('order_sent', true)
+                ->where('is_delivered', false)
+                ->exists();
+
+            /*
+             * Only a delivered order can be missing its certs. This matched any steel merchant row with
+             * no cert numbers at all, and a draft order exists for every supplier in the group from the
+             * first time the quote screen is opened - so a business with two steel merchants always had
+             * one, and the warning stuck on with the button hidden behind it for good.
+             */
             $steelMerchantDeliveredButNoCertsYet = $batch->orders()
+                ->where('order_sent', true)
+                ->where('is_delivered', true)
                 ->whereRelation("quote","supplier_category","=",SupplierGroupEnums::STEEL_MERCHANT->value)
                 ->where("material_cert_numbers",null)
                 ->exists();
@@ -217,8 +239,7 @@ class KanbanFormatter
                     'approxDueDate' => null, //todo actual - derived from earliest project
                     'totalOrdersQty' => $totalOrdersQty,
                     'sentOrdersQty' => $batch->orders()->where('order_sent', true)->count(),
-                    "totalDeliveredQty" => $totalDeliveredQty,
-                    "allDelivered" => $totalDeliveredQty === $totalOrdersQty,
+                    "allDelivered" => $allDelivered,
                     "steelMerchantDeliveredButNoCertsYet" => $steelMerchantDeliveredButNoCertsYet,
                     'all_project_manager_approvals' => (new OrderService)->allProjectManagersApproved($batch),
                 ],
