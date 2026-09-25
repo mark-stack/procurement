@@ -78,58 +78,77 @@
 <template>
     <!-- Simple card -->
     <div
-        class="bg-white relative flex flex-col items-start pt-2 pl-4 pr-4 pb-4 rounded-lg group border-[1px] border-gray-300 shadow-lg"
+        class="group relative flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-shadow duration-200 hover:shadow-md"
     >
-        <div v-if="batchInfo" class="text-sm">
-            Batch ID: <b>{{ batchInfo.batch.id }}</b>
-        </div>
+        <!-- card header: batch identity on the left, efficiency on the right -->
         <div
-            v-if="usageStats && atLeastOneProjectIsYours"
-            class="w-full text-center"
+            v-if="batchInfo || (usageStats && atLeastOneProjectIsYours)"
+            class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 bg-gray-50 px-3 py-2"
         >
-            <p
-                v-if="usageStats.METERAGE?.efficiency > 0"
-                class="text-sm text-green-500"
+            <span
+                v-if="batchInfo"
+                class="inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-600 ring-1 ring-inset ring-gray-200"
             >
-                <b>{{usageStats.METERAGE.efficiency}}%</b> efficiency
-            </p>
-            <p
-                v-else
-                class="text-sm text-green-500"
-            >
-                Calculating efficiency...
-            </p>
+                <i class="fa-solid fa-layer-group text-[10px] text-gray-400"></i>
+                Batch {{ batchInfo.batch.id }}
+            </span>
+            <template v-if="usageStats && atLeastOneProjectIsYours">
+                <span
+                    v-if="usageStats.METERAGE?.efficiency > 0"
+                    class="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2 py-1 text-[11px] font-semibold text-green-800 ring-1 ring-inset ring-green-200"
+                >
+                    <i class="fa-solid fa-arrow-trend-up text-[10px]"></i>
+                    {{usageStats.METERAGE.efficiency}}% efficiency
+                </span>
+                <span
+                    v-else
+                    class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2 py-1 text-[11px] font-medium text-gray-500 ring-1 ring-inset ring-gray-200"
+                >
+                    <i class="fa-solid fa-circle-notch fa-spin text-[10px]"></i>
+                    Calculating efficiency
+                </span>
+            </template>
         </div>
 
-        <div
-            v-for="(project,index) in projects"
-            class="w-full border-gray-200 rounded-lg border-[1px] p-2 bg-gray-50 mb-2 mt-2"
-        >
-            <h4 class="col-span-4 text-base font-medium">
-                {{ shared.cropText(shared.capitalizeWords(project.name),30) }}
-            </h4>
+        <!-- projects on this card -->
+        <div class="space-y-2 p-3">
+            <div
+                v-for="(project,index) in projects"
+                :key="project.id"
+                class="rounded-lg border border-gray-200 bg-gray-50 p-3 transition-colors duration-150 hover:border-gray-300"
+            >
+                <h4
+                    class="truncate text-sm font-semibold text-gray-900"
+                    :title="shared.capitalizeWords(project.name)"
+                >
+                    {{ shared.capitalizeWords(project.name) }}
+                </h4>
+                <p v-if="project.reference" class="mt-0.5 truncate text-xs text-gray-500">
+                    Ref: {{ project.reference }}
+                </p>
 
-            <div class="grid grid-cols-7 gap-x-1 w-full mt-3 text-xs font-medium text-gray-900">
-                <CardButtonGreen
-                    @click="$emit('pageLoadingOn',null);$emit('showBom',project)"
-                    :label="project.qtyMaterialRows + ' pieces'"
-                    :highlight="false"
-                    :icon="false"
-                    class="col-span-3"
-                />
-                <CardButtonRed
-                    @click="$emit('toggleArchive',project)"
-                    label="Archive"
-                    :fullWidth="false"
-                    :disabled="kanbanColumn !== 'NESTING'"
-                    class="col-span-2"
-                />
-                <CardButtonYellow
-                    class="col-span-2"
-                    @click="$emit('editMode',project)"
-                    label="Edit"
-                    :fullWidth="false"
-                />
+                <div class="mt-3 grid grid-cols-7 gap-1.5">
+                    <CardButtonGreen
+                        @click="$emit('pageLoadingOn',null);$emit('showBom',project)"
+                        :label="project.qtyMaterialRows + ' pieces'"
+                        :highlight="false"
+                        :icon="false"
+                        class="col-span-3"
+                    />
+                    <CardButtonRed
+                        @click="$emit('toggleArchive',project)"
+                        label="Archive"
+                        :fullWidth="true"
+                        :disabled="kanbanColumn !== 'NESTING'"
+                        class="col-span-2"
+                    />
+                    <CardButtonYellow
+                        class="col-span-2"
+                        @click="$emit('editMode',project)"
+                        label="Edit"
+                        :fullWidth="true"
+                    />
+                </div>
             </div>
         </div>
 <!--        <div class="mt-3">-->
@@ -148,7 +167,7 @@
 <!--                + add project-->
 <!--            </p>-->
 <!--        </div>-->
-        <div class="w-full grid grid-cols-2 gap-1 mt-2 pt-3 pb-3"><!-- border-t-[1px] border-gray-200 -->
+        <div class="mt-auto grid w-full grid-cols-2 items-start gap-2 border-t border-gray-100 bg-gray-50 px-3 py-3">
             <!-- Nesting -->
             <Link
                 v-if="kanbanColumn === 'NESTING'"
@@ -176,7 +195,7 @@
             <!-- start quoting -->
             <div
                 v-if="prerequisiteStartQuoting"
-                class="w-full flex gap-x-2 justify-between items-center"
+                class="w-full col-span-1"
             >
                 <CardButtonForward
                     label="Start quoting"
@@ -220,7 +239,7 @@
                 v-if="batchInfo?.prerequisiteUndoStartQuoting"
                 @click="$emit('pageLoadingOn',null); breakBatch()"
                 label="Re-nest"
-                class="w-full mt-2"
+                class="col-span-2"
                 :fullWidth="true"
                 :disabled="false"
             />
@@ -228,9 +247,10 @@
             <!-- All delivered (suggest mark as done) -->
             <div
                 v-if="kanbanColumn === 'DELIVERED' && props.batchInfo.steelMerchantDeliveredButNoCertsYet"
-                class="col-span-2 text-orange-700 text-sm text-center mt-3"
+                class="col-span-2 flex gap-2 rounded-lg border border-orange-200 bg-orange-50 p-2.5 text-xs leading-relaxed text-orange-800"
             >
-                <i class="fa-solid fa-triangle-exclamation"></i> The steel merchant order has no attached material certs. This is required to keep all offcuts 100% traceable.
+                <i class="fa-solid fa-triangle-exclamation mt-0.5 flex-none text-orange-500"></i>
+                <span>The steel merchant order has no attached material certs. This is required to keep all offcuts 100% traceable.</span>
             </div>
 
             <CardButtonForward

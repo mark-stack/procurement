@@ -1,15 +1,15 @@
 <script setup>
     //General Imports
     import {Head, Link, useForm} from '@inertiajs/vue3';
-    import {ref, toRefs, watch} from "vue";
+    import {computed, ref, toRefs, watch} from "vue";
     import useConfirm from "@/Shared/useConfirm.js";
+    import shared from "@/Shared/shared.js";
     import axios from 'axios';
 
     //Component Imports
     import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-    import KanbanNeedsImportingCard from "@/Components/KanbanNeedsImportingCard.vue";
-    import KanbanReadyForNestingCard from "@/Components/KanbanReadyForNestingCard.vue";
-    import KanbanGeneralBatchCard from "@/Components/KanbanGeneralBatchCard.vue";
+    import KanbanColumn from "@/Components/KanbanColumn.vue";
+    import KanbanEmptyState from "@/Components/KanbanEmptyState.vue";
     import NewProjectModal from "@/Components/Modals/NewProjectModal.vue";
     import BomEditModal from "@/Components/Modals/BomEditModal.vue";
     import ConfirmModal from "@/Components/Modals/ConfirmModal.vue";
@@ -46,9 +46,14 @@
     const pageLoading = ref(false);
     const usageData = ref(null);
     const modalCanUpload = ref(false);
-    const underNavScreenHeight = window.innerHeight - 68;
-    const kanbanHeight = underNavScreenHeight - 50;
     const projectAfterUpload = ref(null);
+
+    //Computed
+    //Card counts per column, for the badge in each column header
+    const nestingProjects = computed(() => props.projects['READY_FOR_NESTING'].projects.data);
+    const quotedBatches = computed(() => props.batches['QUOTED']);
+    const orderedBatches = computed(() => props.batches['ORDERED']);
+    const deliveredBatches = computed(() => props.batches['DELIVERED']);
 
     //Shared Methods
     const {confirmDialog, askToConfirm, confirmDialogAccepted, confirmDialogCancelled} = useConfirm();
@@ -285,318 +290,221 @@
 </script>
 
 <template>
-    <Head title="Steel Nesting" />
+    <Head title="Projects" />
 
     <AuthenticatedLayout>
         <PageLoadingOverlay
             v-if="pageLoading"
         />
 
-        <div>
-            <div class="mx-auto max-w-7xl">
-                <!-- Mobile view -->
-                <div class="md:hidden pt-5">
-                    <p class="w-full text-center">This is site requires desktop login</p>
-                    <div class="flex mx-auto justify-center mt-5">
-                        <Link
-                            :href="route('logout')"
-                            method="post"
-                            class="pt-1 pl-2 font-bold flex text-gray-500 transition-colors duration-200 dark:text-gray-400 rtl:rotate-0 hover:text-blue-500 dark:hover:text-blue-400"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mt-1">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
-                            </svg>
-                            <span class="pl-2" style="margin-top:2px">Logout</span>
-                        </Link>
-                    </div>
+        <!-- Mobile view -->
+        <div class="flex justify-center px-6 py-16 md:hidden">
+            <div class="w-full max-w-sm rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
+                <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-800">
+                    <i class="fa-solid fa-display"></i>
                 </div>
-
-                <!-- desktop view -->
-                <section class="hidden md:block">
-
-                    <!-- kanban -->
-                    <div class="grid grid-cols-4">
-<!--                        &lt;!&ndash; New projects&ndash;&gt;-->
-<!--                        <div class="border-r-2 border-gray-200 border-dashed p-3">-->
-<!--                            &lt;!&ndash; header &ndash;&gt;-->
-<!--                            <div>-->
-<!--                                <h2 class="text-xl font-bold text-center text-gray-900">-->
-<!--                                    <span class="text-indigo-300 text-base">1.</span> New Projects-->
-<!--                                </h2>-->
-<!--                            </div>-->
-<!--                            &lt;!&ndash; body &ndash;&gt;-->
-<!--                            <div-->
-<!--                                class="pt-3 overflow-y-auto"-->
-<!--                                :style="'height:'+kanbanHeight+'px'"-->
-<!--                            >-->
-<!--                                &lt;!&ndash; cards &ndash;&gt;-->
-<!--                                <template v-for="(project,index) in projects['NEW_PROJECTS'].data">-->
-<!--                                    <KanbanNeedsImportingCard-->
-<!--                                        :project="project"-->
-<!--                                        class="mb-3"-->
-<!--                                        @toggleArchive="p => toggleArchive(p)"-->
-<!--                                        @editMode="p => editMode(p)"-->
-<!--                                        @showBom="args => showBom(args)"-->
-<!--                                        @pageLoadingOn="seconds => pageLoaderTimer(seconds)"-->
-<!--                                        @pageLoadingOff="pageLoading = false"-->
-<!--                                    />-->
-<!--                                </template>-->
-
-<!--                                &lt;!&ndash; toggle archived projects &ndash;&gt;-->
-<!--                                <div v-if="archivedProjects.data.length > 0" class="text-center">-->
-<!--                                    <button-->
-<!--                                        @click="showArchivedProjects = !showArchivedProjects"-->
-<!--                                        class="text-center text-blue-500 underline mt-6 mb-2"-->
-<!--                                    >-->
-<!--                                        {{showArchivedProjects ? 'Hide' : 'Show'}} {{archivedProjects.data.length}} Archived Project{{archivedProjects.data.length > 1 ? 's' : ''}}-->
-<!--                                    </button>-->
-<!--                                    <div v-if="showArchivedProjects">-->
-<!--                                        <table class="w-full">-->
-<!--                                            <tr>-->
-<!--                                                <th class="p-1">Name</th>-->
-<!--                                                <th class="p-1">Actions</th>-->
-<!--                                            </tr>-->
-<!--                                            <tr v-for="project in archivedProjects.data">-->
-<!--                                                <td class="p-1">{{project.name}}</td>-->
-<!--                                                <td class="p-1">-->
-<!--                                                    <span style="cursor: pointer; " class="underline text-blue-500" @click="toggleArchive(project)">restore</span>-->
-<!--                                                </td>-->
-<!--                                            </tr>-->
-<!--                                        </table>-->
-<!--                                    </div>-->
-<!--                                </div>-->
-<!--                            </div>-->
-<!--                        </div>-->
-                        <!-- Ready for auto nesting -->
-                        <div class="border-r-2 border-gray-200 border-dashed p-3">
-                            <!-- header -->
-                            <div>
-                                <h2 class="text-xl font-bold text-center">
-                                    <span class="text-indigo-300 text-base">1.</span> Nesting
-                                </h2>
-                            </div>
-                            <!-- body -->
-                            <div
-                                class="pt-3 overflow-y-auto"
-                                :style="'height:'+kanbanHeight+'px'"
-                            >
-                                <!-- new project -->
-                                <div class="mb-3">
-                                    <button
-                                        type="button"
-                                        @click="addProject()"
-                                        class="w-full text-center p-5 border-2 text-gray-600 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 border-gray-400 hover:border-gray-500 border-dashed rounded-lg font-semibold text-lg"
-                                    >
-                                        + Add project to nesting
-                                    </button>
-                                </div>
-
-                                <!-- card -->
-<!--                                <KanbanReadyForNestingCard-->
-<!--                                    v-if="projects['READY_FOR_NESTING'].projects.data.length > 0"-->
-<!--                                    :projects="projects['READY_FOR_NESTING'].projects.data"-->
-<!--                                    :usageStats="usageData"-->
-<!--                                    :prerequisiteStartQuoting="prerequisiteStartQuoting"-->
-<!--                                    @toggleArchive="p => toggleArchive(p)"-->
-<!--                                    @editMode="p => editMode(p)"-->
-<!--                                    @quoteNow="quoteNow()"-->
-<!--                                    @orderNow="orderNow()"-->
-<!--                                    @showBom="args => showBom(args)"-->
-<!--                                    @pageLoadingOn="seconds => pageLoaderTimer(seconds)"-->
-<!--                                    @pageLoadingOff="console.log('loading OFF'); pageLoading = false"-->
-<!--                                />-->
-                                <KanbanMinimalCard
-                                    v-if="projects['READY_FOR_NESTING'].projects.data.length > 0"
-                                    :projects="projects['READY_FOR_NESTING'].projects.data"
-                                    kanbanColumn="NESTING"
-                                    :usageStats="usageData"
-                                    :prerequisiteStartQuoting="prerequisiteStartQuoting"
-                                    @toggleArchive="p => toggleArchive(p)"
-                                    @editMode="p => editMode(p)"
-                                    @quoteNow="quoteNow()"
-                                    @orderNow="orderNow()"
-                                    @showBom="args => showBom(args)"
-                                    @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
-                                    @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
-                                    @addProject="addProject()"
-                                />
-<!--                                <div v-else class="text-center text-sm text-gray-500 mx-auto" style="width:200px">-->
-<!--                                    Projects move to here after adding materials-->
-<!--                                </div>-->
-
-
-                                <!-- toggle archived projects -->
-                                <div v-if="archivedProjects.data.length > 0" class="text-center">
-                                    <button
-                                        @click="showArchivedProjects = !showArchivedProjects"
-                                        class="text-center text-blue-500 underline mt-6 mb-2"
-                                    >
-                                        {{showArchivedProjects ? 'Hide' : 'Show'}} {{archivedProjects.data.length}} Archived Project{{archivedProjects.data.length > 1 ? 's' : ''}}
-                                    </button>
-                                    <div v-if="showArchivedProjects">
-                                        <table class="w-full">
-                                            <tr>
-                                                <th class="p-1">Name</th>
-                                                <th class="p-1">Actions</th>
-                                            </tr>
-                                            <tr v-for="project in archivedProjects.data">
-                                                <td class="p-1">{{project.name}}</td>
-                                                <td class="p-1">
-                                                    <span style="cursor: pointer; " class="underline text-blue-500" @click="toggleArchive(project)">restore</span>
-                                                </td>
-                                            </tr>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- Quoted -->
-                        <div class="border-r-2 border-gray-200 border-dashed p-3">
-                            <!-- header -->
-                            <div>
-                                <h2 class="text-xl font-bold text-center">
-                                    <span class="text-indigo-300 text-base">2.</span> Quoting
-                                </h2>
-                            </div>
-                            <!-- body -->
-                            <div
-                                class="pt-3 overflow-y-auto"
-                                :style="'height:'+kanbanHeight+'px'"
-                            >
-                                <!-- card-->
-<!--                                <KanbanGeneralBatchCard-->
-<!--                                    v-if="batches['QUOTED'].length > 0"-->
-<!--                                    v-for="batch in batches['QUOTED']"-->
-<!--                                    :key="batch.info.batch.id"-->
-<!--                                    :info="batch.info"-->
-<!--                                    type="QUOTES"-->
-<!--                                    class="mb-3"-->
-<!--                                    @toggleArchive="p => toggleArchive(p)"-->
-<!--                                    @editMode="p => editMode(p)"-->
-<!--                                    @pageLoadingOn="seconds => pageLoaderTimer(seconds)"-->
-<!--                                    @pageLoadingOff="console.log('loading OFF'); pageLoading = false"-->
-<!--                                    @showBom="args => showBom(args)"-->
-<!--                                />-->
-                                <KanbanMinimalCard
-                                    v-if="batches['QUOTED'].length > 0"
-                                    v-for="batch in batches['QUOTED']"
-                                    :key="batch.info.batch.id"
-                                    :projects="batch.info.projects.data"
-                                    kanbanColumn="QUOTING"
-                                    :batchInfo="batch.info"
-                                    class="mb-3"
-                                    @toggleArchive="p => toggleArchive(p)"
-                                    @editMode="p => editMode(p)"
-                                    @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
-                                    @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
-                                    @showBom="args => showBom(args)"
-                                    @addProject="addProject()"
-                                />
-                                <div class="text-center text-sm text-gray-500 mx-auto" style="width:250px">
-                                    Nested batches move to here after selecting <i>"Start quoting"</i>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- Ordered -->
-                        <div class="border-r-2 border-gray-200 border-dashed p-3">
-                            <!-- header -->
-                            <div>
-                                <h2 class="text-xl font-bold text-center">
-                                    <span class="text-indigo-300 text-base">3.</span> Ordering
-                                </h2>
-                            </div>
-                            <!-- body -->
-                            <div
-                                class="pt-3 overflow-y-auto"
-                                :style="'height:'+kanbanHeight+'px'"
-                            >
-                                <!-- card -->
-<!--                                <KanbanGeneralBatchCard-->
-<!--                                    v-if="batches['ORDERED'].length > 0"-->
-<!--                                    v-for="batch in batches['ORDERED']"-->
-<!--                                    :key="batch.info.batch.id"-->
-<!--                                    :info="batch.info"-->
-<!--                                    type="ORDERS"-->
-<!--                                    class="mb-3"-->
-<!--                                    @toggleArchive="p => toggleArchive(p)"-->
-<!--                                    @editMode="p => editMode(p)"-->
-<!--                                    @pageLoadingOn="seconds => pageLoaderTimer(seconds)"-->
-<!--                                    @pageLoadingOff="console.log('loading OFF'); pageLoading = false"-->
-<!--                                    @orderNow="orderNow(batch['batch']['id'])"-->
-<!--                                    @showBom="args => showBom(args)"-->
-<!--                                />-->
-                                <KanbanMinimalCard
-                                    v-if="batches['ORDERED'].length > 0"
-                                    v-for="batch in batches['ORDERED']"
-                                    :key="batch.info.batch.id"
-                                    :projects="batch.info.projects.data"
-                                    kanbanColumn="ORDERING"
-                                    :batchInfo="batch.info"
-                                    class="mb-3"
-                                    @toggleArchive="p => toggleArchive(p)"
-                                    @editMode="p => editMode(p)"
-                                    @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
-                                    @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
-                                    @orderNow="orderNow(batch['batch']['id'])"
-                                    @showBom="args => showBom(args)"
-                                />
-                                <div class="text-center text-sm text-gray-500 mx-auto" style="width:200px">
-                                    Nested batches move to here after adding first order
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="p-2">
-                            <!-- header -->
-                            <div>
-                                <h2 class="text-xl font-bold text-center">
-                                    <span class="text-indigo-300 text-base">4.</span> Delivering
-                                </h2>
-                            </div>
-                            <!-- body -->
-                            <div
-                                class="pt-3 overflow-y-auto"
-                                :style="'height:'+kanbanHeight+'px'"
-                            >
-                                <!-- card -->
-<!--                                <KanbanGeneralBatchCard-->
-<!--                                    v-if="batches['DELIVERED'].length > 0"-->
-<!--                                    v-for="batch in batches['DELIVERED']"-->
-<!--                                    :key="batch.info.batch.id"-->
-<!--                                    :info="batch.info"-->
-<!--                                    type="DELIVERED"-->
-<!--                                    class="mb-3"-->
-<!--                                    @toggleArchive="p => toggleArchive(p)"-->
-<!--                                    @editMode="p => editMode(p)"-->
-<!--                                    @pageLoadingOn="seconds => pageLoaderTimer(seconds)"-->
-<!--                                    @pageLoadingOff="console.log('loading OFF'); pageLoading = false"-->
-<!--                                    @orderNow="orderNow(batch['batch']['id'])"-->
-<!--                                    @showBom="args => showBom(args)"-->
-<!--                                />-->
-                                <KanbanMinimalCard
-                                    v-if="batches['DELIVERED'].length > 0"
-                                    v-for="batch in batches['DELIVERED']"
-                                    :key="batch.info.batch.id"
-                                    :projects="batch.info.projects.data"
-                                    kanbanColumn="DELIVERED"
-                                    :batchInfo="batch.info"
-                                    class="mb-3"
-                                    @toggleArchive="p => toggleArchive(p)"
-                                    @editMode="p => editMode(p)"
-                                    @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
-                                    @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
-                                    @showBom="args => showBom(args)"
-                                    @addProject="addProject()"
-                                />
-                                <div class="text-center text-sm text-gray-500 mx-auto" style="width:200px">
-                                    Nested batches move to here after all orders are complete
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
+                <h1 class="mt-4 text-lg font-semibold text-gray-900">Desktop required</h1>
+                <p class="mt-2 text-sm leading-relaxed text-gray-500">
+                    The nesting board needs a wider screen. Please sign in from a desktop computer.
+                </p>
+                <Link
+                    :href="route('logout')"
+                    method="post"
+                    class="mt-6 inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition-colors duration-150 hover:bg-gray-50"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+                    </svg>
+                    Logout
+                </Link>
             </div>
         </div>
+
+        <!-- Desktop view -->
+        <section class="mx-auto hidden h-[calc(100vh-68px)] w-full max-w-[1800px] flex-col md:flex">
+
+            <!-- page header -->
+            <header class="flex flex-none flex-wrap items-end justify-between gap-4 py-5">
+                <div>
+                    <h1 class="text-2xl font-bold tracking-tight text-gray-900">Projects</h1>
+                    <p class="mt-1 text-sm text-gray-500">
+                        Follow every project from nesting through to delivery.
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    @click="addProject()"
+                    class="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors duration-150 hover:bg-blue-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                >
+                    <i class="fa-solid fa-plus text-xs"></i>
+                    New project
+                </button>
+            </header>
+
+            <!-- kanban -->
+            <div class="grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-4 pb-5 xl:grid-cols-4 xl:grid-rows-1">
+
+                <!-- Ready for auto nesting -->
+                <KanbanColumn
+                    step="1"
+                    title="Nesting"
+                    :count="nestingProjects.length"
+                >
+                    <!-- new project -->
+                    <button
+                        type="button"
+                        @click="addProject()"
+                        class="group/add flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-white px-4 py-6 text-center transition-colors duration-150 hover:border-blue-300 hover:bg-blue-50"
+                    >
+                        <span class="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-500 transition-colors duration-150 group-hover/add:bg-blue-100 group-hover/add:text-blue-800">
+                            <i class="fa-solid fa-plus text-xs"></i>
+                        </span>
+                        <span class="text-sm font-semibold text-gray-700 group-hover/add:text-blue-800">
+                            Add project to nesting
+                        </span>
+                    </button>
+
+                    <!-- card -->
+                    <KanbanMinimalCard
+                        v-if="nestingProjects.length > 0"
+                        :projects="nestingProjects"
+                        kanbanColumn="NESTING"
+                        :usageStats="usageData"
+                        :prerequisiteStartQuoting="prerequisiteStartQuoting"
+                        @toggleArchive="p => toggleArchive(p)"
+                        @editMode="p => editMode(p)"
+                        @quoteNow="quoteNow()"
+                        @orderNow="orderNow()"
+                        @showBom="args => showBom(args)"
+                        @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
+                        @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
+                        @addProject="addProject()"
+                    />
+
+                    <!-- toggle archived projects -->
+                    <div v-if="archivedProjects.data.length > 0" class="pt-1">
+                        <button
+                            type="button"
+                            @click="showArchivedProjects = !showArchivedProjects"
+                            class="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-xs font-semibold text-gray-600 transition-colors duration-150 hover:bg-gray-200/60 hover:text-gray-800"
+                        >
+                            <span>
+                                {{archivedProjects.data.length}} archived project{{archivedProjects.data.length > 1 ? 's' : ''}}
+                            </span>
+                            <i
+                                class="fa-solid fa-chevron-down text-[10px] transition-transform duration-200"
+                                :class="showArchivedProjects ? 'rotate-180' : ''"
+                            ></i>
+                        </button>
+                        <ul v-if="showArchivedProjects" class="mt-1.5 space-y-1">
+                            <li
+                                v-for="project in archivedProjects.data"
+                                :key="project.id"
+                                class="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-2.5 py-2"
+                            >
+                                <span class="truncate text-xs text-gray-700" :title="project.name">
+                                    {{ shared.capitalizeWords(project.name) }}
+                                </span>
+                                <button
+                                    type="button"
+                                    @click="toggleArchive(project)"
+                                    class="flex-none text-xs font-semibold text-blue-800 transition-colors duration-150 hover:text-blue-900 hover:underline"
+                                >
+                                    Restore
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                </KanbanColumn>
+
+                <!-- Quoted -->
+                <KanbanColumn
+                    step="2"
+                    title="Quoting"
+                    :count="quotedBatches.length"
+                >
+                    <!-- card -->
+                    <KanbanMinimalCard
+                        v-for="batch in quotedBatches"
+                        :key="batch.info.batch.id"
+                        :projects="batch.info.projects.data"
+                        kanbanColumn="QUOTING"
+                        :batchInfo="batch.info"
+                        @toggleArchive="p => toggleArchive(p)"
+                        @editMode="p => editMode(p)"
+                        @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
+                        @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
+                        @showBom="args => showBom(args)"
+                        @addProject="addProject()"
+                    />
+
+                    <KanbanEmptyState
+                        v-if="quotedBatches.length === 0"
+                        icon="fa-regular fa-file-lines"
+                    >
+                        Nested batches arrive here once you select <i>“Start quoting”</i>.
+                    </KanbanEmptyState>
+                </KanbanColumn>
+
+                <!-- Ordered -->
+                <KanbanColumn
+                    step="3"
+                    title="Ordering"
+                    :count="orderedBatches.length"
+                >
+                    <!-- card -->
+                    <KanbanMinimalCard
+                        v-for="batch in orderedBatches"
+                        :key="batch.info.batch.id"
+                        :projects="batch.info.projects.data"
+                        kanbanColumn="ORDERING"
+                        :batchInfo="batch.info"
+                        @toggleArchive="p => toggleArchive(p)"
+                        @editMode="p => editMode(p)"
+                        @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
+                        @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
+                        @orderNow="orderNow(batch['batch']['id'])"
+                        @showBom="args => showBom(args)"
+                    />
+
+                    <KanbanEmptyState
+                        v-if="orderedBatches.length === 0"
+                        icon="fa-regular fa-paper-plane"
+                    >
+                        Nested batches arrive here once the first order is placed.
+                    </KanbanEmptyState>
+                </KanbanColumn>
+
+                <!-- Delivered -->
+                <KanbanColumn
+                    step="4"
+                    title="Delivering"
+                    :count="deliveredBatches.length"
+                >
+                    <!-- card -->
+                    <KanbanMinimalCard
+                        v-for="batch in deliveredBatches"
+                        :key="batch.info.batch.id"
+                        :projects="batch.info.projects.data"
+                        kanbanColumn="DELIVERED"
+                        :batchInfo="batch.info"
+                        @toggleArchive="p => toggleArchive(p)"
+                        @editMode="p => editMode(p)"
+                        @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
+                        @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
+                        @showBom="args => showBom(args)"
+                        @addProject="addProject()"
+                    />
+
+                    <KanbanEmptyState
+                        v-if="deliveredBatches.length === 0"
+                        icon="fa-solid fa-truck-fast"
+                    >
+                        Nested batches arrive here once every order is complete.
+                    </KanbanEmptyState>
+                </KanbanColumn>
+            </div>
+        </section>
     </AuthenticatedLayout>
 
     <!-- Modals -->
@@ -633,23 +541,3 @@
         @redownload="project => downloadProjectBomData(project,'BOM')"
     />
 </template>
-
-<style scoped>
-    /* Custom scrollbar styles */
-    ::-webkit-scrollbar {
-        width: 8px; /* Width of the scrollbar */
-    }
-
-    ::-webkit-scrollbar-track {
-        background: #f1f1f1; /* Background of the track */
-    }
-
-    ::-webkit-scrollbar-thumb {
-        background: #bfbfbf; /* Color of the scrollbar thumb */
-        border-radius: 10px; /* Rounded corners */
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-        background: #888; /* Color when hovered */
-    }
-</style>

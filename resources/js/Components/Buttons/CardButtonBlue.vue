@@ -7,12 +7,12 @@
 </script>
 
 <template>
-    <!-- Loading (inactive) -->
     <div
-        :class="highlight ? 'bg-blue-100 hover:bg-blue-200 border-[1px] border-blue-300' : 'bg-blue-50 hover:bg-blue-100 border-[1px] border-blue-200'"
-        class="w-full text-center h-5 px-2 text-xs font-semibold text-blue-400 hover:text-blue-500 rounded-full"
-        style="cursor: pointer;"
+        :class="highlight
+            ? 'bg-blue-700 border-blue-700 text-white hover:bg-blue-800 hover:border-blue-800'
+            : 'bg-white border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-800'"
+        class="inline-flex h-8 w-full cursor-pointer select-none items-center justify-center rounded-lg border px-2.5 text-xs font-semibold shadow-sm transition-colors duration-150"
     >
-        {{label}}
+        <span class="truncate">{{label}}</span>
     </div>
 </template>

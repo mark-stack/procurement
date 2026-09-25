@@ -20,7 +20,12 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Montserrat', ...defaultTheme.fontFamily.sans],
+                /**
+                 * Figtree, matching the face app.blade.php actually loads. This
+                 * used to name Montserrat, which was never fetched, so every
+                 * page silently fell through to the system UI font.
+                 */
+                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
             },
             colors: {
                 red: {

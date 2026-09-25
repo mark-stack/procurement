@@ -9,11 +9,11 @@
 </script>
 
 <template>
+    <!-- The "move this along" action - always the loudest button on a card -->
     <div
-        class="w-full flex justify-between bg-green-100 hover:bg-green-200 border-[1px] border-green-300 text-center h-5 font-semibold text-green-500 hover:text-green-600 rounded-full"
-        style="cursor: pointer;"
+        class="inline-flex h-8 w-full cursor-pointer select-none items-center justify-center gap-1.5 rounded-lg border border-green-700 bg-green-700 px-2.5 text-xs font-semibold text-white shadow-sm transition-colors duration-150 hover:border-green-800 hover:bg-green-800"
     >
-        <span class="w-full text-xs pl-2" style="padding-top:1px;">{{label}}</span>
-        <i class="fa-regular fa-circle-right text-sm pl-1" style="padding-right:3px;"></i>
+        <span class="truncate">{{label}}</span>
+        <i class="fa-regular fa-circle-right text-sm"></i>
     </div>
 </template>

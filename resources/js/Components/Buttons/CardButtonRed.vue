@@ -8,7 +8,7 @@
 
     //Methods
     function getClass(){
-        let getClass = "text-center h-5 px-2 text-xs font-semibold bg-gray-100 rounded-full border-[1px] border-gray-200";
+        let getClass = "inline-flex h-8 items-center justify-center rounded-lg border px-2.5 text-xs font-semibold transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1";
 
         //Width
         if(props.fullWidth){
@@ -17,10 +17,10 @@
 
         //Disabled
         if(props.disabled){
-            getClass = getClass + " text-gray-400";
+            getClass = getClass + " cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400";
         }
         else{
-            getClass = getClass + " text-gray-500 hover:bg-red-100";
+            getClass = getClass + " border-gray-300 bg-white text-gray-600 shadow-sm hover:border-red-200 hover:bg-red-50 hover:text-red-700 focus-visible:ring-red-400";
         }
 
         return getClass;
@@ -29,9 +29,10 @@
 
 <template>
     <button
+        type="button"
         :disabled="disabled"
         :class="getClass()"
     >
-        {{label}}
+        <span class="truncate">{{label}}</span>
     </button>
 </template>
