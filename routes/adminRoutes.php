@@ -15,7 +15,9 @@ Route::prefix('admin')->name('admin.')->middleware([AdminMiddleware::class])->gr
     Route::resource('businesses.templates', TemplateController::class);
 
     //Update master materials spreadsheet
-    Route::get('update-master-materials-spreadsheet', AdminUpdateMasterMaterialsSpreadsheetController::class)->name('update.master.materials.spreadsheet');
+    //POST: this rewrites the whole platform catalogue, so it must not be reachable by a link,
+    //a prefetch or a crawler
+    Route::post('update-master-materials-spreadsheet', AdminUpdateMasterMaterialsSpreadsheetController::class)->name('update.master.materials.spreadsheet');
 
     //Users
     Route::get('users', AdminUserIndexController::class)->name('users.index');

@@ -3,60 +3,67 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\AdminMaterialsImport;
+use App\Services\MasterMaterialsParser;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Throwable;
 
 class AdminUpdateMasterMaterialsSpreadsheetController extends Controller
 {
+    public const FILE = 'master_materials.csv';
+
     /**
      * Handle the incoming request.
      */
-    public function __invoke(Request $request): string
+    public function __invoke(Request $request, MasterMaterialsParser $parser): RedirectResponse
     {
-        $filePath = 'master_materials.csv';
-        if (! Storage::exists($filePath)) {
-            return "materials.csv not found! Check 'app/private'";
+        if (! Storage::exists(self::FILE)) {
+            return back()->with('materialsImport', [
+                'ok' => false,
+                'messages' => [self::FILE." not found on the configured disk. Check 'storage/app/private'."],
+            ]);
         }
 
-        // Read the CSV
-        $data = [];
-        if (($handle = fopen(storage_path("app/private/{$filePath}"), 'r')) !== false) {
-            while (($row = fgetcsv($handle, 1000, ',')) !== false) {
-                //Skip blank rows
-                if ($row[0] !== '') {
-                    $data[] = [
-                        'description' => $row[0],
-                        'product_category' => $row[1],
-                        'material' => $row[2],
-                        'grade' => $row[3],
-                        'surface' => $row[4],
-                        'nesting_algo' => $row[5],
-                        'certificates' => $row[6],
-                        'nominal_units' => $row[7],
-                        'nominal_length' => $row[8],
-                        'precise_length' => $row[9],
-                        'nominal_width' => $row[10],
-                        'precise_width' => $row[11],
-                        'nominal_height' => $row[12],
-                        'precise_height' => $row[13],
-                        'wall' => $row[14],
-                        'pack_size_1' => $row[15],
-                        'pack_size_2' => $row[16],
-                        'pack_size_3' => $row[17],
-                        'kg_per_m' => $row[18],
-                    ];
-                }
-            }
+        /*
+         * Read through the Storage disk rather than a hardcoded storage_path(). The existence
+         * check above and the read are then guaranteed to be talking about the same file.
+         */
+        $handle = Storage::readStream(self::FILE);
+
+        if (! is_resource($handle)) {
+            return back()->with('materialsImport', [
+                'ok' => false,
+                'messages' => [self::FILE.' could not be read from the configured disk.'],
+            ]);
+        }
+
+        try {
+            $result = $parser->parse($handle);
+        } catch (Throwable $exception) {
+            return back()->with('materialsImport', [
+                'ok' => false,
+                'messages' => [$exception->getMessage()],
+            ]);
+        } finally {
             fclose($handle);
         }
 
-        //Remove heading row
-        unset($data[0]);
+        if ($result->rows === []) {
+            return back()->with('materialsImport', [
+                'ok' => false,
+                'messages' => ['No usable rows found in '.self::FILE.'. Nothing was imported.', ...$result->messages()],
+            ]);
+        }
 
-        $dataCollection = collect($data);
+        AdminMaterialsImport::dispatch($result->collection(), $result->messages());
 
-        AdminMaterialsImport::dispatchSync($dataCollection);
-
-        return 'Done';
+        return back()->with('materialsImport', [
+            'ok' => true,
+            'messages' => [
+                'Master materials import started. You will be emailed when it finishes.',
+                ...$result->messages(),
+            ],
+        ]);
     }
 }

@@ -106,7 +106,7 @@ test('that master_files.csv successfully seeds products', function () {
     $this->actingAs($adminUser);
 
     //Seed master_product.csv to create products
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     //Test that over 100 products were created
     expect(Product::count())->toBeGreaterThan(100);
@@ -120,7 +120,7 @@ test('that "75PFC 9m" finds exact product', function () {
     $this->actingAs($adminUser);
 
     //Seed master_product.csv to create products
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     //Find product
     $products = findProducts('75PFC 9m');
@@ -140,7 +140,7 @@ test('that "PLT10(asterix)160" finds GR250 and GR350', function () {
     $this->actingAs($adminUser);
 
     //Seed master_product.csv to create products
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     //Find product
     $products = findProducts('PLT10*160');
@@ -160,7 +160,7 @@ test('that "150PFC 9000mm" finds exact product', function () {
     $this->actingAs($adminUser);
 
     //Seed master_product.csv to create products
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     //Find product
     $products = findProducts('150PFC 9000mm');
@@ -181,7 +181,7 @@ test('that "UB460(asterix)67" finds exact product', function () {
     $this->actingAs($adminUser);
 
     //Seed master_product.csv to create products
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     //Find product
     $products = findProducts('UB460*67');
@@ -201,7 +201,7 @@ test('that "90X63 LVL 7 meters" finds exact product', function () {
     $this->actingAs($adminUser);
 
     //Seed master_product.csv to create products
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     //Find product
     $products = findProducts('90X63 LVL 7 meters');
@@ -222,7 +222,7 @@ test('that "M12 Allthread" finds exact product', function () {
     $this->actingAs($adminUser);
 
     //Seed master_product.csv to create products
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     //Find product
     $products = findProducts('M12 Allthread');
@@ -247,7 +247,7 @@ test('that "M12 CHEMICAL ANCHOR 180mm" finds exact product', function () {
     $this->actingAs($adminUser);
 
     //Seed master_product.csv to create products
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     //Find product
     $products = findProducts('M12 CHEMICAL ANCHOR 180mm');
@@ -269,7 +269,7 @@ test('that "M12 8.8S 30mm" finds exact product', function () {
     $this->actingAs($adminUser);
 
     //Seed master_product.csv to create products
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     //Find product
     $products = findProducts('M12 8.8S 30mm');
@@ -298,7 +298,7 @@ test('that "M16 4.6S 45mm" finds exact product', function () {
     $this->actingAs($adminUser);
 
     //Seed master_product.csv to create products
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     //Find product
     $products = findProducts('M16 4.6S 45mm');
@@ -324,7 +324,7 @@ test('that "M20 12.9_CSK 45mm" finds exact product', function () {
     $this->actingAs($adminUser);
 
     //Seed master_product.csv to create products
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     //Find product
     $products = findProducts('M20 12.9_CSK 45mm');
@@ -350,7 +350,7 @@ test('that "M20x500 D20 ANCHOR ROD" finds exact product', function () {
     $this->actingAs($adminUser);
 
     //Seed master_product.csv to create products
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     //Find product
     $products = findProducts('M20x500 D20 ANCHOR ROD');
@@ -376,7 +376,7 @@ test('that "M20 M20_NUT NUT" finds exact product', function () {
     $this->actingAs($adminUser);
 
     //Seed master_product.csv to create products
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     //Find product
     $products = findProducts('M20 M20_NUT NUT');
@@ -399,7 +399,7 @@ test('that "M20 x 65" finds exact products', function () {
     $this->actingAs($adminUser);
 
     //Seed master_product.csv to create products
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     //Find product
     $products = findProducts('M20 x 65');
@@ -432,7 +432,7 @@ test('that CHS distinguishes nominal & actual diameter, and wall thickness varia
     $this->actingAs($adminUser);
 
     //Seed master_product.csv to create products
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     //Find product
     $products1 = findProducts('CHS 200nb (Ø219.1x6.4) 12m');
@@ -478,7 +478,7 @@ test('that different UB weights are identified', function () {
     $this->actingAs($adminUser);
 
     //Seed master_product.csv to create products
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     //Find product
     $products1A = findProducts('360 UB 56.7');
@@ -549,7 +549,7 @@ test('that different UC weights are identified', function () {
     $this->actingAs($adminUser);
 
     //Seed master_product.csv to create products
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     //Find product
     $products1 = findProducts('250 UC 89.5');

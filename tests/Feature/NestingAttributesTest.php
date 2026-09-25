@@ -19,7 +19,7 @@ it('would be a disaster if mismatched attributes', function (string $description
 
     //Seed master_product.csv to create products
     $this->actingAs($adminUser);
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     //Fake data
     $business = createBusiness('gmail', true);

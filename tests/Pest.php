@@ -23,6 +23,7 @@ use App\Models\Batch;
 use App\Models\Business;
 use App\Models\Offcut;
 use App\Models\Piece;
+use App\Models\Product;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
 use App\Models\User;
@@ -59,6 +60,23 @@ expect()->extend('toBeOne', function () {
 | global functions to help you to reduce the number of lines of code in your test files.
 |
 */
+/**
+ * Populate the products table by running the real import route, so the tests exercise the
+ * same parsing and reconciliation the admin does rather than a hand-copied duplicate.
+ *
+ * The caller must already be acting as an admin.
+ */
+function seedMasterMaterials(): void
+{
+    test()->post(route('admin.update.master.materials.spreadsheet'));
+
+    /*
+     * master_materials.csv is gitignored, so on a fresh clone the import quietly does nothing.
+     * Fail here rather than several hundred lines into a nesting assertion.
+     */
+    expect(Product::count())->toBeGreaterThan(0);
+}
+
 function nestingTestCases(): array
 {
     return [

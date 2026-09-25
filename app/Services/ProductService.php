@@ -48,12 +48,14 @@ class ProductService
 
         //Has product category
         if ($productCategory) {
+            //A deprecated product is not a source of truth for a live category
             $product = Product::query()
+                ->active()
                 ->where('product_category', $productCategory)
                 ->first();
 
             $certificate = $product
-                ? $product->certificates
+                ? (bool) $product->certificates
                 : false;
         }
 

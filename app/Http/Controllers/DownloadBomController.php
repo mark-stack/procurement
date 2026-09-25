@@ -131,7 +131,7 @@ class DownloadBomController extends Controller
         /**
          * Nesting groups
          */
-        $nestingGroups = $nestingFormatter->getNestingGroups();
+        $nestingGroups = $nestingFormatter->getNestingGroups($user);
 
         return response()->json([
             'downloadedBomData' => [
