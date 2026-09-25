@@ -18,7 +18,6 @@ use App\Services\ProductService;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\ExcelImport;
-use Symfony\Component\HttpFoundation\File\File;
 
 class TestingFormatter
 {
@@ -162,8 +161,7 @@ class TestingFormatter
         $csvArray = null;
 
         if (Storage::disk('local')->exists($filePath)) {
-            $file = new File(Storage::path($filePath));
-            $csvArray = Excel::toArray(new ExcelImport, $file)[0];
+            $csvArray = Excel::toArray(new ExcelImport, Storage::path($filePath))[0];
         }
 
         return $csvArray;
