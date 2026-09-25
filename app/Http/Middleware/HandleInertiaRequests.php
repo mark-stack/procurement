@@ -38,9 +38,11 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
                 'business' => $request->user() ? $request->user()->business : null,
                 'isAdmin' => $request->user() && $request->user()->isAdmin(),
-                'onboarded' => $request->user() && $request->user()->business->admin_setup_complete,
+                //A user without a business is unexpected, but it must not 500 every
+                //page - these are shared on every Inertia response
+                'onboarded' => (bool) $request->user()?->business?->admin_setup_complete,
                 'notifications' => (new NotificationService)->getUnreadNotifications($request->user()),
-                "hasPastProjects" => $request->user() ? $request->user()->business->batches()->inactive()->exists() : false,
+                "hasPastProjects" => (bool) $request->user()?->business?->batches()->inactive()->exists(),
             ],
             'hasSeedImport' => Product::count() > 0,
             'flash' => [
