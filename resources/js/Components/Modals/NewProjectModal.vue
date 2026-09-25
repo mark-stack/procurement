@@ -4,6 +4,8 @@
 
     //Component Imports
     import Modal from "@/Layouts/Modal.vue";
+    import ConfirmModal from "@/Components/Modals/ConfirmModal.vue";
+    import useConfirm from "@/Shared/useConfirm.js";
     import {computed, ref, toRefs, watch} from "vue";
 
     //Props
@@ -57,6 +59,9 @@
     const fileInput = ref(null);
     //A flash survives in the page props, so it has to be dismissable by hand
     const warningDismissed = ref(false);
+
+    //Shared Methods
+    const {confirmDialog, askToConfirm, confirmDialogAccepted, confirmDialogCancelled} = useConfirm();
 
     //Computed
     const warning = computed(() => (warningDismissed.value ? null : flashedWarning.value));
@@ -313,17 +318,21 @@
     }
 
     function deleteOneClarification(rawMaterialQuoteId){
-        let message = "Are you sure you want delete this item?";
-        const userConfirmed = confirm(message);
-        if (userConfirmed) {
-            //Add to list of "promise to delete" to actually delete after submitting form
-            formClarifications.deletedIds.push(rawMaterialQuoteId);
+        askToConfirm({
+            title: "Delete this item?",
+            message: "It will be dropped from this project's material list when you save.",
+            confirmLabel: "Delete item",
+            tone: "danger",
+            onConfirmed: () => {
+                //Add to list of "promise to delete" to actually delete after submitting form
+                formClarifications.deletedIds.push(rawMaterialQuoteId);
 
-            //If delete all the items, then auto submit the form
-            if(thisDownloadedBomData(props.bomData).partialProductMatches.length === formClarifications.deletedIds.length){
-                submitClarifications();
-            }
-        }
+                //If delete all the items, then auto submit the form
+                if(thisDownloadedBomData(props.bomData).partialProductMatches.length === formClarifications.deletedIds.length){
+                    submitClarifications();
+                }
+            },
+        });
     }
 
     /*
@@ -754,5 +763,16 @@
                 </section>
             </div>
         </div>
+
+        <!-- Teleports itself out, so it is only nested here to keep a single root -->
+        <ConfirmModal
+            v-if="confirmDialog"
+            :title="confirmDialog.title"
+            :message="confirmDialog.message"
+            :confirmLabel="confirmDialog.confirmLabel"
+            :tone="confirmDialog.tone"
+            @confirm="confirmDialogAccepted()"
+            @cancel="confirmDialogCancelled()"
+        />
     </Modal>
 </template>

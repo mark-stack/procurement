@@ -6,6 +6,8 @@
 
     //Component Imports
     import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+    import ConfirmModal from "@/Components/Modals/ConfirmModal.vue";
+    import useConfirm from "@/Shared/useConfirm.js";
 
     //Props
     const props = defineProps({
@@ -28,6 +30,9 @@
     const editSupplier = ref(null);
     const autoSuggestions = ref([]);
     const autoSuggestionsExactMatch = ref(false);
+
+    //Shared Methods
+    const {confirmDialog, askToConfirm, confirmDialogAccepted, confirmDialogCancelled} = useConfirm();
 
     //Methods
     function setupCategoriesForm(){
@@ -86,12 +91,14 @@
         });
     }
 
-    function deleteConfirmation(id) {
-        const userConfirmed = confirm("Are you sure you want to remove this supplier?");
-        if (userConfirmed) {
-            // User clicked "OK"
-            submitDelete(id);
-        }
+    function deleteConfirmation(supplier) {
+        askToConfirm({
+            title: "Remove this supplier?",
+            message: `“${supplier.name}” will no longer be available to quote against.`,
+            confirmLabel: "Remove supplier",
+            tone: "danger",
+            onConfirmed: () => submitDelete(supplier.id),
+        });
     }
 
     function editMode(supplier){
@@ -287,7 +294,7 @@
                                         <button
                                             v-if="showDeleteButton(supplier)"
                                             class="text-red-500 font-extrabold"
-                                            @click="deleteConfirmation(supplier.id)"
+                                            @click="deleteConfirmation(supplier)"
                                         >
                                             <i class="fa-regular fa-circle-xmark"></i>
                                         </button>
@@ -300,4 +307,14 @@
             </div>
         </div>
     </AuthenticatedLayout>
+
+    <ConfirmModal
+        v-if="confirmDialog"
+        :title="confirmDialog.title"
+        :message="confirmDialog.message"
+        :confirmLabel="confirmDialog.confirmLabel"
+        :tone="confirmDialog.tone"
+        @confirm="confirmDialogAccepted()"
+        @cancel="confirmDialogCancelled()"
+    />
 </template>

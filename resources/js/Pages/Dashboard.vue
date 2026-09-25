@@ -2,6 +2,7 @@
     //General Imports
     import {Head, Link, useForm} from '@inertiajs/vue3';
     import {ref, toRefs, watch} from "vue";
+    import useConfirm from "@/Shared/useConfirm.js";
     import axios from 'axios';
 
     //Component Imports
@@ -11,6 +12,7 @@
     import KanbanGeneralBatchCard from "@/Components/KanbanGeneralBatchCard.vue";
     import NewProjectModal from "@/Components/Modals/NewProjectModal.vue";
     import BomEditModal from "@/Components/Modals/BomEditModal.vue";
+    import ConfirmModal from "@/Components/Modals/ConfirmModal.vue";
     import PageLoadingOverlay from "@/Components/PageLoadingOverlay.vue";
     import KanbanMinimalCard from "@/Components/KanbanMinimalCard.vue";
 
@@ -47,6 +49,9 @@
     const underNavScreenHeight = window.innerHeight - 68;
     const kanbanHeight = underNavScreenHeight - 50;
     const projectAfterUpload = ref(null);
+
+    //Shared Methods
+    const {confirmDialog, askToConfirm, confirmDialogAccepted, confirmDialogCancelled} = useConfirm();
 
 
     //Methods
@@ -90,12 +95,24 @@
     }
 
     function toggleArchive(project) {
-        let msg = project.archive ? "Are you sure you want to restore this project?" : "Are you sure you want to archive this project? It can be restored later of you choose";
-        const userConfirmed = confirm(msg);
-        if (userConfirmed) {
-            // User clicked "OK"
-            submitArchiveToggle(project.id)
-        }
+        const name = project.name;
+
+        askToConfirm(project.archive
+            ? {
+                title: "Restore this project?",
+                message: `“${name}” will move back onto your board, ready for nesting.`,
+                confirmLabel: "Restore project",
+                tone: "primary",
+                onConfirmed: () => submitArchiveToggle(project.id),
+            }
+            : {
+                title: "Archive this project?",
+                message: `“${name}” will be removed from your board. You can restore it later if you choose.`,
+                confirmLabel: "Archive project",
+                tone: "danger",
+                onConfirmed: () => submitArchiveToggle(project.id),
+            }
+        );
     }
 
     function editMode(project){
@@ -583,6 +600,15 @@
     </AuthenticatedLayout>
 
     <!-- Modals -->
+    <ConfirmModal
+        v-if="confirmDialog"
+        :title="confirmDialog.title"
+        :message="confirmDialog.message"
+        :confirmLabel="confirmDialog.confirmLabel"
+        :tone="confirmDialog.tone"
+        @confirm="confirmDialogAccepted()"
+        @cancel="confirmDialogCancelled()"
+    />
     <NewProjectModal
         v-show="showNewProjectModal"
         :show="showNewProjectModal"

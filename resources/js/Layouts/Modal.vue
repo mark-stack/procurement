@@ -1,3 +1,21 @@
+<script>
+    import {ref as sharedRef} from "vue";
+
+    /**
+     * Every modal currently on screen, oldest first, shared by all instances.
+     *
+     * Modals stack - a ConfirmModal opens on top of the modal that asked for it -
+     * and each instance listens on the document, so without this they would all
+     * act on the same escape key and one press would close the lot.
+     */
+    const openModals = sharedRef([]);
+
+    //The page behind any open modal must not scroll
+    function syncBodyScroll(){
+        document.body.style.overflow = openModals.value.length > 0 ? 'hidden' : '';
+    }
+</script>
+
 <script setup>
     //General Imports
     import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from "vue";
@@ -32,6 +50,8 @@
     const loadingButton = ref(false);
     const panel = ref(null);
     let previouslyFocused = null;
+    //This instance's place in the shared stack
+    const token = Symbol('modal');
 
     //Computed
     //An explicit label wins, otherwise point at the heading id
@@ -40,7 +60,29 @@
     //A "fake" modal closes by navigating, so there is nothing to dismiss
     const dismissible = computed(() => !props.fakeModal);
 
+    //Only the modal on top of the stack takes the keyboard
+    const isTopmost = computed(() => openModals.value[openModals.value.length - 1] === token);
+
+    //Anything below another modal is out of reach, for the pointer and for readers
+    const isBuried = computed(() => props.open && !isTopmost.value);
+
     //Methods
+    function enterStack(){
+        if(!openModals.value.includes(token)){
+            openModals.value.push(token);
+            syncBodyScroll();
+        }
+    }
+
+    function leaveStack(){
+        const at = openModals.value.indexOf(token);
+
+        if(at !== -1){
+            openModals.value.splice(at,1);
+            syncBodyScroll();
+        }
+    }
+
     function requestClose(){
         if(dismissible.value){
             emit('closeModal');
@@ -65,7 +107,8 @@
     }
 
     function onKeydown(event){
-        if(!props.open){
+        //Leave the key to whichever modal is on top
+        if(!props.open || !isTopmost.value){
             return;
         }
 
@@ -100,13 +143,21 @@
 
         await nextTick();
 
+        //A dialog can nominate its own landing spot, otherwise take the first control
         const focusable = focusableChildren();
-        (focusable[0] ?? panel.value)?.focus();
+        const nominated = focusable.find(el => el.hasAttribute('data-modal-autofocus'));
+
+        (nominated ?? focusable[0] ?? panel.value)?.focus();
     }
 
-    function restoreFocus(){
-        previouslyFocused?.focus?.();
+    async function restoreFocus(){
+        const target = previouslyFocused;
         previouslyFocused = null;
+
+        //The modal underneath only drops its inert attribute on the next render,
+        //and an inert container refuses focus, so the handover has to wait for it
+        await nextTick();
+        target?.focus?.();
     }
 
     /*
@@ -116,16 +167,19 @@
         document.addEventListener('keydown', onKeydown);
 
         if(props.open){
+            enterStack();
             takeFocus();
         }
     });
 
     onBeforeUnmount(() => {
         document.removeEventListener('keydown', onKeydown);
+        leaveStack();
         restoreFocus();
     });
 
     watch(() => props.open, (isOpen) => {
+        isOpen ? enterStack() : leaveStack();
         isOpen ? takeFocus() : restoreFocus();
     });
 </script>
@@ -140,6 +194,8 @@
             :aria-label="ariaLabel"
             :aria-labelledby="labelledBy"
             aria-modal="true"
+            :aria-hidden="isBuried || undefined"
+            :inert="isBuried || undefined"
         >
             <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
 
@@ -159,24 +215,27 @@
                             <slot/>
                         </div>
                         <div class="bg-gray-50 dark:bg-gray-800 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                            <Link
-                                v-if="fakeModal"
-                                type="button"
-                                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-900 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                                :href="redirect === 'current' ? route('dashboard') : route('past.projects.index')"
-                                @click="loadingButton = true"
-                            >
-                                {{ loadingButton ? 'Closing...' : 'Back to projects'}}
-                            </Link>
+                            <!-- Consumers needing their own buttons replace the footer wholesale -->
+                            <slot name="footer">
+                                <Link
+                                    v-if="fakeModal"
+                                    type="button"
+                                    class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-900 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                                    :href="redirect === 'current' ? route('dashboard') : route('past.projects.index')"
+                                    @click="loadingButton = true"
+                                >
+                                    {{ loadingButton ? 'Closing...' : 'Back to projects'}}
+                                </Link>
 
-                            <button
-                                v-else
-                                type="button"
-                                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-900 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                                @click="$emit('closeModal')"
-                            >
-                                Close
-                            </button>
+                                <button
+                                    v-else
+                                    type="button"
+                                    class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-900 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                                    @click="$emit('closeModal')"
+                                >
+                                    Close
+                                </button>
+                            </slot>
                         </div>
                     </div>
                 </div>

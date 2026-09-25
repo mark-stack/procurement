@@ -7,6 +7,8 @@
     import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
     import InputLabel from "@/Components/InputLabel.vue";
     import InputError from "@/Components/InputError.vue";
+    import ConfirmModal from "@/Components/Modals/ConfirmModal.vue";
+    import useConfirm from "@/Shared/useConfirm.js";
 
     //Props
     const props = defineProps({
@@ -49,7 +51,7 @@
     const editId = ref(null);
 
     //Shared Methods
-    //...
+    const {confirmDialog, askToConfirm, confirmDialogAccepted, confirmDialogCancelled} = useConfirm();
 
     //Methods
     function submit(){
@@ -76,20 +78,24 @@
         });
     }
     function submitDelete(id){
-        let msg = "Are you sure you want to delete this template? It might be used.";
-        const userConfirmed = confirm(msg);
-        if (userConfirmed) {
-            let url = route("admin.businesses.templates.destroy",[props.business.id,id]);
-            formTemplateDelete.delete(url, {
-                preserveScroll: true,
-                onSuccess: () => {
-                    console.log('success');
-                },
-                onError: errors => {
-                    console.log('errors',errors);
-                },
-            });
-        }
+        askToConfirm({
+            title: "Delete this template?",
+            message: "It may still be in use, and any import relying on it would stop being detected.",
+            confirmLabel: "Delete template",
+            tone: "danger",
+            onConfirmed: () => {
+                let url = route("admin.businesses.templates.destroy",[props.business.id,id]);
+                formTemplateDelete.delete(url, {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        console.log('success');
+                    },
+                    onError: errors => {
+                        console.log('errors',errors);
+                    },
+                });
+            },
+        });
     }
     function submitUpdate(){
         let url = route("admin.businesses.templates.update",[props.business.id,editId.value]);
@@ -406,4 +412,14 @@
             </div>
         </div>
     </AuthenticatedLayout>
+
+    <ConfirmModal
+        v-if="confirmDialog"
+        :title="confirmDialog.title"
+        :message="confirmDialog.message"
+        :confirmLabel="confirmDialog.confirmLabel"
+        :tone="confirmDialog.tone"
+        @confirm="confirmDialogAccepted()"
+        @cancel="confirmDialogCancelled()"
+    />
 </template>

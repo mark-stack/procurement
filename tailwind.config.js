@@ -3,7 +3,13 @@ import forms from '@tailwindcss/forms';
 
 /** @type {import('tailwindcss').Config} */
 export default {
-    darkMode: 'false',
+    /**
+     * Opt-in, not automatic: the dark: classes dotted around the components only
+     * take effect under a .dark ancestor, which nothing adds yet. The previous
+     * value ('false') was not a setting Tailwind recognises, so those classes
+     * compiled to nothing at all and could never be switched on.
+     */
+    darkMode: 'class',
     content: [
         './vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php',
         './storage/framework/views/*.php',

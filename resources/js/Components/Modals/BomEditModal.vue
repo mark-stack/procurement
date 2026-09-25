@@ -5,7 +5,9 @@
 
     //Component Imports
     import Modal from "@/Layouts/Modal.vue";
+    import ConfirmModal from "@/Components/Modals/ConfirmModal.vue";
     import CustomProductForm from "@/Components/CustomProductForm.vue";
+    import useConfirm from "@/Shared/useConfirm.js";
 
     //Props
     const props = defineProps({
@@ -47,6 +49,7 @@
 
     //Shared Methods
     import shared from "@/Shared/shared.js";
+    const {confirmDialog, askToConfirm, confirmDialogAccepted, confirmDialogCancelled} = useConfirm();
 
     //Methods
     const triggerFileInput = () => {
@@ -215,17 +218,21 @@
     }
 
     function deleteOneClarification(rawMaterialQuoteId){
-        let message = "Are you sure you want delete this item?";
-        const userConfirmed = confirm(message);
-        if (userConfirmed) {
-            //Add to list of "promise to delete" to actually delete after submitting form
-            formClarifications.deletedIds.push(rawMaterialQuoteId);
+        askToConfirm({
+            title: "Delete this item?",
+            message: "It will be dropped from this project's material list when you save.",
+            confirmLabel: "Delete item",
+            tone: "danger",
+            onConfirmed: () => {
+                //Add to list of "promise to delete" to actually delete after submitting form
+                formClarifications.deletedIds.push(rawMaterialQuoteId);
 
-            //If delete all the items, then auto submit the form
-            if(thisDownloadedBomData(props.bomData).partialProductMatches.length === formClarifications.deletedIds.length){
-                submitClarifications();
-            }
-        }
+                //If delete all the items, then auto submit the form
+                if(thisDownloadedBomData(props.bomData).partialProductMatches.length === formClarifications.deletedIds.length){
+                    submitClarifications();
+                }
+            },
+        });
     }
 
     function isDeletedCustomisation(id){
@@ -239,17 +246,21 @@
     }
 
     function deleteOneCustomisation(rawMaterialQuoteId){
-        let message = "Are you sure you want delete this item?";
-        const userConfirmed = confirm(message);
-        if (userConfirmed) {
-            //Add to list of "promise to delete" to actually delete after submitting form
-            formCustomisations.deletedIds.push(rawMaterialQuoteId);
+        askToConfirm({
+            title: "Delete this item?",
+            message: "It will be dropped from this project's material list when you save.",
+            confirmLabel: "Delete item",
+            tone: "danger",
+            onConfirmed: () => {
+                //Add to list of "promise to delete" to actually delete after submitting form
+                formCustomisations.deletedIds.push(rawMaterialQuoteId);
 
-            //If delete all the items, then auto submit the form
-            if(thisDownloadedBomData(props.bomData).requiresCustom.length === formCustomisations.deletedIds.length){
-                submitCustomisations();
-            }
-        }
+                //If delete all the items, then auto submit the form
+                if(thisDownloadedBomData(props.bomData).requiresCustom.length === formCustomisations.deletedIds.length){
+                    submitCustomisations();
+                }
+            },
+        });
     }
 
     function showTable(){
@@ -801,6 +812,17 @@
                 </div>
             </div>
         </div>
+
+        <!-- Teleports itself out, so it is only nested here to keep a single root -->
+        <ConfirmModal
+            v-if="confirmDialog"
+            :title="confirmDialog.title"
+            :message="confirmDialog.message"
+            :confirmLabel="confirmDialog.confirmLabel"
+            :tone="confirmDialog.tone"
+            @confirm="confirmDialogAccepted()"
+            @cancel="confirmDialogCancelled()"
+        />
     </Modal>
 </template>
 
@@ -887,7 +909,7 @@ button {
 }
 
 @keyframes loadingA {
-0 {
+0% {
     height: 15px;
 }
 50% {
@@ -899,7 +921,7 @@ button {
 }
 
 @keyframes loadingB {
-0 {
+0% {
     width: 15px;
 }
 50% {
@@ -911,7 +933,7 @@ button {
 }
 
 @keyframes loadingC {
-0 {
+0% {
     transform: translate(0, 0);
 }
 50% {
@@ -923,7 +945,7 @@ button {
 }
 
 @keyframes loadingD {
-0 {
+0% {
     transform: rotate(0deg);
 }
 50% {
@@ -935,7 +957,7 @@ button {
 }
 
 @keyframes loadingE {
-0 {
+0% {
     transform: rotate(0deg);
 }
 100% {

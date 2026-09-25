@@ -5,6 +5,8 @@
 
     //Component Imports
     import Modal from "@/Layouts/Modal.vue";
+    import ConfirmModal from "@/Components/Modals/ConfirmModal.vue";
+    import useConfirm from "@/Shared/useConfirm.js";
 
     //Props
     const props = defineProps({
@@ -44,6 +46,7 @@
     //Shared Methods
     import shared from '@/Shared/shared';
     import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
+    const {confirmDialog, askToConfirm, confirmDialogAccepted, confirmDialogCancelled} = useConfirm();
 
     //Methods
     function setupShowInputs(){
@@ -273,15 +276,21 @@
 
     function projectManagersApprovalBeforeOrderSent(row) {
         // Show the confirmation dialog
-        const isConfirmed = confirm(props.quotesData.info.projectManagerApprovalMessage);
-        if (isConfirmed) {
-            row.formOrderUpdate.ordered_quote_id = row.formQuoteUpdate.quote_id;
+        askToConfirm({
+            title: "Approval to order",
+            message: props.quotesData.info.projectManagerApprovalMessage,
+            confirmLabel: "Yes, approved",
+            cancelLabel: "Not yet",
+            tone: "primary",
+            onConfirmed: () => {
+                row.formOrderUpdate.ordered_quote_id = row.formQuoteUpdate.quote_id;
 
-            orderSentCheckbox(row);
-        }
-        else{
-            row.formOrderUpdate.ordered_quote_id = null;
-        }
+                orderSentCheckbox(row);
+            },
+            onCancelled: () => {
+                row.formOrderUpdate.ordered_quote_id = null;
+            },
+        });
     }
 
     function shouldDisableQuoteSent(row){
@@ -675,4 +684,15 @@
             </div>
         </Modal>
     </AuthenticatedLayout>
+
+    <ConfirmModal
+        v-if="confirmDialog"
+        :title="confirmDialog.title"
+        :message="confirmDialog.message"
+        :confirmLabel="confirmDialog.confirmLabel"
+        :cancelLabel="confirmDialog.cancelLabel"
+        :tone="confirmDialog.tone"
+        @confirm="confirmDialogAccepted()"
+        @cancel="confirmDialogCancelled()"
+    />
 </template>

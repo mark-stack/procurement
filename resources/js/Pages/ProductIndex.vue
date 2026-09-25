@@ -7,6 +7,8 @@
     //Component Imports
     import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
     import CustomProductForm from "@/Components/CustomProductForm.vue";
+    import ConfirmModal from "@/Components/Modals/ConfirmModal.vue";
+    import useConfirm from "@/Shared/useConfirm.js";
 
     //Props
     const props = defineProps({
@@ -48,6 +50,9 @@
     const showClarifications = ref(hasClarifications());
     const showUserCustomProducts = ref(hasUserCustomProducts());
     const isAdmin = usePage().props.auth.isAdmin;
+
+    //Shared Methods
+    const {confirmDialog, askToConfirm, confirmDialogAccepted, confirmDialogCancelled} = useConfirm();
 
     //Shared data
     const warning = computed(() => usePage().props.flash.warning);
@@ -280,40 +285,52 @@
     }
 
     function deleteAll(){
-        let message = "Are you sure you want delete all material imports for " + props.project.name;
-        const userConfirmed = confirm(message);
-        if (userConfirmed) {
-            formBulkActions.selectedRawMaterialQuoteIds = getAllMaterialQuoteIds();
-            submitBulkDelete();
-        }
+        askToConfirm({
+            title: "Delete every imported material?",
+            message: `All imported material rows for “${props.project.name}” will be deleted. You would need to import the file again to get them back.`,
+            confirmLabel: "Delete all imports",
+            tone: "danger",
+            onConfirmed: () => {
+                formBulkActions.selectedRawMaterialQuoteIds = getAllMaterialQuoteIds();
+                submitBulkDelete();
+            },
+        });
     }
 
     function deleteOneCustomisation(rawMaterialQuoteId){
-        let message = "Are you sure you want delete this item?";
-        const userConfirmed = confirm(message);
-        if (userConfirmed) {
-            //Add to list of "promise to delete" to actually delete after submitting form
-            formCustomisations.deletedIds.push(rawMaterialQuoteId);
+        askToConfirm({
+            title: "Delete this item?",
+            message: "It will be dropped from this project's material list when you save.",
+            confirmLabel: "Delete item",
+            tone: "danger",
+            onConfirmed: () => {
+                //Add to list of "promise to delete" to actually delete after submitting form
+                formCustomisations.deletedIds.push(rawMaterialQuoteId);
 
-            //If delete all the items, then auto submit the form
-            if(props.requiresCustom.length === formCustomisations.deletedIds.length){
-                submitCustomisations();
-            }
-        }
+                //If delete all the items, then auto submit the form
+                if(props.requiresCustom.length === formCustomisations.deletedIds.length){
+                    submitCustomisations();
+                }
+            },
+        });
     }
 
     function deleteOneClarification(rawMaterialQuoteId){
-        let message = "Are you sure you want delete this item?";
-        const userConfirmed = confirm(message);
-        if (userConfirmed) {
-            //Add to list of "promise to delete" to actually delete after submitting form
-            formClarifications.deletedIds.push(rawMaterialQuoteId);
+        askToConfirm({
+            title: "Delete this item?",
+            message: "It will be dropped from this project's material list when you save.",
+            confirmLabel: "Delete item",
+            tone: "danger",
+            onConfirmed: () => {
+                //Add to list of "promise to delete" to actually delete after submitting form
+                formClarifications.deletedIds.push(rawMaterialQuoteId);
 
-            //If delete all the items, then auto submit the form
-            if(props.partialProductMatches.length === formClarifications.deletedIds.length){
-                submitClarifications();
-            }
-        }
+                //If delete all the items, then auto submit the form
+                if(props.partialProductMatches.length === formClarifications.deletedIds.length){
+                    submitClarifications();
+                }
+            },
+        });
     }
 
     function isNumeric(value) {
@@ -795,6 +812,15 @@
         </div>
     </AuthenticatedLayout>
 
+    <ConfirmModal
+        v-if="confirmDialog"
+        :title="confirmDialog.title"
+        :message="confirmDialog.message"
+        :confirmLabel="confirmDialog.confirmLabel"
+        :tone="confirmDialog.tone"
+        @confirm="confirmDialogAccepted()"
+        @cancel="confirmDialogCancelled()"
+    />
 </template>
 
 <style scoped>
@@ -880,7 +906,7 @@
     }
 
     @keyframes loadingA {
-    0 {
+    0% {
         height: 15px;
     }
     50% {
@@ -892,7 +918,7 @@
     }
 
     @keyframes loadingB {
-    0 {
+    0% {
         width: 15px;
     }
     50% {
@@ -904,7 +930,7 @@
     }
 
     @keyframes loadingC {
-    0 {
+    0% {
         transform: translate(0, 0);
     }
     50% {
@@ -916,7 +942,7 @@
     }
 
     @keyframes loadingD {
-    0 {
+    0% {
         transform: rotate(0deg);
     }
     50% {
@@ -928,7 +954,7 @@
     }
 
     @keyframes loadingE {
-    0 {
+    0% {
         transform: rotate(0deg);
     }
     100% {
