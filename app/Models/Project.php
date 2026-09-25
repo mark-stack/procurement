@@ -81,7 +81,7 @@ class Project extends Model
          * will be no batch objects.
          */
         $percentageOfMaterialsQuoted = 0;
-        $materialListRowsCount = $this->rawMaterialQuotes()->count();
+        $materialListRowsCount = $this->rawMaterialQuotes->count();
 
         foreach ($this->rawMaterialQuotes as $rawMaterialQuote) {
             $piece = $rawMaterialQuote->piece;
@@ -106,7 +106,7 @@ class Project extends Model
          * Based on raw_material_quote > piece > order
          */
         $percentageOfMaterialsOrdered = 0;
-        $materialListRows = $this->rawMaterialQuotes()->count();
+        $materialListRows = $this->rawMaterialQuotes->count();
 
         foreach ($this->rawMaterialQuotes as $rawMaterialQuote) {
             $piece = $rawMaterialQuote->piece;

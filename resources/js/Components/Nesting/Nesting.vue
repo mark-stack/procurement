@@ -42,13 +42,20 @@
     });
 
 
+    /*
+        Materials that fall outside every supplier group this business buys from. They are nested and
+        ordered either way, so they are named rather than silently left off the screen.
+     */
+    const unassignedMaterials = computed(() => Object.values(props.piecesGroupedBySupplierGroup.unassigned ?? {}));
+
     //Shared Methods
     //...
 
     //Methods
-    //...
-
-
+    //Bundle and area materials store their purchasable options under a different key to meterage
+    function purchasableOptions(item){
+        return item.purchasableLengths ?? item.purchasable ?? [];
+    }
 </script>
 
 <template>
@@ -124,6 +131,25 @@
                     There's no projects with materials ready to quote yet.
                 </div>
 
+                <!-- materials outside every supplier group -->
+                <div
+                    v-if="unassignedMaterials.length > 0"
+                    class="mt-3 rounded border-2 border-orange-200 bg-orange-50 p-3 text-left text-orange-900"
+                >
+                    <h2 class="font-bold">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        Not covered by any of your supplier groups:
+                    </h2>
+                    <ul class="text-sm">
+                        <li v-for="item in unassignedMaterials">
+                            - {{item.product_derived_label ?? item.product_category}}
+                        </li>
+                    </ul>
+                    <p class="mt-1 text-xs">
+                        These are nested but have no supplier to quote them, so they are not on any of the batches below.
+                    </p>
+                </div>
+
                 <div class="mb-3 text-gray-600 mt-3">
                     <!-- buttons to toggle supplier groups. e.g "steel merchant" -->
                     <div
@@ -175,7 +201,7 @@
                                         <ListPurchasables
                                             :nestingAlgo="item.algo"
                                             :measurementUnit="item.nominal_units"
-                                            :list="item.purchasableLengths"
+                                            :list="purchasableOptions(item)"
                                         />
                                     </div>
                                     <!-- order list -->

@@ -4,6 +4,7 @@ use App\Formatters\NestingFormatter;
 use App\Models\Batch;
 use App\Services\DataClassificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
@@ -173,3 +174,179 @@ it('would be a disaster if the nest saved to the batch was not the nest the user
 });
 
 //todo more
+
+it('would be a disaster if the project letters on the batch page named a different project than the drawings', function () {
+    /**
+     * Letters are assigned once, when the nest is saved, and stamped onto every cut in it. The batch
+     * screens used to rebuild the map from the batch's projects, which orders them by project id
+     * rather than by the pieces. Two projects whose piece order does not match their id order then
+     * got each other's letters, and the print friendly sheet sent the wrong steel to the wrong job.
+     */
+    //Create admin & seed materials
+    $adminBusiness = createBusiness('admin', true);
+    $adminUser = createUser(1, $adminBusiness, true, true);
+    $this->actingAs($adminUser);
+    $this->get(route('admin.update.master.materials.spreadsheet'));
+
+    //Create user
+    $business = createBusiness('biz', true);
+    $user = createUser(2, $business, false, true);
+    $this->actingAs($user);
+
+    $dataClassificationService = new DataClassificationService;
+
+    //Two projects, but the second project's pieces are created first
+    $projectA = createProject($user);
+    $projectB = createProject($user);
+
+    createPieces(sampleBOM($projectB, $dataClassificationService, [[2500, 2]]), $projectB, $dataClassificationService);
+    createPieces(sampleBOM($projectA, $dataClassificationService, [[1500, 2]]), $projectA, $dataClassificationService);
+
+    //Start quoting
+    $this->post(route('quotes.store'));
+    $batch = Batch::first();
+    expect($batch)->not->toBeNull();
+
+    $response = $this->get(route('batch.nesting', [$batch->id, 'current', 0]));
+    $response->assertStatus(200);
+    $props = $response->viewData('page')['props'];
+
+    //Both projects are in the legend, with a distinct letter each
+    expect($props['lettersProjectArray'])->toHaveKeys([$projectA->id, $projectB->id])
+        ->and(array_unique($props['lettersProjectArray']))->toHaveCount(2);
+
+    //And every letter stamped on a cut is the one the legend gives that project
+    $cutsChecked = 0;
+    foreach ($props['pieces']['METERAGE'] as $product) {
+        foreach ($product->nested['utilisedBars'] as $bar) {
+            foreach ($bar['result']['pieces'] as $cut) {
+                expect($cut['letter'])->toBe($props['lettersProjectArray'][$cut['projectId']]);
+                $cutsChecked++;
+            }
+        }
+    }
+
+    expect($cutsChecked)->toBeGreaterThan(0);
+});
+
+it('would be a disaster if a batch nested before the letters were stored lost its legend', function () {
+    /**
+     * Batches saved before letters_project_array existed still carry the letters on the cuts, so the
+     * legend is recovered from the nest itself rather than guessed at from the batch's projects.
+     */
+    $adminBusiness = createBusiness('admin', true);
+    $adminUser = createUser(1, $adminBusiness, true, true);
+    $this->actingAs($adminUser);
+    $this->get(route('admin.update.master.materials.spreadsheet'));
+
+    $business = createBusiness('biz', true);
+    $user = createUser(2, $business, false, true);
+    $this->actingAs($user);
+
+    $dataClassificationService = new DataClassificationService;
+    $project = createProject($user);
+    createPieces(sampleBOM($project, $dataClassificationService, [[2500, 3]]), $project, $dataClassificationService);
+
+    $this->post(route('quotes.store'));
+    $batch = Batch::first();
+
+    //The letters as saved, then forget them the way an older batch would have
+    $saved = $batch->letters_project_array;
+    expect($saved)->toBe([$project->id => 'A']);
+
+    $batch->letters_project_array = null;
+    $batch->save();
+
+    $response = $this->get(route('batch.nesting', [$batch->id, 'current', 0]));
+    $response->assertStatus(200);
+
+    expect($response->viewData('page')['props']['lettersProjectArray'])->toBe($saved);
+});
+
+it('would be a disaster if a batch containing bolts took the print friendly page down', function () {
+    /**
+     * Only meterage is cut from bars. Bundle materials have no 'bestResultOffcuts' and area materials
+     * have no nest at all, and the print friendly page used to paginate cutting diagrams for every
+     * material in the batch regardless, taking the whole sheet down with it.
+     */
+    $business = createBusiness('biz', true);
+    $business->update(['meterage_only' => false]);
+    $user = createUser(1, $business, false, true);
+    $this->actingAs($user);
+
+    $batch = Batch::factory()->forUser($user->id)->create();
+    $batch->nested_state = [
+        'METERAGE' => [],
+        'BUNDLE' => [
+            [
+                'product_category' => 'HEX_BOLT',
+                'product_derived_label' => 'M16 HEX BOLT',
+                'algo' => 'BUNDLE',
+                'nominal_units' => 'MILLIMETERS',
+                'pieces' => [],
+                'purchasable' => [100, 25],
+                'nested' => ['totalBought' => 250, 'efficiency' => 100, 'boxes' => [100 => 2, 25 => 2]],
+            ],
+        ],
+    ];
+    $batch->save();
+
+    //The bolts reach the page, with no cutting diagram to draw
+    $props = $this->get(route('batch.nesting', [$batch->id, 'current', 1]))
+        ->assertStatus(200)
+        ->viewData('page')['props'];
+
+    $bolts = $props['piecesGroupedBySupplierGroup']['assigned']['FASTENERS'][0];
+
+    expect($bolts['algo'])->toBe('BUNDLE')
+        ->and($bolts['nested'])->not->toHaveKey('bestResultOffcuts');
+});
+
+it('would be a disaster if a mistyped batch nesting url returned a 500 instead of a 404', function () {
+    $business = createBusiness('biz', true);
+    $user = createUser(1, $business, false, true);
+    $this->actingAs($user);
+
+    $batch = Batch::factory()->forUser($user->id)->create();
+
+    //"print" is typed int and "redirect" picks the close destination
+    $this->get('/batch-nesting/'.$batch->id.'/current/abc')->assertStatus(404);
+    $this->get('/batch-nesting/'.$batch->id.'/sideways/1')->assertStatus(404);
+
+    //The real thing still works
+    $this->get(route('batch.nesting', [$batch->id, 'current', 1]))->assertStatus(200);
+});
+
+it('would be a disaster if the batch nesting page ran a query per project', function () {
+    /**
+     * The page loaded one project per piece, then re-fetched each of those projects again inside
+     * ProjectResource. A batch spanning a dozen jobs paid for that twice over.
+     */
+    $adminBusiness = createBusiness('admin', true);
+    $adminUser = createUser(1, $adminBusiness, true, true);
+    $this->actingAs($adminUser);
+    $this->get(route('admin.update.master.materials.spreadsheet'));
+
+    $business = createBusiness('biz', true);
+    $user = createUser(2, $business, false, true);
+    $this->actingAs($user);
+
+    $dataClassificationService = new DataClassificationService;
+    for ($i = 0; $i < 12; $i++) {
+        $project = createProject($user);
+        createPieces(sampleBOM($project, $dataClassificationService, [[2500, 4], [1500, 3]]), $project, $dataClassificationService);
+    }
+
+    $this->post(route('quotes.store'));
+    $batch = Batch::first();
+
+    $queries = 0;
+    DB::listen(function () use (&$queries) {
+        $queries++;
+    });
+
+    $this->get(route('batch.nesting', [$batch->id, 'current', 0]))->assertStatus(200);
+
+    //Was 202 for these 12 projects, and grew by ~16 with each one added
+    expect($queries)->toBeLessThan(70);
+});

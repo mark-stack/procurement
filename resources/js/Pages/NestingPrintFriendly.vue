@@ -34,6 +34,7 @@
     //Variables
     const printPreview = ref(true);
     const pageHeightPixels = getPageHeightPixels();
+    const rowHeight = 86;
 
     //A nest with no meterage in it (bolts only, say) has nothing to report here
     const meterageUsage = computed(() => props.usage?.METERAGE ?? {
@@ -98,107 +99,93 @@
                 break;
             default:
                 console.warn("Unsupported DPI. Using default formula.");
-                height = Math.round(11.69 * dpi); // fallback calculation
+                height = Math.round(11.69 * dpi.y); //A4 is 11.69in tall
         }
 
         return height;
     }
 
-    function pagePlanning(item){
-        //Quantities
-        let offcuts = Object.values(item.nested.bestResultOffcuts.utilisedOffcutBars);
-        let newStock = Object.values(item.nested.utilisedBars);
+    function rowsPerPage(){
+        let fit = Math.floor((availableNestingHeight() - 28)/rowHeight);
 
-        //Heights
-        let heading = 28;
-        let availableHeightForRows = availableNestingHeight() - heading;
-        let lastPageAvailableHeight = availableHeightForRows;
-        let rowsPerPage = Math.floor(availableHeightForRows/86);
-
-        //Placement
-        let currentPageNumber = 1;
-        let pagePlanning = [];
-
-        /*
-            Has offcuts?
-         */
-        if(offcuts.length > 0){
-            let index = 0;
-            while (index < offcuts.length) {
-                let thisPage = pagePlanning[currentPageNumber-1];
-                if(thisPage){
-                    thisPage.offcuts = offcuts.slice(index, index + rowsPerPage);
-                }
-                else{
-                    pagePlanning.push(
-                        {
-                            offcuts:offcuts.slice(index, index + rowsPerPage)
-                        }
-                    );
-                }
-
-                //Increment page
-                index += rowsPerPage;
-
-                //Last page (overwrites)
-                lastPageAvailableHeight = availableHeightForRows - (offcuts.length * 86);
-            }
-        }
-
-        /*
-            Has new stock?
-         */
-        if(newStock.length > 0){
-            let index = 0;
-
-            // First page
-            let qtyFitThisPage = Math.floor(lastPageAvailableHeight/86);
-
-            if(qtyFitThisPage > 0){
-
-                //Has a page #1
-                let relativeFirstPage = pagePlanning[currentPageNumber - 1];
-                if(relativeFirstPage){
-                    relativeFirstPage.newStock = newStock.slice(index, index + qtyFitThisPage);
-                }
-                //Need to create page #1
-                else{
-                    pagePlanning.push(
-                        {
-                            offcuts:[],
-                            newStock:newStock.slice(index, index + qtyFitThisPage),
-                        }
-                    );
-                }
-
-                //Increment page
-                index += qtyFitThisPage;
-                currentPageNumber++;
-            }
-
-            //Remaining pages
-            while (index < newStock.length) {
-                let thisPage = pagePlanning[currentPageNumber - 1];
-                if(thisPage){
-                    thisPage.newStock = newStock.slice(index, index + rowsPerPage);
-                }
-                else{
-                    pagePlanning.push(
-                        {
-                            offcuts:[],
-                            newStock:newStock.slice(index, index + rowsPerPage),
-                        }
-                    );
-                }
-
-                //Increment page
-                index += rowsPerPage;
-                currentPageNumber++;
-            }
-        }
-
-        return pagePlanning;
+        //Never zero or NaN, or a material would paginate into nothing at all
+        return Number.isFinite(fit) && fit > 0 ? fit : 1;
     }
+
+    function pagePlanning(item){
+        /*
+            Only meterage is cut from bars, so only meterage has drawings to paginate.
+            Bundle and area materials have no 'bestResultOffcuts' at all.
+         */
+        if(item.algo !== 'METERAGE' || !item.nested || !item.nested.bestResultOffcuts){
+            return [];
+        }
+
+        /*
+            One flat list of rows, filled a page at a time.
+            Paginating offcuts and new stock separately dropped every offcut page but the last, because
+            each pass wrote over page one instead of starting a new page.
+         */
+        let rows = [
+            ...Object.values(item.nested.bestResultOffcuts.utilisedOffcutBars ?? {}).map(row => ({type:'offcut', row})),
+            ...Object.values(item.nested.utilisedBars ?? {}).map(row => ({type:'newStock', row})),
+        ];
+
+        let perPage = rowsPerPage();
+        let pages = [];
+
+        for(let index = 0; index < rows.length; index += perPage){
+            let thisPage = rows.slice(index, index + perPage);
+
+            pages.push({
+                offcuts: thisPage.filter(entry => entry.type === 'offcut').map(entry => entry.row),
+                newStock: thisPage.filter(entry => entry.type === 'newStock').map(entry => entry.row),
+            });
+        }
+
+        return pages;
+    }
+
+    /*
+        Every page to print, worked out once.
+        The template used to call pagePlanning() twice for every page it drew.
+     */
+    const printPages = computed(() => {
+        let pages = [];
+
+        for(const batchGroup of Object.values(props.piecesGroupedBySupplierGroup.assigned)){
+            for(const item of Object.values(batchGroup)){
+                let itemPages = pagePlanning(item);
+
+                itemPages.forEach((page, index) => {
+                    pages.push({
+                        item: item,
+                        page: page,
+                        index: index,
+                        qty: itemPages.length,
+                    });
+                });
+            }
+        }
+
+        return pages;
+    });
+
+    /*
+        Materials with no cutting diagram: bolts and the like, plus anything that falls outside every
+        supplier group this business buys from. They are on the order either way, so they are listed
+        rather than left off the sheet.
+     */
+    const materialsWithoutDiagrams = computed(() => {
+        let assigned = Object.values(props.piecesGroupedBySupplierGroup.assigned)
+            .flatMap(batchGroup => Object.values(batchGroup))
+            .filter(item => item.algo !== 'METERAGE');
+
+        return [
+            ...assigned,
+            ...Object.values(props.piecesGroupedBySupplierGroup.unassigned ?? {}),
+        ];
+    });
 </script>
 
 <template>
@@ -307,8 +294,21 @@
                     </div>
                 </div>
 
+                <!-- materials with no cutting diagram -->
+                <div v-if="materialsWithoutDiagrams.length > 0" class="mt-5 pr-6 pl-6">
+                    <h2 class="font-bold">Also on this batch (no cutting required):</h2>
+                    <ul>
+                        <li v-for="item in materialsWithoutDiagrams">
+                            - {{item.product_derived_label ?? item.product_category}}
+                            <span v-if="item.nested && item.nested.totalBought">
+                                &mdash; {{item.nested.totalBought.toLocaleString()}} off
+                            </span>
+                        </li>
+                    </ul>
+                </div>
+
                 <!-- see below -->
-                <div class="text-center p-36">
+                <div class="text-center p-24">
                     <p class="text-xl mb-3">
                         Cutting diagrams below
                     </p>
@@ -316,62 +316,52 @@
                 </div>
             </div>
 
-            <template v-for="(batchGroup,batchLabel) in piecesGroupedBySupplierGroup.assigned">
-                <div class="grid grid-cols-1">
-                    <div v-for="item in batchGroup">
-                        <!-- 1st page of material. e.g 200PFC -->
-                        <div
-                            v-for="(page,index) in pagePlanning(item)"
-                            :class="printPreview ? 'pagePrint' : 'pageDisplay'"
-                            size="A4"
-                        >
-                            <PrintingHeader
-                                :item="item"
-                                :batch="batch"
-                                :index="index"
-                                :qty="pagePlanning(item).length"
+            <!-- 1 page per material. e.g 200PFC -->
+            <div
+                v-for="entry in printPages"
+                :class="printPreview ? 'pagePrint' : 'pageDisplay'"
+                size="A4"
+            >
+                <PrintingHeader
+                    :item="entry.item"
+                    :batch="batch"
+                    :index="entry.index"
+                    :qty="entry.qty"
+                />
+
+                <PrintingSpec
+                    :item="entry.item"
+                />
+
+                <div
+                    class="bg-white pl-4 pr-4"
+                    :style="'height:'+(availableNestingHeight())+'px'"
+                >
+                    <!-- Nesting -->
+                    <div class="col-span-4">
+                        <!-- offcuts on this page -->
+                        <div v-if="entry.page.offcuts.length > 0">
+                            <h2 class="font-bold text-xl">Offcut usage</h2>
+                            <VisualNestingOffcuts
+                                v-for="offcut in entry.page.offcuts"
+                                :offcut="offcut"
+                                :measurementUnit="entry.item.nominal_units"
+                                :batched="true"
                             />
-
-                            <PrintingSpec
-                                :item="item"
-                            />
-
-                            <div
-                                class="bg-white pl-4 pr-4"
-                                :style="'height:'+(availableNestingHeight())+'px'"
-                            >
-                                <!-- Nesting -->
-                                <div class="col-span-4">
-                                    <!-- Nesting algorithm: meterage -->
-                                    <div v-if="item.algo === 'METERAGE'">
-                                        <!-- offcuts -->
-                                        <div v-if="Object.values(item.nested.bestResultOffcuts.utilisedOffcutBars).length > 0">
-                                            <h2 class="font-bold text-xl">Offcut usage</h2>
-                                            <VisualNestingOffcuts
-                                                v-for="offcut in page.offcuts"
-                                                :offcut="offcut"
-                                                :measurementUnit="item.nominal_units"
-                                                :batched="true"
-                                            />
-                                        </div>
-
-                                        <!-- New Stock -->
-                                        <template v-if="Object.values(item.nested.utilisedBars).length > 0">
-                                            <h2 class="font-bold text-xl">New stock usage</h2>
-                                            <!-- new stock nesting -->
-                                            <VisualNestingWithBars
-                                                :utilisedBars="page.newStock"
-                                                :measurementUnit="item.nominal_units"
-                                                :batched="true"
-                                            />
-                                        </template>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
+
+                        <!-- new stock on this page -->
+                        <template v-if="entry.page.newStock.length > 0">
+                            <h2 class="font-bold text-xl">New stock usage</h2>
+                            <VisualNestingWithBars
+                                :utilisedBars="entry.page.newStock"
+                                :measurementUnit="entry.item.nominal_units"
+                                :batched="true"
+                            />
+                        </template>
                     </div>
                 </div>
-            </template>
+            </div>
         </div>
 
         <div class="text-center p-3 mb-10">
