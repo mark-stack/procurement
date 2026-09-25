@@ -289,7 +289,7 @@
         //Freeze
         freezeView.value = true;
 
-        let url = route("raw.material.quote.clarifications",business.id);
+        let url = route("raw.material.quote.clarifications");
         formClarifications.post(url, {
             preserveScroll: true,
             onSuccess: () => {

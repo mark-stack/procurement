@@ -6,20 +6,18 @@ use App\Enums\GradeEnums;
 use App\Enums\MaterialEnums;
 use App\Enums\MeasurementUnitEnums;
 use App\Enums\SurfaceEnums;
-use App\Models\Business;
 use App\Models\RawMaterialQuote;
 use App\Services\DataClassificationService;
 use App\Services\PieceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 
 class RawMaterialListClarificationsController extends Controller
 {
     /**
      * Handle the incoming request.
      */
-    public function __invoke(Request $request, Business $business): RedirectResponse
+    public function __invoke(Request $request): RedirectResponse
     {
         /**
          * Single purpose: the user confirms exact product.
@@ -27,9 +25,7 @@ class RawMaterialListClarificationsController extends Controller
          * It's saved by making the "general_product_matches" field = 1x product.
          */
 
-        Gate::authorize('owned', $business);
-
-        $user = auth()->user();
+        $user = $request->user();
 
         //Services
         $dataClassificationService = new DataClassificationService;

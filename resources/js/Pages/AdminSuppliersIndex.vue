@@ -1,8 +1,7 @@
 <script setup>
     //General Imports
     import {Link, Head, useForm, usePage} from '@inertiajs/vue3';
-    import {ref} from "vue";
-    import moment from "moment";
+    import {computed, nextTick, ref} from "vue";
 
     //Component Imports
     import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
@@ -14,6 +13,9 @@
         suppliers: Object,
         byCategory: Object,
         business: Object,
+        //True on /admin/suppliers/{business} - an admin looking at someone
+        //else's suppliers, where the business cannot come from the session
+        adminView: Boolean,
     });
 
     //Form
@@ -30,6 +32,16 @@
     const editSupplier = ref(null);
     const autoSuggestions = ref([]);
     const autoSuggestionsExactMatch = ref(false);
+    const nameInput = ref(null);
+
+    //Computed
+    //Counts for the badge in each panel header
+    const categoryCount = computed(() => Object.keys(props.byCategory).length);
+    const supplierCount = computed(() => props.suppliers.data.length);
+    //Categories with nobody to quote them - the reason to be on this page
+    const uncoveredCount = computed(() =>
+        Object.values(props.byCategory).filter(data => data.suppliersArray.length === 0).length
+    );
 
     //Shared Methods
     const {confirmDialog, askToConfirm, confirmDialogAccepted, confirmDialogCancelled} = useConfirm();
@@ -39,7 +51,6 @@
         let keys = Object.keys(props.byCategory);
         let array = {};
 
-        console.log(keys);
         keys.forEach(key => {
             array[key] = false;
         });
@@ -50,7 +61,7 @@
     function submit(){
         //Edit mode
         if(editSupplier.value){
-            let url = route("suppliers.update",[editSupplier.value.id,props.business.id]);
+            let url = route("suppliers.update",editSupplier.value.id);
             formSupplierCreate.put(url, {
                 preserveScroll: true,
                 onSuccess: () => {
@@ -65,7 +76,9 @@
         }
         //Create mode
         else{
-            let url = route("suppliers.store",props.business.id);
+            let url = props.adminView
+                ? route("admin.suppliers.store",props.business.id)
+                : route("suppliers.store");
             formSupplierCreate.post(url, {
                 preserveScroll: true,
                 onSuccess: () => {
@@ -107,6 +120,22 @@
         //Populate form
         formSupplierCreate.name = supplier.name;
         formSupplierCreate.supplier_categories = supplier.categoriesForm;
+
+        focusName();
+    }
+
+    function cancelEdit(){
+        editSupplier.value = null;
+        formSupplierCreate.reset();
+
+        autoSuggestions.value = [];
+        autoSuggestionsExactMatch.value = false;
+    }
+
+    //The header action has nowhere to navigate to - the form is on this page,
+    //so it puts the cursor in it rather than opening anything
+    function focusName(){
+        nextTick(() => nameInput.value?.focus());
     }
 
     function autoComplete(){
@@ -143,169 +172,317 @@
 
         return case1 || case2;
     }
+
+    function categoryChips(supplier){
+        return supplier.categoriesAsCommaString
+            ? supplier.categoriesAsCommaString.split(',').filter(Boolean)
+            : [];
+    }
 </script>
 
 <template>
     <Head title="Suppliers" />
 
     <AuthenticatedLayout>
-        <div class="py-12">
-            <div class="mx-auto max-w-5xl sm:px-6 lg:px-8">
-                <div class="mb-3">
-                    <Link
-                        class="font-semibold px-3 py-2 text-gray-800 transition-colors duration-300 transform rounded-lg hover:text-deep-purple-accent-400"
-                        :href="route('projects.index')"
-                    >
-                        <i class="fa-regular fa-hand-point-left pr-2"></i> Current Projects
-                    </Link>
-                </div>
-                <section
-                    class="dark:bg-gray-900 rounded-xl"
-                    :class="editSupplier ? 'bg-yellow-50' : 'bg-white'"
+        <section class="mx-auto w-full max-w-6xl pb-10">
+
+            <!-- back to the board -->
+            <div class="pt-5">
+                <Link
+                    :href="route('projects.index')"
+                    class="inline-flex items-center gap-1.5 rounded-lg py-1 text-xs font-semibold text-gray-500 transition-colors duration-150 hover:text-blue-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                 >
-                    <div class="px-6 pt-8 pb-8 mx-auto text-center">
-                        <h1 class="text-3xl font-semibold text-gray-800 dark:text-gray-100">
-                            {{editSupplier ? ('Edit ' + editSupplier.name) : 'Add Supplier'}} <span v-if="isAdmin">for {{business.domain}}</span>
-                        </h1>
-                        <p
-                            v-if="editSupplier"
-                            @click="editSupplier = null; formSupplierCreate.reset();"
-                            class="text-blue-500 text-sm underline mt-2"
-                            style="cursor: pointer;"
+                    <i class="fa-solid fa-chevron-left text-[10px]"></i>
+                    Projects
+                </Link>
+            </div>
+
+            <!-- page header -->
+            <header class="flex flex-wrap items-end justify-between gap-4 py-5">
+                <div>
+                    <h1 class="text-2xl font-bold tracking-tight text-gray-900">
+                        Suppliers
+                    </h1>
+                    <p class="mt-1 text-sm text-gray-500">
+                        <span v-if="isAdmin">Suppliers for {{business.domain}}. </span>
+                        Every category needs at least one supplier before it can be quoted.
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    @click="cancelEdit(); focusName();"
+                    class="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors duration-150 hover:bg-blue-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                >
+                    <i class="fa-solid fa-plus text-xs"></i>
+                    Add supplier
+                </button>
+            </header>
+
+            <!-- uncovered categories warning -->
+            <div
+                v-if="uncoveredCount > 0"
+                class="mb-4 flex gap-2 rounded-xl border border-orange-200 bg-orange-50 p-3 text-xs leading-relaxed text-orange-800"
+            >
+                <i class="fa-solid fa-triangle-exclamation mt-0.5 flex-none text-orange-500"></i>
+                <span>
+                    {{ uncoveredCount }} categor{{ uncoveredCount === 1 ? 'y has' : 'ies have' }} no supplier yet.
+                    Nothing in {{ uncoveredCount === 1 ? 'it' : 'them' }} can be quoted until you add one.
+                </span>
+            </div>
+
+            <!-- add / edit supplier -->
+            <section
+                class="overflow-hidden rounded-xl border bg-white shadow-sm"
+                :class="editSupplier ? 'border-orange-200' : 'border-gray-200'"
+            >
+                <!-- panel header -->
+                <header
+                    class="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-3"
+                    :class="editSupplier ? 'border-orange-200 bg-orange-50' : 'border-gray-200 bg-gray-50'"
+                >
+                    <div class="flex min-w-0 items-center gap-2">
+                        <span
+                            class="flex h-6 w-6 flex-none items-center justify-center rounded-full text-[11px] ring-1 ring-inset"
+                            :class="editSupplier
+                                ? 'bg-white text-orange-700 ring-orange-200'
+                                : 'bg-blue-50 text-blue-800 ring-blue-100'"
                         >
-                            Back to New Supplier
+                            <i :class="editSupplier ? 'fa-regular fa-pen-to-square' : 'fa-solid fa-plus'" class="text-[10px]"></i>
+                        </span>
+                        <h2 class="truncate text-sm font-semibold uppercase tracking-wide text-gray-700">
+                            {{ editSupplier ? ('Editing ' + editSupplier.name) : 'Add a supplier' }}
+                        </h2>
+                    </div>
+                    <button
+                        v-if="editSupplier"
+                        type="button"
+                        @click="cancelEdit()"
+                        class="rounded-lg text-xs font-semibold text-orange-800 transition-colors duration-150 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-1"
+                    >
+                        Cancel edit
+                    </button>
+                </header>
+
+                <!-- panel body -->
+                <form @submit.prevent="submit()" class="p-4">
+                    <div class="grid gap-4 md:grid-cols-12">
+                        <!-- Name -->
+                        <div class="md:col-span-4">
+                            <label for="supplier-name" class="block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                Business name
+                            </label>
+                            <input
+                                id="supplier-name"
+                                ref="nameInput"
+                                v-model="formSupplierCreate.name"
+                                type="text"
+                                class="mt-1.5 block h-10 w-full rounded-lg border-gray-300 text-sm text-gray-900 shadow-sm transition-colors duration-150 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
+                                placeholder="e.g. Southern Steel"
+                                required
+                                @input="autoComplete()"
+                            >
+                            <p v-if="formSupplierCreate.errors.name" class="mt-1.5 text-xs font-medium text-red-600">
+                                {{ formSupplierCreate.errors.name }}
+                            </p>
+                        </div>
+
+                        <!-- categories -->
+                        <div class="md:col-span-6">
+                            <span class="block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                Categories they supply
+                            </span>
+                            <div class="mt-1.5 grid gap-x-4 gap-y-1.5 sm:grid-cols-2">
+                                <div v-for="(data,label) in byCategory" :key="label" class="flex items-start gap-2">
+                                    <input
+                                        v-model="formSupplierCreate.supplier_categories[label]"
+                                        :id="label"
+                                        type="checkbox"
+                                        class="mt-0.5 h-4 w-4 flex-none rounded border-gray-300 text-blue-700 focus:ring-2 focus:ring-blue-500/30"
+                                    />
+                                    <label :for="label" class="text-sm leading-tight text-gray-700">
+                                        {{label}}
+                                    </label>
+                                </div>
+                            </div>
+                            <p v-if="formSupplierCreate.errors.supplier_categories" class="mt-1.5 text-xs font-medium text-red-600">
+                                {{ formSupplierCreate.errors.supplier_categories }}
+                            </p>
+                        </div>
+
+                        <!-- submit -->
+                        <div class="flex items-end md:col-span-2">
+                            <button
+                                type="submit"
+                                :disabled="formSupplierCreate.processing || autoSuggestionsExactMatch"
+                                class="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold shadow-sm transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                                :class="(formSupplierCreate.processing || autoSuggestionsExactMatch)
+                                    ? 'cursor-not-allowed border border-gray-200 bg-gray-50 text-gray-400 shadow-none'
+                                    : 'bg-blue-700 text-white hover:bg-blue-800 focus-visible:ring-blue-500'"
+                            >
+                                {{ editSupplier ? 'Update' : 'Create' }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- auto suggestions -->
+                    <div v-if="autoSuggestionsExactMatch || autoSuggestions.length > 0" class="mt-3">
+                        <p
+                            v-if="autoSuggestionsExactMatch"
+                            class="flex gap-2 rounded-lg border border-orange-200 bg-orange-50 p-2.5 text-xs leading-relaxed text-orange-800"
+                        >
+                            <i class="fa-solid fa-triangle-exclamation mt-0.5 flex-none text-orange-500"></i>
+                            <span>That supplier already exists.</span>
                         </p>
-                        <div class="mt-8 space-y-2 sm:space-y-0 sm:flex-row sm:justify-center">
-                            <form @submit.prevent="submit()">
-                                <div class="grid grid-cols-6 gap-x-2">
-                                    <!-- Name -->
-                                    <div class="col-span-2">
-                                        <!-- input -->
-                                        <input
-                                            v-model="formSupplierCreate.name"
-                                            type="text"
-                                            class="w-full px-4 py-2 text-gray-700 bg-white border rounded-md dark:bg-gray-900 dark:text-gray-300 dark:border-gray-600 focus:border-blue-400 dark:focus:border-blue-300 focus:outline-none focus:ring focus:ring-blue-300 focus:ring-opacity-40"
-                                            placeholder="Business Name"
-                                            required
-                                            @input="autoComplete()"
-                                        >
-                                        <div
-                                            v-if="formSupplierCreate.errors.name"
-                                            class="text-red-500 text-sm"
-                                        >
-                                            {{ formSupplierCreate.errors.name }}
-                                        </div>
-                                    </div>
+                        <div v-else>
+                            <span class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                Already added
+                            </span>
+                            <ul class="mt-1.5 flex flex-wrap gap-1.5">
+                                <li
+                                    v-for="suggestion in autoSuggestions"
+                                    :key="suggestion[1]"
+                                    class="rounded-md bg-gray-100 px-2 py-1 text-[11px] font-medium text-gray-600 ring-1 ring-inset ring-gray-200"
+                                >
+                                    {{ suggestion[0] }}
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </form>
+            </section>
 
-                                    <!-- categories -->
-                                    <div class="col-span-3">
-                                        <div class="grid grid-cols-2">
-                                            <div v-for="(data,label) in byCategory" class="flex gap-x-2">
-                                                <input
-                                                    v-model="formSupplierCreate.supplier_categories[label]"
-                                                    :id="label"
-                                                    type="checkbox"
-                                                    class="mt-1"
-                                                />
-                                                <label :for="label">{{label}}</label>
-                                            </div>
-                                        </div>
-                                        <div
-                                            v-if="formSupplierCreate.errors.supplier_categories"
-                                            class="text-red-500 text-sm"
-                                        >
-                                            {{ formSupplierCreate.errors.supplier_categories }}
-                                        </div>
-                                    </div>
+            <!-- the two lists -->
+            <div class="mt-4 grid gap-4 lg:grid-cols-2">
 
+                <!-- by category -->
+                <section class="flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-sm">
+                    <header class="flex flex-none items-center justify-between gap-2 border-b border-gray-200 bg-white px-3 py-3">
+                        <div class="flex min-w-0 items-center gap-2">
+                            <span class="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-blue-50 text-[11px] text-blue-800 ring-1 ring-inset ring-blue-100">
+                                <i class="fa-solid fa-layer-group text-[10px]"></i>
+                            </span>
+                            <h2 class="truncate text-sm font-semibold uppercase tracking-wide text-gray-700">
+                                By category
+                            </h2>
+                        </div>
+                        <span
+                            class="flex-none rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums"
+                            :class="categoryCount > 0 ? 'bg-gray-200 text-gray-700' : 'bg-gray-100 text-gray-400'"
+                        >
+                            {{ categoryCount }}
+                        </span>
+                    </header>
 
-                                    <!-- submit -->
-                                    <button
-                                        type="submit"
-                                        :disabled="formSupplierCreate.processing || autoSuggestionsExactMatch"
-                                        style="height:40px"
-                                        class="px-4 py-2 text-sm font-medium tracking-wide text-white capitalize transition-colors duration-300 transform bg-blue-700 rounded-md hover:bg-blue-600 focus:outline-none focus:bg-blue-600"
-                                    >
-                                        {{editSupplier ? 'Update' : 'Create'}}
-                                    </button>
-                                </div>
+                    <div class="space-y-3 p-3">
+                        <div
+                            v-for="(data,label) in byCategory"
+                            :key="label"
+                            class="rounded-xl border border-gray-200 bg-white p-3 transition-colors duration-150 hover:border-gray-300"
+                        >
+                            <h3 class="text-sm font-semibold text-gray-900">{{label}}</h3>
+                            <p class="mt-0.5 text-xs leading-relaxed text-gray-500">
+                                {{data.includedProductsString}}
+                            </p>
 
-                                <!-- auto suggestions-->
-                                <div>
-                                    <p v-if="autoSuggestionsExactMatch && formSupplierCreate.name.length >= 3" class="mt-2 text-orange-500 text-left">
-                                        Supplier exists
-                                    </p>
-
-                                    <p class="mt-3">
-                                        <ul>
-                                            <li
-                                                v-for="suggestion in autoSuggestions"
-                                                style="cursor: pointer;"
-                                                class="text-sm text-left"
-                                            >
-                                                {{ suggestion[0] }}
-                                            </li>
-                                        </ul>
-                                    </p>
-                                </div>
-                            </form>
+                            <!-- suppliers covering it -->
+                            <ul v-if="data.suppliersArray.length > 0" class="mt-2.5 flex flex-wrap gap-1.5">
+                                <li
+                                    v-for="supplier in data.suppliersArray"
+                                    :key="supplier"
+                                    class="rounded-md bg-gray-100 px-2 py-1 text-[11px] font-medium text-gray-600 ring-1 ring-inset ring-gray-200"
+                                >
+                                    {{supplier}}
+                                </li>
+                            </ul>
+                            <p
+                                v-else
+                                class="mt-2.5 flex gap-2 rounded-lg border border-orange-200 bg-orange-50 p-2.5 text-xs leading-relaxed text-orange-800"
+                            >
+                                <i class="fa-solid fa-triangle-exclamation mt-0.5 flex-none text-orange-500"></i>
+                                <span>Need to add suppliers</span>
+                            </p>
                         </div>
                     </div>
                 </section>
 
-                <section class="bg-white dark:bg-gray-900 rounded-xl mt-5">
-                    <div class="px-6 pt-8 pb-8 mx-auto">
-                        <div class="grid grid-cols-2 gap-x-5">
-                            <!-- by category -->
-                            <div>
-                                <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">
-                                    By Category
-                                </h1>
-                                <div v-for="(data,label) in byCategory" class="mb-4 border-2 border-gray-200 p-3 rounded-xl">
-                                    <div>
-                                        <h3 class="font-semibold">{{label}}</h3>
-                                        <small class="text-gray-500">{{data.includedProductsString}}</small>
-                                    </div>
-                                    <div v-if="data.suppliersArray.length > 0" class="grid grid-cols-3">
-                                        <div v-for="supplier in data.suppliersArray">
-                                            {{supplier}}
-                                        </div>
-                                    </div>
-                                    <div v-else class="text-orange-500">
-                                        Need to add suppliers
-                                    </div>
-                                </div>
+                <!-- by supplier -->
+                <section class="flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-sm">
+                    <header class="flex flex-none items-center justify-between gap-2 border-b border-gray-200 bg-white px-3 py-3">
+                        <div class="flex min-w-0 items-center gap-2">
+                            <span class="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-blue-50 text-[11px] text-blue-800 ring-1 ring-inset ring-blue-100">
+                                <i class="fa-solid fa-cubes text-[10px]"></i>
+                            </span>
+                            <h2 class="truncate text-sm font-semibold uppercase tracking-wide text-gray-700">
+                                By supplier
+                            </h2>
+                        </div>
+                        <span
+                            class="flex-none rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums"
+                            :class="supplierCount > 0 ? 'bg-gray-200 text-gray-700' : 'bg-gray-100 text-gray-400'"
+                        >
+                            {{ supplierCount }}
+                        </span>
+                    </header>
+
+                    <div class="space-y-3 p-3">
+                        <div
+                            v-for="supplier in suppliers.data"
+                            :key="supplier.id"
+                            class="group flex items-start justify-between gap-3 rounded-xl border border-gray-200 bg-white p-3 transition-colors duration-150 hover:border-gray-300"
+                        >
+                            <div class="min-w-0">
+                                <h3 class="truncate text-sm font-semibold text-gray-900" :title="supplier.name">
+                                    {{supplier.name}}
+                                </h3>
+                                <ul v-if="categoryChips(supplier).length > 0" class="mt-1.5 flex flex-wrap gap-1.5">
+                                    <li
+                                        v-for="category in categoryChips(supplier)"
+                                        :key="category"
+                                        class="rounded-md bg-gray-100 px-2 py-1 text-[11px] font-medium text-gray-600 ring-1 ring-inset ring-gray-200"
+                                    >
+                                        {{category}}
+                                    </li>
+                                </ul>
+                                <p v-else class="mt-1 text-xs text-gray-400">
+                                    No categories
+                                </p>
                             </div>
 
-                            <!-- by supplier -->
-                            <div>
-                                <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">
-                                    By Supplier
-                                </h1>
-                                <div v-for="supplier in suppliers.data" class="mb-3 grid grid-cols-3 border-2 border-gray-200 p-3 rounded-xl">
-                                    <div class="col-span-2">
-                                        <h3 class="font-semibold">{{supplier.name}}</h3>
-                                        <span class="block text-xs">{{supplier.categoriesAsCommaString}}</span>
-                                    </div>
-                                    <div class="flex gap-x-2">
-                                        <button @click="editMode(supplier)">
-                                            <i class="fa-regular fa-pen-to-square"></i>
-                                        </button>
-                                        <button
-                                            v-if="showDeleteButton(supplier)"
-                                            class="text-red-500 font-extrabold"
-                                            @click="deleteConfirmation(supplier)"
-                                        >
-                                            <i class="fa-regular fa-circle-xmark"></i>
-                                        </button>
-                                    </div>
-                                </div>
+                            <div class="flex flex-none gap-1.5">
+                                <button
+                                    type="button"
+                                    @click="editMode(supplier)"
+                                    :title="'Edit ' + supplier.name"
+                                    class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-300 bg-white text-xs text-gray-600 shadow-sm transition-colors duration-150 hover:border-orange-200 hover:bg-orange-50 hover:text-orange-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-1"
+                                >
+                                    <i class="fa-regular fa-pen-to-square"></i>
+                                </button>
+                                <button
+                                    v-if="showDeleteButton(supplier)"
+                                    type="button"
+                                    @click="deleteConfirmation(supplier)"
+                                    :title="'Remove ' + supplier.name"
+                                    class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-300 bg-white text-xs text-gray-600 shadow-sm transition-colors duration-150 hover:border-red-200 hover:bg-red-50 hover:text-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-1"
+                                >
+                                    <i class="fa-regular fa-circle-xmark"></i>
+                                </button>
                             </div>
+                        </div>
+
+                        <!-- nothing added yet -->
+                        <div
+                            v-if="supplierCount === 0"
+                            class="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white/60 px-4 py-8 text-center"
+                        >
+                            <i class="fa-solid fa-cubes text-xl text-gray-300"></i>
+                            <p class="mt-3 text-xs leading-relaxed text-gray-500">
+                                No suppliers yet. Add one above and it will appear here.
+                            </p>
                         </div>
                     </div>
                 </section>
             </div>
-        </div>
+        </section>
     </AuthenticatedLayout>
 
     <ConfirmModal

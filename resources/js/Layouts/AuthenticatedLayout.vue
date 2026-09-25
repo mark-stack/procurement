@@ -8,7 +8,6 @@
     import NavButton from "@/Components/Buttons/NavButton.vue";
 
     //Shared data
-    const business = usePage().props.auth.business;
     const isAdmin = usePage().props.auth.isAdmin;
     const onboarded = usePage().props.auth.onboarded;
     const hasSeedImport = usePage().props.hasSeedImport;
@@ -129,7 +128,7 @@
                                             <!-- Suppliers -->
                                             <NavButton
                                                 v-if="onboarded"
-                                                :route="route('suppliers.index',business.id)"
+                                                :route="route('suppliers.index')"
                                                 label="Suppliers"
                                                 icon="fa-solid fa-cubes"
                                             />
@@ -302,7 +301,7 @@
 <!--                    &lt;!&ndash; Suppliers &ndash;&gt;-->
 <!--                    <NavButton-->
 <!--                        v-if="onboarded"-->
-<!--                        :route="route('suppliers.index',business.id)"-->
+<!--                        :route="route('suppliers.index')"-->
 <!--                        label="Suppliers"-->
 <!--                        icon="fa-solid fa-cubes"-->
 <!--                    />-->

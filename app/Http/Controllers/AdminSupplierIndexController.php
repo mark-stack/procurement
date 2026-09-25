@@ -47,6 +47,8 @@ class AdminSupplierIndexController extends Controller
             'suppliers' => SupplierResource::collection($suppliers),
             'byCategory' => $byCategory,
             'business' => $business,
+            //Someone else's suppliers, so the form posts to the admin route
+            'adminView' => true,
         ]);
     }
 }

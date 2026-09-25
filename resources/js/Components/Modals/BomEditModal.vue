@@ -144,7 +144,7 @@
     }
 
     function submitCustomisations(){
-        let url = route("raw.material.quote.customisations",business.id);
+        let url = route("raw.material.quote.customisations");
         formCustomisations.post(url, {
             preserveScroll: true,
             onSuccess: () => {
@@ -194,7 +194,7 @@
     }
 
     function submitClarifications(){
-        let url = route("raw.material.quote.clarifications",business.id);
+        let url = route("raw.material.quote.clarifications");
         formClarifications.post(url, {
             preserveScroll: true,
             onSuccess: () => {

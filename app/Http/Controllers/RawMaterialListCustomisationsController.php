@@ -15,7 +15,6 @@ use App\Services\DataClassificationService;
 use App\Services\ProductService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 class RawMaterialListCustomisationsController extends Controller
@@ -23,12 +22,12 @@ class RawMaterialListCustomisationsController extends Controller
     /**
      * Handle the incoming request.
      */
-    public function __invoke(Request $request, Business $business): RedirectResponse
+    public function __invoke(Request $request): RedirectResponse
     {
         /**
          * Single purpose: save the non-price book product as user-custom product
          */
-        Gate::authorize('owned', $business);
+        $business = $this->businessOf($request);
 
         $productService = new ProductService;
         $csvService = new CsvService;
@@ -57,7 +56,7 @@ class RawMaterialListCustomisationsController extends Controller
                 $rawMaterialQuote->delete();
             }
 
-            $user = auth()->user();
+            $user = $request->user();
 
             foreach ($rows as $formData) {
                 $id = isset($formData['data']) ? $formData['data']['id'] : null;

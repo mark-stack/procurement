@@ -20,7 +20,6 @@
         allMeasurements: Object,
         formDependentData: Object,
         allGrades: Object,
-        business: Object,
         nestingGroups: Object,
     });
 
@@ -229,7 +228,7 @@
     }
 
     function submitClarifications(){
-        let url = route("raw.material.quote.clarifications",props.business.id);
+        let url = route("raw.material.quote.clarifications");
         formClarifications.post(url, {
             preserveScroll: true,
             onSuccess: () => {
@@ -250,7 +249,7 @@
     }
 
     function submitCustomisations(){
-        let url = route("raw.material.quote.customisations",props.business.id);
+        let url = route("raw.material.quote.customisations");
         formCustomisations.post(url, {
             preserveScroll: true,
             onSuccess: () => {

@@ -2,15 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Supplier\AttachSupplierToBusiness;
 use App\Formatters\SupplierFormatter;
 use App\Http\Requests\StoreSupplierRequest;
 use App\Http\Requests\UpdateSupplierRequest;
 use App\Http\Resources\SupplierResource;
-use App\Models\Business;
 use App\Models\Supplier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -19,9 +18,9 @@ class SupplierController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Business $business): Response
+    public function index(Request $request): Response
     {
-        Gate::authorize('owned', $business);
+        $business = $this->businessOf($request);
 
         $suppliers = $business->suppliers()->orderBy('name')->get();
 
@@ -54,6 +53,8 @@ class SupplierController extends Controller
             'suppliers' => SupplierResource::collection($suppliers),
             'byCategory' => $byCategory,
             'business' => $business,
+            //Your own suppliers, so the form posts to the route that takes no business
+            'adminView' => false,
         ]);
     }
 
@@ -68,24 +69,17 @@ class SupplierController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreSupplierRequest $request, Business $business): RedirectResponse
+    public function store(StoreSupplierRequest $request): RedirectResponse
     {
-        /**
-         * Find or create supplier
-         */
+        $business = $this->businessOf($request);
+
         $validated = $request->validated();
 
-        $supplier = Supplier::query()->firstOrCreate(
-            [
-                'name' => $validated['name'],
-                'supplier_categories' => serialize($validated['supplier_categories']),
-            ],
+        AttachSupplierToBusiness::run(
+            $business,
+            $validated['name'],
+            $validated['supplier_categories'],
         );
-
-        /**
-         * Attach this supplier to the business (if not admin)
-         */
-        $business->suppliers()->syncWithoutDetaching([$supplier->id]);
 
         return back();
     }

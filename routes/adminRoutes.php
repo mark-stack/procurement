@@ -3,6 +3,7 @@
 use App\Http\Controllers\ActivateBusinessController;
 use App\Http\Controllers\AdminImpersonationController;
 use App\Http\Controllers\AdminSupplierIndexController;
+use App\Http\Controllers\AdminSupplierStoreController;
 use App\Http\Controllers\AdminUpdateMasterMaterialsSpreadsheetController;
 use App\Http\Controllers\AdminUserIndexController;
 use App\Http\Controllers\TemplateController;
@@ -25,4 +26,5 @@ Route::prefix('admin')->name('admin.')->middleware([AdminMiddleware::class])->gr
 
     //Suppliers
     Route::get('/suppliers/{business}', AdminSupplierIndexController::class)->name('suppliers.index');
+    Route::post('/suppliers/{business}', AdminSupplierStoreController::class)->name('suppliers.store');
 });

@@ -1,7 +1,7 @@
 <script setup>
     //General Imports
     import {ref} from "vue";
-    import {Link, useForm, usePage} from "@inertiajs/vue3";
+    import {Link, useForm} from "@inertiajs/vue3";
 
     //Component Imports
     import Modal from "@/Layouts/Modal.vue";
@@ -34,9 +34,6 @@
 
     const formUndoOrderSent = useForm({});
     const formDelivered = useForm({});
-
-    //Shared data
-    const business = usePage().props.auth.business;
 
     //Variables
     let showInputs = ref(setupShowInputs());
@@ -664,7 +661,7 @@
                         <!-- need to add suppliers -->
                         <div v-else class="mt-3">
                             <Link
-                                :href="route('suppliers.index',business.id)"
+                                :href="route('suppliers.index')"
                                 class="underline text-blue-500"
                             >
                                 Add/Edit suppliers
@@ -674,7 +671,7 @@
                     <!-- add suppliers -->
                     <div class="pl-2 mt-5">
                         <Link
-                            :href="route('suppliers.index',business.id)"
+                            :href="route('suppliers.index')"
                             class="underline text-blue-500"
                         >
                             Add/Edit suppliers

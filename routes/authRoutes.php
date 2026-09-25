@@ -73,8 +73,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         //Raw Material Quotes
         Route::name('raw.material.quote.')->group(function () {
             Route::post('raw-material-quote-bulk-destroy', RawMaterialListBulkDeleteController::class)->name('bulk.destroy');
-            Route::post('raw-material-quote-clarifications/{business}', RawMaterialListClarificationsController::class)->name('clarifications');
-            Route::post('raw-material-quote-customisations/{business}', RawMaterialListCustomisationsController::class)->name('customisations');
+            Route::post('raw-material-quote-clarifications', RawMaterialListClarificationsController::class)->name('clarifications');
+            Route::post('raw-material-quote-customisations', RawMaterialListCustomisationsController::class)->name('customisations');
         });
         Route::controller(RawMaterialQuoteController::class)->group(function () {
             Route::delete('/raw-material-quote/{rawMaterialQuote}', 'destroy')->name('raw.material.quote.destroy'); //DELETE /photos/{photo}	destroy	photos.destroy
@@ -85,8 +85,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         //Suppliers
         Route::controller(SupplierController::class)->group(function () {
-            Route::get('/suppliers/{business}', 'index')->name('suppliers.index');
-            Route::post('/suppliers/{business}', 'store')->name('suppliers.store');
+            Route::get('/suppliers', 'index')->name('suppliers.index');
+            Route::post('/suppliers', 'store')->name('suppliers.store');
             Route::put('/suppliers/{supplier}', 'update')->name('suppliers.update');
             Route::delete('/suppliers/{supplier}', 'destroy')->name('suppliers.destroy');
         });

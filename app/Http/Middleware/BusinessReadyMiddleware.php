@@ -15,11 +15,10 @@ class BusinessReadyMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $user = auth()->user();
-        $business = $user->business;
+        $business = $request->user()?->business;
 
-        //if business is not ready, redirect to onboarding
-        if (! $business->admin_setup_complete) {
+        //if business is missing or not ready, redirect to onboarding
+        if (! $business?->admin_setup_complete) {
             return redirect()->route('onboarding');
         }
 
