@@ -153,6 +153,24 @@ class ProjectController extends Controller
             unlink(storage_path("app/private/{$path}"));
         }
 
+        /*
+         * Nothing extracted.
+         * The template matched and no exception was thrown, but not a single row
+         * produced a material. Without this the project is flashed as a success
+         * and the user is handed an empty BOM with no explanation.
+         */
+        if ($project->rawMaterialQuotes()->count() === 0) {
+            //Discard the empty shell so the user can retry with the same name
+            $project->delete();
+
+            //processCsv already flashed the project (RedirectResponse::with writes
+            //to the session immediately), so it must be cleared or the modal will
+            //close and try to download a BOM for a project that no longer exists.
+            $request->session()->forget('project');
+
+            return back()->with('warning', "No materials could be matched from the uploaded file. Please email it to mark.laravel.coder@gmail.com so we can take a look.");
+        }
+
         return $return;
     }
 

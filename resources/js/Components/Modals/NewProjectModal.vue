@@ -33,6 +33,7 @@
 
     //Shared data
     const projectFlashed = computed(() => usePage().props.flash.project);
+    const warning = computed(() => usePage().props.flash.warning);
 
     //Variables
     const emit = defineEmits(['closeModalOnSuccess','redownload']);
@@ -475,6 +476,13 @@
                                             class="text-sm text-red-500 mt-2 font-semibold"
                                         >
                                             Maximum 5 BOM files can be uploaded. Click the "X" to remove.
+                                        </div>
+                                        <!-- nothing extracted / template didn't auto-detect -->
+                                        <div
+                                            v-if="warning"
+                                            class="text-sm text-orange-500 mt-2"
+                                        >
+                                            {{warning}}
                                         </div>
                                     </template>
 
