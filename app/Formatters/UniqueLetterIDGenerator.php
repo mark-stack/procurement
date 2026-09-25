@@ -22,12 +22,19 @@ class UniqueLetterIDGenerator
          */
 
         /*
-         * Get all marks for this product category
+         * Get all marks for this product category.
+         *
+         * Flipped so the marks are the KEYS. pluck() hands back a list, and the lookup below is an
+         * isset() by key - so against a list it was asking "is there a mark at offset 'GYX'", which is
+         * never true. Every mark was therefore handed out without being checked against the ones
+         * already stamped on steel, and needsToGrow() was measuring strlen() of the list's integer
+         * offsets instead of the codes.
          */
         $this->usedCodes = Offcut::query()
             ->where("product_category",$productCategory)
             ->pluck("unique_mark")
-            ->toArray();
+            ->flip()
+            ->all();
         $this->adjustLength();
 
         while (true) {

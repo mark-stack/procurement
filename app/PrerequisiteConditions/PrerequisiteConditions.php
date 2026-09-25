@@ -3,6 +3,7 @@
 namespace App\PrerequisiteConditions;
 
 use App\Models\Batch;
+use App\Models\Offcut;
 use App\Models\Project;
 use App\Models\Quote;
 use App\Models\User;
@@ -80,6 +81,7 @@ class PrerequisiteConditions
          * 5) OFFCUT: Are your offcuts being released
          * 6) OFFCUT: "allocated_to" is this batch (released from)
          * 7) RAWMATERIALQUOTE: All materials are assigned to this batch
+         * 8) OFFCUT: None of the offcuts this batch produced has been consumed downstream
          */
 
         //1) PROJECT: All projects belong to your business
@@ -144,6 +146,18 @@ class PrerequisiteConditions
             }
         }
 
+        /*
+         * 8) OFFCUT: None of the offcuts this batch produced has been consumed downstream.
+         *
+         * Unwinding the batch un-nests it, so the offcuts it produced were never cut and get deleted
+         * with it. If a later batch has already nested into one of them, deleting it would strip that
+         * batch of the offcut and of the certificate trail behind it.
+         */
+        $condition_8 = ! Offcut::query()
+            ->where("batch_from_id",$batch->id)
+            ->whereNotNull("batch_to_id")
+            ->exists();
+
         return
             $condition_1 &&
             $condition_2 &&
@@ -151,7 +165,8 @@ class PrerequisiteConditions
             $condition_4 &&
             $condition_5 &&
             $condition_6 &&
-            $condition_7;
+            $condition_7 &&
+            $condition_8;
     }
 
     public function uploadMaterials(User $user, Project $project): bool

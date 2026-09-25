@@ -90,6 +90,21 @@ class BatchController extends Controller
             $offcut->save();
         }
 
+        /*
+         * Delete the offcuts this batch produced ("batch_from_id").
+         *
+         * Un-nesting the batch means those cuts were never made, so the offcuts do not exist. They used
+         * to be left behind pointing at a batch row that is about to disappear: invisible on the offcuts
+         * index (it only lists offcuts whose source batch is still one of yours), but still holding
+         * their unique marks against the pool the next nest generates from.
+         *
+         * Condition 8 of the prerequisite gate above has already established that none of them has been
+         * nested into by a later batch.
+         */
+        Offcut::query()
+            ->where("batch_from_id",$batch->id)
+            ->delete();
+
         //Delete batch
         $batch->delete();
 
