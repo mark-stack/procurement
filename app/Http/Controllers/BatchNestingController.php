@@ -28,10 +28,22 @@ class BatchNestingController extends Controller
         //View data
         $viewData = $nestingFormatter->nestingViewData('BATCH', $business, $batch);
 
+        /*
+         * Only what the two screens read. Handing over the model serialised whatever relations happened
+         * to be loaded by then - every piece in the batch, and the user's whole business record.
+         */
+        $batch->loadMissing('user');
+
         $viewData = array_merge($viewData, [
             'width' => 900,
             "redirect" => $redirect,
-            "batch" => $batch,
+            "batch" => [
+                "id" => $batch->id,
+                "user" => [
+                    "name" => $batch->user?->name,
+                    "email" => $batch->user?->email,
+                ],
+            ],
             "newStockOrdersWithCertificates" => $batch->newStockOrdersWithCertificates(),
             "offcutOrdersWithCertificates" => $batch->offcutOrdersWithCertificates($business),
         ]);

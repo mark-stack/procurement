@@ -14,6 +14,7 @@ use Illuminate\Support\Collection;
 
 /**
  * @property array<string, array<int, object>> $nested_state The saved nesting, keyed by nesting algo
+ * @property array<int, string>|null $letters_project_array The project letters stamped on that nesting
  */
 class Batch extends Model
 {
@@ -26,6 +27,7 @@ class Batch extends Model
     {
         return [
             'nested_state' => NestedState::class,
+            'letters_project_array' => 'array',
         ];
     }
 
@@ -60,17 +62,13 @@ class Batch extends Model
     //Collection
     public function projects(): EloquentCollection
     {
-        $pieces = $this->pieces;
-        $projectIds = [];
-
-        foreach ($pieces as $piece) {
-            $projectIds[] = $piece->project->id;
-        }
-
-        $uniqueProjectIds = array_unique($projectIds);
-
+        /*
+         * Read the ids off the pieces rather than walking $piece->project, which loaded one project
+         * per piece. The relations are the ones ProjectResource walks for every row it renders.
+         */
         return Project::query()
-            ->whereIn('id', $uniqueProjectIds)
+            ->with(['user', 'rawMaterialQuotes.piece.quotes', 'rawMaterialQuotes.piece.order'])
+            ->whereIn('id', $this->pieces()->distinct()->pluck('project_id'))
             ->get();
     }
 

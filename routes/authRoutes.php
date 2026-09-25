@@ -109,7 +109,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('suggested-nesting', SuggestedNestingController::class)->name('suggested.nesting');
 
         //Batch Nesting
-        Route::get('batch-nesting/{batch}/{redirect}/{print}', BatchNestingController::class)->name('batch.nesting');
+        //"print" is typed int and "redirect" picks the close destination, so anything else is a 404, not a 500
+        Route::get('batch-nesting/{batch}/{redirect}/{print}', BatchNestingController::class)
+            ->whereIn('redirect', ['current', 'past'])
+            ->whereNumber('print')
+            ->name('batch.nesting');
     });
 
     //Batches

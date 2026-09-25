@@ -712,7 +712,10 @@ class NestingFormatter
         ];
     }
 
-    public function getLetterProjectArray(Collection $piecesReadyForBatching): array
+    /**
+     * @param  array<int, string>  $preassigned  Letters already stamped on a saved nest, kept as they are
+     */
+    public function getLetterProjectArray(Collection $piecesReadyForBatching, array $preassigned = []): array
     {
         $projectIds = [];
         foreach ($piecesReadyForBatching as $piece) {
@@ -720,21 +723,79 @@ class NestingFormatter
         }
         $projectIds = array_values(array_unique($projectIds));
 
-        $lettersProjectArray = [];
+        $lettersProjectArray = $preassigned;
+        $taken = array_flip($preassigned);
 
-        foreach ($projectIds as $index => $id) {
-            //A-Z, then AA, AB, ... so every project keeps a distinct mark on the cut drawings
-            $letter = '';
-            $remaining = $index;
+        $index = 0;
+        foreach ($projectIds as $id) {
+            //Already stamped on the drawings, so it keeps the letter it has
+            if (isset($lettersProjectArray[$id])) {
+                continue;
+            }
+
             do {
-                $letter = chr(65 + ($remaining % 26)).$letter;
-                $remaining = intdiv($remaining, 26) - 1;
-            } while ($remaining >= 0);
+                $letter = $this->indexToLetter($index);
+                $index++;
+            } while (isset($taken[$letter]));
 
             $lettersProjectArray[$id] = $letter;
+            $taken[$letter] = true;
         }
 
         return $lettersProjectArray;
+    }
+
+    private function indexToLetter(int $index): string
+    {
+        //A-Z, then AA, AB, ... so every project keeps a distinct mark on the cut drawings
+        $letter = '';
+        $remaining = $index;
+        do {
+            $letter = chr(65 + ($remaining % 26)).$letter;
+            $remaining = intdiv($remaining, 26) - 1;
+        } while ($remaining >= 0);
+
+        return $letter;
+    }
+
+    /**
+     * Recover the letters from a nest saved before they were stored alongside it.
+     *
+     * Every cut in the saved nesting carries the letter it was drawn with, so the map can be read back
+     * off the nest itself rather than guessed at from the batch's projects.
+     */
+    public function lettersFromNestedState(array $piecesNested): array
+    {
+        $letters = [];
+
+        foreach ($piecesNested[NestingEnums::METERAGE->value] ?? [] as $product) {
+            $nested = ((array) $product)['nested'] ?? [];
+
+            if (! is_array($nested)) {
+                continue;
+            }
+
+            //Cuts made out of new stock
+            foreach ($nested['utilisedBars'] ?? [] as $bar) {
+                foreach ($bar['result']['pieces'] ?? [] as $cut) {
+                    $letters[$cut['projectId']] = $cut['letter'];
+                }
+            }
+
+            //Cuts made out of offcut inventory
+            foreach ($nested['bestResultOffcuts']['utilisedOffcutBars'] ?? [] as $offcutBar) {
+                foreach ($offcutBar['sourceOffcut']['cuts'] ?? [] as $cut) {
+                    $letters[$cut['projectId']] = $cut['letter'];
+                }
+            }
+
+            //Pieces no stock length could hold
+            foreach ($nested['tooLong'] ?? [] as $cut) {
+                $letters[$cut['project']] = $cut['letter'];
+            }
+        }
+
+        return $letters;
     }
 
     public function piecesGroupedBySupplierGroup(array $piecesNested, Business $business): array
@@ -1549,17 +1610,6 @@ class NestingFormatter
             //Projects in batch
             $projectsForBatching = $batch->projects();
 
-            //Letter-project array
-            $projectsForBatching->loadMissing('pieces');
-
-            $pieces = [];
-            foreach($projectsForBatching as $project){
-                foreach($project->pieces as $piece){
-                    $pieces[] = $piece;
-                }
-            }
-            $lettersProjectArray = $this->getLetterProjectArray(collect($pieces));
-
             //Pieces nested (from saved)
             //todo refactor this to collecting 'BAR' and 'OFFCUT' items
             /*
@@ -1573,8 +1623,17 @@ class NestingFormatter
              */
             $piecesNested = $batch->nested_state;
 
-//            $piecesNested = $this->piecesNested($batch->pieces, $lettersProjectArray, $business);
-
+            /*
+             * Letter-project array.
+             *
+             * The letters are fixed when the nest is saved and stamped onto every cut in it, so the
+             * legend has to use that same map. Recomputing it here ordered the projects differently,
+             * and the legend could then name a different project than the drawings marked.
+             */
+            $lettersProjectArray = $this->getLetterProjectArray(
+                $batch->pieces,
+                $batch->letters_project_array ?: $this->lettersFromNestedState($piecesNested),
+            );
 
             ////////////////////////////////////////////////////////////////////////////
 

@@ -34,6 +34,6 @@ class SaveNesting
          * Only meterage produces bars and offcuts, but every algo is persisted so the batch view shows
          * the same materials the suggestion did.
          */
-        CreateBarsAndOffcuts::run($piecesNested, $batch);
+        CreateBarsAndOffcuts::run($piecesNested, $batch, $lettersProjectArray);
     }
 }

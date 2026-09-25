@@ -15,7 +15,7 @@ class CreateBarsAndOffcuts
 {
     use AsAction;
 
-    public function handle(array $piecesNested, Batch $batch): void
+    public function handle(array $piecesNested, Batch $batch, array $lettersProjectArray = []): void
     {
         /**
          * Create bars and offcuts
@@ -198,6 +198,13 @@ class CreateBarsAndOffcuts
         $nestedState[NestingEnums::METERAGE->value] = $meterageNesting->toArray();
 
         $batch->nested_state = $nestedState;
+
+        /*
+         * Keep the letter map that was stamped onto these cuts. Recomputing it when the batch is read
+         * back orders the projects differently, so the legend disagreed with the drawings.
+         */
+        $batch->letters_project_array = $lettersProjectArray;
+
         $batch->save();
     }
 }

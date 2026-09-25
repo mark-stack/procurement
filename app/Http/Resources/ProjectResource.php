@@ -2,7 +2,6 @@
 
 namespace App\Http\Resources;
 
-use App\Models\Project;
 use App\PrerequisiteConditions\PrerequisiteConditions;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -17,7 +16,9 @@ class ProjectResource extends JsonResource
     public function toArray(Request $request): array
     {
         $user = auth()->user();
-        $project = Project::query()->findOrFail($this->id);
+
+        //The resource already holds the project - re-fetching it ran one extra query per row
+        $project = $this->resource;
 
         return [
             'created_at' => $project->created_at,
@@ -36,7 +37,8 @@ class ProjectResource extends JsonResource
             'orderingDeadline' => $project->orderingDeadline(),
             'deliveryDeadline' => $project->deliveryDeadline(),
             'projectManager' => $project->user,
-            'qtyMaterialRows' => $project->rawMaterialQuotes()->count(),
+            //The relation, not a fresh count query - callers that eager load it then pay nothing here
+            'qtyMaterialRows' => $project->rawMaterialQuotes->count(),
             "prerequisiteUploadMaterials" => $user
                 ? (new PrerequisiteConditions())->uploadMaterials($user, $project)
                 : false,
