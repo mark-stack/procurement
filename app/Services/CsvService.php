@@ -527,15 +527,14 @@ class CsvService
             }
 
             //Notify user
-            $existingItems = $project->items_not_found
-                ? unserialize($project->items_not_found)
-                : [];
-            $combined = array_merge($itemsNotFound,$fromOtherPlan);
-            $merge = array_merge($existingItems,$combined);
-            $unique = array_unique($merge);
-            $project->items_not_found = serialize($unique);
-            $project->save();
+            $project->recordUnimportedItems($itemsNotFound, $fromOtherPlan);
         }
+
+        /**
+         * Anything this upload did import stops being an outstanding item, however
+         * many earlier uploads left it on the list.
+         */
+        $project->forgetImportedItems();
 
         return $materialList;
     }

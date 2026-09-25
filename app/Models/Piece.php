@@ -27,6 +27,7 @@ class Piece extends Model
         return $this->belongsTo(Order::class);
     }
 
+    /** @return BelongsToMany<Quote, $this> */
     public function quotes(): BelongsToMany
     {
         return $this->belongsToMany(Quote::class);

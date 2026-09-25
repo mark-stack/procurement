@@ -86,11 +86,6 @@ class ProjectController extends Controller
         ]);
     }
 
-    public function create()
-    {
-        dd('create');
-    }
-
     public function store(StoreProjectRequest $request): RedirectResponse
     {
         $validated = $request->validated();
@@ -193,16 +188,6 @@ class ProjectController extends Controller
         if (is_file($fullPath)) {
             unlink($fullPath);
         }
-    }
-
-    public function show(Project $project)
-    {
-        //
-    }
-
-    public function edit(Project $project)
-    {
-        //
     }
 
     public function update(UpdateProjectRequest $request, Project $project): RedirectResponse

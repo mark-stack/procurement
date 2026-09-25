@@ -53,14 +53,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     //Onboarding is finalised
     Route::middleware([BusinessReadyMiddleware::class])->group(function () {
         //Current Projects
-        Route::resource('projects', ProjectController::class);
+        //Create/show/edit were unimplemented stubs - the dashboard modals cover them
+        Route::resource('projects', ProjectController::class)->only(['index', 'store', 'update', 'destroy']);
 
         //Past Projects
         Route::get("past-projects", PastProjectsController::class)->name("past.projects.index");
         Route::post("mark-as-past-project/{batch}", MarkAsPastProjectController::class)->name("mark.as.past.project");
 
         //Products
-        Route::resource('projects.products', ProductController::class);
+        //Upload only - the standalone product page was superseded by the Bill of Materials modal
+        Route::resource('projects.products', ProductController::class)->only(['store']);
 
         Route::get('download-bom/{project}', DownloadBomController::class)->name('download.bom');
 

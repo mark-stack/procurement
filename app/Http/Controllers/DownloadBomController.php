@@ -43,8 +43,16 @@ class DownloadBomController extends Controller
         $hasCertificateProducts = []; //todo: get from master_materials
         $requiresCustom = [];
 
+        /**
+         * status() reads the piece, its order and its quotes for every row, so without
+         * this a BOM of any size costs three queries a line.
+         */
+        $rawMaterialQuotes = $project->rawMaterialQuotes()
+            ->with('piece.order', 'piece.quotes')
+            ->get();
+
         //Loop user's material rows
-        foreach ($project->rawMaterialQuotes as $rawMaterialQuote) {
+        foreach ($rawMaterialQuotes as $rawMaterialQuote) {
             //Append Array
             $nesting_algo = ($rawMaterialQuote->product_category && $nestingFormatter->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category))
                 ? $nestingFormatter->getNestingLabelsFromProductCategory($rawMaterialQuote->product_category)[0]
@@ -137,9 +145,7 @@ class DownloadBomController extends Controller
             'downloadedBomData' => [
                 'project_id' => $project->id,
                 'data' => [
-                    "itemsNotFound" => $project->items_not_found
-                        ? implode(", ",unserialize($project->items_not_found))
-                        : null,
+                    'unimportedItems' => $project->unimportedItems(),
                     'percentageOfMaterialsQuoted' => $project->percentageOfMaterialsQuoted(),
                     'percentageOfMaterialsOrdered' => $project->percentageOfMaterialsOrdered(),
                     'project' => $project,

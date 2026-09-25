@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Actions\Batch\DeleteBatchesWithoutPieces;
 use App\Actions\Quote\DeleteQuotesWithoutPieces;
 use App\Models\Piece;
-use App\Models\Quote;
 use App\Models\RawMaterialQuote;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,25 +19,39 @@ class RawMaterialListBulkDeleteController extends Controller
         /**
          * Delete imported material list and derived PIECE objects
          */
-        $ids = $request->selectedRawMaterialQuoteIds;
+        $validated = $request->validate([
+            'selectedRawMaterialQuoteIds' => ['present', 'array'],
+            'selectedRawMaterialQuoteIds.*' => ['integer'],
+        ]);
 
+        $business = $this->businessOf($request);
+
+        /**
+         * Only this business's rows, and only ones not already quoted or ordered.
+         * The modal hides the checkbox on those, but the ids arrive in the request
+         * body, so both rules have to hold here too.
+         */
         $rawMaterialQuotes = RawMaterialQuote::query()
-            ->whereIn('id', $ids)
-            ->get();
+            ->ownedBy($business)
+            ->whereIn('id', $validated['selectedRawMaterialQuoteIds'])
+            ->with('piece.quotes', 'piece.order')
+            ->get()
+            ->reject(fn (RawMaterialQuote $rawMaterialQuote) => $rawMaterialQuote->status() !== null);
+
+        if ($rawMaterialQuotes->isEmpty()) {
+            return back();
+        }
+
+        $ids = $rawMaterialQuotes->pluck('id')->all();
 
         //Detach pieces from quote
         $allAssociatedQuotes = [];
-        $allAssociatedOrders = [];
         foreach ($rawMaterialQuotes as $rawMaterialQuote) {
             $piece = $rawMaterialQuote->piece;
             if ($piece) {
                 //Associated quotes
                 foreach ($piece->quotes as $quote) {
                     $allAssociatedQuotes[] = $quote;
-                }
-                //Associated orders
-                if ($piece->order) {
-                    $allAssociatedOrders[] = $piece->order;
                 }
 
                 $piece->quotes()->detach();

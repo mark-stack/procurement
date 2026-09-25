@@ -8,7 +8,6 @@ use App\Enums\SurfaceEnums;
 use App\Models\Business;
 use App\Models\Piece;
 use App\Models\Product;
-use App\Models\Project;
 use App\Models\RawMaterialQuote;
 use App\Services\CsvService;
 use App\Services\DataClassificationService;
@@ -27,7 +26,13 @@ class RawMaterialListCustomisationsController extends Controller
         /**
          * Single purpose: save the non-price book product as user-custom product
          */
+        $request->validate([
+            'deletedIds' => ['present', 'array'],
+            'deletedIds.*' => ['integer'],
+        ]);
+
         $business = $this->businessOf($request);
+        $deletedIds = $request->input('deletedIds');
 
         $productService = new ProductService;
         $csvService = new CsvService;
@@ -35,7 +40,7 @@ class RawMaterialListCustomisationsController extends Controller
 
         $rows = $request->all();
 
-        $validation = $productService->validationUserCustom($rows, $request->deletedIds);
+        $validation = $productService->validationUserCustom($rows, $deletedIds);
 
         //Has errors
         if ($validation['validationErrors'] > 0) {
@@ -44,7 +49,10 @@ class RawMaterialListCustomisationsController extends Controller
             /*
              * Delete the "promised to delete" items
              */
-            $deleteRawMaterialQuotes = RawMaterialQuote::query()->whereIn('id', $request->deletedIds)->get();
+            $deleteRawMaterialQuotes = RawMaterialQuote::query()
+                ->ownedBy($business)
+                ->whereIn('id', $deletedIds)
+                ->get();
             foreach($deleteRawMaterialQuotes as $rawMaterialQuote){
                 //Delete piece
                 $piece = $rawMaterialQuote->piece;
@@ -61,7 +69,14 @@ class RawMaterialListCustomisationsController extends Controller
             foreach ($rows as $formData) {
                 $id = isset($formData['data']) ? $formData['data']['id'] : null;
 
-                if ($id && ! in_array($id, $request->deletedIds)) {
+                if ($id && ! in_array($id, $deletedIds)) {
+                    /**
+                     * Scoped rather than a bare find: the id comes from the request body,
+                     * so an id from another business must not resolve here.
+                     */
+                    $rawMaterialQuote = RawMaterialQuote::query()
+                        ->ownedBy($business)
+                        ->findOrFail($id);
 
                     //Prepare single product item
                     $preparedFormData = $this->preparedFormDataSingleProduct($formData);
@@ -82,7 +97,6 @@ class RawMaterialListCustomisationsController extends Controller
                         $user,
                     );
 
-                    $rawMaterialQuote = RawMaterialQuote::find($formData['data']['id']);
                     $rawMaterialQuote->product_category = $preparedFormData['product_category'];
                     $rawMaterialQuote->custom_product_matches = serialize($customProductMatches);
                     $rawMaterialQuote->custom_confirmed = true;
@@ -91,7 +105,8 @@ class RawMaterialListCustomisationsController extends Controller
                     /**
                      * Create 'Pieces'
                      */
-                    $project = Project::findOrFail($formData['data']['project_id']);
+                    //Take the project from the owned row, not from the request body
+                    $project = $rawMaterialQuote->project;
                     $lengthRequired = $formData['data']['length_required'];
                     $widthRequired = $formData['data']['width_required'];
                     $algo = $preparedFormData['nesting_algo'];

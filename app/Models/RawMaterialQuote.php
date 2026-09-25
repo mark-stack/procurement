@@ -19,9 +19,26 @@ class RawMaterialQuote extends Model
         return $this->belongsTo(Project::class);
     }
 
+    /** @return HasOne<Piece, $this> */
     public function piece(): HasOne
     {
         return $this->hasOne(Piece::class);
+    }
+
+    /**
+     * Scopes
+     */
+    public function scopeOwnedBy(Builder $query, Business $business): Builder
+    {
+        /**
+         * The bulk endpoints address these rows by id in a request body rather
+         * than through a bound route parameter, so there is no model for a Gate
+         * to check - ownership has to be part of the query itself.
+         */
+        return $query->whereHas(
+            'project.user',
+            fn (Builder $user) => $user->where('business_id', $business->id)
+        );
     }
 
     /**
@@ -37,9 +54,11 @@ class RawMaterialQuote extends Model
             //order_sent is cast to bool on the model, so the old "=== 1" would never have matched again
             $orderedOrder = $piece->order ? $piece->order->order_sent : null;
 
-            $sentQuotes = $piece->quotes()
-                ->where('quote_sent', true)
-                ->exists();
+            /**
+             * Read through the relation rather than re-querying it: callers listing a
+             * whole BOM eager-load piece.quotes, and a query here would defeat that.
+             */
+            $sentQuotes = $piece->quotes->contains(fn (Quote $quote) => $quote->quote_sent);
         }
 
         $status = null;
