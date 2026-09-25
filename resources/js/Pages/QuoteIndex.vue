@@ -36,7 +36,7 @@
 
 <template>
     <AuthenticatedLayout>
-        <Modal :fakeModal="true" :redirect="redirect">
+        <Modal :fakeModal="true" :redirect="redirect" ariaLabel="Nesting">
             <Nesting
                 :width="width"
                 :projectsReadyForBatching="projectsReadyForBatching"

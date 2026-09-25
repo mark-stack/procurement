@@ -59,6 +59,73 @@ function uploadExampleMaterialList($test, $user, string $projectName = 'Example 
         ]);
 }
 
+/**
+ * Post straight at the route, the way anything bypassing the modal would.
+ */
+function postMaterialLists($test, $user, array $files)
+{
+    return $test->actingAs($user)
+        ->from('/dashboard')
+        ->post(route('projects.store'), [
+            'name' => 'Example project',
+            'reference' => null,
+            'date_materials_required' => null,
+            'tentative' => false,
+            'excel' => $files,
+        ]);
+}
+
+it('would be a disaster if a non-Excel upload reached the extractor', function () {
+    /**
+     * The accept attribute and the size check in the modal were the only thing
+     * stopping this - the request had no per-file rules at all, so anything at all
+     * got handed to Excel::toArray.
+     */
+    $business = createBusiness('gmail', true);
+    $user = createUser(1, $business, false, true);
+
+    $response = postMaterialLists($this, $user, [
+        UploadedFile::fake()->create('payload.exe', 10, 'application/x-msdownload'),
+    ]);
+
+    $response->assertInvalid('excel.0');
+    expect(Project::count())->toBe(0);
+});
+
+it('would be a disaster if an oversized upload reached the extractor', function () {
+    $business = createBusiness('gmail', true);
+    $user = createUser(1, $business, false, true);
+
+    $response = postMaterialLists($this, $user, [
+        UploadedFile::fake()->create(
+            'huge.xlsx',
+            2048,
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        ),
+    ]);
+
+    $response->assertInvalid('excel.0');
+    expect(Project::count())->toBe(0);
+});
+
+it('would be a disaster if the five file limit was only enforced in the browser', function () {
+    $business = createBusiness('gmail', true);
+    $user = createUser(1, $business, false, true);
+
+    $files = collect(range(1, 6))
+        ->map(fn ($i) => UploadedFile::fake()->create(
+            "list{$i}.xlsx",
+            10,
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        ))
+        ->all();
+
+    $response = postMaterialLists($this, $user, $files);
+
+    $response->assertInvalid('excel');
+    expect(Project::count())->toBe(0);
+});
+
 it('would be a disaster if uploading a material list extracted nothing', function () {
     $business = createBusiness('gmail', true);
     $user = createUser(1, $business, true, true);

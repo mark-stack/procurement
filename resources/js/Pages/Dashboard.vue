@@ -585,6 +585,7 @@
     <!-- Modals -->
     <NewProjectModal
         v-show="showNewProjectModal"
+        :show="showNewProjectModal"
         width="550"
         :editProject="editProject"
         :bomData="bomData"

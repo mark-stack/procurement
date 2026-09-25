@@ -401,7 +401,7 @@
 </script>
 
 <template>
-    <Modal :fakeModal="false" redirect="current">
+    <Modal :fakeModal="false" redirect="current" ariaLabel="Bill of Materials">
         <div :style="'width:'+width+'px'">
 
             <div class="dark:bg-gray-900 rounded-xl">

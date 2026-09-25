@@ -128,29 +128,41 @@ class ProjectController extends Controller
          * Process Excel
          */
         $return = back();
+        $supportEmail = config('env.admin_email');
 
         foreach($files as $file){
             $path = $file->store('uploads');
 
-            //Read the CSV
-            $csvArray = Excel::toArray(new ExcelImport, $file)[0];
-
             //Process the CSV
-            $errorMsg = "The file didn't auto-detect properly. Did the template change? Please email the file to mark.laravel.coder@gmail.com to have it re-calibrated quickly.";
+            $errorMsg = "The file didn't auto-detect properly. Did the template change? Please email the file to {$supportEmail} to have it re-calibrated quickly.";
 
-            //Users to get nice error message, admin to throw error.
-            if ($user->isAdmin()) {
+            /*
+             * The read used to sit outside the try, so a file that got past template
+             * detection but blew up on a second read handed the user a 500 - and
+             * skipped the unlink below, leaving the upload on disk. The finally makes
+             * cleanup unconditional.
+             */
+            try {
+                //Read the CSV
+                $csvArray = Excel::toArray(new ExcelImport, $file)[0];
+
                 $return = $csvService->processCsv($csvArray, $project, $errorMsg);
-            } else {
-                try {
-                    $return = $csvService->processCsv($csvArray, $project, $errorMsg);
-                } catch (\Exception $e) {
-                    $return = back()->with('warning', $errorMsg);
-                }
             }
+            //Users to get nice error message, admin to throw error.
+            catch (\Throwable $e) {
+                report($e);
 
-            // Delete the file after processing
-            unlink(storage_path("app/private/{$path}"));
+                //The finally below still cleans up before this unwinds
+                if ($user->isAdmin()) {
+                    throw $e;
+                }
+
+                $return = back()->with('warning', $errorMsg);
+            }
+            finally {
+                // Delete the file after processing
+                $this->deleteTempFile($path);
+            }
         }
 
         /*
@@ -168,10 +180,19 @@ class ProjectController extends Controller
             //close and try to download a BOM for a project that no longer exists.
             $request->session()->forget('project');
 
-            return back()->with('warning', "No materials could be matched from the uploaded file. Please email it to mark.laravel.coder@gmail.com so we can take a look.");
+            return back()->with('warning', "No materials could be matched from the uploaded file. Please email it to {$supportEmail} so we can take a look.");
         }
 
         return $return;
+    }
+
+    private function deleteTempFile(string $path): void
+    {
+        $fullPath = storage_path("app/private/{$path}");
+
+        if (is_file($fullPath)) {
+            unlink($fullPath);
+        }
     }
 
     public function show(Project $project)
