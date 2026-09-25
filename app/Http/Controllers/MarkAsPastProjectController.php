@@ -41,6 +41,10 @@ class MarkAsPastProjectController extends Controller
         $batch->done = true;
         $batch->save();
 
-        return back();
+        //The card just disappears off the board otherwise, with nothing to say where it went
+        return back()->with(
+            'success',
+            "Batch {$batch->id} has been moved to done. You'll find it under Past Projects.",
+        );
     }
 }

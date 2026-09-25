@@ -10,6 +10,7 @@
     import CardButtonBlue from "@/Components/Buttons/CardButtonBlue.vue";
     import CardButtonYellow from "@/Components/Buttons/CardButtonYellow.vue";
     import CardButtonForward from "@/Components/Buttons/CardButtonForward.vue";
+    import ConfirmModal from "@/Components/Modals/ConfirmModal.vue";
 
     //Props
     const props = defineProps({
@@ -36,14 +37,19 @@
 
     //Shared methods
     import shared from "@/Shared/shared.js";
+    import useConfirm from "@/Shared/useConfirm.js";
+
+    //Confirmation
+    const {confirmDialog, askToConfirm, confirmDialogAccepted, confirmDialogCancelled} = useConfirm();
+
+    //Computed
+    //Read as a computed, not a function - the template tested the function object itself, which is
+    //always truthy, and the body read user.id off the computed rather than user.value.id
+    const atLeastOneProjectIsYours = computed(() => props.batchInfo
+        ? shared.atLeastOneProjectIsYours(props.batchInfo.projects.data,user.value.id)
+        : true);
 
     //Methods
-    function atLeastOneProjectIsYours(){
-        return props.batchInfo
-            ? shared.atLeastOneProjectIsYours(props.batchInfo.projects.data,user.id)
-            : true;
-    }
-
     function breakBatch(){
         let url = route("batches.destroy",props.batchInfo.batch.id);
         formBreakBatch.delete(url, {
@@ -61,13 +67,31 @@
         return props.batchInfo.allDelivered;
     }
 
+    /**
+     * Closing a batch is one way - nothing in the app moves it back onto the board - so it asks
+     * first, the same as archiving a project does for something that can be undone.
+     */
+    function confirmMarkAsPastProject(){
+        const projectNames = props.projects.map(project => shared.capitalizeWords(project.name)).join(", ");
+
+        askToConfirm({
+            title: "Move this batch to done?",
+            message: `Batch ${props.batchInfo.batch.id} (${projectNames}) leaves your board for Past Projects. This cannot be undone.`,
+            confirmLabel: "Move to done",
+            tone: "primary",
+            onConfirmed: () => markAsPastProject(),
+        });
+    }
+
     function markAsPastProject(){
+        //The button is hidden while this runs, but a queued second click would still post twice
+        if(formMarkAsPastProject.processing){
+            return;
+        }
+
         let url = route("mark.as.past.project",props.batchInfo.batch.id);
         formMarkAsPastProject.post(url, {
             preserveScroll: true,
-            onSuccess: () => {
-                console.log('success');
-            },
             onError: errors => {
                 console.log('errors',errors);
             },
@@ -212,6 +236,7 @@
             >
                 <CardButtonForward
                     :label="loadingButton === 'QUOTING' ? 'Opening...' : 'Quotes'"
+                    :insideLink="true"
                     @click="loadingButton = 'QUOTING'"
                 />
             </Link>
@@ -230,6 +255,7 @@
                 <CardButtonForward
                     v-else
                     :label="loadingButton === 'ORDERING' ? 'Opening...' : 'Orders'"
+                    :insideLink="true"
                     @click="loadingButton = 'ORDERING'"
                 />
             </Link>
@@ -256,7 +282,8 @@
             <CardButtonForward
                 v-if="kanbanColumn === 'DELIVERED' && allDelivered() && !props.batchInfo.steelMerchantDeliveredButNoCertsYet"
                 :label="formMarkAsPastProject.processing ? 'Moving...' : 'Move to done'"
-                @click="markAsPastProject()"
+                :disabled="formMarkAsPastProject.processing"
+                @click="confirmMarkAsPastProject()"
                 class="col-span-2"
             />
 
@@ -276,5 +303,16 @@
 <!--                </p>-->
 <!--            </template>-->
         </div>
+
+        <!-- Teleports to body, so it sits inside the card only to keep this a single-root component -->
+        <ConfirmModal
+            v-if="confirmDialog"
+            :title="confirmDialog.title"
+            :message="confirmDialog.message"
+            :confirmLabel="confirmDialog.confirmLabel"
+            :tone="confirmDialog.tone"
+            @confirm="confirmDialogAccepted()"
+            @cancel="confirmDialogCancelled()"
+        />
     </div>
 </template>
