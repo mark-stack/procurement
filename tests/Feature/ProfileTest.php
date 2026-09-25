@@ -1,5 +1,7 @@
 <?php
 
+use Database\Factories\UserFactory;
+
 test('profile page is displayed', function () {
     $business = createBusiness('admin', true);
     $user = createUser(1, $business, false, true);
@@ -58,7 +60,7 @@ test('user can delete their account', function () {
     $response = $this
         ->actingAs($user)
         ->delete('/profile', [
-            'password' => 'password',
+            'password' => UserFactory::PASSWORD,
         ]);
 
     $response

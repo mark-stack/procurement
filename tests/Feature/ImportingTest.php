@@ -190,42 +190,24 @@ it('would be a disaster if quantities misidentified', function () {
 
     $allSubQuantities = (collect($rows)->pluck('sub_qty')->toArray());
 
+    /**
+     * The SubQty column of public/examples/material_list.xlsx, read straight off
+     * the sheet. Asserting these proves the parser locks onto the SubQty column
+     * rather than Length, Width or Rate sitting either side of it.
+     */
     $shouldBe = [
-        5,
-        6,
-        6,
-        6,
-        6,
-        6,
-        6,
-        6,
-        4,
-        10,
-        10,
-        10.0,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        10,
-        5,
-        5,
-        5,
-        5,
-        5,
-        13,
-        100,
-        13,
-        13,
-        13,
-        13,
-        13,
-        13,
+        6,      //20PL 1220mm
+        6,      //20mm plate GR350
+        10,     //250 PFC 9m
+        13,     //75x50x2.5 RHS
+        5,      //LVL 90X63
+        5,      //90X63 LVL 7 meters
+        13,     //M16x100
+        100,    //SS316 M16  x 150
     ];
+
+    //Guard the fixture itself - a short read would otherwise pass silently
+    expect($allSubQuantities)->toHaveCount(count($shouldBe));
 
     foreach ($allSubQuantities as $index => $subQty) {
         expect($subQty)->toEqual($shouldBe[$index]);

@@ -1,5 +1,7 @@
 <?php
 
+use Database\Factories\UserFactory;
+
 test('confirm password screen can be rendered', function () {
     $business = createBusiness('admin', true);
     $user = createUser(1, $business, false, true);
@@ -14,7 +16,7 @@ test('password can be confirmed', function () {
     $user = createUser(1, $business, false, true);
 
     $response = $this->actingAs($user)->post('/confirm-password', [
-        'password' => 'password',
+        'password' => UserFactory::PASSWORD,
     ]);
 
     $response->assertRedirect();

@@ -1,5 +1,6 @@
 <?php
 
+use Database\Factories\UserFactory;
 use Illuminate\Support\Facades\Hash;
 
 test('password can be updated', function () {
@@ -10,7 +11,7 @@ test('password can be updated', function () {
         ->actingAs($user)
         ->from('/profile')
         ->put('/password', [
-            'current_password' => 'password',
+            'current_password' => UserFactory::PASSWORD,
             'password' => 'new-password',
             'password_confirmation' => 'new-password',
         ]);

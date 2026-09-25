@@ -15,7 +15,6 @@ use App\Models\Project;
 use App\Models\RawMaterialQuote;
 use App\Models\User;
 use App\Services\ProductService;
-use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\ExcelImport;
 
@@ -157,14 +156,20 @@ class TestingFormatter
 
     public function csvArray(): ?array
     {
-        $filePath = 'templatesForTesting/Monthly budget excel.xlsx';
-        $csvArray = null;
+        /**
+         * The "Project Quote" template names 'Monthly budget excel' as its testFile.
+         * That workbook used to be read from storage, which isn't committed, so the
+         * fixture went missing and every caller got a null. It ships with the repo
+         * as the public example file, so read it from there instead.
+         */
+        $filePath = base_path('public/examples/material_list.xlsx');
 
-        if (Storage::disk('local')->exists($filePath)) {
-            $csvArray = Excel::toArray(new ExcelImport, Storage::path($filePath))[0];
+        if (! is_file($filePath)) {
+            //Fail here rather than handing callers a null to trip over later
+            throw new \RuntimeException("Test fixture is missing: {$filePath}");
         }
 
-        return $csvArray;
+        return Excel::toArray(new ExcelImport, $filePath)[0];
     }
 
     function create_offcut_200PFC(int $length, int $batchFromId): Offcut

@@ -12,6 +12,13 @@ use Illuminate\Support\Str;
 class UserFactory extends Factory
 {
     /**
+     * The plain-text password every factory user is given.
+     * Tests that need to authenticate as a factory user should reference this
+     * rather than repeating the literal - that drift is what broke the auth tests.
+     */
+    public const PASSWORD = 'Password123#';
+
+    /**
      * The current password being used by the factory.
      */
     protected static ?string $password;
@@ -27,7 +34,7 @@ class UserFactory extends Factory
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
-            'password' => static::$password ??= Hash::make('Password123#'),
+            'password' => static::$password ??= Hash::make(self::PASSWORD),
             'remember_token' => Str::random(10),
         ];
     }
