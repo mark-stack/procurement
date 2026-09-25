@@ -95,7 +95,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('quotes', QuoteController::class);
 
         //Offcuts
-        Route::resource('offcuts', OffcutController::class);
+        //Index only - the other resource verbs were unimplemented, and an implicitly bound {offcut}
+        //carries no business scoping
+        Route::resource('offcuts', OffcutController::class)->only(['index']);
 
         //Orders
         Route::resource('orders', OrderController::class);

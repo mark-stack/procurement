@@ -2,8 +2,9 @@
 
 namespace App\Models;
 
-use App\Formatters\SupplierFormatter;
+use App\Services\ProductService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Builder;
@@ -19,6 +20,39 @@ class Offcut extends Model
     public function bar(): BelongsTo
     {
         return $this->belongsTo(Bar::class);
+    }
+
+    public function offcutFrom(): BelongsTo
+    {
+        return $this->belongsTo(Offcut::class, 'offcut_from_id');
+    }
+
+    public function sourceBatch(): BelongsTo
+    {
+        return $this->belongsTo(Batch::class, 'batch_from_id');
+    }
+
+    //Accessors
+    public function getProductDerivedLabelAttribute(): string
+    {
+        /*
+         * Derived from the offcut's OWN product spec rather than from $this->bar, because bar_id is
+         * nullable - offcuts cut from another offcut have no bar, and neither do offcuts created outside
+         * CreateBarsAndOffcuts. Reading the label off a missing bar used to fatal.
+         */
+        return (new ProductService)->getDerivedProductLabel([
+            'product_category' => $this->product_category,
+            'material' => $this->material,
+            'grade' => $this->grade,
+            'surface' => $this->surface,
+            'nominal_length' => $this->nominal_length,
+            'precise_length' => $this->precise_length,
+            'nominal_width' => $this->nominal_width,
+            'precise_width' => $this->precise_width,
+            'nominal_height' => $this->nominal_height,
+            'precise_height' => $this->precise_height,
+            'wall' => $this->wall,
+        ]);
     }
 
     //Local scopes
@@ -40,7 +74,17 @@ class Offcut extends Model
     //Batch
     public function batchFrom(): Batch
     {
-        return Batch::findOrFail($this->batch_from_id);
+        /*
+         * Goes through the relation rather than a fresh findOrFail, so callers that read it several times
+         * (and collections that eager-load sourceBatch) hit one query instead of one per call.
+         */
+        $batchFrom = $this->sourceBatch;
+
+        if (! $batchFrom) {
+            throw (new ModelNotFoundException)->setModel(Batch::class, [$this->batch_from_id]);
+        }
+
+        return $batchFrom;
     }
 
     public function batchTo(): Batch|null
@@ -48,37 +92,13 @@ class Offcut extends Model
         return Batch::find($this->batch_to_id);
     }
 
-    public function pieceTo(): Batch
+    public function pieceTo(): Piece|null
     {
-        return Piece::findOrFail($this->piece_to_id);
+        return Piece::find($this->piece_to_id);
     }
 
     //Order
-    public function deliveredOrder(): Order|null
-    {
-        /**
-         * Order of the original batch
-         */
-        $batchFrom = $this->batchFrom();
-
-        //Get list of ALL supplier categories with contained products. e.g "steel merchant" contains "PFC, UB, etc"
-        $business = $batchFrom->user->business;
-        $categories = (new SupplierFormatter)->supplierGroups($business);
-
-        //Find supplier categories of this offcut. e,g "STEEL_MERCHANT"
-        $supplierCategoryFromOffcut = null;
-        foreach($categories as $supplierCategory => $includedProducts){
-            foreach($includedProducts as $includedProduct){
-                if($includedProduct === $this->product_category){
-                    $supplierCategoryFromOffcut = $supplierCategory;
-                }
-            }
-        }
-
-        //Get delivered order that matches this supplier category
-        return $batchFrom->orders()
-            ->where("is_delivered",true)
-            ->whereRelation("quote","supplier_category","=",$supplierCategoryFromOffcut)
-            ->first();
-    }
+    //deliveredOrder() lived here and answered "does this offcut's batch have a delivered order from the
+    //supplier category that stocks it?" one offcut at a time. Its only caller was
+    //Business::availableOffcuts, which now asks the same question in SQL for the whole set at once.
 }

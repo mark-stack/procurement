@@ -27,25 +27,30 @@
     //...
 
     //Methods
+    // Every one of these is nullable on the offcut, so read them as strings before comparing
+    const text = (value) => (value ?? '').toString();
+
     const filteredData = computed(() => {
+        const query = searchQuery.value.toLowerCase();
+
         return props.data
             .filter((row) => {
                 return (
-                    row.label.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-                    row.length.toString().includes(searchQuery.value) ||
-                    row.unique_mark.toString().includes(searchQuery.value)
+                    text(row.label).toLowerCase().includes(query) ||
+                    text(row.length).includes(searchQuery.value) ||
+                    text(row.unique_mark).toLowerCase().includes(query)
                 );
             })
             .sort((a, b) => {
                 let comparison = 0;
                 if (sortKey.value === 'label') {
-                    comparison = a.label.localeCompare(b.label);
+                    comparison = text(a.label).localeCompare(text(b.label));
                 }
                 else if (sortKey.value === 'length') {
                     comparison = a.length - b.length;
                 }
                 else if (sortKey.value === 'unique_mark') {
-                    comparison = a.unique_mark.localeCompare(b.unique_mark);
+                    comparison = text(a.unique_mark).localeCompare(text(b.unique_mark));
                 }
                 return sortOrder.value === 'asc' ? comparison : -comparison;
             });
@@ -66,28 +71,24 @@
 
     function getCerts(row){
         let certs = [];
-        if(row.newStockOrdersWithCertificates){
-            if(typeof row.newStockOrdersWithCertificates === 'object'){
-                row.newStockOrdersWithCertificates.forEach(order => {
-                    certs.push(order.material_cert_numbers);
-                });
-            }
-        }
-        if(row.offcutOrdersWithCertificates){
-            if(typeof row.offcutOrdersWithCertificates === 'object'){
-                row.offcutOrdersWithCertificates.forEach(order => {
-                    certs.push(order.material_cert_numbers);
-                });
-            }
-        }
 
-        return certs.join(", ");
+        // A list of orders
+        (row.newStockOrdersWithCertificates ?? []).forEach(order => {
+            certs.push(order.material_cert_numbers);
+        });
+
+        // {used_offcuts, certificates: [{supplier_name, material_cert_numbers}]}
+        (row.offcutOrdersWithCertificates?.certificates ?? []).forEach(certificate => {
+            certs.push(certificate.material_cert_numbers);
+        });
+
+        return certs.filter(Boolean).join(", ");
     }
 
     function getProjectNames(row){
         let projectNames = [];
 
-        Object.values(row.batch_projects).forEach(project => {
+        Object.values(row.batch_projects ?? {}).forEach(project => {
             projectNames.push(project.name);
         });
 

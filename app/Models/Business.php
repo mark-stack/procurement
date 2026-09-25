@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\SupplierGroupEnums;
+use App\Formatters\SupplierFormatter;
 use App\Services\ProductService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -172,26 +173,43 @@ class Business extends Model
 
     public function availableOffcuts(): Builder
     {
-        $businessBatchesIds = [];
-        foreach($this->users as $user){
-            foreach($user->batches as $batch){
-                $businessBatchesIds[] = $batch->id;
-            }
+        /**
+         * Offcuts from this business's batches that are still unassigned, and whose source batch has a
+         * delivered order from the supplier category that stocks the offcut's product.
+         *
+         * Resolved in SQL. This used to hydrate every unassigned offcut and call Offcut::deliveredOrder()
+         * on each one - a batch lookup, a full supplierGroups() rebuild and an orders query per offcut -
+         * then throw the models away and re-query by id.
+         */
+
+        //Supplier categories with the products they stock. e.g "STEEL_MERCHANT" contains "PFC, UB, etc"
+        $categories = (new SupplierFormatter)->supplierGroups($this);
+
+        if (count($categories) === 0) {
+            return Offcut::query()->whereRaw('1 = 0');
         }
 
-        $tentativeOffcuts = Offcut::query()
-            ->whereIn("batch_from_id",$businessBatchesIds)
-            ->where("batch_to_id",null)
-            ->get();
-
-        $availableOffcutsIds = [];
-        foreach($tentativeOffcuts as $offcut){
-            $deliveredOrder = $offcut->deliveredOrder();
-            if($deliveredOrder){
-                $availableOffcutsIds[] = $offcut->id;
-            }
-        }
-
-        return Offcut::query()->whereIn("id",$availableOffcutsIds);
+        return Offcut::query()
+            ->whereIn('batch_from_id', $this->batches()->select('batches.id'))
+            ->whereNull('batch_to_id')
+            ->where(function (Builder $query) use ($categories) {
+                foreach ($categories as $supplierCategory => $productCategories) {
+                    $query->orWhere(function (Builder $query) use ($supplierCategory, $productCategories) {
+                        $query->whereIn('product_category', $productCategories)
+                            ->whereExists(function ($query) use ($supplierCategory) {
+                                $query->selectRaw('1')
+                                    ->from('orders')
+                                    ->whereColumn('orders.batch_id', 'offcuts.batch_from_id')
+                                    ->where('orders.is_delivered', true)
+                                    ->whereExists(function ($query) use ($supplierCategory) {
+                                        $query->selectRaw('1')
+                                            ->from('quotes')
+                                            ->whereColumn('quotes.id', 'orders.quote_id')
+                                            ->where('quotes.supplier_category', $supplierCategory);
+                                    });
+                            });
+                    });
+                }
+            });
     }
 }

@@ -269,7 +269,7 @@
                         <h2 class="font-bold">Material Certificates from new stock:</h2>
                         <ul v-if="newStockOrdersWithCertificates.length > 0">
                             <li v-for="certificate in newStockOrdersWithCertificates">
-                                {{certificate.supplier.name}}: {{certificate.material_cert_numbers}}
+                                {{certificate.supplier?.name ?? 'Unknown supplier'}}: {{certificate.material_cert_numbers}}
                             </li>
                         </ul>
                         <p v-else>
@@ -278,13 +278,13 @@
                     </div>
                     <div>
                         <h2 class="font-bold">Material Certificates from reused offcuts:</h2>
-                        <template v-if="offcutOrdersWithCertificates === 'NO_OFFCUTS'">
+                        <template v-if="!offcutOrdersWithCertificates.used_offcuts">
                             This batch used no offcuts
                         </template>
                         <template v-else>
-                            <ul v-if="Object.values(offcutOrdersWithCertificates).length > 0">
-                                <li v-for="(material_cert_numbers,supplierName) in offcutOrdersWithCertificates">
-                                    {{supplierName}}: {{material_cert_numbers}}
+                            <ul v-if="offcutOrdersWithCertificates.certificates.length > 0">
+                                <li v-for="certificate in offcutOrdersWithCertificates.certificates">
+                                    {{certificate.supplier_name}}: {{certificate.material_cert_numbers}}
                                 </li>
                             </ul>
                             <p v-else class="text-orange-700">
