@@ -62,6 +62,11 @@ class Batch extends Model
         return $this->hasMany(OrderApproval::class);
     }
 
+    public function bars(): HasMany
+    {
+        return $this->hasMany(Bar::class);
+    }
+
     //optional
     public function quotes(): HasMany
     {

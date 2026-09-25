@@ -50,15 +50,43 @@
         : true);
 
     //Methods
+    /**
+     * Re-nesting is the most destructive button on the board and the label does not say so - it reads
+     * as "recalculate the nesting". It deletes the batch, every quote on it, every order, the order
+     * approvals, and the offcuts and bars it cut, and none of that comes back. "Move to done" below
+     * already asks before something one-way; this destroys far more and used to fire on the click.
+     */
+    function confirmBreakBatch(){
+        const projectNames = props.projects.map(project => shared.capitalizeWords(project.name)).join(", ");
+
+        askToConfirm({
+            title: "Re-nest this batch?",
+            message: `Batch ${props.batchInfo.batch.id} (${projectNames}) goes back to Nesting. Its quotes, draft orders and the offcuts it produced are deleted. This cannot be undone.`,
+            confirmLabel: "Re-nest",
+            tone: "danger",
+            onConfirmed: () => breakBatch(),
+        });
+    }
+
     function breakBatch(){
+        //A queued second click posts again against a batch that is already gone
+        if(formBreakBatch.processing){
+            return;
+        }
+
+        //Held until the response lands - the overlay has no timeout of its own
+        emit('pageLoadingOn',null);
+
         let url = route("batches.destroy",props.batchInfo.batch.id);
         formBreakBatch.delete(url, {
             preserveScroll: true,
-            onSuccess: () => {
-                console.log('success after re-nest');
-            },
-            onError: errors => {
-                console.log('errors',errors);
+            /*
+             * onFinish, not onSuccess/onError. The prerequisite gate aborts 403 and a second click 404s,
+             * and Inertia calls onError for neither - so the full-page overlay stayed up with nothing
+             * left to dismiss it. On success the new props are already applied by the time this runs.
+             */
+            onFinish: () => {
+                emit('pageLoadingOff');
             },
         });
     }
@@ -260,14 +288,21 @@
                 />
             </Link>
 
-            <!-- re-nest $emit('pageLoadingOn',3);  -->
+            <!--
+                Re-nest. Greyed out rather than hidden when the prerequisite fails, the way Archive is
+                above - it used to vanish with no explanation, on a card that still showed it yesterday.
+                The flag is only computed for the quoting column, so cards without it draw nothing.
+            -->
             <CardButtonRed
-                v-if="batchInfo?.prerequisiteUndoStartQuoting"
-                @click="$emit('pageLoadingOn',null); breakBatch()"
-                label="Re-nest"
+                v-if="batchInfo?.prerequisiteUndoStartQuoting !== undefined"
+                @click="confirmBreakBatch()"
+                :label="formBreakBatch.processing ? 'Re-nesting...' : 'Re-nest'"
+                :title="batchInfo.prerequisiteUndoStartQuoting
+                    ? 'Unpick this batch and send its projects back to nesting'
+                    : 'This batch can no longer be re-nested - an order has been sent, a project was archived, or a later batch has already used its offcuts'"
                 class="col-span-2"
                 :fullWidth="true"
-                :disabled="false"
+                :disabled="!batchInfo.prerequisiteUndoStartQuoting || formBreakBatch.processing"
             />
 
             <!-- All delivered (suggest mark as done) -->

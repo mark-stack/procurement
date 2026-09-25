@@ -22,10 +22,13 @@ use App\Imports\ExcelImport;
 use App\Models\Batch;
 use App\Models\Business;
 use App\Models\Offcut;
+use App\Models\Order;
 use App\Models\Piece;
 use App\Models\Product;
 use App\Models\Project;
+use App\Models\Quote;
 use App\Models\RawMaterialQuote;
+use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
@@ -429,4 +432,42 @@ function csvArray(): ?array
 function create_offcut_200PFC(int $length, int $batchFromId): Offcut
 {
     return (new TestingFormatter())->create_offcut_200PFC($length, $batchFromId);
+}
+
+/**
+ * A quote for one supplier group on a batch, with the order that always accompanies it.
+ *
+ * @return array{0: Quote, 1: Order}
+ */
+function quoteAndOrder(
+    User $user,
+    Batch $batch,
+    ?Supplier $supplier = null,
+    string $supplierCategory = 'STEEL_MERCHANT',
+    bool $quoteSent = false,
+    bool $orderSent = false,
+): array {
+    $supplier ??= Supplier::factory()->create();
+
+    $quote = Quote::create([
+        'user_id' => $user->id,
+        'batch_id' => $batch->id,
+        'supplier_id' => $supplier->id,
+        'supplier_category' => $supplierCategory,
+        'supplier_quote_reference' => null,
+        'quote_sent' => $quoteSent,
+        'quoted_price' => null,
+        'quoted_lead_time' => null,
+    ]);
+
+    $order = Order::create([
+        'user_id' => $user->id,
+        'batch_id' => $batch->id,
+        'supplier_id' => $supplier->id,
+        'quote_id' => $quote->id,
+        'order_sent' => $orderSent,
+        'is_delivered' => false,
+    ]);
+
+    return [$quote, $order];
 }

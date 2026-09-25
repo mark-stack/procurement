@@ -18,49 +18,11 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-/**
- * A quote for one supplier group on a batch, with the order that always accompanies it.
- *
- * @return array{0: Quote, 1: Order}
+/*
+ * pieceOnBatch() and quoteAndOrder() now live in tests/Pest.php - the offcut lifecycle tests build the
+ * same batch. pieceOnBatch() is the minimum piece that makes a batch report a project: Batch::projects()
+ * and Batch::projectApprovalFlags() both read project_id off the batch's pieces.
  */
-function quoteAndOrder(
-    User $user,
-    Batch $batch,
-    ?Supplier $supplier = null,
-    string $supplierCategory = 'STEEL_MERCHANT',
-    bool $quoteSent = false,
-    bool $orderSent = false,
-): array {
-    $supplier ??= Supplier::factory()->create();
-
-    $quote = Quote::create([
-        'user_id' => $user->id,
-        'batch_id' => $batch->id,
-        'supplier_id' => $supplier->id,
-        'supplier_category' => $supplierCategory,
-        'supplier_quote_reference' => null,
-        'quote_sent' => $quoteSent,
-        'quoted_price' => null,
-        'quoted_lead_time' => null,
-    ]);
-
-    $order = Order::create([
-        'user_id' => $user->id,
-        'batch_id' => $batch->id,
-        'supplier_id' => $supplier->id,
-        'quote_id' => $quote->id,
-        'order_sent' => $orderSent,
-        'is_delivered' => false,
-    ]);
-
-    return [$quote, $order];
-}
-
-/**
- * The minimum piece that makes a batch report a project - Batch::projects() and
- * Batch::projectApprovalFlags() both read project_id off the batch's pieces.
- */
-//pieceOnBatch() now lives in tests/Pest.php - the offcut lifecycle tests build the same batch
 
 it("would be a disaster if another business's order could be marked as sent", function () {
     /*

@@ -4,6 +4,8 @@
         label: String,
         fullWidth: Boolean,
         disabled: Boolean,
+        //Optional - lets a disabled button say why it is disabled
+        title: String,
     });
 
     //Methods
@@ -31,6 +33,7 @@
     <button
         type="button"
         :disabled="disabled"
+        :title="title"
         :class="getClass()"
     >
         <span class="truncate">{{label}}</span>
