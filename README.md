@@ -3,9 +3,8 @@
 
 ### Getting started:
 - Create database called "procurement"
-- php artisan serve
-- npm run dev
 - php artisan migrate --seed
+- composer run dev (starts the server, queue worker, log tail and Vite together — leave it running)
 - Login as admin (mark.laravel.coder@gmail.com, Password123#)
 - Need import master material list from Excel. Nav > dropdown > "Update Materials (Admin)". Allow 10 seconds then click away from 'done' incomplete modal
 
