@@ -8,19 +8,33 @@ use Illuminate\Validation\Rule;
 
 class UpdateProjectRequest extends FormRequest
 {
+    /**
+     * The controller gate used to be the only check, and it runs after validation -
+     * so a project belonging to another business was validated (and its name clashes
+     * reported back) before anything refused the request.
+     */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('owned', $this->route('project')) ?? false;
     }
 
     public function rules(): array
     {
         $project = $this->route('project');
         $business = $project->user->business;
-        $allProjects = $business->projects;
-        $allActiveProjectNames = $allProjects
-            ->where("name","!=",$project->name)
-            ->pluck("name")
+
+        /*
+         * Was every project the business has ever had, archived ones included, so a
+         * name freed up by archiving could be given to a new project but never
+         * reached by renaming - under a message saying the opposite.
+         *
+         * Excluding by id rather than by name: matching on the name also cleared
+         * every other project that happened to share it.
+         */
+        $allActiveProjectNames = $business->projects()
+            ->where("projects.archive", false)
+            ->where("projects.id", "!=", $project->id)
+            ->pluck("projects.name")
             ->toArray();
 
         return [
@@ -62,7 +76,7 @@ class UpdateProjectRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'name.not_in' => 'Pick a name different to currently active projects',
+            'name.not_in' => 'Pick a name different to your other projects - archived ones are free to reuse',
         ];
     }
 }

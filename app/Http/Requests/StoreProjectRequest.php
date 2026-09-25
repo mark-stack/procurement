@@ -24,8 +24,15 @@ class StoreProjectRequest extends FormRequest
     {
         $user = auth()->user();
         $business = $user->business;
-        $allCurrentProjectNames = $business->currentProjects()
-            ->pluck("name")
+        /*
+         * currentProjects() only reaches projects that already have pieces in an
+         * active batch (its withoutBatch scope is whereRelation("pieces.batch",...)),
+         * and a project being created has none - so this guard never actually fired
+         * and duplicate names went straight through.
+         */
+        $allCurrentProjectNames = $business->projects()
+            ->where("projects.archive", false)
+            ->pluck("projects.name")
             ->toArray();
 
         return [
@@ -56,7 +63,7 @@ class StoreProjectRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'name.not_in' => 'Pick a name different to currently active projects',
+            'name.not_in' => 'Pick a name different to your other projects - archived ones are free to reuse',
             'excel.max' => 'Maximum '.self::MAX_FILES.' BOM files can be uploaded.',
             'excel.*.mimes' => 'Each material list must be an Excel file (.xls or .xlsx).',
             'excel.*.max' => 'Each material list must be under 1Mb.',

@@ -83,6 +83,45 @@
     const projectName = computed(() => (formProjectCreate.name ?? "").trim());
 
     /**
+     * The heading used to read from the input, so clearing the field left the user
+     * looking at "Edit " with no clue which project they had opened.
+     */
+    const editProjectName = computed(() => props.editProject?.name ?? "");
+
+    /**
+     * Only the name is rendered in edit mode, so anything else the server rejects
+     * has to be surfaced on its own. Filtering here rather than in the template
+     * stops the grid reserving a gap-6 row for each error it then hides.
+     */
+    const otherEditErrors = computed(() => Object.entries(formProjectCreate.errors)
+        .filter(([key]) => key !== 'name')
+        .map(([, message]) => message));
+
+    const editSaveDisabled = computed(() =>
+        formProjectCreate.processing
+        || freezeView.value
+        || projectName.value === ""
+    );
+
+    /**
+     * One label for every step, so a screen reader announced "Add new project" while
+     * the dialog was showing the edit form.
+     */
+    const modalLabel = computed(() => {
+        if(isEdit()){
+            return "Edit project";
+        }
+        if(isClarify()){
+            return "Clarify project materials";
+        }
+        if(isCustomProducts()){
+            return "Custom products";
+        }
+
+        return "Add new project";
+    });
+
+    /**
      * Was a manually maintained ref that three call sites had to remember to
      * refresh, and that never saw a change to processing or freezeView at all.
      */
@@ -147,6 +186,12 @@
     function submit(){
         //A new attempt: don't keep showing the last one's warning
         warningDismissed.value = true;
+
+        /**
+         * "required" counts a field of spaces as filled, so without this a project
+         * could be saved under a name that is blank everywhere it is displayed.
+         */
+        formProjectCreate.name = projectName.value;
 
         //Edit mode
         if(props.editProject){
@@ -305,8 +350,14 @@
         return !editProject.value && !hasClarifications();
     }
 
+    /**
+     * Edit wins over every other step. It used to also require !hasClarifications(),
+     * so a project still carrying partial matches from an earlier upload opened on
+     * the clarifications screen - or, once those had been dismissed, on nothing at
+     * all, because no branch of the chain matched.
+     */
     function isEdit(){
-        return editProject.value && !hasClarifications();
+        return !!editProject.value;
     }
 
     function isClarify(){
@@ -399,7 +450,7 @@
         :fakeModal="false"
         redirect="current"
         :open="show"
-        ariaLabel="Add new project"
+        :ariaLabel="modalLabel"
         @closeModal="onClose"
     >
         <!-- Fits the viewport on a phone instead of overflowing a fixed 550px -->
@@ -415,6 +466,69 @@
                     aria-live="polite"
                 >
                     Processing: Have a sip of coffee ☕️
+                </div>
+
+                <!-- Edit project -->
+                <div
+                    v-else-if="isEdit()"
+                    class="px-6 pt-4 pb-4 mx-auto text-center"
+                >
+                    <h1 class="text-3xl font-semibold text-gray-800 dark:text-gray-100">
+                        Edit {{ editProjectName }}
+                    </h1>
+
+                    <div class="pb-2">
+                        <form @submit.prevent="submit()" class="text-left">
+                            <div class="grid grid-cols-1 gap-6 mt-4">
+                                <!-- Name -->
+                                <div>
+                                    <label for="edit-project-name" class="text-gray-700 dark:text-gray-200 ml-1">Project Name *</label>
+                                    <input
+                                        id="edit-project-name"
+                                        v-model="formProjectCreate.name"
+                                        type="text"
+                                        class="w-full px-4 py-2 text-gray-700 bg-white border rounded-md dark:bg-gray-900 dark:text-gray-300 dark:border-gray-600 focus:border-blue-400 dark:focus:border-blue-300 focus:outline-none focus:ring focus:ring-blue-300 focus:ring-opacity-40"
+                                        placeholder="Name"
+                                        required
+                                        :disabled="formProjectCreate.processing || freezeView"
+                                    >
+                                    <div v-if="formProjectCreate.errors.name" class="text-sm text-red-500">{{ formProjectCreate.errors.name }}</div>
+
+                                    <!--
+                                        Every other field is posted back without being shown, so a
+                                        rejection on one of those used to fail completely silently.
+                                    -->
+                                    <p
+                                        v-for="(message,index) in otherEditErrors"
+                                        :key="'edit-error-'+index"
+                                        class="text-sm text-red-500"
+                                    >
+                                        {{ message }}
+                                    </p>
+                                </div>
+
+                                <!-- submit button -->
+                                <div>
+                                    <button
+                                        type="submit"
+                                        :disabled="editSaveDisabled"
+                                        style="height:40px"
+                                        :class="editSaveDisabled ? 'bg-blue-300 cursor-not-allowed' : 'bg-blue-700 hover:bg-blue-600 focus:outline-none focus:bg-blue-600'"
+                                        class="w-full px-4 py-2 text-sm font-medium tracking-wide text-white capitalize transition-colors duration-300 transform rounded-md"
+                                    >
+                                        Updat{{ (formProjectCreate.processing || freezeView) ? 'ing...' : 'e' }}
+                                    </button>
+                                    <!-- Say why the button is dead rather than leaving the user guessing -->
+                                    <p
+                                        v-if="editSaveDisabled && !formProjectCreate.processing && !freezeView"
+                                        class="text-sm text-gray-500 dark:text-gray-400 mt-2 text-center"
+                                    >
+                                        Enter a project name to continue.
+                                    </p>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
                 </div>
 
                 <!-- Add project -->
@@ -585,8 +699,7 @@
                                         :class="saveButtonDisabled ? 'bg-blue-300 cursor-not-allowed' : 'bg-blue-700 hover:bg-blue-600 focus:outline-none focus:bg-blue-600'"
                                         class="w-full px-4 py-2 text-sm font-medium tracking-wide text-white capitalize transition-colors duration-300 transform rounded-md "
                                     >
-                                        <span v-if="editProject">Updat{{(formProjectCreate.processing || freezeView) ? 'ing...' : 'e'}}</span>
-                                        <span v-else>{{(formProjectCreate.processing || freezeView) ? 'Extracting...' : 'Extract materials'}}</span>
+                                        {{ (formProjectCreate.processing || freezeView) ? 'Extracting...' : 'Extract materials' }}
                                     </button>
                                     <!-- Say why the button is dead rather than leaving the user guessing -->
                                     <p
@@ -600,63 +713,6 @@
                         </form>
                     </div>
                 </div>
-
-                <!-- Edit project -->
-                <div
-                    v-else-if="isEdit()"
-                    style="height:380px"
-                    class="px-6 pt-4 pb-4 mx-auto text-center"
-                >
-                    <h1 class="text-3xl font-semibold text-gray-800 dark:text-gray-100">
-                        Edit {{formProjectCreate.name}}
-                    </h1>
-
-                    <div class="pb-2">
-                        <form @submit.prevent="submit()" class="text-left">
-                            <div class="grid grid-cols-1 gap-6 mt-4">
-                                <!-- Name -->
-                                <div>
-                                    <label for="edit-project-name" class="text-gray-700 dark:text-gray-200 ml-1">Project Name *</label>
-                                    <input
-                                        id="edit-project-name"
-                                        v-model="formProjectCreate.name"
-                                        type="text"
-                                        class="w-full px-4 py-2 text-gray-700 bg-white border rounded-md dark:bg-gray-900 dark:text-gray-300 dark:border-gray-600 focus:border-blue-400 dark:focus:border-blue-300 focus:outline-none focus:ring focus:ring-blue-300 focus:ring-opacity-40"
-                                        placeholder="Name"
-                                        required
-                                    >
-                                    <div v-if="formProjectCreate.errors.name" class="text-sm text-red-500">{{ formProjectCreate.errors.name }}</div>
-                                </div>
-
-                                <!--
-                                    Every other field is posted back without being shown, so a
-                                    rejection on one of those used to fail completely silently.
-                                -->
-                                <div
-                                    v-for="(message,key) in formProjectCreate.errors"
-                                    :key="'edit-error-'+key"
-                                >
-                                    <p v-if="key !== 'name'" class="text-sm text-red-500">{{ message }}</p>
-                                </div>
-
-                                <!-- submit button -->
-                                <div>
-                                    <button
-                                        type="submit"
-                                        :disabled="(formProjectCreate.processing || freezeView)"
-                                        style="height:40px"
-                                        class="w-full px-4 py-2 text-sm font-medium tracking-wide text-white capitalize transition-colors duration-300 transform bg-blue-700 rounded-md hover:bg-blue-600 focus:outline-none focus:bg-blue-600"
-                                    >
-                                        <span v-if="editProject">Updat{{(formProjectCreate.processing || freezeView) ? 'ing...' : 'e'}}</span>
-                                        <span v-else>{{(formProjectCreate.processing || freezeView)? 'Adding...' : 'Add Project'}}</span>
-                                    </button>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-
-                </div>
-
 
                 <!-- Clarifications  -->
                 <section
