@@ -25,7 +25,7 @@
 </script>
 
 <template>
-    <Head title="Suppliers" />
+    <Head title="Offcuts" />
 
     <AuthenticatedLayout>
         <div class="py-12">

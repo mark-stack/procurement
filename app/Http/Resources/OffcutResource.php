@@ -14,7 +14,9 @@ class OffcutResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $business = $this->batchFrom()->user->business;
+        //Resolved once - this used to call batchFrom() five times, each a separate findOrFail
+        $batchFrom = $this->batchFrom();
+        $business = $batchFrom->user->business;
 
         return [
             'id' => $this->id,
@@ -29,8 +31,11 @@ class OffcutResource extends JsonResource
             //Bar
             'bar_id' => $this->bar_id,
 
+            //Offcut this was cut from, when it came from an offcut rather than a bar
+            'offcut_from_id' => $this->offcut_from_id,
+
             //Product attributes
-            'product_category' => $this->roduct_category,//PFC
+            'product_category' => $this->product_category,//PFC
             'material' => $this->material,//PLAIN CARBON STEEL
             'grade' => $this->grade,//GR250
             'surface' => $this->surface,//NONE
@@ -44,15 +49,16 @@ class OffcutResource extends JsonResource
             'length' => $this->length,
 
             //Unique mark
-            "unique_mark" => $this->unique_mark,
+            'unique_mark' => $this->unique_mark,
 
             //Derived
-            "bar" => $this->bar,
-            'label' => $this->bar->product_derived_label,
-            "batch_from" => $this->batchFrom(),
-            "newStockOrdersWithCertificates" => $this->batchFrom()->newStockOrdersWithCertificates(),
-            "offcutOrdersWithCertificates" => $this->batchFrom()->offcutOrdersWithCertificates($business),
-            "batch_projects" => $this->batchFrom()->projects(),
+            'bar' => $this->bar,
+            //Derived from the offcut's own spec, because bar_id is nullable - see Offcut
+            'label' => $this->product_derived_label,
+            'batch_from' => $batchFrom,
+            'newStockOrdersWithCertificates' => $batchFrom->newStockOrdersWithCertificates(),
+            'offcutOrdersWithCertificates' => $batchFrom->offcutOrdersWithCertificates($business),
+            'batch_projects' => $batchFrom->projectSummaries(),
         ];
     }
 }

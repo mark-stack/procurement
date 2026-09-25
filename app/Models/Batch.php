@@ -23,6 +23,17 @@ class Batch extends Model
 
     protected $guarded = [];
 
+    /*
+     * Request-scoped memos. The offcuts index reads these once per offcut row while many offcuts share
+     * one source batch, and eager loading hands every one of those rows the same Batch instance - so
+     * caching here turns "once per row" into "once per batch".
+     */
+    private ?Collection $newStockCertificatesMemo = null;
+
+    private ?array $offcutCertificatesMemo = null;
+
+    private ?EloquentCollection $projectSummariesMemo = null;
+
     protected function casts(): array
     {
         return [
@@ -72,6 +83,19 @@ class Batch extends Model
             ->get();
     }
 
+    public function projectSummaries(): EloquentCollection
+    {
+        /*
+         * Just the id and name, for screens that only label a batch with its projects. projects() above
+         * eager-loads the rawMaterialQuotes/piece/quote/order tree that ProjectResource needs, which is
+         * several queries per batch and none of it is read here.
+         */
+        return $this->projectSummariesMemo ??= Project::query()
+            ->select(['id', 'name'])
+            ->whereIn('id', $this->pieces()->distinct()->pluck('project_id'))
+            ->get();
+    }
+
     public function oldOffcuts(): Collection
     {
         return Offcut::query()
@@ -95,19 +119,33 @@ class Batch extends Model
 
     public function newStockOrdersWithCertificates(): Collection
     {
-        return $this->orders()
+        return $this->newStockCertificatesMemo ??= $this->orders()
             ->where("order_sent",true)
             ->whereNotNull("material_cert_numbers")
             ->with("supplier")
             ->get();
     }
 
-    public function offcutOrdersWithCertificates(Business $business): Collection|string
+    public function offcutOrdersWithCertificates(Business $business): array
+    {
+        /*
+         * Shape is fixed: {used_offcuts: bool, certificates: [{supplier_name, material_cert_numbers}]}.
+         * This used to return either the "NO_OFFCUTS" string or a collection KEYED by supplier name, and
+         * both arrive in JSON as a truthy object - so consumers could not tell the two apart, and a
+         * keyed collection has no .forEach for the ones that guessed it was a list.
+         */
+        return $this->offcutCertificatesMemo ??= $this->resolveOffcutOrdersWithCertificates($business);
+    }
+
+    private function resolveOffcutOrdersWithCertificates(Business $business): array
     {
         //Get all offcuts
         $assignedOffcuts = $this->assignedOffcuts();
         if($assignedOffcuts->count() === 0){
-            return "NO_OFFCUTS";
+            return [
+                'used_offcuts' => false,
+                'certificates' => [],
+            ];
         }
 
         //Get original batches of these offcuts
@@ -143,14 +181,24 @@ class Batch extends Model
         foreach($originalBatches as $originalBatch){
             $newStockOrdersWithCertificates = $originalBatch->newStockOrdersWithCertificates();
             foreach($newStockOrdersWithCertificates as $order){
-                $supplierCategory = $order->quote->supplier_category; //e.g "STEEL_MERCHANT"
+                $supplierCategory = $order->quote?->supplier_category; //e.g "STEEL_MERCHANT"
                 if(in_array($supplierCategory,$supplierCategoriesFromOffcuts)){
-                    $certificates[$order->supplier->name] = $order->material_cert_numbers;
+                    //supplier_id is nullable, so fall back rather than fatal on a missing supplier
+                    $certificates[$order->supplier?->name ?? 'Unknown supplier'] = $order->material_cert_numbers;
                 }
             }
         }
 
-        return collect($certificates);
+        return [
+            'used_offcuts' => true,
+            'certificates' => collect($certificates)
+                ->map(fn (string $certNumbers, string $supplierName) => [
+                    'supplier_name' => $supplierName,
+                    'material_cert_numbers' => $certNumbers,
+                ])
+                ->values()
+                ->all(),
+        ];
     }
 
     //Local scope

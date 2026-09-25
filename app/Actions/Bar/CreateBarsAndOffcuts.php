@@ -154,7 +154,11 @@ class CreateBarsAndOffcuts
                                 'piece_to_id' => null, //todo this is not assigned anywhere as of yet, so its pointless
 
                                 //Bar
-                                "bar_id" => $offcutData["sourceOffcut"]["offcutId"],
+                                //Cut from an offcut, not from a bar, so the provenance goes in offcut_from_id.
+                                //bar_id resolves against the "bars" table, so an offcut id here reads back
+                                //as an unrelated bar (or as nothing, which used to 500 the offcuts page).
+                                "bar_id" => null,
+                                "offcut_from_id" => $offcutData["sourceOffcut"]["offcutId"],
 
                                 //Product attributes
                                 'product_category' => $product->product_category,
