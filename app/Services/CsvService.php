@@ -88,8 +88,9 @@ class CsvService
         //Is admin (sees everything)
         $condition_2 = $authUser->isAdmin();
 
-        //For this business
-        $condition_3 = strtoupper($authUser->getDomainFromEmail()) === strtoupper($domain);
+        //For this business ($domain is nullable, and condition_1 already covers null)
+        $condition_3 = $domain !== null
+            && strtoupper((string) $authUser->getDomainFromEmail()) === strtoupper($domain);
 
         return $condition_1 || $condition_2 || $condition_3;
     }
@@ -259,8 +260,9 @@ class CsvService
          * Single purpose: return index of the result
          */
         // Convert both the needle and haystack values to lowercase for comparison
-        $lowercaseHaystack = array_map('strtolower', $haystack);
-        $needleLowercase = strtolower($needle);
+        //(blank cells arrive as null, which strtolower() no longer accepts directly)
+        $lowercaseHaystack = array_map(fn ($value) => strtolower((string) $value), $haystack);
+        $needleLowercase = strtolower((string) $needle);
 
         // Use array_search to find the index
         return array_search($needleLowercase, $lowercaseHaystack);
@@ -384,7 +386,8 @@ class CsvService
         /*
          * First check if the row contains at least the first heading label before determining order which is computationally expensive
          */
-        $csvRow = array_map('strtoupper', $csvRow);
+        //Blank cells arrive as null, which strtoupper() no longer accepts directly
+        $csvRow = array_map(fn ($columnValue) => strtoupper((string) $columnValue), $csvRow);
         $hasAtLeastOne = in_array(strtoupper($expectedHeadingLabels[0]), $csvRow);
 
         if ($hasAtLeastOne) {
