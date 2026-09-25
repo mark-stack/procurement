@@ -93,6 +93,26 @@ class ProductService
         return $senseChecks;
     }
 
+    private function decodeProductMatches(?string $stored): array
+    {
+        /**
+         * These columns hold PHP-serialized arrays, some of them double-serialized by an
+         * older writer. A value that does not round-trip is a row we cannot read, not a
+         * reason to take down the whole Bill of Materials, so it decodes to nothing.
+         */
+        if ($stored === null || $stored === '') {
+            return [];
+        }
+
+        $decoded = @unserialize($stored, ['allowed_classes' => false]);
+
+        if (is_string($decoded)) {
+            $decoded = @unserialize($decoded, ['allowed_classes' => false]);
+        }
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
     public function getProductMatchOptions(Business $business, object $rawMaterialQuote): ?array
     {
         /**
@@ -107,13 +127,10 @@ class ProductService
          * Decoded general products
          * Add derived product label to every option. e.g "200PFC SS316"
          */
-        $decodedGeneralProductsRaw = unserialize($rawMaterialQuote->general_product_matches);
-        if(gettype($decodedGeneralProductsRaw) === 'string'){
-            $decodedGeneralProductsRaw = unserialize($decodedGeneralProductsRaw);
-        }
+        $decodedGeneralProductsRaw = $this->decodeProductMatches($rawMaterialQuote->general_product_matches);
 
         $decodedGeneralProducts = [];
-        foreach ($decodedGeneralProductsRaw['results'] as $option) {
+        foreach ($decodedGeneralProductsRaw['results'] ?? [] as $option) {
             $option['product_derived_label'] = $this->getDerivedProductLabel($option);
             $decodedGeneralProducts[] = $option;
         }
@@ -122,7 +139,7 @@ class ProductService
          * Decoded custom products
          * Add derived product label to every option. e.g "200PFC SS316"
          */
-        $decodedCustomProductsRaw = unserialize($rawMaterialQuote->custom_product_matches);
+        $decodedCustomProductsRaw = $this->decodeProductMatches($rawMaterialQuote->custom_product_matches);
         $decodedCustomProducts = [];
         if($decodedCustomProductsRaw){
             foreach ($decodedCustomProductsRaw as $option) {
@@ -139,7 +156,7 @@ class ProductService
                 'status' => 'PARTIAL',
                 'decodedOptions' => $decodedCustomProducts,
                 'custom' => true,
-                'supplierGroup' => $decodedGeneralProductsRaw['supplierGroup'],
+                'supplierGroup' => $decodedGeneralProductsRaw['supplierGroup'] ?? null,
             ];
         }
         //Price book candidate
@@ -149,12 +166,12 @@ class ProductService
              */
             if (count($decodedGeneralProducts) === 1) {
                 //Supplier group belongs to current plan
-                $supplierGroup = $decodedGeneralProductsRaw['supplierGroup'];
+                $supplierGroup = $decodedGeneralProductsRaw['supplierGroup'] ?? null;
                 if ($business->supplierGroupIsCurrentPlan($supplierGroup)) {
                     $result = [
                         'status' => 'EXACT',
                         'decodedOption' => $decodedGeneralProducts[0],
-                        'supplierGroup' => $decodedGeneralProductsRaw['supplierGroup'],
+                        'supplierGroup' => $decodedGeneralProductsRaw['supplierGroup'] ?? null,
                     ];
                 }
             }
@@ -167,7 +184,7 @@ class ProductService
                     'status' => 'PARTIAL',
                     'decodedOptions' => $decodedGeneralProducts,
                     'custom' => false,
-                    'supplierGroup' => $decodedGeneralProductsRaw['supplierGroup'],
+                    'supplierGroup' => $decodedGeneralProductsRaw['supplierGroup'] ?? null,
                 ];
             }
             //If no results, it's user-custom

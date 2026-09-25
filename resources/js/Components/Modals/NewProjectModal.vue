@@ -387,6 +387,10 @@
                 freezeView.value = false;
             }
         }
+        else{
+            //The redownload failed or came back for another project - do not sit on "Calculating..."
+            freezeView.value = false;
+        }
     });
 </script>
 

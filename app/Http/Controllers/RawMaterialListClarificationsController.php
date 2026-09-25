@@ -25,7 +25,14 @@ class RawMaterialListClarificationsController extends Controller
          * It's saved by making the "general_product_matches" field = 1x product.
          */
 
+        $request->validate([
+            'deletedIds' => ['present', 'array'],
+            'deletedIds.*' => ['integer'],
+        ]);
+
         $user = $request->user();
+        $business = $this->businessOf($request);
+        $deletedIds = $request->input('deletedIds');
 
         //Services
         $dataClassificationService = new DataClassificationService;
@@ -35,14 +42,23 @@ class RawMaterialListClarificationsController extends Controller
             //Delete items
             if ($index === 'deletedIds') {
                 //Delete the "promised to delete" items
-                RawMaterialQuote::query()->whereIn('id', $formData)->delete();
+                RawMaterialQuote::query()
+                    ->ownedBy($business)
+                    ->whereIn('id', $formData)
+                    ->delete();
             }
             //Clarification items
             else {
                 $id = isset($formData['data']) ? $formData['data']['id'] : null;
 
-                if ($id && ! in_array($id, $request->deletedIds)) {
-                    $rawMaterialQuote = RawMaterialQuote::findOrFail($formData['data']['id']);
+                if ($id && ! in_array($id, $deletedIds)) {
+                    /**
+                     * Scoped rather than a bare find: the id comes from the request body,
+                     * so an id from another business must not resolve here.
+                     */
+                    $rawMaterialQuote = RawMaterialQuote::query()
+                        ->ownedBy($business)
+                        ->findOrFail($id);
 
                     //Customise option (selected "other")
                     if ($formData['selected'] === 'customise') {

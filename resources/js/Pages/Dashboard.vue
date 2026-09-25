@@ -43,6 +43,7 @@
     const refreshModalBom = ref(false);
     const refreshNewProject = ref(false);
     const bomData = ref([]);
+    const bomLoadFailed = ref(false);
     const pageLoading = ref(false);
     const usageData = ref(null);
     const modalCanUpload = ref(false);
@@ -209,57 +210,42 @@
         /**
             Axios request that returns:
             - project
-            - itemsNotFound
+            - unimported BOM items
             - partialProductMatches
             - requiring custom
             - nesting
             - quote and order statuses
          */
+        bomLoadFailed.value = false;
+        let loaded = false;
 
         try {
-            console.log("project. Start delay",project);
             const response = await axios.get(route("download.bom",project.id));
 
             if(response.data.downloadedBomData){
-                console.log("downloadedBomData",response.data.downloadedBomData);
-
-                //Delete if exists
-                //bomData.value = Object.values(bomData.value).filter(item => item.project_id != projectId);
-
-                //Create
-                //bomData.value.push(response.data.downloadedBomData);
-
                 bomData.value = response.data.downloadedBomData;
-
-                //Refresh modal BOM signal
-                console.log("whichModal",whichModal);
-                if(whichModal === 'BOM'){
-                    sendRefreshModalBom();
-                }
-                if(whichModal === 'NEW_PROJECT'){
-                    console.log("whichModal = NEW_PROJECT");
-                    sendRefreshNewProject(project);
-                }
-            }
-            else{
-                console.log("no downloadedBomData",response.data);
+                loaded = true;
             }
         } catch (error) {
             console.error('Error fetching data:', error);
+        }
 
-            //Remove page loader
-            pageLoading.value = false;
-        } finally {
-            //Show modal
-            if(whichModal === 'BOM'){
-                showBomEditModal.value = true;
-            }
-            if(whichModal === 'NEW_PROJECT'){
-                showNewProjectModal.value = true;
-            }
+        //Remove page loader
+        pageLoading.value = false;
+        bomLoadFailed.value = !loaded;
 
-            //Remove page loader
-            pageLoading.value = false;
+        /**
+         * Signal the modal either way. A modal that asked for this redownload has frozen
+         * itself on "Calculating...", and only this signal releases it - so a failed
+         * fetch used to leave it spinning with no way back.
+         */
+        if(whichModal === 'BOM'){
+            sendRefreshModalBom();
+            showBomEditModal.value = true;
+        }
+        if(whichModal === 'NEW_PROJECT'){
+            sendRefreshNewProject(project);
+            showNewProjectModal.value = true;
         }
     }
 
@@ -536,8 +522,8 @@
         :bomData="bomData"
         :refreshModalBom="refreshModalBom"
         :modalCanUpload="modalCanUpload"
+        :loadFailed="bomLoadFailed"
         @closeModal="showBomEditModal = false"
-        @closeModalOnSuccess="showBomEditModal = false"
         @redownload="project => downloadProjectBomData(project,'BOM')"
     />
 </template>

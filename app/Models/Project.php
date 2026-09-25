@@ -14,6 +14,9 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 
+/**
+ * @property array{notRecognised?: list<string>, otherPlan?: list<string>}|null $items_not_found
+ */
 #[ObservedBy([ProjectObserver::class])]
 class Project extends Model
 {
@@ -21,6 +24,18 @@ class Project extends Model
     use HasFactory;
 
     protected $guarded = [];
+
+    protected function casts(): array
+    {
+        /*
+         * items_not_found held a PHP-serialized flat list of descriptions, so a corrupt
+         * value was a fatal unserialize() at read time and the two very different reasons
+         * a line can fail to import were indistinguishable. It is JSON now, keyed by cause.
+         */
+        return [
+            'items_not_found' => 'array',
+        ];
+    }
 
     //Relationships
     public function user(): BelongsTo
@@ -39,9 +54,66 @@ class Project extends Model
         return $this->hasMany(Piece::class);
     }
 
+    /** @return HasMany<RawMaterialQuote, $this> */
     public function rawMaterialQuotes(): HasMany
     {
         return $this->hasMany(RawMaterialQuote::class);
+    }
+
+    //Unimported BOM lines
+    public function unimportedItems(): array
+    {
+        /**
+         * Descriptions from uploaded BOMs that produced no material row, kept apart
+         * by cause: a line nothing in the price book matches reads very differently
+         * to one that matched fine but sits outside the business's plan.
+         */
+        $stored = is_array($this->items_not_found) ? $this->items_not_found : [];
+
+        return [
+            'notRecognised' => array_values(array_unique($stored['notRecognised'] ?? [])),
+            'otherPlan' => array_values(array_unique($stored['otherPlan'] ?? [])),
+        ];
+    }
+
+    public function recordUnimportedItems(array $notRecognised, array $otherPlan): void
+    {
+        /**
+         * Uploads are cumulative, so these are merged with what earlier uploads left behind.
+         */
+        $existing = $this->unimportedItems();
+
+        $this->items_not_found = [
+            'notRecognised' => array_values(array_unique(array_merge($existing['notRecognised'], $notRecognised))),
+            'otherPlan' => array_values(array_unique(array_merge($existing['otherPlan'], $otherPlan))),
+        ];
+
+        $this->save();
+    }
+
+    public function forgetImportedItems(): void
+    {
+        /**
+         * Drop anything that now has a material row. Without this the warning is
+         * append-only: a line the user fixed and re-uploaded stays listed forever.
+         */
+        $existing = $this->unimportedItems();
+
+        if ($existing['notRecognised'] === [] && $existing['otherPlan'] === []) {
+            return;
+        }
+
+        $imported = $this->rawMaterialQuotes()->pluck('description')->all();
+
+        $remaining = [
+            'notRecognised' => array_values(array_diff($existing['notRecognised'], $imported)),
+            'otherPlan' => array_values(array_diff($existing['otherPlan'], $imported)),
+        ];
+
+        if ($remaining !== $existing) {
+            $this->items_not_found = $remaining;
+            $this->save();
+        }
     }
 
     //Collections

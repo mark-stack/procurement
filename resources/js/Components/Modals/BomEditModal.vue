@@ -1,6 +1,6 @@
 <script setup>
     //General Imports
-    import {computed, ref, toRefs, watch} from "vue";
+    import {computed, ref, shallowRef, toRefs, watch} from "vue";
     import {useForm, usePage} from "@inertiajs/vue3";
 
     //Component Imports
@@ -16,40 +16,75 @@
         bomData: Object,
         refreshModalBom: Boolean,
         modalCanUpload: Boolean,
+        /**
+         * The payload is fetched before this opens. Say so when that fetch failed,
+         * rather than showing the same empty state as a project with no BOM yet.
+         */
+        loadFailed: Boolean,
     });
+
+    /**
+     * Just the data component of the payload, and only when it belongs to this project.
+     * Everything below reads through here, so a payload for another project - or none
+     * at all - degrades to an empty modal instead of a null dereference.
+     */
+    const bom = computed(() => {
+        const payload = props.bomData;
+
+        return (payload && props.project && payload.project_id === props.project.id)
+            ? payload.data
+            : null;
+    });
+
+    //Derived state
+    const hasClarifications = computed(() => (bom.value?.partialProductMatches?.length ?? 0) > 0);
+    const hasUserCustomProducts = computed(() => (bom.value?.requiresCustom?.length ?? 0) > 0);
+    const hasMaterialList = computed(() => (bom.value?.materialListRows?.length ?? 0) > 0);
+    const materialListRows = computed(() => bom.value?.materialListRows ?? []);
+    const unimportedItems = computed(() => bom.value?.unimportedItems ?? {notRecognised: [], otherPlan: []});
 
     //Forms
     const formStore = useForm({
         excel: null,
     });
-    let formClarifications = thisDownloadedBomData(props.bomData)
-        ? (useForm(Object.assign({}, thisDownloadedBomData(props.bomData).partialProductMatches, {deletedIds:[]})))
-        : null;
-    let formCustomisations = thisDownloadedBomData(props.bomData)
-        ? (useForm(Object.assign({}, thisDownloadedBomData(props.bomData).requiresCustom, {deletedIds:[]})))
-        : null;
+    /**
+     * These are rebuilt from scratch on every redownload, so they are held in a ref -
+     * reassigning a bare "let" leaves the template rendering the form it started with.
+     */
+    const formClarifications = shallowRef(buildForm(bom.value?.partialProductMatches));
+    const formCustomisations = shallowRef(buildForm(bom.value?.requiresCustom));
     const formBulkActions = useForm({
         selectedRawMaterialQuoteIds: [],
     });
 
     //Shared data
-    const warning = computed(() => usePage().props.flash.warning);
+    const warning = computed(() => usePage().props.flash?.warning);
 
     //Variables
-    const emit = defineEmits(['closeModalOnSuccess','redownload']);
+    const emit = defineEmits(['redownload']);
     const isDragging = ref(false);
     const uploading = ref(false);
     const fileInput = ref(null);
-    const allChecked = ref(false);
-    const showClarifications = ref(hasClarifications());
-    const showUserCustomProducts = ref(hasUserCustomProducts());
-    const isAdmin = usePage().props.auth.isAdmin;
+    const uploadError = ref(null);
+    const showClarifications = ref(hasClarifications.value);
+    const showUserCustomProducts = ref(hasUserCustomProducts.value);
     const business = usePage().props.auth.business;
     const freezeView = ref(false);
 
     //Shared Methods
     import shared from "@/Shared/shared.js";
     const {confirmDialog, askToConfirm, confirmDialogAccepted, confirmDialogCancelled} = useConfirm();
+
+    //Selection
+    const selectableRowIds = computed(() => materialListRows.value
+        .filter(row => !row.status)
+        .map(row => row.id));
+
+    //Derived from the selection itself, so ticking rows one by one keeps the header honest
+    const allChecked = computed(() => selectableRowIds.value.length > 0
+        && selectableRowIds.value.every(id => formBulkActions.selectedRawMaterialQuoteIds.includes(id)));
+
+    const someChecked = computed(() => formBulkActions.selectedRawMaterialQuoteIds.length > 0 && !allChecked.value);
 
     //Methods
     const triggerFileInput = () => {
@@ -73,14 +108,27 @@
         }
     };
 
+    function buildForm(rows){
+        return useForm(Object.assign({}, rows ?? [], {deletedIds:[]}));
+    }
+
     function processFile(file){
-        let allowedFileTypes = [
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        ];
-        if (!allowedFileTypes.includes(file.type)) {
-            alert('Please upload a valid Excel file.');
+        /**
+         * Match the server's rule (mimes:xlsx,xls|max:2048). Browsers report .xls under
+         * several MIME types and sometimes none at all, so go by the extension - the old
+         * MIME allow-list rejected valid .xls files the server would have accepted.
+         */
+        if(!/\.(xlsx|xls)$/i.test(file.name)){
+            failUpload("That doesn't look like a spreadsheet. Please upload a .xlsx or .xls material list.");
             return;
         }
+
+        if(file.size > 2048 * 1024){
+            failUpload("That file is over 2MB. Please upload a smaller material list.");
+            return;
+        }
+
+        uploadError.value = null;
 
         let url = route("projects.products.store",props.project.id);
 
@@ -95,14 +143,22 @@
                 reloadAndDownloadModal();
             },
             onError: errors => {
-                console.log('errors',errors);
                 uploading.value = false;
+                //Nothing is being recalculated any more, so stop showing that it is
+                freezeView.value = false;
+                uploadError.value = errors.excel ?? "The upload failed. Please try again.";
                 clearFileInput();
             },
         });
 
         uploading.value = true;
         freezeView.value = true;
+    }
+
+    function failUpload(message){
+        uploadError.value = message;
+        formStore.excel = null;
+        clearFileInput();
     }
 
     function clearFileInput() {
@@ -119,90 +175,26 @@
         }
     }
 
-    function hasClarifications(){
-        return thisDownloadedBomData(props.bomData)
-            ? (thisDownloadedBomData(props.bomData).partialProductMatches.length > 0)
-            : false;
-    }
-
-    function hasUserCustomProducts(){
-        return thisDownloadedBomData(props.bomData)
-            ? (thisDownloadedBomData(props.bomData).requiresCustom.length > 0)
-            : false;
-    }
-
-    function hasSenseChecks(){
-        return thisDownloadedBomData(props.bomData)
-            ? (thisDownloadedBomData(props.bomData).senseChecks.length > 0)
-            : false;
-    }
-
-    function hasMaterialList(){
-        return thisDownloadedBomData(props.bomData)
-            ? (thisDownloadedBomData(props.bomData).materialListRows.length > 0)
-            : false;
-    }
-
     function submitCustomisations(){
         let url = route("raw.material.quote.customisations");
-        formCustomisations.post(url, {
+        formCustomisations.value.post(url, {
             preserveScroll: true,
             onSuccess: () => {
-                console.log("success response after 'submitCustomisations'");
-
                 //Hide customisations
                 showUserCustomProducts.value = false;
 
                 //Re-download
                 reloadAndDownloadModal();
             },
-            onError: errors => {
-                console.log('errors',errors);
-            },
         });
-    }
-
-    function thisDownloadedBomData(bomData){
-        /**
-         Get just the data component from payload
-         */
-        let data = null;
-
-        if(bomData && props.project){
-            if(bomData.project_id === props.project.id){
-                data = bomData.data;
-            }
-        }
-
-        return data;
-
-        // let data = null;
-        //
-        // console.log("bomData",bomData.data);
-        // console.log("project id", props.project.id);
-        //
-        // if(bomData){
-        //     let rawData = Object.values(bomData).find(item => item.project_id == props.project.id);
-        //     if(rawData){
-        //         data = rawData.data;
-        //     }
-        // }
-        //
-        // console.log("data",data);
-        //
-        // return data;
     }
 
     function submitClarifications(){
         let url = route("raw.material.quote.clarifications");
-        formClarifications.post(url, {
+        formClarifications.value.post(url, {
             preserveScroll: true,
             onSuccess: () => {
-                console.log("success response after 'submitClarifications'");
                 reloadAndDownloadModal();
-            },
-            onError: errors => {
-                console.log('errors',errors);
             },
         });
     }
@@ -225,10 +217,10 @@
             tone: "danger",
             onConfirmed: () => {
                 //Add to list of "promise to delete" to actually delete after submitting form
-                formClarifications.deletedIds.push(rawMaterialQuoteId);
+                formClarifications.value.deletedIds.push(rawMaterialQuoteId);
 
                 //If delete all the items, then auto submit the form
-                if(thisDownloadedBomData(props.bomData).partialProductMatches.length === formClarifications.deletedIds.length){
+                if((bom.value?.partialProductMatches?.length ?? 0) === formClarifications.value.deletedIds.length){
                     submitClarifications();
                 }
             },
@@ -236,13 +228,7 @@
     }
 
     function isDeletedCustomisation(id){
-        let isDeleted = false;
-
-        if(formCustomisations.deletedIds !== undefined){
-            isDeleted = formCustomisations.deletedIds.includes(id);
-        }
-
-        return isDeleted;
+        return formCustomisations.value.deletedIds?.includes(id) ?? false;
     }
 
     function deleteOneCustomisation(rawMaterialQuoteId){
@@ -253,10 +239,10 @@
             tone: "danger",
             onConfirmed: () => {
                 //Add to list of "promise to delete" to actually delete after submitting form
-                formCustomisations.deletedIds.push(rawMaterialQuoteId);
+                formCustomisations.value.deletedIds.push(rawMaterialQuoteId);
 
                 //If delete all the items, then auto submit the form
-                if(thisDownloadedBomData(props.bomData).requiresCustom.length === formCustomisations.deletedIds.length){
+                if((bom.value?.requiresCustom?.length ?? 0) === formCustomisations.value.deletedIds.length){
                     submitCustomisations();
                 }
             },
@@ -264,17 +250,11 @@
     }
 
     function showTable(){
-        return !hasClarifications() && !hasUserCustomProducts() && hasMaterialList();
+        return !hasClarifications.value && !hasUserCustomProducts.value && hasMaterialList.value;
     }
 
     function isDeletedClarification(id){
-        let isDeleted = false;
-
-        if(formClarifications.deletedIds !== undefined){
-            isDeleted = formClarifications.deletedIds.includes(id);
-        }
-
-        return isDeleted;
+        return formClarifications.value.deletedIds?.includes(id) ?? false;
     }
 
     function submitBulkDelete(){
@@ -283,17 +263,15 @@
             preserveScroll: true,
             onSuccess: () => {
                 formBulkActions.selectedRawMaterialQuoteIds = [];
-                allChecked.value = false;
                 clearFileInput();
 
                 //Re-download
                 reloadAndDownloadModal();
             },
-            onError: errors => {
-                console.log('errors',errors);
+            onError: () => {
                 uploading.value = false;
+                freezeView.value = false;
                 formBulkActions.selectedRawMaterialQuoteIds = [];
-                allChecked.value = false;
                 clearFileInput();
             },
         });
@@ -302,13 +280,11 @@
     function toggleMasterCheckbox(){
         //Uncheck all
         if(allChecked.value){
-            allChecked.value = false;
             formBulkActions.selectedRawMaterialQuoteIds = [];
         }
         //Check all
-        else if(allChecked.value === false){
-            allChecked.value = true;
-            formBulkActions.selectedRawMaterialQuoteIds = getAllMaterialQuoteIds();
+        else{
+            formBulkActions.selectedRawMaterialQuoteIds = [...selectableRowIds.value];
         }
     }
 
@@ -324,17 +300,6 @@
         }
     }
 
-    function getAllMaterialQuoteIds(){
-        let result = [];
-        Object.values(thisDownloadedBomData(props.bomData).materialListRows).forEach(item => {
-            if(!item.status){
-                result.push(item.id);
-            }
-        });
-
-        return result;
-    }
-
     function displayLength(row){
         let displayLength = "";
 
@@ -346,15 +311,24 @@
         return displayLength;
     }
 
+    function displayQuantity(row){
+        /**
+         * Bundled items are counted, not measured, so they read as whole numbers.
+         */
+        const quantity = parseFloat(row.sub_qty);
+
+        return Number.isInteger(quantity) ? quantity.toLocaleString() : quantity.toFixed(2);
+    }
+
     function displayProductMatches(row){
-        let display = "user-custom";
-
-        //Has one product match
-        if(row['product']){
-            display = row.product.product_derived_label;
-        }
-
-        return display;
+        /**
+         * A row with no matched product is either awaiting a custom product or sits
+         * outside the current plan. Either way "user-custom" is an internal token, not
+         * something to print at the user.
+         */
+        return row['product']
+            ? row.product.product_derived_label
+            : "no matching product yet";
     }
 
     function getUnitDisplay(row,slash){
@@ -373,22 +347,12 @@
         return unitDisplay;
     }
 
-    function getPriceUnitDisplay(row,slash){
-        let unitDisplay = "";
-
-        if(row.nesting_algo === "METERAGE"){
-            unitDisplay =  slash ? "/m" : "m";
-        }
-
-        return unitDisplay;
-    }
-
     function canUpload(){
         /**
          * 1) Nesting stage only (nesting card).
          * 2) Don't show whilst clarifying or doing custom products
          */
-        return props.modalCanUpload && !hasClarifications() && !hasUserCustomProducts();
+        return props.modalCanUpload && !hasClarifications.value && !hasUserCustomProducts.value;
     }
 
     function canDelete(){
@@ -400,20 +364,22 @@
 
     //Watcher
     const { refreshModalBom } = toRefs(props);
-    watch(refreshModalBom, (newVal) => {
+    watch(refreshModalBom, () => {
+        //The redownload has landed (or failed) - either way nothing is calculating now
         freezeView.value = false;
 
-        showClarifications.value = hasClarifications();
-        showUserCustomProducts.value = hasUserCustomProducts();
+        showClarifications.value = hasClarifications.value;
+        showUserCustomProducts.value = hasUserCustomProducts.value;
 
-        formClarifications = useForm(Object.assign({}, thisDownloadedBomData(props.bomData).partialProductMatches, {deletedIds:[]}));
-        formCustomisations = useForm(Object.assign({}, thisDownloadedBomData(props.bomData).requiresCustom, {deletedIds:[]}));
+        formClarifications.value = buildForm(bom.value?.partialProductMatches);
+        formCustomisations.value = buildForm(bom.value?.requiresCustom);
     });
 </script>
 
 <template>
     <Modal :fakeModal="false" redirect="current" ariaLabel="Bill of Materials">
-        <div :style="'width:'+width+'px'">
+        <!-- A hard pixel width would overflow a phone, so it is only ever a ceiling -->
+        <div class="w-full" :style="'max-width:'+width+'px'">
 
             <div class="dark:bg-gray-900 rounded-xl">
                 <div class="pt-4 pb-4 mx-auto text-center">
@@ -423,8 +389,7 @@
 
                     <div
                         v-if="freezeView"
-                        style="height:400px"
-                        class="p-20 text-gray-700 italic"
+                        class="min-h-[300px] p-20 text-gray-700 italic"
                     >
                         <span class="block font-bold text-xl">Calculating...</span>
                         <span class="block text-lg">“Patience is bitter, but its fruit is sweet.”</span>
@@ -433,11 +398,10 @@
                         <!-- Drag n drop  -->
                         <div
                             v-if="canUpload()"
-                            class="pl-5 pr-5"
+                            class="px-5"
                         >
                             <!-- Rectangle -->
                             <div>
-                                <!-- (isDragging ? 'border-color: #00f;color: #00f;' : 'color: #aaa;') +  -->
                                 <div
                                     id="dropzone"
                                     @click="triggerFileInput"
@@ -485,88 +449,62 @@
                                 />
                             </div>
 
-                            <!-- drag n drop error -->
-                            <div v-if="warning" class="text-center text-orange-500 mt-2">
-                                {{warning}}
+                            <!-- Upload problems: a rejected file, or what the server said -->
+                            <div v-if="uploadError || warning" class="text-center text-orange-500 mt-2">
+                                {{uploadError || warning}}
                             </div>
                         </div>
 
-                        <!-- Sense checks / Clarifications / User custom products / Table-->
-                        <div class="overflow-y-auto pl-5 pr-1">
-                            <!-- Sense checks -->
-                            <section
-                                v-if="hasSenseChecks()"
-                                style="height:400px"
-                            >
-                                <h2 class="font-bold text-lg">Sense checks</h2>
+                        <!-- The fetch behind this modal failed -->
+                        <div
+                            v-if="loadFailed"
+                            class="mx-5 mt-2 rounded-lg py-2 px-4 bg-red-50 text-red-700 text-left"
+                        >
+                            <p class="font-sans text-sm">
+                                This project's material list couldn't be loaded. Please close the modal and try again.
+                            </p>
+                        </div>
 
-                                <!-- No bolts -->
-                                <div v-if="!thisDownloadedBomData(bomData).senseChecks.has_bolts" class="mt-2">
-                                    <input
-                                        v-model="thisDownloadedBomData(bomData).formPreChecklist.no_bolts"
-                                        type="checkbox"
-                                        class="mr-2"
-                                        id="no_bolts"
-                                    />
-                                    <label for="no_bolts">No bolts found. This is correct?</label>
-                                </div>
+                        <!--
+                            Items the import could not use. Kept above the section switch: they
+                            matter most when nothing imported at all, and that is exactly when
+                            the table below is not rendered.
+                        -->
+                        <div
+                            v-if="unimportedItems.notRecognised.length > 0"
+                            class="mx-5 mt-2 rounded-lg py-2 px-4 bg-[#fff2b2] text-[#7c620c] text-left"
+                        >
+                            <p class="font-sans text-xs">
+                                Items from your uploaded BOM's for this project that are not recognised as linear stock:
+                                <br><span class="text-sm">{{unimportedItems.notRecognised.join(", ")}}</span>
+                            </p>
+                        </div>
 
-                                <!-- Nuts & washers allowed for?-->
-                                <div v-if="thisDownloadedBomData(bomData).senseChecks.has_bolts" class="mt-2">
-                                    <input
-                                        v-model="thisDownloadedBomData(bomData).formPreChecklist.has_bolts"
-                                        type="checkbox"
-                                        class="mr-2"
-                                        id="has_bolts"
-                                    />
-                                    <label for="has_bolts">Do the bolts included have cost allowance for nuts and washers?</label>
-                                </div>
+                        <div
+                            v-if="unimportedItems.otherPlan.length > 0"
+                            class="mx-5 mt-2 rounded-lg py-2 px-4 bg-[#fff2b2] text-[#7c620c] text-left"
+                        >
+                            <p class="font-sans text-xs">
+                                Items recognised but not covered by your current plan:
+                                <br><span class="text-sm">{{unimportedItems.otherPlan.join(", ")}}</span>
+                            </p>
+                        </div>
 
-                                <!-- Bolt quantity -->
-                                <div v-if="thisDownloadedBomData(bomData).senseChecks.bolt_qty < 100" class="mt-2">
-                                    <input
-                                        v-model="thisDownloadedBomData(bomData).formPreChecklist.bolt_qty"
-                                        type="checkbox"
-                                        class="mr-2"
-                                        id="bolt_qty"
-                                    />
-                                    <label for="bolt_qty">There's only {{thisDownloadedBomData(bomData).senseChecks.bolt_qty}} bolts? This is correct?</label>
-                                </div>
-
-                                <!-- Mill certs -->
-                                <div v-if="thisDownloadedBomData(bomData).senseChecks.certificates < 100" class="mt-2">
-                                    <input
-                                        v-model="thisDownloadedBomData(bomData).formPreChecklist.certificates"
-                                        type="checkbox"
-                                        class="mr-2"
-                                        id="certificates"
-                                    />
-                                    <label for="certificates">Are product certificates required?</label>
-                                </div>
-
-                                <!-- todo: you normally purchase X with Y-->
-
-                                <!-- todo: there's beams. Where's columns? -->
-                                <!-- todo: there's columns. Where's beams? -->
-
-                                <!-- todo: tonnage checks -->
-
-                                <!-- todo: minimum grade check-->
-                            </section>
-
+                        <!-- Clarifications / User custom products / Table-->
+                        <!-- Each section owns its own scrolling, so there is never a scrollbar inside a scrollbar -->
+                        <div class="pl-5 pr-1">
                             <!-- Clarifications  -->
                             <section
-                                v-else-if="showClarifications && hasClarifications()"
-                                style="height:400px"
-                                class="pl-5"
+                                v-if="showClarifications && hasClarifications"
+                                class="min-h-[300px] max-h-[50vh] overflow-y-auto pl-5"
                             >
                                 <h2 class="font-bold text-lg">Exact product clarifications</h2>
                                 <form @submit.prevent="submitClarifications()">
-                                    <template v-for="(item,index) in formClarifications">
+                                    <template v-for="(item,index) in formClarifications" :key="'clarification-'+index">
                                         <div v-if="isNumeric(index) && !isDeletedClarification(item.data.id)" class="mt-5">
                                             <p class="italic font-bold text-left">"{{item.data.description}}" <span class="text-red-500 ml-2" style="cursor: pointer;" @click="deleteOneClarification(item.data.id)"><i class="fa-solid fa-xmark"></i></span></p>
-                                            <div class="grid grid-cols-3 text-left">
-                                                <div v-for="(option,option_index) in item.options">
+                                            <div class="grid grid-cols-1 sm:grid-cols-3 text-left">
+                                                <div v-for="(option,option_index) in item.options" :key="'option-'+index+'-'+option_index">
                                                     <label>
                                                         <input
                                                             v-model="formClarifications[index]['selected']"
@@ -604,8 +542,8 @@
 
                             <!-- User custom products -->
                             <section
-                                v-else-if="showUserCustomProducts && hasUserCustomProducts()"
-                                style="height:400px"
+                                v-else-if="showUserCustomProducts && hasUserCustomProducts"
+                                class="min-h-[300px] max-h-[50vh] overflow-y-auto"
                             >
                                 <h2 class="font-bold text-lg">Custom products (add to price book)</h2>
                                 <p class="mb-3 text-gray-600">
@@ -613,20 +551,19 @@
                                 </p>
 
                                 <form @submit.prevent="submitCustomisations()">
-                                    <div class="grid grid-cols-3 gap-6">
-                                        <template v-for="(item,index) in formCustomisations">
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        <template v-for="(item,index) in formCustomisations" :key="'custom-product-form-'+index">
                                             <CustomProductForm
                                                 v-if="isNumeric(index) && !isDeletedCustomisation(item.data.id)"
                                                 class="mt-3 text-left"
                                                 :item="item"
                                                 :index="index"
                                                 :form="formCustomisations"
-                                                :allMeasurements="thisDownloadedBomData(bomData).allMeasurements"
-                                                :formDependentData="thisDownloadedBomData(bomData).formDependentData"
-                                                :allGrades="thisDownloadedBomData(bomData).allGrades"
-                                                :nestingGroups="thisDownloadedBomData(bomData).nestingGroups"
+                                                :allMeasurements="bom.allMeasurements"
+                                                :formDependentData="bom.formDependentData"
+                                                :allGrades="bom.allGrades"
+                                                :nestingGroups="bom.nestingGroups"
                                                 @deleteOneCustomisation="id => deleteOneCustomisation(id)"
-                                                :key="'custom-product-form-'+index"
                                             />
                                         </template>
                                     </div>
@@ -644,168 +581,177 @@
                             <!-- table -->
                             <section
                                 v-else-if="showTable()"
-                                style="height:350px"
-                                class="text-left"
+                                class="min-h-[300px] text-left"
                             >
-
-                                <!-- v-if="thisDownloadedBomData(props.bomData).itemsNotFound && thisDownloadedBomData(props.bomData).business.meterage_only" -->
-                                <div v-if="thisDownloadedBomData(props.bomData).itemsNotFound" class="mt-2 flex justify-between rounded-lg py-2 px-4 bg-[#fff2b2] text-[#7c620c]">
-                                    <p class="font-sans text-xs">
-                                        Items from your uploaded BOM's for this project that are not recognised as linear stock:
-                                        <br><span class="text-sm">{{thisDownloadedBomData(props.bomData).itemsNotFound}}</span>
-                                    </p>
-                                </div>
-
                                 <button
                                     v-if="canDelete()"
-                                    :disabled="formBulkActions.selectedRawMaterialQuoteIds.length == 0"
+                                    :disabled="formBulkActions.selectedRawMaterialQuoteIds.length === 0"
                                     @click="submitBulkDelete()"
-                                    :class="formBulkActions.selectedRawMaterialQuoteIds.length == 0 ? 'text-gray-500' : ''"
+                                    :class="formBulkActions.selectedRawMaterialQuoteIds.length === 0 ? 'text-gray-500' : ''"
                                     class="text-sm bg-red-200 px-2 py-1 rounded"
                                 >
                                     Delete Selected ({{formBulkActions.selectedRawMaterialQuoteIds.length}})
                                 </button>
 
                                 <div class="flex flex-col">
-                                    <div class="overflow-x-auto">
-                                        <div class="inline-block min-w-full py-2 align-middle">
-                                            <div class="overflow-hidden border border-gray-200 dark:border-gray-700 md:rounded-lg">
-                                                <div class="relative overflow-auto">
-                                                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-left">
-                                                        <thead class="sticky top-0 bg-gray-50 dark:bg-gray-800">
-                                                        <tr>
-                                                            <th scope="col" class=" py-3.5 px-4 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                                                                <div class="flex items-center gap-x-3">
-                                                                    <input
-                                                                        v-if="canDelete()"
-                                                                        id="masterCheckbox"
-                                                                        @input="toggleMasterCheckbox()"
-                                                                        type="checkbox"
-                                                                        :checked="allChecked"
-                                                                        class="text-blue-500 border-gray-300 rounded dark:bg-gray-900 dark:ring-offset-gray-900 dark:border-gray-700"
-                                                                    >
-                                                                    <label for="masterCheckbox">Description</label>
-                                                                </div>
-                                                            </th>
+                                    <div class="inline-block min-w-full py-2 align-middle">
+                                        <div class="overflow-hidden border border-gray-200 dark:border-gray-700 md:rounded-lg">
+                                            <div class="relative overflow-auto max-h-[45vh]">
+                                                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-left">
+                                                    <thead class="sticky top-0 bg-gray-50 dark:bg-gray-800">
+                                                    <tr>
+                                                        <th scope="col" class=" py-3.5 px-4 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400">
+                                                            <div class="flex items-center gap-x-3">
+                                                                <input
+                                                                    v-if="canDelete()"
+                                                                    id="masterCheckbox"
+                                                                    @change="toggleMasterCheckbox()"
+                                                                    type="checkbox"
+                                                                    :checked="allChecked"
+                                                                    :indeterminate="someChecked"
+                                                                    aria-label="Select all deletable rows"
+                                                                    class="text-blue-500 border-gray-300 rounded dark:bg-gray-900 dark:ring-offset-gray-900 dark:border-gray-700"
+                                                                >
+                                                                <span>Description</span>
+                                                            </div>
+                                                        </th>
 
-                                                            <th scope="col" class="sticky top-0 py-3.5 px-4 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                                                                <div class="flex items-center gap-x-3">
-                                                                    <span>Length</span>
-                                                                </div>
-                                                            </th>
+                                                        <th scope="col" class="sticky top-0 py-3.5 px-4 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400">
+                                                            <div class="flex items-center gap-x-3">
+                                                                <span>Length</span>
+                                                            </div>
+                                                        </th>
 
-                                                            <th scope="col" class="sticky top-0 py-3.5 px-4 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                                                                <div class="flex items-center gap-x-3">
-                                                                    <span>Quantity</span>
-                                                                </div>
-                                                            </th>
+                                                        <th scope="col" class="sticky top-0 py-3.5 px-4 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400">
+                                                            <div class="flex items-center gap-x-3">
+                                                                <span>Quantity</span>
+                                                            </div>
+                                                        </th>
 
-                                                            <th scope="col" class="sticky top-0 py-3.5 px-4 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                                                                <div class="flex items-center gap-x-3">
-                                                                    <span>Reference</span>
-                                                                </div>
-                                                            </th>
+                                                        <th scope="col" class="sticky top-0 py-3.5 px-4 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400">
+                                                            <div class="flex items-center gap-x-3">
+                                                                <span>Reference</span>
+                                                            </div>
+                                                        </th>
 
-                                                            <th scope="col" class="sticky top-0 py-3.5 px-4 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                                                                <div class="flex items-center gap-x-3">
-                                                                    <span>Status</span>
-                                                                </div>
-                                                            </th>
-                                                        </tr>
-                                                        </thead>
-                                                        <tbody class="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-gray-900">
-                                                        <tr v-for="row in thisDownloadedBomData(bomData).materialListRows">
-                                                            <!-- description -->
-                                                            <td class="px-4 py-4 text-sm font-medium text-gray-700 whitespace-nowrap">
-                                                                <div class="inline-flex items-center gap-x-3">
-                                                                    <input
-                                                                        v-if="canDelete() && !row.status"
-                                                                        :id="'check'+row.id"
-                                                                        type="checkbox"
-                                                                        :checked="formBulkActions.selectedRawMaterialQuoteIds.includes(row.id)"
-                                                                        class="text-blue-500 border-gray-300 rounded dark:bg-gray-900 dark:ring-offset-gray-900 dark:border-gray-700"
-                                                                        @input="toggleCheckbox(row.id)"
-                                                                    >
+                                                        <th scope="col" class="sticky top-0 py-3.5 px-4 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400">
+                                                            <div class="flex items-center gap-x-3">
+                                                                <span>Status</span>
+                                                            </div>
+                                                        </th>
+                                                    </tr>
+                                                    </thead>
+                                                    <tbody class="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-gray-900">
+                                                    <tr v-for="row in materialListRows" :key="row.id">
+                                                        <!-- description -->
+                                                        <td class="px-4 py-4 text-sm font-medium text-gray-700 whitespace-nowrap">
+                                                            <div class="inline-flex items-center gap-x-3">
+                                                                <input
+                                                                    v-if="canDelete() && !row.status"
+                                                                    :id="'check'+row.id"
+                                                                    type="checkbox"
+                                                                    :checked="formBulkActions.selectedRawMaterialQuoteIds.includes(row.id)"
+                                                                    class="text-blue-500 border-gray-300 rounded dark:bg-gray-900 dark:ring-offset-gray-900 dark:border-gray-700"
+                                                                    @change="toggleCheckbox(row.id)"
+                                                                >
 
-                                                                    <div :class="row.status ? 'ml-7': ''">
-                                                                        <div>
-                                                                            <label :for="'check'+row.id" class="font-medium text-gray-800 dark:text-white ">
-                                                                                {{ shared.cropText(row.description) }}
-                                                                            </label>
-                                                                            <span class="block text-gray-500">({{ displayProductMatches(row) }})</span>
-                                                                        </div>
+                                                                <div :class="row.status ? 'ml-7': ''">
+                                                                    <div>
+                                                                        <!-- Cropped for the column, so the whole description stays available on hover -->
+                                                                        <label
+                                                                            v-if="canDelete() && !row.status"
+                                                                            :for="'check'+row.id"
+                                                                            :title="row.description"
+                                                                            class="font-medium text-gray-800 dark:text-white"
+                                                                        >
+                                                                            {{ shared.cropText(row.description) }}
+                                                                        </label>
+                                                                        <span
+                                                                            v-else
+                                                                            :title="row.description"
+                                                                            class="font-medium text-gray-800 dark:text-white"
+                                                                        >
+                                                                            {{ shared.cropText(row.description) }}
+                                                                        </span>
+                                                                        <span class="block text-gray-500">({{ displayProductMatches(row) }})</span>
                                                                     </div>
                                                                 </div>
-                                                            </td>
-                                                            <!-- length -->
-                                                            <td class="px-4 py-4 text-sm font-medium text-gray-700 whitespace-nowrap">
-                                                                <div class="inline-flex items-center gap-x-3">
-                                                                    <div class="flex items-center gap-x-2">
-                                                                        <div>
-                                                                            <h2 class="font-medium text-gray-800 dark:text-white ">
-                                                                                <span v-if="row.nesting_algo === 'AREA'">L: </span>{{ displayLength(row) }}<span class="text-xs">{{getUnitDisplay(row,false)}}</span>
-                                                                            </h2>
-                                                                            <h2 v-if="row.nesting_algo === 'AREA'" class="font-medium text-gray-800 dark:text-white ">
-                                                                                W: {{ parseFloat(row.width_required).toLocaleString() }}<span class="text-xs">{{getUnitDisplay(row,false)}}</span>
-                                                                            </h2>
-                                                                        </div>
+                                                            </div>
+                                                        </td>
+                                                        <!-- length -->
+                                                        <td class="px-4 py-4 text-sm font-medium text-gray-700 whitespace-nowrap">
+                                                            <div class="inline-flex items-center gap-x-3">
+                                                                <div class="flex items-center gap-x-2">
+                                                                    <div>
+                                                                        <h2 class="font-medium text-gray-800 dark:text-white ">
+                                                                            <span v-if="row.nesting_algo === 'AREA'">L: </span>{{ displayLength(row) }}<span class="text-xs">{{getUnitDisplay(row,false)}}</span>
+                                                                        </h2>
+                                                                        <h2 v-if="row.nesting_algo === 'AREA'" class="font-medium text-gray-800 dark:text-white ">
+                                                                            W: {{ parseFloat(row.width_required).toLocaleString() }}<span class="text-xs">{{getUnitDisplay(row,false)}}</span>
+                                                                        </h2>
                                                                     </div>
                                                                 </div>
-                                                            </td>
+                                                            </div>
+                                                        </td>
 
-                                                            <!-- sub qty -->
-                                                            <td class="px-4 py-4 text-sm font-medium text-gray-700 whitespace-nowrap">
-                                                                <div class="inline-flex items-center gap-x-3">
-                                                                    <div class="flex items-center gap-x-2">
-                                                                        <div>
-                                                                            <h2 class="font-medium text-gray-800 dark:text-white ">
-                                                                                {{ parseFloat(row.sub_qty).toFixed(2) }}
-                                                                            </h2>
-                                                                        </div>
+                                                        <!-- sub qty -->
+                                                        <td class="px-4 py-4 text-sm font-medium text-gray-700 whitespace-nowrap">
+                                                            <div class="inline-flex items-center gap-x-3">
+                                                                <div class="flex items-center gap-x-2">
+                                                                    <div>
+                                                                        <h2 class="font-medium text-gray-800 dark:text-white ">
+                                                                            {{ displayQuantity(row) }}
+                                                                        </h2>
                                                                     </div>
                                                                 </div>
-                                                            </td>
+                                                            </div>
+                                                        </td>
 
-                                                            <!-- Assembly ref -->
-                                                            <td class="px-4 py-4 text-sm font-medium text-gray-700 whitespace-nowrap">
-                                                                <div class="inline-flex items-center gap-x-3">
-                                                                    <div class="flex items-center gap-x-2">
-                                                                        <div>
-                                                                            <h2 class="font-medium text-gray-800 dark:text-white italic">
-                                                                                {{row.assembly_mark ? ('"'+row.assembly_mark+'"') : ''}}
-                                                                            </h2>
-                                                                        </div>
+                                                        <!-- Assembly ref -->
+                                                        <td class="px-4 py-4 text-sm font-medium text-gray-700 whitespace-nowrap">
+                                                            <div class="inline-flex items-center gap-x-3">
+                                                                <div class="flex items-center gap-x-2">
+                                                                    <div>
+                                                                        <h2 class="font-medium text-gray-800 dark:text-white italic">
+                                                                            {{row.assembly_mark ? ('"'+row.assembly_mark+'"') : ''}}
+                                                                        </h2>
                                                                     </div>
                                                                 </div>
-                                                            </td>
+                                                            </div>
+                                                        </td>
 
-                                                            <!-- Status -->
-                                                            <td class="px-4 py-4 text-sm font-medium text-gray-700 whitespace-nowrap">
-                                                                <div class="inline-flex items-center gap-x-3">
-                                                                    <div class="flex items-center gap-x-2">
-                                                                        <div>
-                                                                            <h2 class="font-medium text-gray-800 dark:text-white italic">
-                                                                                {{ row.status }}
-                                                                            </h2>
-                                                                        </div>
+                                                        <!-- Status -->
+                                                        <td class="px-4 py-4 text-sm font-medium text-gray-700 whitespace-nowrap">
+                                                            <div class="inline-flex items-center gap-x-3">
+                                                                <div class="flex items-center gap-x-2">
+                                                                    <div>
+                                                                        <h2 class="font-medium text-gray-800 dark:text-white italic">
+                                                                            {{ row.status }}
+                                                                        </h2>
                                                                     </div>
                                                                 </div>
-                                                            </td>
-                                                        </tr>
-                                                        </tbody>
-                                                    </table>
-                                                </div>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    </tbody>
+                                                </table>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </section>
 
+                            <!-- Nothing imported yet -->
                             <div
-                                v-else class="pt-28 text-gray-600 text-lg"
-                                style="height:300px"
+                                v-else-if="!loadFailed"
+                                class="min-h-[200px] pt-20 text-gray-600 text-lg"
                             >
-                                Upload your first Bill of Materials above <i class="fa-regular fa-hand-point-up"></i> <i class="fa-regular fa-hand-point-up"></i>
+                                <template v-if="canUpload()">
+                                    Upload your first Bill of Materials above <i class="fa-regular fa-hand-point-up"></i> <i class="fa-regular fa-hand-point-up"></i>
+                                </template>
+                                <template v-else>
+                                    There are no materials on this project yet.
+                                </template>
                             </div>
                         </div>
                     </div>
