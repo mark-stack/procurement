@@ -11,6 +11,7 @@ use App\Models\Batch;
 use App\Models\Business;
 use App\Models\Piece;
 use App\Models\Product;
+use App\Models\User;
 use App\Services\ProductService;
 use Illuminate\Support\Collection;
 use Random\Engine\Mt19937;
@@ -1565,33 +1566,25 @@ class NestingFormatter
         return $result;
     }
 
-    public function getNestingGroups(): array
+    public function getNestingGroups(User $user): array
     {
+        /*
+         * Scoped to what this user may actually see. Unscoped, these groups were built from
+         * every row in the table - deprecated materials the import had retired, and other
+         * businesses' private product categories.
+         */
         $nestingGroups = [];
 
-        //Meterage
-        $products = Product::query()
-            ->where('nesting_algo', NestingEnums::METERAGE->value)
-            ->pluck('product_category')
-            ->unique()
-            ->toArray();
-        $nestingGroups[NestingEnums::METERAGE->value] = array_values($products);
+        foreach ([NestingEnums::METERAGE, NestingEnums::AREA, NestingEnums::BUNDLE] as $algo) {
+            $products = Product::query()
+                ->availableFor($user)
+                ->where('nesting_algo', $algo->value)
+                ->pluck('product_category')
+                ->unique()
+                ->toArray();
 
-        //Area
-        $products = Product::query()
-            ->where('nesting_algo', NestingEnums::AREA->value)
-            ->pluck('product_category')
-            ->unique()
-            ->toArray();
-        $nestingGroups[NestingEnums::AREA->value] = array_values($products);
-
-        //Bundle
-        $products = Product::query()
-            ->where('nesting_algo', NestingEnums::BUNDLE->value)
-            ->pluck('product_category')
-            ->unique()
-            ->toArray();
-        $nestingGroups[NestingEnums::BUNDLE->value] = array_values($products);
+            $nestingGroups[$algo->value] = array_values($products);
+        }
 
         return $nestingGroups;
     }

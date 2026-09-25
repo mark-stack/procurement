@@ -48,6 +48,7 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'warning' => fn () => $request->session()->get('warning'),
                 "project" => fn () => $request->session()->get('project'),
+                'materialsImport' => fn () => $request->session()->get('materialsImport'),
             ],
             'adminEmail' => config('env.admin_email'),
             "loginAvailable" => env("LOGIN_AVAILABLE"),

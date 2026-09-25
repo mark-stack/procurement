@@ -1,6 +1,5 @@
 <?php
 
-use App\Jobs\AdminMaterialsImport;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
@@ -8,35 +7,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 
 uses(RefreshDatabase::class);
-
-/**
- * Populate the products table the same way the
- * admin.update.master.materials.spreadsheet route does.
- */
-function seedMasterMaterials(): void
-{
-    $data = [];
-    $handle = fopen(storage_path('app/private/master_materials.csv'), 'r');
-    while (($row = fgetcsv($handle, 1000, ',')) !== false) {
-        if ($row[0] !== '') {
-            $data[] = [
-                'description' => $row[0], 'product_category' => $row[1], 'material' => $row[2],
-                'grade' => $row[3], 'surface' => $row[4], 'nesting_algo' => $row[5],
-                'certificates' => $row[6], 'nominal_units' => $row[7], 'nominal_length' => $row[8],
-                'precise_length' => $row[9], 'nominal_width' => $row[10], 'precise_width' => $row[11],
-                'nominal_height' => $row[12], 'precise_height' => $row[13], 'wall' => $row[14],
-                'pack_size_1' => $row[15], 'pack_size_2' => $row[16], 'pack_size_3' => $row[17],
-                'kg_per_m' => $row[18],
-            ];
-        }
-    }
-    fclose($handle);
-
-    //Remove heading row
-    unset($data[0]);
-
-    AdminMaterialsImport::dispatchSync(collect($data));
-}
 
 function uploadExampleMaterialList($test, $user, string $projectName = 'Example project')
 {
@@ -129,6 +99,9 @@ it('would be a disaster if the five file limit was only enforced in the browser'
 it('would be a disaster if uploading a material list extracted nothing', function () {
     $business = createBusiness('gmail', true);
     $user = createUser(1, $business, true, true);
+
+    //Seeding now runs through the admin-guarded import route
+    $this->actingAs($user);
     seedMasterMaterials();
 
     uploadExampleMaterialList($this, $user);

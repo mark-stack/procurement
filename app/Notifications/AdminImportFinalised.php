@@ -13,10 +13,13 @@ class AdminImportFinalised extends Notification implements ShouldQueue
 
     /**
      * Create a new notification instance.
+     *
+     * @param  array<int, string>  $lines  What the import actually did, so a partial or failed
+     *                                     run is never reported as a clean one
      */
     public function __construct(
         public string $message,
-
+        public array $lines = [],
     ) {}
 
     /**
@@ -34,9 +37,14 @@ class AdminImportFinalised extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        $mail = (new MailMessage)
             ->line($this->message);
 
+        foreach ($this->lines as $line) {
+            $mail->line($line);
+        }
+
+        return $mail;
     }
 
     /**
@@ -47,7 +55,8 @@ class AdminImportFinalised extends Notification implements ShouldQueue
     public function toArray(object $notifiable): array
     {
         return [
-            //
+            'message' => $this->message,
+            'lines' => $this->lines,
         ];
     }
 }

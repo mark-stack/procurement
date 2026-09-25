@@ -15,10 +15,14 @@
     const notifications = computed(() => usePage().props.auth.notifications);
     const hasPastProjects = computed(() => usePage().props.auth.hasPastProjects);
 
+    //The materials import used to answer with a bare string, which Inertia could not render
+    const materialsImport = computed(() => usePage().props.flash?.materialsImport);
+
     //Variables
     const showNotifications = ref(false);
     const showMenu = ref(false);
     const underNavScreenHeight = window.innerHeight - 68;
+    const materialsImportDismissed = ref(false);
 </script>
 
 <template>
@@ -169,6 +173,8 @@
                                                 label="Update Materials (Admin)"
                                                 icon="fa-solid fa-file-excel"
                                                 :alert="!hasSeedImport"
+                                                method="post"
+                                                confirm="Re-import master_materials.csv? This rewrites the whole platform product catalogue."
                                             />
                                             <!-- Logout -->
                                             <Link
@@ -346,6 +352,24 @@
 
         <!-- Main -->
         <main class="col-span-7 overflow-y-auto pl-4 pr-4 bg-[#f9fafb]"><!--bg-gradient-to-tr from-blue-100 via-indigo-100 to-gray-100-->
+            <!-- Materials import result -->
+            <div
+                v-if="materialsImport && !materialsImportDismissed"
+                :class="materialsImport.ok ? 'border-green-300 bg-green-50 text-green-900' : 'border-red-300 bg-red-50 text-red-900'"
+                class="flex items-start justify-between gap-4 px-4 py-3 mt-4 text-sm border rounded-lg"
+            >
+                <ul class="list-disc list-inside">
+                    <li v-for="(message, index) in materialsImport.messages" :key="index">{{ message }}</li>
+                </ul>
+                <button
+                    type="button"
+                    class="font-bold shrink-0"
+                    aria-label="Dismiss"
+                    @click="materialsImportDismissed = true"
+                >
+                    &times;
+                </button>
+            </div>
             <slot/>
         </main>
     </div>

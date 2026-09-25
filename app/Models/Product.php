@@ -18,6 +18,23 @@ class Product extends Model
     protected $guarded = [];
 
     /**
+     * The import used to write the spreadsheet's literal "TRUE"/"FALSE" text into
+     * certificates, which every consumer then read as a boolean. Casting here keeps the
+     * column and the code that queries it talking about the same type.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'certificates' => 'boolean',
+            'deprecated' => 'boolean',
+            'wall' => 'float',
+            'kg_per_m' => 'float',
+        ];
+    }
+
+    /**
      * Relationships
      */
     public function business(): BelongsTo

@@ -22,7 +22,7 @@ it("would be a disaster if total nested length didn't equal total pieces length"
     $nest = nestingTestCases()[$testCaseIndex]['nest']; //length vs qty array
 
     //Seed master_product.csv to create products
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     //Service
     $dataClassificationService = new dataClassificationService;
@@ -70,7 +70,7 @@ it("would be a disaster if meterage nesting for a single project didn't work cor
 
     //Seed master_product.csv to create products
     $this->actingAs($adminUser);
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     /*
      * Create user

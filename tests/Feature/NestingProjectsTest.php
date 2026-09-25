@@ -28,7 +28,7 @@ it('would be a disaster if a project with an upload BOM had no materials availab
     $nest = nestingTestCases()[$testCaseIndex]['nest'];
 
     //Seed master_product.csv to create products
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     //Service
     $dataClassificationService = new dataClassificationService;
@@ -133,7 +133,7 @@ it('would be a disaster if the nest saved to the batch was not the nest the user
     $adminBusiness = createBusiness('admin', true);
     $adminUser = createUser(1, $adminBusiness, true, true);
     $this->actingAs($adminUser);
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     //Create user & project
     $business = createBusiness('biz', true);
@@ -186,7 +186,7 @@ it('would be a disaster if the project letters on the batch page named a differe
     $adminBusiness = createBusiness('admin', true);
     $adminUser = createUser(1, $adminBusiness, true, true);
     $this->actingAs($adminUser);
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     //Create user
     $business = createBusiness('biz', true);
@@ -237,7 +237,7 @@ it('would be a disaster if a batch nested before the letters were stored lost it
     $adminBusiness = createBusiness('admin', true);
     $adminUser = createUser(1, $adminBusiness, true, true);
     $this->actingAs($adminUser);
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     $business = createBusiness('biz', true);
     $user = createUser(2, $business, false, true);
@@ -325,7 +325,7 @@ it('would be a disaster if the batch nesting page ran a query per project', func
     $adminBusiness = createBusiness('admin', true);
     $adminUser = createUser(1, $adminBusiness, true, true);
     $this->actingAs($adminUser);
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     $business = createBusiness('biz', true);
     $user = createUser(2, $business, false, true);

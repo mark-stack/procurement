@@ -11,9 +11,4 @@ parameters:
     level: 5
 
     ignoreErrors:
-    - '#never written, only read#'
     - '#Access to an undefined property#'
-
-    excludePaths:
-        - App/Jobs/AdminMaterialsImportSubJob2.php
-

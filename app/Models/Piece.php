@@ -49,6 +49,7 @@ class Piece extends Model
     public function product(): ?Product
     {
         return Product::query()
+            ->active()
             ->where('product_category', $this->product_category)
             ->where('material', $this->material)
             ->where('grade', $this->grade)

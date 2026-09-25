@@ -23,7 +23,7 @@ it('would be a disaster if meterage nesting with an offcut was not working corre
 
     //Seed master_product.csv to create products
     $this->actingAs($adminUser);
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     /*
      * Business/User #1
@@ -157,7 +157,7 @@ it("would be a disaster if offcut of an offcut didn't work", function () {
     $this->actingAs($adminUser);
 
     //Seed master_product.csv to create products
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     //Create admin
     $business = createBusiness('admin', true);
@@ -302,7 +302,7 @@ it('would be a disaster if using offcuts that belong to another company', functi
     $adminBusiness = createBusiness('admin', true);
     $adminUser = createUser(1, $adminBusiness, true, true);
     $this->actingAs($adminUser);
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     /*
      * Business #1 has a delivered batch with a 9,000mm offcut sitting in its inventory
@@ -371,7 +371,7 @@ it('would be a disaster if using an offcut twice in the same project', function 
     $adminBusiness = createBusiness('admin', true);
     $adminUser = createUser(1, $adminBusiness, true, true);
     $this->actingAs($adminUser);
-    $this->get(route('admin.update.master.materials.spreadsheet'));
+    seedMasterMaterials();
 
     //Business with a delivered batch and three offcuts available
     $business = createBusiness('biz', true);
