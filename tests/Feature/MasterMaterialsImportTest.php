@@ -2,9 +2,12 @@
 
 use App\Jobs\AdminMaterialsImport;
 use App\Models\Product;
+use App\Notifications\AdminImportFinalised;
 use App\Services\MasterMaterialsParser;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 
 uses(RefreshDatabase::class);
 
@@ -240,4 +243,118 @@ it('would be a disaster if the import reported success without saying what it di
     expect($flash['ok'])->toBeTrue()
         ->and(implode(' ', $flash['messages']))->toContain('rows read from the spreadsheet')
         ->and(Product::count())->toBeGreaterThan(100);
+});
+
+/**
+ * The tests above run the import inline because phpunit.xml sets QUEUE_CONNECTION=sync, while
+ * production runs the database queue. These cover the queued path the rest of the file cannot.
+ */
+it('would be a disaster if the button did its work in the request instead of the queue', function () {
+    adminActingAs($this);
+    Queue::fake();
+
+    $this->post(route('admin.update.master.materials.spreadsheet'))->assertRedirect();
+
+    Queue::assertPushed(AdminMaterialsImport::class);
+
+    // A reconcile of the whole catalogue must not be holding the admin's request open
+    expect(Product::count())->toBe(0);
+});
+
+it('would be a disaster if a second click queued a second concurrent import', function () {
+    adminActingAs($this);
+    Queue::fake();
+
+    $this->post(route('admin.update.master.materials.spreadsheet'))->assertRedirect();
+    $this->post(route('admin.update.master.materials.spreadsheet'))->assertRedirect();
+
+    // Two workers reconciling the same catalogue against different reads of it
+    Queue::assertPushed(AdminMaterialsImport::class, 1);
+});
+
+it('would be a disaster if a blocked import was still reported as started', function () {
+    adminActingAs($this);
+    Queue::fake();
+
+    $this->post(route('admin.update.master.materials.spreadsheet'));
+    $this->post(route('admin.update.master.materials.spreadsheet'));
+
+    $flash = session('materialsImport');
+
+    expect($flash['ok'])->toBeFalse()
+        ->and(implode(' ', $flash['messages']))->toContain('already queued or running');
+});
+
+it('would be a disaster if the import outlived the queue retry window unguarded', function () {
+    /**
+     * An untimed job that outran retry_after was handed to a second worker while the first was
+     * still inside its transaction, so two imports reconciled the same catalogue at once.
+     */
+    $job = new AdminMaterialsImport(collect());
+
+    expect($job->timeout)->toBeLessThan(config('queue.connections.database.retry_after'))
+        ->and($job->tries)->toBe(1);
+});
+
+it('would be a disaster if an unreadable certificates cell passed without a word', function () {
+    /**
+     * A blank or misspelled CERTS cell stores null, which where('certificates', true) excludes,
+     * so the product silently drops out of the mill certificate sense check.
+     */
+    $handle = materialsCsv([
+        materialsRow([0 => 'Readable', 6 => 'TRUE']),
+        materialsRow([0 => 'Blank', 6 => '', 12 => '150']),
+        materialsRow([0 => 'Typo', 6 => 'TRUEE', 12 => '250']),
+    ]);
+
+    $result = (new MasterMaterialsParser)->parse($handle);
+
+    expect($result->rows)->toHaveCount(3)
+        ->and($result->rejected)->toBeEmpty()
+        ->and($result->warnings)->toHaveCount(2)
+        ->and($result->warnings[0]['reason'])->toContain('unreadable certificates')
+        ->and($result->warnings[1]['line'])->toBe(4)
+        ->and(implode(' ', $result->messages()))->toContain('2 rows imported with blank fields');
+});
+
+it('would be a disaster if two rows for one product overwrote each other silently', function () {
+    $admin = adminActingAs($this);
+    Notification::fake();
+
+    $sheet = (new MasterMaterialsParser)->parse(materialsCsv([
+        // Same natural key, different pack size: the second row wins and nobody was told
+        materialsRow([15 => '1']),
+        materialsRow([15 => '9']),
+    ]));
+
+    AdminMaterialsImport::dispatchSync($sheet->collection());
+
+    expect(Product::count())->toBe(1)
+        ->and(Product::sole()->pack_size_1)->toBe('9');
+
+    Notification::assertSentTo($admin, AdminImportFinalised::class, function ($notification) {
+        return str_contains(implode(' ', $notification->lines), '1 duplicate rows collapsed');
+    });
+});
+
+it('would be a disaster if a clean import claimed duplicates it did not find', function () {
+    $admin = adminActingAs($this);
+    Notification::fake();
+
+    $sheet = (new MasterMaterialsParser)->parse(materialsCsv([materialsRow()]));
+    AdminMaterialsImport::dispatchSync($sheet->collection());
+
+    Notification::assertSentTo($admin, AdminImportFinalised::class, function ($notification) {
+        return ! str_contains(implode(' ', $notification->lines), 'duplicate rows collapsed');
+    });
+});
+
+it('would be a disaster if an Excel byte order mark made the file look reordered', function () {
+    // Excel writes a UTF-8 BOM before the first cell, and trim() does not remove it
+    $header = MasterMaterialsParser::HEADER;
+    $header[0] = "\xEF\xBB\xBF".$header[0];
+
+    $result = (new MasterMaterialsParser)->parse(materialsCsv([materialsRow()], $header));
+
+    expect($result->rows)->toHaveCount(1);
 });

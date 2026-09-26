@@ -6,6 +6,8 @@ use App\Jobs\AdminMaterialsImport;
 use App\Services\MasterMaterialsParser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Queue\Events\UniqueJobSkipped;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
@@ -21,7 +23,15 @@ class AdminUpdateMasterMaterialsSpreadsheetController extends Controller
         if (! Storage::exists(self::FILE)) {
             return back()->with('materialsImport', [
                 'ok' => false,
-                'messages' => [self::FILE." not found on the configured disk. Check 'storage/app/private'."],
+                /*
+                 * Name the disk that was actually searched. The message hardcoded
+                 * 'storage/app/private', which is only where the local disk happens to look.
+                 */
+                'messages' => [sprintf(
+                    '%s not found on the %s disk.',
+                    self::FILE,
+                    config('filesystems.default'),
+                )],
             ]);
         }
 
@@ -56,7 +66,27 @@ class AdminUpdateMasterMaterialsSpreadsheetController extends Controller
             ]);
         }
 
+        /*
+         * AdminMaterialsImport is ShouldBeUnique, and a dispatch the unique lock blocks is
+         * skipped without a word: the admin would be told the import had started when nothing
+         * was queued at all. Laravel announces the skip, so the answer can be honest about it.
+         */
+        $alreadyRunning = false;
+
+        Event::listen(UniqueJobSkipped::class, function () use (&$alreadyRunning) {
+            $alreadyRunning = true;
+        });
+
         AdminMaterialsImport::dispatch($result->collection(), $result->messages());
+
+        if ($alreadyRunning) {
+            return back()->with('materialsImport', [
+                'ok' => false,
+                'messages' => [
+                    'A master materials import is already queued or running. Nothing was started - wait for its email before running another.',
+                ],
+            ]);
+        }
 
         return back()->with('materialsImport', [
             'ok' => true,
