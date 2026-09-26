@@ -35,10 +35,13 @@
     //A nest with no meterage in it (bolts only, say) has nothing to report here
     const meterageUsage = computed(() => props.usage?.METERAGE ?? {
         totalPurchasedMaterial: 0,
+        totalOffcutMaterial: 0,
         totalUsedMaterial: 0,
         totalReusable: 0,
+        totalKerf: 0,
         totalScrap: 0,
         efficiency: 0,
+        yield: 0,
     });
 
 
@@ -107,19 +110,23 @@
                         <table class="w-full">
                             <thead>
                                 <tr>
-                                    <th>Total Material</th>
-                                    <th>Total Used Material</th>
-                                    <th>Total Reusable</th>
-                                    <th>Total Scrap</th>
+                                    <th>Bought</th>
+                                    <th>From Offcuts</th>
+                                    <th>Used</th>
+                                    <th>Reusable</th>
+                                    <th>Scrap</th>
+                                    <th>Saw Kerf</th>
                                     <th>Efficiency</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
                                     <td>{{ (meterageUsage.totalPurchasedMaterial/1000).toLocaleString() }}m</td>
+                                    <td>{{ (meterageUsage.totalOffcutMaterial/1000).toLocaleString() }}m</td>
                                     <td>{{ (meterageUsage.totalUsedMaterial/1000).toLocaleString() }}m</td>
                                     <td>{{ (meterageUsage.totalReusable/1000).toLocaleString() }}m</td>
                                     <td>{{ (meterageUsage.totalScrap/1000).toLocaleString() }}m</td>
+                                    <td>{{ (meterageUsage.totalKerf/1000).toLocaleString() }}m</td>
                                     <td>{{ meterageUsage.efficiency }}%</td>
                                 </tr>
                             </tbody>

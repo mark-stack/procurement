@@ -112,8 +112,11 @@
                 </p>
             </div>
             <!-- reusable -->
+            <!-- ">=" to match the backend and Actions/Bar/CreateBarsAndOffcuts, which decide which
+                 drops actually become offcut records. ">" drew a drop exactly on the threshold as scrap
+                 while an offcut record was banked for it. -->
             <div
-                v-if="bar.result.unused > bar.result.scrap_threshold_mm"
+                v-if="bar.result.unused >= bar.result.scrap_threshold_mm"
                 class="bg-green-100 text-xs leading-none py-2 text-center text-black border-r-4 border-black"
                 :style="'width: '+(bar.result.unused/bar.result['bar_length']*100)+'%'"
             >

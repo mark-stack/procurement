@@ -79,10 +79,21 @@ class Product extends Model
          * 1) Not deprecated
          * 2) Not someone else's (yours or platform's)
          */
-        $business = $user->business;
+        $query->availableForBusiness($user->business);
+    }
+
+    public function scopeAvailableForBusiness(Builder $query, Business $business): void
+    {
+        /**
+         * Same question as availableFor(), asked with the business rather than one of its users.
+         *
+         * Nesting works from a Business (it nests across every user's projects), and used to reach for
+         * products with active() alone - so the purchasable stock lengths a nest was built from could
+         * come from another business's private products.
+         */
         $query->where('deprecated', false)
             ->where(function ($q) use ($business) {
-                $q->where('business_id', null)
+                $q->whereNull('business_id')
                     ->orWhere('business_id', $business->id);
             });
     }

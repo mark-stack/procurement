@@ -51,6 +51,8 @@ it("would be a disaster if total nested length didn't equal total pieces length"
     $response->assertInertia(fn (Assert $page) => $page
         ->has('usage', function (Assert $page) use ($totalPiecesLength) {
             $page->where('METERAGE.totalUsedMaterial', $totalPiecesLength);
+            //Every algo reports a block whether or not this nest has any of it in
+            $page->where('BUNDLE.totalBought', 0);
         })
     );
 })->with(range(0, count(nestingTestCases()) - 1)); //This runs each test case index. e.g [0,1,2,3]
