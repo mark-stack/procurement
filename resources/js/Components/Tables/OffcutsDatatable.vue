@@ -85,6 +85,23 @@
         return certs.filter(Boolean).join(", ");
     }
 
+    /*
+     * How far the steel has already been cut down, and the marks it wore on the way.
+     *
+     * An offcut of an offcut of an offcut is ordinary - there is no limit on it beyond the scrap
+     * threshold - but nothing on this page used to say so, and a 2.5m drop that had been through four
+     * batches looked exactly like one straight off a 12m bar.
+     */
+    function getCutFrom(row){
+        const marks = row.cut_from_marks ?? [];
+
+        if(marks.length === 0){
+            return "New stock";
+        }
+
+        return "Gen " + (row.generation ?? marks.length + 1) + ' ← ' + marks.map(mark => '"'+mark+'"').join(' ← ');
+    }
+
     function getProjectNames(row){
         let projectNames = [];
 
@@ -151,6 +168,7 @@
                         :class="sortClass('unique_mark')"
                         title="Unique within a product type - check the label to tell two matches apart"
                     >Marked</th>
+                    <th title="How many times this steel has been cut down, and the marks it came through">Cut from</th>
                     <th>From Batch/Projects</th>
                     <th>Certificates</th>
                 </tr>
@@ -161,6 +179,7 @@
                     <td>{{ row.label }}</td>
                     <td>{{ row.length }}</td>
                     <td>{{ row.unique_mark }}</td>
+                    <td>{{ getCutFrom(row) }}</td>
                     <td>#{{row.batch_from_id}}: {{getProjectNames(row)}}</td>
                     <td>{{ getCerts(row) }}</td>
                 </tr>

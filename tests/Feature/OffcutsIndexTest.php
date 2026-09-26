@@ -355,3 +355,161 @@ it('only exposes the index route', function () {
         expect(Route::has($name))->toBeFalse("route {$name} should not be registered");
     }
 });
+
+/**
+ * A chain of offcuts, each one cut from the one before it, oldest first.
+ *
+ * Only the root batch buys steel. Every batch after it nests entirely out of inventory and so places
+ * no order at all - which is exactly what makes the certificate trail hard to follow.
+ *
+ * @return array<int, Offcut>
+ */
+function offcutGenerations(User $user, Batch $rootBatch, int $generations, int $length = 9000): array
+{
+    $chain = [create_offcut_200PFC($length, $rootBatch->id)];
+
+    foreach (range(2, $generations) as $generation) {
+        $source = end($chain);
+        $length -= 1000;
+
+        $cuttingBatch = Batch::factory()->forUser($user->id)->create();
+        $source->batch_to_id = $cuttingBatch->id;
+        $source->save();
+
+        $produced = create_offcut_200PFC($length, $cuttingBatch->id);
+        $produced->offcut_from_id = $source->id;
+        $produced->save();
+
+        $chain[] = $produced;
+    }
+
+    return $chain;
+}
+
+it('keeps the certificate trail on an offcut of an offcut of an offcut', function () {
+    /*
+     * The trail only ever looked at the batch that CUT each offcut. That batch bought the steel for a
+     * first-generation offcut, so the certificate was right there - but from the third generation on the
+     * cutting batch nested straight out of inventory and bought nothing, so the lookup came back empty
+     * and the print spec said "Offcuts are not traceable!" about steel that is fully traceable.
+     */
+    $user = offcutsIndexUser();
+    $this->actingAs($user);
+
+    $rootBatch = batchWithDeliveredOrder($user, 'CERT-ROOT', Supplier::factory()->create(['name' => 'Root Steel']));
+
+    //9000 off a bar -> 8000 -> 7000 -> 6000, each cut from the one before it
+    $chain = offcutGenerations($user, $rootBatch, 4);
+    $deepest = end($chain);
+
+    $this->withoutExceptionHandling();
+    $this->get(route('offcuts.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            //Only the last one is still unassigned, the rest were consumed on the way down
+            ->has('offcuts.data', 1)
+            ->where('offcuts.data.0.id', $deepest->id)
+            ->where('offcuts.data.0.offcutOrdersWithCertificates.used_offcuts', true)
+            ->where('offcuts.data.0.offcutOrdersWithCertificates.certificates', [
+                ['supplier_name' => 'Root Steel', 'material_cert_numbers' => 'CERT-ROOT'],
+            ])
+        );
+});
+
+it('reports how far down an offcut has been cut, and the marks it came through', function () {
+    /*
+     * There is no limit on cutting an offcut out of an offcut - every generation is real steel in the
+     * yard, and the chain ends on its own once the drop falls under the scrap threshold. So the yard has
+     * to be able to see how many times a piece has already been cut down: a 6m drop that has been
+     * through four batches otherwise looks exactly like one straight off a 12m bar.
+     */
+    $user = offcutsIndexUser();
+    $this->actingAs($user);
+
+    $rootBatch = batchWithDeliveredOrder($user, 'CERT-ROOT');
+    $chain = offcutGenerations($user, $rootBatch, 4);
+
+    //Nearest source first, back to the one that came off the bar
+    $expectedMarks = [$chain[2]->unique_mark, $chain[1]->unique_mark, $chain[0]->unique_mark];
+
+    $this->withoutExceptionHandling();
+    $this->get(route('offcuts.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('offcuts.data.0.generation', 4)
+            ->where('offcuts.data.0.cut_from_marks', $expectedMarks)
+        );
+});
+
+it('calls an offcut straight off a bar the first generation', function () {
+    $user = offcutsIndexUser();
+    $this->actingAs($user);
+
+    $batch = batchWithDeliveredOrder($user, 'CERT-NEW');
+    create_offcut_200PFC(1500, $batch->id);
+
+    $this->withoutExceptionHandling();
+    $this->get(route('offcuts.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('offcuts.data.0.generation', 1)
+            ->where('offcuts.data.0.cut_from_marks', [])
+        );
+});
+
+it('does not stamp an offcut of an offcut with its cutting batch\'s own new stock certificate', function () {
+    /*
+     * A batch that reuses an offcut can buy new steel for other products in the same nest. That
+     * purchase has nothing to do with the drop left on the reused offcut, so crediting its certificate
+     * to that drop labels the steel with a certificate it was never part of. The offcut's own trail runs
+     * back up the chain.
+     */
+    $user = offcutsIndexUser();
+    $this->actingAs($user);
+
+    $rootBatch = batchWithDeliveredOrder($user, 'CERT-ROOT', Supplier::factory()->create(['name' => 'Root Steel']));
+    $source = create_offcut_200PFC(3000, $rootBatch->id);
+
+    //The batch that reuses it also buys unrelated new steel, certificated
+    $cuttingBatch = batchWithDeliveredOrder($user, 'CERT-UNRELATED', Supplier::factory()->create(['name' => 'Other Steel']));
+    $source->batch_to_id = $cuttingBatch->id;
+    $source->save();
+
+    $produced = create_offcut_200PFC(1200, $cuttingBatch->id);
+    $produced->offcut_from_id = $source->id;
+    $produced->save();
+
+    $this->withoutExceptionHandling();
+    $this->get(route('offcuts.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('offcuts.data', 1)
+            ->where('offcuts.data.0.id', $produced->id)
+            ->where('offcuts.data.0.newStockOrdersWithCertificates', [])
+            ->where('offcuts.data.0.offcutOrdersWithCertificates.certificates', [
+                ['supplier_name' => 'Root Steel', 'material_cert_numbers' => 'CERT-ROOT'],
+            ])
+        );
+});
+
+it('keeps a deep chain out of inventory once each generation has been consumed', function () {
+    /*
+     * Every generation but the last has been cut up, so only the last is still steel anybody can nest
+     * into. A released or double-counted ancestor would have the yard promising material it has already
+     * turned into pieces.
+     */
+    $user = offcutsIndexUser();
+    $this->actingAs($user);
+
+    $rootBatch = batchWithDeliveredOrder($user, 'CERT-ROOT');
+    $chain = offcutGenerations($user, $rootBatch, 5);
+
+    $this->withoutExceptionHandling();
+    $this->get(route('offcuts.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('offcuts.data', 1)
+            ->where('offcuts.data.0.id', end($chain)->id)
+            ->where('offcuts.data.0.generation', 5)
+        );
+});
