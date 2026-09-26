@@ -1,7 +1,7 @@
 <script setup>
     //General Imports
-    import {Head, Link, useForm, usePage} from '@inertiajs/vue3';
-    import {computed} from "vue";
+    import {Head, Link, usePage} from '@inertiajs/vue3';
+    import {computed, reactive} from "vue";
 
     //Component Imports
     import SavingsCalculator from "@/Components/SavingsCalculator.vue";
@@ -9,17 +9,16 @@
     import Nesting from "@/Components/Nesting/Nesting.vue";
     import CadLogosBanner from "@/Components/CadLogosBanner.vue";
 
+    //Shared Imports
+    import useSavings from "@/Shared/useSavings.js";
+
     //Props
     const props = defineProps({
         sampleNestingData: Object,
     });
 
     //Form
-    const formCalculator = useForm({
-        annualSpendMillions:1.5,
-        wastePct:5,
-        scrapRefundPct:13,
-    });
+    //...
 
     //Shared data
     const user = usePage().props.auth.user;
@@ -35,55 +34,29 @@
     const firstYearDiscount = 0;
     const whichPlan = "WEEKLY"; //"MONTHLY","ANNUAL", "WEEKLY", "MULTI_YEAR"
 
+    //Both calculators on the page share these, so the hero figure and the one further down agree
+    const calculatorInputs = reactive({
+        annualSpendMillions:1.5,
+        yieldGainPct:5,
+        scrapRefundPct:13,
+    });
+
+    const plan = {
+        years: savings_period_years,
+        whichPlan,
+        fullPriceMultiYear,
+        fullPriceAnnual,
+        fullPriceMonthly,
+        fullPriceWeekly,
+        firstYearDiscount,
+    };
+
 
     //Shared Methods
-    //...
+    const {savingsDisplay, termDisplay, costPerMonth} = useSavings(calculatorInputs, plan);
 
     //Methods
-    function calculate(){
-        let annualSpend = formCalculator.annualSpendMillions * 1000000;
-        let wasteFraction = formCalculator.wastePct/100; //e.g 5% = 0.05
-        let annualWaste = annualSpend * wasteFraction;
-        let annualScrapRefund = annualWaste * (formCalculator.scrapRefundPct/100)
-
-        return savings_period_years * (annualWaste - annualScrapRefund);
-    }
-
-    function beforeFees(){
-        let sum = calculate();
-        let display = "";
-
-        //Thousands
-        if(sum < 1000000){
-            display = (sum/1000).toFixed(0) + "K";
-        }
-        //Millions
-        else{
-            display = (sum/1000000).toFixed(1) + "M";
-        }
-
-        return display;
-    }
-
-    function costPerMonth(){
-        let firstYearCostPerMonth = 0;
-        let fractionalPrice = (100-firstYearDiscount)/100;
-
-        if(whichPlan === "ANNUAL"){
-            firstYearCostPerMonth = Math.round((fullPriceAnnual*fractionalPrice)/12);
-        }
-        if(whichPlan === "MONTHLY"){
-            firstYearCostPerMonth = fullPriceMonthly*fractionalPrice;
-        }
-        if(whichPlan === "WEEKLY"){
-            firstYearCostPerMonth = Math.round((fullPriceWeekly*fractionalPrice)*4.33);
-        }
-        if(whichPlan === "MULTI_YEAR"){
-            firstYearCostPerMonth = Math.round((fullPriceMultiYear*fractionalPrice)/savings_period_years/12);
-        }
-
-        return firstYearCostPerMonth;
-    }
+    //...
 </script>
 
 <template>
@@ -99,8 +72,7 @@
                 <div class="max-w-xl mb-16">
                     <h2 class="max-w-lg mb-6 font-sans text-5xl font-bold tracking-tight text-gray-900 sm:leading-none">
                         Maximum steel nesting efficiency could save you
-                        <span v-if="savings_period_years === 1" class="inline-block text-orange-900">${{beforeFees()}} in <u>waste</u></span>
-                        <span v-else class="inline-block text-orange-900">${{beforeFees()}} in <u>waste</u></span>
+                        <span class="inline-block text-orange-900">${{savingsDisplay}} in <u>waste</u> {{termDisplay}}</span>
                     </h2>
                 </div>
                 <div class="flex flex-col items-center md:flex-row">
@@ -130,14 +102,8 @@
                     >
                     <!-- Pricing slider -->
                     <SavingsCalculator
-                        :formCalculator="formCalculator"
-                        :years="savings_period_years"
-                        :fullPriceMultiYear="fullPriceMultiYear"
-                        :fullPriceAnnual="fullPriceAnnual"
-                        :fullPriceMonthly="fullPriceMonthly"
-                        :fullPriceWeekly="fullPriceWeekly"
-                        :whichPlan="whichPlan"
-                        :firstYearDiscount="firstYearDiscount"
+                        :inputs="calculatorInputs"
+                        :plan="plan"
                     />
                 </div>
             </div>
@@ -321,14 +287,19 @@
                         <td class="text-center text-xs">❌</td><!--smartcut-->
                     </tr>
                     <tr class="bg-white">
+                        <!--
+                            No green/red on this row: at $169/month we sit above four of these,
+                            so colouring ours green and theirs green too said nothing, and claiming
+                            the cheap end would not survive a reader checking the numbers.
+                        -->
                         <td class="py-3 font-medium text-gray-800">$AUD/month</td>
-                        <td class="text-center text-green-500 font-bold">${{costPerMonth()}}</td><!--SteelNesting.com.au-->
-                        <td class="text-center text-red-500 font-bold">$2,000+</td><!--StruMIS-->
-                        <td class="text-center text-red-500 font-bold">$2,000+</td><!--Tekla PowerFab-->
-                        <td class="text-center text-green-500 font-bold">$88</td><!--1d-solutions-->
-                        <td class="text-center text-green-500 font-bold">$48</td><!--astrokettle-->
-                        <td class="text-center text-green-500 font-bold">$34</td><!--opticutter-->
-                        <td class="text-center text-green-500 font-bold">$26</td><!--smartcut-->
+                        <td class="text-center text-gray-900 font-bold">{{ costPerMonth === null ? '—' : '$' + costPerMonth }}</td><!--SteelNesting.com.au-->
+                        <td class="text-center text-gray-900 font-bold">$2,000+</td><!--StruMIS-->
+                        <td class="text-center text-gray-900 font-bold">$2,000+</td><!--Tekla PowerFab-->
+                        <td class="text-center text-gray-900 font-bold">$88</td><!--1d-solutions-->
+                        <td class="text-center text-gray-900 font-bold">$48</td><!--astrokettle-->
+                        <td class="text-center text-gray-900 font-bold">$34</td><!--opticutter-->
+                        <td class="text-center text-gray-900 font-bold">$26</td><!--smartcut-->
                     </tr>
                 </tbody>
             </table>
@@ -477,14 +448,8 @@
             <div>
                 <!-- Pricing slider -->
                 <SavingsCalculator
-                    :formCalculator="formCalculator"
-                    :years="savings_period_years"
-                    :fullPriceMultiYear="fullPriceMultiYear"
-                    :fullPriceAnnual="fullPriceAnnual"
-                    :fullPriceMonthly="fullPriceMonthly"
-                    :fullPriceWeekly="fullPriceWeekly"
-                    :whichPlan="whichPlan"
-                    :firstYearDiscount="firstYearDiscount"
+                    :inputs="calculatorInputs"
+                    :plan="plan"
                 />
             </div>
         </div>
@@ -620,7 +585,7 @@
                         <!-- Multi year -->
                         <div v-if="whichPlan === 'MULTI_YEAR'">
                             <p class="text-sm font-bold tracking-wider uppercase">
-                                {{savings_period_years}} year licence
+                                {{savings_period_years}} year{{savings_period_years > 1 ? 's' : ''}} licence
                             </p>
                             <p class="text-5xl font-extrabold">
                                 A${{ fullPriceMultiYear.toLocaleString('en-US') }}<span class="font-light text-lg"> (ex GST)</span>
