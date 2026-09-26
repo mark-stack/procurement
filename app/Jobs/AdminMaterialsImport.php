@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\Product;
 use App\Models\User;
 use App\Notifications\AdminImportFinalised;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Collection;
@@ -12,9 +13,30 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Throwable;
 
-class AdminMaterialsImport implements ShouldQueue
+/**
+ * ShouldBeUnique: one import at a time. Nothing used to stop a second click queueing a second
+ * full reconcile of the same catalogue against a different read of the products table.
+ */
+class AdminMaterialsImport implements ShouldBeUnique, ShouldQueue
 {
     use Queueable;
+
+    /**
+     * Must stay below the queue connection's retry_after (90s for the database queue). An
+     * untimed job that outran retry_after was handed to a second worker while the first was
+     * still inside its transaction, so two imports reconciled the same catalogue at once.
+     */
+    public int $timeout = 60;
+
+    /**
+     * One attempt. A retry would re-run a reconcile whose failure has already been emailed.
+     */
+    public int $tries = 1;
+
+    /**
+     * A worker killed mid-import must not wedge the button for good.
+     */
+    public int $uniqueFor = 3600;
 
     /**
      * The columns that identify a product. Two rows agreeing on all of these are the same
@@ -86,11 +108,25 @@ class AdminMaterialsImport implements ShouldQueue
             ->keyBy(fn (Product $product) => $this->naturalKey($product));
 
         $seenIds = [];
+        $seenKeys = [];
         $created = 0;
         $updated = 0;
+        $collisions = 0;
 
         foreach ($this->dataCollection as $row) {
             $key = $this->naturalKey($row);
+
+            /*
+             * Two sheet rows with the same identity are deliberately collapsed into one product
+             * rather than creating twice, but the later row's pack sizes and weight overwrite
+             * the earlier one's. That is silent data loss unless it is counted and reported.
+             */
+            if (isset($seenKeys[$key])) {
+                $collisions++;
+            }
+
+            $seenKeys[$key] = true;
+
             $product = $existing->get($key);
 
             // Known product: revise it in place
@@ -137,11 +173,20 @@ class AdminMaterialsImport implements ShouldQueue
                 ->where('deprecated', false)
                 ->update(['deprecated' => true]);
 
-        return [
+        $summary = [
             sprintf('%d products created.', $created),
             sprintf('%d products updated.', $updated),
             sprintf('%d products deprecated (no longer in the spreadsheet).', $deprecated),
         ];
+
+        if ($collisions > 0) {
+            $summary[] = sprintf(
+                '%d duplicate rows collapsed: two or more rows describe the same product, so only the last one\'s values were kept.',
+                $collisions,
+            );
+        }
+
+        return $summary;
     }
 
     /**

@@ -12,7 +12,9 @@
     const isAdmin = usePage().props.auth.isAdmin;
     const impersonating = computed(() => usePage().props.auth.impersonating);
     const onboarded = usePage().props.auth.onboarded;
-    const hasSeedImport = usePage().props.hasSeedImport;
+    //computed, not read once: the nav alert has to clear when an import fills the catalogue,
+    //not stay red until the next full page load
+    const hasSeedImport = computed(() => usePage().props.hasSeedImport);
     const user = computed(() => usePage().props.auth.user);
     const notifications = computed(() => usePage().props.auth.notifications);
     const hasPastProjects = computed(() => usePage().props.auth.hasPastProjects);
@@ -32,6 +34,9 @@
 
     //This layout survives Inertia visits, so a dismissal has to end with the message it dismissed
     watch(success, () => successDismissed.value = false);
+    //Without this, dismissing one import result hid every later one: a second import reported
+    //neither success nor failure
+    watch(materialsImport, () => materialsImportDismissed.value = false);
 </script>
 
 <template>

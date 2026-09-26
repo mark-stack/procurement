@@ -37,10 +37,19 @@
     //...
 
     //Methods
-    //A destructive action behind a nav item is one stray click from running, so it asks first
-    const onClick = (event) => {
+    /*
+     * A destructive action behind a nav item is one stray click from running, so it asks first.
+     *
+     * This has to be Inertia's own onBefore prop rather than a @click listener. Link renders
+     * h(tag, {...attrs, ...{onClick}}), spreading its internal onClick AFTER the inherited
+     * attrs, so a parent's @click is overwritten and never runs: the confirm was silently
+     * skipped and one click on "Update Materials" rewrote the whole platform catalogue.
+     *
+     * Inertia cancels the visit on an exact false, so every other path returns undefined.
+     */
+    const onBefore = () => {
         if (props.confirm && !window.confirm(props.confirm)) {
-            event.preventDefault();
+            return false;
         }
     };
 
@@ -56,7 +65,7 @@
         :href="route"
         :method="method"
         :as="method === 'get' ? 'a' : 'button'"
-        @click="onClick"
+        :on-before="onBefore"
     >
         <i :class="icon"></i>
         <span class="mx-2 text-sm">{{label}}</span>

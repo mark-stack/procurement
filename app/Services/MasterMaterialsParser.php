@@ -100,11 +100,22 @@ class MasterMaterialsParser
                 continue;
             }
 
+            $reasons = [];
+
             $missingExpected = $this->missing($attributes, self::EXPECTED);
             if ($missingExpected !== []) {
+                $reasons[] = 'blank '.implode(', ', $missingExpected);
+            }
+
+            $unreadable = $this->unreadable($attributes);
+            if ($unreadable !== []) {
+                $reasons[] = 'unreadable '.implode(', ', $unreadable);
+            }
+
+            if ($reasons !== []) {
                 $warnings[] = [
                     'line' => $line,
-                    'reason' => 'blank '.implode(', ', $missingExpected),
+                    'reason' => implode('; ', $reasons),
                 ];
             }
 
@@ -125,6 +136,15 @@ class MasterMaterialsParser
         }
 
         $actual = array_map(fn ($label) => strtoupper(trim((string) $label)), $header);
+
+        /*
+         * Excel writes a UTF-8 BOM in front of the first cell. trim() does not remove it, so
+         * the file was refused with a message reporting 20 expected columns and 20 found and
+         * no visible difference between them.
+         */
+        if (isset($actual[0])) {
+            $actual[0] = (string) preg_replace('/^\xEF\xBB\xBF/', '', $actual[0]);
+        }
 
         if ($actual === self::HEADER) {
             return;
@@ -178,6 +198,30 @@ class MasterMaterialsParser
             'FALSE', 'F', 'NO', 'N', '0' => false,
             default => null,
         };
+    }
+
+    /**
+     * Single purpose: name the boolean columns whose cell could not be read as TRUE or FALSE.
+     *
+     * A blank or misspelled CERTS cell stores null, and null is excluded by both
+     * where('certificates', true) and where('certificates', false). The product then drops out
+     * of the mill certificate sense check without anything being said about it, which is the
+     * failure the certificates cast was added to end. Warn, and import the row.
+     *
+     * @param  array<string, mixed>  $attributes
+     * @return array<int, string>
+     */
+    private function unreadable(array $attributes): array
+    {
+        $unreadable = [];
+
+        foreach (self::BOOLEAN_COLUMNS as $attribute) {
+            if ($attributes[$attribute] === null) {
+                $unreadable[] = $attribute;
+            }
+        }
+
+        return $unreadable;
     }
 
     /**
