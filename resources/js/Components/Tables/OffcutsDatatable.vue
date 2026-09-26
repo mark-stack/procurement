@@ -144,7 +144,13 @@
                 <tr>
                     <th @click="sortBy('label')" :class="sortClass('label')">label</th>
                     <th @click="sortBy('length')" :class="sortClass('length')">Length (mm)</th>
-                    <th @click="sortBy('unique_mark')" :class="sortClass('unique_mark')">Marked</th>
+                    <!-- A mark is only unique within a product type, so searching one can return a
+                         PFC and a UB. The label column beside it is what tells them apart. -->
+                    <th
+                        @click="sortBy('unique_mark')"
+                        :class="sortClass('unique_mark')"
+                        title="Unique within a product type - check the label to tell two matches apart"
+                    >Marked</th>
                     <th>From Batch/Projects</th>
                     <th>Certificates</th>
                 </tr>

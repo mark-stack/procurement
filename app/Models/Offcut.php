@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Formatters\UniqueLetterIDGenerator;
 use App\Services\ProductService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Builder;
+use InvalidArgumentException;
 
 class Offcut extends Model
 {
@@ -53,6 +55,23 @@ class Offcut extends Model
             'precise_height' => $this->precise_height,
             'wall' => $this->wall,
         ]);
+    }
+
+    //Mutators
+    public function setUniqueMarkAttribute(?string $value): void
+    {
+        /*
+         * A mark is written on steel by hand and typed back into the offcuts search, so it is always
+         * plain upper-case letters. $guarded is empty on this model, so without this guard any path
+         * that writes an offcut - including a request body - could put anything at all in the column.
+         */
+        $mark = strtoupper(trim((string) $value));
+
+        if (preg_match('/^[A-Z]{'.UniqueLetterIDGenerator::MIN_LENGTH.',32}$/', $mark) !== 1) {
+            throw new InvalidArgumentException('Not a valid offcut mark: "'.$mark.'"');
+        }
+
+        $this->attributes['unique_mark'] = $mark;
     }
 
     //Local scopes
