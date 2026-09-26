@@ -2,13 +2,18 @@
 import { computed } from 'vue';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import PrimaryButton from '@/Components/Buttons/PrimaryButton.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import ImpersonationBanner from '@/Components/ImpersonationBanner.vue';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
     status: {
         type: String,
     },
 });
+
+//An admin impersonating an unverified user lands here. Resending from this session would
+//email the customer a verification link they never asked for, so the button is theirs only.
+const impersonating = computed(() => usePage().props.auth?.impersonating);
 
 const form = useForm({});
 
@@ -22,6 +27,8 @@ const verificationLinkSent = computed(
 </script>
 
 <template>
+    <ImpersonationBanner/>
+
     <GuestLayout>
         <Head title="Email Verification" />
 
@@ -42,13 +49,18 @@ const verificationLinkSent = computed(
         <form @submit.prevent="submit">
             <div class="mt-4 flex items-center justify-between">
                 <PrimaryButton
+                    v-if="!impersonating"
                     :class="{ 'opacity-25': form.processing }"
                     :disabled="form.processing"
                 >
                     Resend Verification Email
                 </PrimaryButton>
+                <span v-else class="text-sm text-gray-600">
+                    This user has not verified their email address.
+                </span>
 
                 <Link
+                    v-if="!impersonating"
                     :href="route('logout')"
                     method="post"
                     as="button"
