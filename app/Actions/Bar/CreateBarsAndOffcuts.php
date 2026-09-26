@@ -48,6 +48,9 @@ class CreateBarsAndOffcuts
                          * todo "BAR" is not fully implemented yet. It will replace serialization in the future
                          */
                         $bar = Bar::create([
+                            //Batch that cut it - without this the bar survives the batch being unwound
+                            'batch_id' => $batch->id,
+
                             //Product attributes
                             'product_category' => $product->product_category,       //PFC
                             'material' => $product->material ?? null,               //PLAIN CARBON STEEL

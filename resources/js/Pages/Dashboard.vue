@@ -363,7 +363,7 @@
                         @orderNow="orderNow()"
                         @showBom="args => showBom(args)"
                         @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
-                        @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
+                        @pageLoadingOff="pageLoading = false"
                         @addProject="addProject()"
                     />
 
@@ -419,7 +419,7 @@
                         @toggleArchive="p => toggleArchive(p)"
                         @editMode="p => editMode(p)"
                         @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
-                        @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
+                        @pageLoadingOff="pageLoading = false"
                         @showBom="args => showBom(args)"
                         @addProject="addProject()"
                     />
@@ -448,7 +448,7 @@
                         @toggleArchive="p => toggleArchive(p)"
                         @editMode="p => editMode(p)"
                         @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
-                        @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
+                        @pageLoadingOff="pageLoading = false"
                         @orderNow="orderNow(batch['batch']['id'])"
                         @showBom="args => showBom(args)"
                     />
@@ -477,7 +477,7 @@
                         @toggleArchive="p => toggleArchive(p)"
                         @editMode="p => editMode(p)"
                         @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
-                        @pageLoadingOff="console.log('loading OFF'); pageLoading = false"
+                        @pageLoadingOff="pageLoading = false"
                         @showBom="args => showBom(args)"
                         @addProject="addProject()"
                     />

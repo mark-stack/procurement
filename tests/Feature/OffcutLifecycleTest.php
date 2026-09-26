@@ -1,6 +1,7 @@
 <?php
 
 use App\Formatters\UniqueLetterIDGenerator;
+use App\Models\Bar;
 use App\Models\Batch;
 use App\Models\Offcut;
 use App\Models\Order;
@@ -141,4 +142,81 @@ it('refuses to unwind a batch whose offcuts a later batch has already nested int
 
     expect(Batch::find($batch->id))->not->toBeNull()
         ->and(Offcut::find($produced->id))->not->toBeNull();
+});
+
+it('deletes the bars a batch cut when the batch is unwound', function () {
+    /*
+     * Same reasoning as the offcuts above - the cuts were never made. The bars table had no batch
+     * column at all, so every unwind left one unreachable row per utilised bar behind forever.
+     */
+    $business = createBusiness('biz', true);
+    $user = createUser(1, $business, false, true);
+    $this->actingAs($user);
+
+    $batch = Batch::factory()->forUser($user->id)->create();
+    pieceOnBatch(createProject($user), $batch);
+
+    $bar = Bar::create([
+        'batch_id' => $batch->id,
+        'product_category' => 'PFC',
+        'material' => 'PLAIN CARBON STEEL',
+        'grade' => 'GR300',
+        'surface' => 'NONE',
+        'nominal_height' => '200',
+        'product_derived_label' => '200PFC',
+        'length' => 9000,
+    ]);
+
+    $this->delete(route('batches.destroy', $batch))->assertRedirect();
+
+    expect(Bar::find($bar->id))->toBeNull();
+});
+
+it('clears the piece/quote pivot when the batch is unwound', function () {
+    //The quotes go, and the rows joining them to the pieces have to go with them
+    $business = createBusiness('biz', true);
+    $user = createUser(1, $business, false, true);
+    $this->actingAs($user);
+
+    $batch = Batch::factory()->forUser($user->id)->create();
+    $piece = pieceOnBatch(createProject($user), $batch);
+    [$quote] = quoteAndOrder($user, $batch);
+    $piece->quotes()->attach($quote);
+
+    $this->delete(route('batches.destroy', $batch))->assertRedirect();
+
+    expect(DB::table('piece_quote')->where('piece_id', $piece->id)->count())->toBe(0)
+        ->and(Quote::find($quote->id))->toBeNull();
+});
+
+it('would be a disaster if a failed unwind left the batch half destroyed', function () {
+    /*
+     * The unwind is eight destructive statements and they used to autocommit one at a time, so
+     * anything throwing partway left a batch whose orders were gone but whose quotes remained - or
+     * pieces detached from a batch row still sitting on the board. Neither state has a repair path.
+     *
+     * Failing on the very last statement is the worst case: everything before it has already run.
+     */
+    $business = createBusiness('biz', true);
+    $user = createUser(1, $business, false, true);
+    $this->actingAs($user);
+
+    $batch = Batch::factory()->forUser($user->id)->create();
+    $piece = pieceOnBatch(createProject($user), $batch);
+    [$quote, $order] = quoteAndOrder($user, $batch);
+    $produced = create_offcut_200PFC(1500, $batch->id);
+
+    DB::listen(function ($query) {
+        if (str_contains(strtolower($query->sql), 'delete from "batches"')) {
+            throw new RuntimeException('database went away mid-unwind');
+        }
+    });
+
+    $this->delete(route('batches.destroy', $batch))->assertStatus(500);
+
+    expect(Batch::find($batch->id))->not->toBeNull()
+        ->and(Quote::find($quote->id))->not->toBeNull()
+        ->and(Order::find($order->id))->not->toBeNull()
+        ->and(Offcut::find($produced->id))->not->toBeNull()
+        ->and($piece->fresh()->batch_id)->toBe($batch->id);
 });
