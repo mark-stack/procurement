@@ -62,6 +62,27 @@
         return (used/stockLength*100).toFixed(1);
     }
 
+    function offcutMarks(bar){
+        /*
+         * Identical bars are consolidated into one row with a count, but each of them is cut for real
+         * and each drop becomes its own offcut record with its own mark. Only the first mark was ever
+         * drawn, so on a "3 off" bar two offcuts existed in inventory under marks that were never
+         * written on any steel.
+         */
+        let marks = bar.result.unique_marks;
+
+        if(Array.isArray(marks) && marks.length > 0){
+            return marks;
+        }
+
+        //Batches nested before the marks were stored as a list carry a single mark
+        return bar.result.unique_mark ? [bar.result.unique_mark] : [];
+    }
+
+    function offcutMarksLabel(bar){
+        return offcutMarks(bar).map(mark => '"'+mark+'"').join(', ');
+    }
+
     function smallCuts(bar){
         let smallCuts = [];
         let pieces = getPieces(bar);
@@ -120,8 +141,9 @@
                 class="bg-green-100 text-xs leading-none py-2 text-center text-black border-r-4 border-black"
                 :style="'width: '+(bar.result.unused/bar.result['bar_length']*100)+'%'"
             >
-                <p v-if="batched" class="font-bold italic">
-                    <small>mark</small> "{{bar.result.unique_mark}}"
+                <!-- One mark per bar in the count, not just the first one -->
+                <p v-if="batched" class="font-bold italic px-1 break-words">
+                    <small>{{offcutMarks(bar).length > 1 ? 'marks' : 'mark'}}</small> {{offcutMarksLabel(bar)}}
                 </p>
                 <p v-else class="font-bold italic">
                     Reuse

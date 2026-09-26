@@ -8,6 +8,7 @@ use App\Enums\MeasurementUnitEnums;
 use App\Enums\NestingEnums;
 use App\Enums\ProductEnums;
 use App\Enums\SurfaceEnums;
+use App\Models\Batch;
 use App\Models\Business;
 use App\Models\Offcut;
 use App\Models\Piece;
@@ -174,9 +175,13 @@ class TestingFormatter
 
     function create_offcut_200PFC(int $length, int $batchFromId): Offcut
     {
+        //A mark is unique per business, so the offcut has to know whose yard it is sitting in
+        $businessId = Batch::find($batchFromId)?->user?->business_id;
+
         return Offcut::create([
             'batch_from_id' => $batchFromId,
             'batch_to_id' => null,
+            'business_id' => $businessId,
             'piece_to_id' => null,
             'product_category' => ProductEnums::PFC,
             'material' => MaterialEnums::PLAIN_CARBON_STEEL,
@@ -191,7 +196,7 @@ class TestingFormatter
             'wall' => null,
             'length' => $length,
 
-            "unique_mark" => (new UniqueLetterIDGenerator())->generate(ProductEnums::PFC->value),
+            "unique_mark" => (new UniqueLetterIDGenerator)->generate(ProductEnums::PFC->value, $businessId),
         ]);
     }
 }

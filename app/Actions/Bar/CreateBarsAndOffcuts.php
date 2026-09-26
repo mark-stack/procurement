@@ -7,6 +7,7 @@ use App\Formatters\UniqueLetterIDGenerator;
 use App\Models\Bar;
 use App\Models\Batch;
 use App\Models\Offcut;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Lorisleiva\Actions\Concerns\AsAction;
@@ -15,8 +16,21 @@ class CreateBarsAndOffcuts
 {
     use AsAction;
 
+    /**
+     * Tries at writing an offcut before giving up on finding it a free mark. Each retry rolls a new
+     * code, so reaching the end means the pool is genuinely contended, not that we were unlucky.
+     */
+    private const MARK_ATTEMPTS = 5;
+
     public function handle(array $piecesNested, Batch $batch, array $lettersProjectArray = []): void
     {
+        /*
+         * Marks are unique per business and product category, and one generator serves the whole nest
+         * so that a mark issued for the first bar is not offered again for the second.
+         */
+        $businessId = $batch->user?->business_id;
+        $markGenerator = new UniqueLetterIDGenerator;
+
         /**
          * Create bars and offcuts
          *
@@ -71,14 +85,14 @@ class CreateBarsAndOffcuts
 
                         //Should make offcut
                         if($unused >= $threshold){
-                            //Unique mark
-                            $uniqueMark = (new UniqueLetterIDGenerator())->generate($product->product_category);
-
-                            //Create offcut
-                            $offcut = Offcut::create([
+                            //Create offcut, with a mark no other offcut of this business and category holds
+                            $offcut = $this->createOffcutWithMark($markGenerator, $product->product_category, $businessId, [
                                 //Batch
                                 'batch_from_id' => $batch->id,
                                 'batch_to_id' => null,
+
+                                //Business that owns it - the mark is only unique within this scope
+                                'business_id' => $businessId,
 
                                 //Piece
                                 'piece_to_id' => null, //todo this is not assigned anywhere as of yet, so its pointless
@@ -99,13 +113,10 @@ class CreateBarsAndOffcuts
                                 'precise_height' => $product->precise_height ?? null,
                                 'wall' => $product->wall ?? null,
                                 'length' => $unused,
-
-                                //Unique mark
-                                "unique_mark" => $uniqueMark,
                             ]);
 
                             $offcutIds[] = $offcut->id;
-                            $uniqueMarks[] = $uniqueMark;
+                            $uniqueMarks[] = $offcut->unique_mark;
                         }
                     }
 
@@ -144,14 +155,14 @@ class CreateBarsAndOffcuts
                          */
                         $offcutOfOffcutLength = $offcutData["offcutFromOffcut"]["reusableLength"];
                         if($offcutOfOffcutLength > 0){
-                            //Unique mark
-                            $uniqueMark = (new UniqueLetterIDGenerator())->generate($product->product_category);
-
-                            //Create offcut
-                            $offcutOfOffcut = Offcut::create([
+                            //Create offcut, with a mark no other offcut of this business and category holds
+                            $offcutOfOffcut = $this->createOffcutWithMark($markGenerator, $product->product_category, $businessId, [
                                 //Batch
                                 'batch_from_id' => $batch->id,
                                 'batch_to_id' => null,
+
+                                //Business that owns it - the mark is only unique within this scope
+                                'business_id' => $businessId,
 
                                 //Piece
                                 'piece_to_id' => null, //todo this is not assigned anywhere as of yet, so its pointless
@@ -176,15 +187,12 @@ class CreateBarsAndOffcuts
                                 'precise_height' => $product->precise_height ?? null,
                                 'wall' => $product->wall ?? null,
                                 'length' => $offcutOfOffcutLength,
-
-                                //Unique mark
-                                "unique_mark" => $uniqueMark,
                             ]);
 
                             //Add ID to serialised nesting data
                             $nested = $meterageNesting[$index]->nested;
                             $nested["bestResultOffcuts"]["utilisedOffcutBars"][$indexOffcut]["offcutFromOffcut"]["offcut_of_offcut_id"] = $offcutOfOffcut->id;
-                            $nested["bestResultOffcuts"]["utilisedOffcutBars"][$indexOffcut]["offcutFromOffcut"]["unique_mark"] = $uniqueMark;
+                            $nested["bestResultOffcuts"]["utilisedOffcutBars"][$indexOffcut]["offcutFromOffcut"]["unique_mark"] = $offcutOfOffcut->unique_mark;
                             $meterageNesting[$index]->nested = $nested;
                         }
                     }
@@ -213,5 +221,47 @@ class CreateBarsAndOffcuts
         $batch->letters_project_array = $lettersProjectArray;
 
         $batch->save();
+    }
+
+    /**
+     * Write an offcut, stamping it with a mark no other offcut of this business and product category
+     * holds.
+     *
+     * The mark is chosen by reading the marks already taken, and the whole nest runs inside a
+     * transaction (QuoteController), so offcuts another business is writing at this moment are
+     * invisible to that read. The unique index on (business_id, product_category, unique_mark) is
+     * what actually stops two bars in the yard wearing the same mark; this catches the loser of that
+     * race and rolls again. The generator has already reserved the code that lost, so the retry
+     * cannot come back with it.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    private function createOffcutWithMark(
+        UniqueLetterIDGenerator $markGenerator,
+        string $productCategory,
+        ?int $businessId,
+        array $attributes,
+    ): Offcut {
+        $attempt = 0;
+
+        while (true) {
+            $attempt++;
+
+            try {
+                return Offcut::create($attributes + [
+                    'unique_mark' => $markGenerator->generate($productCategory, $businessId),
+                ]);
+            } catch (UniqueConstraintViolationException $exception) {
+                if ($attempt >= self::MARK_ATTEMPTS) {
+                    throw $exception;
+                }
+
+                Log::warning('Offcut mark was taken between generating it and writing it, retrying', [
+                    'business_id' => $businessId,
+                    'product_category' => $productCategory,
+                    'attempt' => $attempt,
+                ]);
+            }
+        }
     }
 }

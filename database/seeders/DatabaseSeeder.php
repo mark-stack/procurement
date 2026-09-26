@@ -126,9 +126,12 @@ class DatabaseSeeder extends Seeder
         /*
          * Offcuts (200PFC)
          */
+        $markGenerator = new UniqueLetterIDGenerator;
+
         $sampleOffcut1 = Offcut::create([
             'batch_from_id' => $sampleBatch1->id,
             'batch_to_id' => null,
+            'business_id' => $sampleBusiness->id,
             'piece_to_id' => null, //todo redundant?
             'product_category' => ProductEnums::PFC,
             'material' => MaterialEnums::PLAIN_CARBON_STEEL,
@@ -143,12 +146,14 @@ class DatabaseSeeder extends Seeder
             'wall' => null,
             'length' => 2200,
 
-            "unique_mark" => (new UniqueLetterIDGenerator())->generate(ProductEnums::PFC->value),
+            //One generator for both, so the second mark cannot repeat the first
+            "unique_mark" => $markGenerator->generate(ProductEnums::PFC->value, $sampleBusiness->id),
         ]);
 
         $sampleOffcut2 = Offcut::create([
             'batch_from_id' => $sampleBatch1->id,
             'batch_to_id' => null,
+            'business_id' => $sampleBusiness->id,
             'piece_to_id' => null, //todo redundant?
             'product_category' => ProductEnums::PFC,
             'material' => MaterialEnums::PLAIN_CARBON_STEEL,
@@ -163,7 +168,7 @@ class DatabaseSeeder extends Seeder
             'wall' => null,
             'length' => 1750,
 
-            "unique_mark" => (new UniqueLetterIDGenerator())->generate(ProductEnums::PFC->value),
+            "unique_mark" => $markGenerator->generate(ProductEnums::PFC->value, $sampleBusiness->id),
         ]);
 
 
