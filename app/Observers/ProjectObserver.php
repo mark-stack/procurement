@@ -21,6 +21,15 @@ class ProjectObserver
     public function updated(Project $project): void
     {
         /*
+         * An archived project is off the board, so nothing it is being chased about can be
+         * acted on. No implementation below reads the archive flag, so without this its
+         * reminders sit unread in the bell for a project the user cannot even see.
+         */
+        if ($project->wasChanged('archive') && $project->archive) {
+            (new NotificationService)->clearProjectNotifications($project);
+        }
+
+        /*
          * Check if any notifications are now redundant because of this update
          */
         $implementations = (new NotificationService)->getImplementations();

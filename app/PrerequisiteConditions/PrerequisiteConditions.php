@@ -205,6 +205,69 @@ class PrerequisiteConditions
             $condition_3 &&
             $condition_4;
     }
+
+    public function archiveProject(User $user, Project $project): bool
+    {
+        /**
+         * Archiving takes a project off the board for the whole business, and only its owner
+         * can put it back - so it is the owner's call, and only while the project is still
+         * pre-nesting. Nothing enforced either of those server side: the button hid itself
+         * outside the Nesting column and the notification "Lost it" action skipped even that,
+         * which is how a batch could end up permanently un-re-nestable (undoStartQuoting
+         * condition 3) because of a project nobody else could see, let alone restore.
+         *
+         * 1) BUSINESS: Your business
+         * 2) PROJECT: Your project
+         * 3) PROJECT: Not already archived
+         * 4) PIECE: No batch exists for this project
+         */
+
+        //1) BUSINESS: Your business
+        $condition_1 = $project->user->business->id === $user->business->id;
+
+        //2) PROJECT: Your project
+        $condition_2 = $project->user->id === $user->id;
+
+        //3) PROJECT: Not already archived
+        $condition_3 = !$project->archive;
+
+        //4) PIECE: No batch exists for this project
+        $condition_4 = $project->pieces()->whereNotNull("batch_id")->doesntExist();
+
+        return
+            $condition_1 &&
+            $condition_2 &&
+            $condition_3 &&
+            $condition_4;
+    }
+
+    public function restoreProject(User $user, Project $project): bool
+    {
+        /**
+         * The way back from archiveProject, so it asks for no more than that one did: a project
+         * archived while it was on a batch has to be restorable, or the batch it is holding up
+         * stays held up forever.
+         *
+         * 1) BUSINESS: Your business
+         * 2) PROJECT: Your project
+         * 3) PROJECT: Archived
+         */
+
+        //1) BUSINESS: Your business
+        $condition_1 = $project->user->business->id === $user->business->id;
+
+        //2) PROJECT: Your project
+        $condition_2 = $project->user->id === $user->id;
+
+        //3) PROJECT: Archived
+        $condition_3 = (bool) $project->archive;
+
+        return
+            $condition_1 &&
+            $condition_2 &&
+            $condition_3;
+    }
+
     public function markQuoteAsSent(User $user, Quote $quote): bool
     {
         //4) QUOTE: quote is not sent

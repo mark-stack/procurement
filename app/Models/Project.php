@@ -264,6 +264,17 @@ class Project extends Model
         $query->whereBetween('date_materials_required', [$startRange, $endRange]);
     }
 
+    public function scopeActive(Builder $query): void
+    {
+        /**
+         * Not archived. The four hourly notification checks have always called this - it was
+         * never defined, so every one of them died on a BadMethodCallException the moment the
+         * job ran, and the "don't chase an archived project" rule they each document went
+         * with them.
+         */
+        $query->where('archive', false);
+    }
+
     public function scopeWithoutBatch(Builder $query): void
     {
         // batch > piece > project

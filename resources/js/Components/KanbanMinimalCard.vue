@@ -51,6 +51,32 @@
 
     //Methods
     /**
+     * Archiving is the owner's call and only before the project is nested - the server refuses
+     * anything else, and a button that can only answer 403 reads as a broken button. The column
+     * was already the test here; the owner half is new, because the archived list you restore
+     * from only holds your own projects.
+     */
+    function canArchive(project){
+        return props.kanbanColumn === 'NESTING' && project.user_id === user.value.id;
+    }
+
+    function archiveTitle(project){
+        if(props.kanbanColumn !== 'NESTING'){
+            return 'This project is on a batch - re-nest the batch first if you want to archive it';
+        }
+
+        if(project.user_id !== user.value.id){
+            const projectManager = project.projectManager?.name;
+
+            return projectManager
+                ? `Only ${shared.capitalizeWords(projectManager)} can archive this project`
+                : 'Only the project manager can archive this project';
+        }
+
+        return 'Take this project off the board. You can restore it later';
+    }
+
+    /**
      * Re-nesting is the most destructive button on the board and the label does not say so - it reads
      * as "recalculate the nesting". It deletes the batch, every quote on it, every order, the order
      * approvals, and the offcuts and bars it cut, and none of that comes back. "Move to done" below
@@ -190,8 +216,9 @@
                     <CardButtonRed
                         @click="$emit('toggleArchive',project)"
                         label="Archive"
+                        :title="archiveTitle(project)"
                         :fullWidth="true"
-                        :disabled="kanbanColumn !== 'NESTING'"
+                        :disabled="!canArchive(project)"
                         class="col-span-2"
                     />
                     <CardButtonYellow
