@@ -1097,6 +1097,35 @@ class NestingFormatter
         );
 
         /*
+         * A candidate per purchasable stock length: every bar that length, cuts packed tightest-first.
+         *
+         * This is the textbook answer to the cutting-stock problem, and the random search cannot be
+         * relied on to find it - it draws each bar's length independently, so the chance of landing on
+         * one length all the way through falls away as the nest grows. Twelve 4,000mm cuts with 6,000
+         * and 12,000mm stock bought 54,000mm instead of the 48,000mm four 12,000mm bars cover, and at
+         * 80 cuts the search lost to a single pass like this on seven nests out of eight.
+         */
+        foreach ($purchasableStockLengths as $stockLength) {
+            $candidate = $this->buildNest(
+                $cutLengthsRequired,
+                $purchasableStockLengths,
+                $offcutInventory,
+                $lettersProjectArray,
+                $business,
+                $newPieceSpec,
+                false,
+                false,
+                $offcutRandomizer,
+                $packingRandomizer,
+                $stockLength,
+            );
+
+            if ($candidate['score'] > $best['score']) {
+                $best = $candidate;
+            }
+        }
+
+        /*
          * The random nests vary BOTH the offcut draw and the packing. Randomising the stock length alone
          * meant every iteration packed the cuts identically, so a product with one purchasable length
          * nested the same way a thousand times over and the iteration count bought nothing.
@@ -1188,6 +1217,7 @@ class NestingFormatter
         bool $randomPacking,
         Randomizer $offcutRandomizer,
         Randomizer $packingRandomizer,
+        ?int $openStockLength = null,
     ): array {
         //Nesting required cuts into offcut inventory. e.g might cut 3x 900mm from 3,000mm
         $bestResultOffcuts = $this->bestResultOffcuts(
@@ -1230,8 +1260,38 @@ class NestingFormatter
             $randomPacking,
             $newPieceSpec,
             $packingRandomizer,
+            $openStockLength,
         );
 
+        /*
+         * Shrinking each packed bar to the shortest length that still holds it.
+         *
+         * Any bar that shrinks strictly lowers the purchase, which is what the score weighs first, so
+         * the shrunk nest wins whenever there was anything to shrink. Both are still scored rather than
+         * the shrunk one simply taken, so that stays true if the ranking is ever reordered.
+         */
+        $nest = $this->nestFromParts($bestResultOffcuts, $newStock);
+        $shrunk = $this->shrinkBars($newStock, $purchasableStockLengths, $business);
+
+        if ($shrunk !== null) {
+            $shrunkNest = $this->nestFromParts($bestResultOffcuts, $shrunk);
+
+            if ($shrunkNest['score'] > $nest['score']) {
+                return $shrunkNest;
+            }
+        }
+
+        return $nest;
+    }
+
+    /**
+     * Put the offcut half and the new-stock half of a nest together, with the score it is ranked by.
+     *
+     * @param  array<string, mixed>  $bestResultOffcuts
+     * @param  array{utilisedBars: array<int, array<string, mixed>>, tooLong: array<int, mixed>, sums: array<string, int>}  $newStock
+     */
+    private function nestFromParts(array $bestResultOffcuts, array $newStock): array
+    {
         $totals = [
             "oldStock" => [
                 "total" => $bestResultOffcuts["totalOffcutsLength"],
@@ -1256,7 +1316,7 @@ class NestingFormatter
             'utilisedBars' => $newStock["utilisedBars"],
             'tooLong' => $newStock["tooLong"],
             'totals' => $totals,
-            'score' => $this->nestScore($totals, $newStock["sums"]),
+            'score' => $this->nestScore($totals, $newStock["sums"], count($newStock["tooLong"])),
         ];
     }
 
@@ -1268,22 +1328,31 @@ class NestingFormatter
      *
      * @param  array{oldStock: array<string, int>, newStock: array<string, int>}  $totals
      * @param  array<string, int>  $sums
+     * @param  int  $tooLongCount  cuts no bar or offcut could hold
      * @return array<int, int>
      */
-    private function nestScore(array $totals, array $sums): array
+    private function nestScore(array $totals, array $sums, int $tooLongCount): array
     {
         /*
-         * Purchase comes first because it is the only line the business actually pays. Ranking scrap
-         * above it buys a whole extra bar to save a few hundred millimetres of offcut - and a reusable
-         * drop is deferred value, not free steel. Scrap then settles which of the equally-priced plans
-         * to take, which is the comparison used/purchased could not make at all.
+         * Cuts that got made come first: a plan is no use at any price if the pieces do not come out of
+         * it. Purchase comes next, because it is the only line the business actually pays. Ranking scrap
+         * above purchase buys a whole extra bar to save a few hundred millimetres of offcut - and a
+         * reusable drop is deferred value, not free steel. Scrap then settles which of the equally-priced
+         * plans to take, which is the comparison used/purchased could not make at all.
          */
         //Negated, so "greater is better" holds throughout
         return [
-            //1) Buy as little steel as possible
+            /*
+             * 1) Make as many of the cuts as possible. A cut nothing can hold is not a cheaper nest, it
+             *    is a piece the workshop does not get - so this outranks every millimetre below it.
+             *    Without it, declining a cut looked free next to placing it and destroying anything at
+             *    all: a 1,500mm cut left unmade beat cutting it from a 1,550mm offcut and binning 50mm.
+             */
+            -$tooLongCount,
+            //2) Buy as little steel as possible
             -$totals["newStock"]["total"],
             /*
-             * 2) Destroy as little material as possible, wherever it came from - scrap and saw kerf are
+             * 3) Destroy as little material as possible, wherever it came from - scrap and saw kerf are
              *    gone for good, a drop at or over the scrap threshold goes back into inventory.
              *
              *    Counting the offcut inventory here as well as the new bars is what lets the search see
@@ -1293,14 +1362,14 @@ class NestingFormatter
             -($totals["newStock"]["scrap"] + $totals["newStock"]["kerf"]
                 + $totals["oldStock"]["scrap"] + $totals["oldStock"]["kerf"]),
             /*
-             * 3) Out of as little of the offcut inventory as possible. Once purchase and destruction are
+             * 4) Out of as little of the offcut inventory as possible. Once purchase and destruction are
              *    settled, drawing on more shelf stock only means the same steel left the yard in more,
              *    shorter pieces - a 4,700mm offcut reduced to 1,400mm rather than left whole.
              */
             -$totals["oldStock"]["total"],
-            //4) Out of fewer bars, which is less handling for the same steel
+            //5) Out of fewer bars, which is less handling for the same steel
             -$sums["totalBars"],
-            //5) With what is left over in as few pieces as possible - one 2,500mm drop is a more
+            //6) With what is left over in as few pieces as possible - one 2,500mm drop is a more
             //   useful offcut than a 1,000mm and a 1,500mm, though the totals are identical
             $sums["largestReusable"],
         ];
@@ -1627,6 +1696,7 @@ class NestingFormatter
         bool $random,
         Object|null $newPieceSpec,
         Randomizer $randomizer,
+        ?int $openStockLength = null,
     ): array
     {
         // 2C) Start with an empty list of bins
@@ -1641,7 +1711,7 @@ class NestingFormatter
             /*
              * 2D) Try to place the cut into a bar already opened.
              */
-            $tryPlaceCutIntoUtilisedBars = $this->tryPlaceCutIntoUtilisedBars(
+            $placed = $this->tryPlaceCutIntoUtilisedBars(
                 $cut,
                 $utilisedBars,
                 $lettersProjectArray,
@@ -1649,8 +1719,6 @@ class NestingFormatter
                 $random,
                 $randomizer,
             );
-            $utilisedBars = $tryPlaceCutIntoUtilisedBars["utilisedBars"];
-            $placed = $tryPlaceCutIntoUtilisedBars["placed"];
 
             /*
              * 2E) If no existing bin can accommodate it, create a new bin.
@@ -1679,11 +1747,24 @@ class NestingFormatter
                         $selectedStockLength = $purchasableStockLengthsLongEnough[$randomKey];
                     }
                     /*
+                     * One stock length for the whole nest.
+                     *
+                     * This is the textbook answer to the cutting-stock problem, and the random runs do
+                     * not reach it reliably: they draw each bar's length on its own, so the chance of
+                     * landing on one length the whole way through falls away as the nest grows. Where
+                     * this length cannot hold the cut, the shortest that can is opened instead.
+                     */
+                    elseif ($openStockLength !== null) {
+                        $selectedStockLength = in_array($openStockLength, $purchasableStockLengthsLongEnough, true)
+                            ? $openStockLength
+                            : min($purchasableStockLengthsLongEnough);
+                    }
+                    /*
                      * Shortest bar that holds the cut.
                      *
                      * On its own this is a weak opening choice - the cuts arrive largest first, so the
                      * shortest bar that fits the current one leaves little room for the rest. It is the
-                     * deterministic floor the random runs are measured against, not the answer.
+                     * deterministic floor the other candidates are measured against, not the answer.
                      */
                     else{
                         $selectedStockLength = min($purchasableStockLengthsLongEnough);
@@ -1711,6 +1792,21 @@ class NestingFormatter
             }
         }
 
+        return [
+            "utilisedBars" => $utilisedBars,
+            "tooLong" => $tooLong,
+            "sums" => $this->summariseBars($utilisedBars, $business),
+        ];
+    }
+
+    /**
+     * Add up a set of packed bars.
+     *
+     * @param  array<int, array<string, mixed>>  $utilisedBars
+     * @return array<string, int>
+     */
+    private function summariseBars(array $utilisedBars, Business $business): array
+    {
         $totalPurchasedMaterial = 0;
         $totalUnused = 0;
         $totalReusable = 0;
@@ -1742,22 +1838,66 @@ class NestingFormatter
             }
         }
 
+        //Every bar balances: bar_length = cuts + kerf + unused
         return [
-            "utilisedBars" => $utilisedBars,
-            "tooLong" => $tooLong,
-            //Every bar balances: bar_length = cuts + kerf + unused
-            "sums" => [
-                "totalPurchasedMaterial" => $totalPurchasedMaterial,
-                "totalUsedMaterial" => $totalUsedMaterial,
-                "totalUnused" => $totalUnused,
-                "totalKerf" => $totalKerf,
-                "totalReusable" => $totalReusable,
-                "totalScrap" => $totalScrap,
-                //Used to rank nests, not reported
-                "totalBars" => count($utilisedBars),
-                "largestReusable" => $largestReusable,
-            ],
+            "totalPurchasedMaterial" => $totalPurchasedMaterial,
+            "totalUsedMaterial" => $totalUsedMaterial,
+            "totalUnused" => $totalUnused,
+            "totalKerf" => $totalKerf,
+            "totalReusable" => $totalReusable,
+            "totalScrap" => $totalScrap,
+            //Used to rank nests, not reported
+            "totalBars" => count($utilisedBars),
+            "largestReusable" => $largestReusable,
         ];
+    }
+
+    /**
+     * Shrink each packed bar to the shortest purchasable length that still holds what is in it.
+     *
+     * The stock length is chosen when a bar is opened, off the first cut that goes into it, and nothing
+     * revisited it once the rest of the nest was known - so a bar opened at 12,000mm for one 4,000mm cut
+     * stayed 12,000mm even if no other cut joined it.
+     *
+     * Null when nothing shrank, so the caller does not score the same nest twice.
+     *
+     * @param  array{utilisedBars: array<int, array<string, mixed>>, tooLong: array<int, mixed>, sums: array<string, int>}  $newStock
+     * @param  array<int, int>  $purchasableStockLengths  ascending
+     */
+    private function shrinkBars(array $newStock, array $purchasableStockLengths, Business $business): ?array
+    {
+        $shrank = false;
+
+        foreach ($newStock['utilisedBars'] as $index => $bar) {
+            //What the bar has actually given up: the cuts, and the blade pass each of them took
+            $consumed = $bar['kerf'];
+            foreach ($bar['pieces'] as $piece) {
+                $consumed = $consumed + $piece['cutLength'];
+            }
+
+            foreach ($purchasableStockLengths as $stockLength) {
+                if ($stockLength < $consumed) {
+                    continue;
+                }
+
+                if ($stockLength < $bar['bar_length']) {
+                    $newStock['utilisedBars'][$index]['bar_length'] = $stockLength;
+                    $newStock['utilisedBars'][$index]['unused'] = $stockLength - $consumed;
+                    $shrank = true;
+                }
+
+                //Ascending, so the first one that holds it is the shortest one that does
+                break;
+            }
+        }
+
+        if (! $shrank) {
+            return null;
+        }
+
+        $newStock['sums'] = $this->summariseBars($newStock['utilisedBars'], $business);
+
+        return $newStock;
     }
 
     /**
@@ -1889,12 +2029,12 @@ class NestingFormatter
      */
     private function tryPlaceCutIntoUtilisedBars(
         array $cut,
-        array $utilisedBars,
+        array &$utilisedBars,
         array $lettersProjectArray,
         int $kerf,
         bool $random,
         Randomizer $randomizer,
-    ): array
+    ): bool
     {
         $cutLength = $this->cutLength($cut['length']);
         $projectId = (int) $cut['project'];
@@ -1908,10 +2048,7 @@ class NestingFormatter
         }
 
         if (count($candidates) === 0) {
-            return [
-                "utilisedBars" => $utilisedBars,
-                "placed" => false,
-            ];
+            return false;
         }
 
         if ($random) {
@@ -1928,10 +2065,7 @@ class NestingFormatter
             $pick = $randomizer->getInt(0, count($candidates));
 
             if ($pick === count($candidates)) {
-                return [
-                    "utilisedBars" => $utilisedBars,
-                    "placed" => false,
-                ];
+                return false;
             }
 
             $selected = $candidates[$pick];
@@ -1957,10 +2091,7 @@ class NestingFormatter
         $utilisedBars[$selected]['unused'] -= ($cutLength + $kerf);
         $utilisedBars[$selected]['kerf'] += $kerf;
 
-        return [
-            "utilisedBars" => $utilisedBars,
-            "placed" => true,
-        ];
+        return true;
     }
 
     public function bundleAlgorithm(int $totalQty, array $boxSizes): array

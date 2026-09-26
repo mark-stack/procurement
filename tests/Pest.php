@@ -153,7 +153,12 @@ function nestingTestCasesWithOffcuts(): array
         /**
          * Case 1
          *   1 of 9000: 2500|2500|2500|1500 (0 waste)
-         *   1 of 9000: 2500|2500|1500 (2500 waste)
+         *   1 of 9000: 2500|2500|1500 (2500 reusable)
+         *
+         * Neither offcut is touched. The 1,550mm one holds a 1,500mm cut, and taking it used to be
+         * automatic - but it bins the 50mm left over, and both 1,500s ride along in bars that are being
+         * bought either way. Same 18,000mm purchased, 50mm less destroyed, and the 1,550mm stays whole
+         * on the shelf.
          */
         [
             'nest' => [
@@ -164,7 +169,7 @@ function nestingTestCasesWithOffcuts(): array
             "offcuts" => [
                 1200,1550
             ],
-            "expectedQtyOffcutsUsed" => 1,
+            "expectedQtyOffcutsUsed" => 0,
             'result' => [
                 [
                     'bar_length' => '9000',
@@ -177,9 +182,9 @@ function nestingTestCasesWithOffcuts(): array
                 [
                     'bar_length' => '9000',
                     'count' => 1,
-                    'pieces' => [2500, 2500],
-                    'unused' => 4000,
-                    "reusable" => 4000,
+                    'pieces' => [2500, 2500, 1500],
+                    'unused' => 2500,
+                    "reusable" => 2500,
                     "scrap" => 0,
                 ],
             ],
