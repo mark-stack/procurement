@@ -100,6 +100,78 @@ it('would be a disaster if an offcut was spent on a cut a smaller one covered', 
     expect($result['totals']['oldStock']['total'])->toBe(2000);
 });
 
+it('would be a disaster if an offcut was cut up when a bar being bought had the room for free', function () {
+    /**
+     * A 5,000mm and a 900mm cut, a 12,000mm bar to buy and an 1,800mm offcut on the shelf.
+     *
+     * The offcut pass used to run once, before the packing, and took every cut it could fit - so the
+     * 900 came off the 1,800mm offcut and the 900mm left over was binned, while the 12,000mm bar that
+     * was being bought anyway sat with 7,000mm spare. Same purchase either way, 900mm destroyed for
+     * nothing.
+     */
+    $business = nestingBusiness();
+    $formatter = new NestingFormatter();
+
+    $result = $formatter->meterageAlgorithm(
+        nestingCuts([[5000, 1], [900, 1]]),
+        [12000],
+        [nestingOffcut(1, 1800)],
+        [1 => 'A'],
+        $business,
+    );
+
+    $totals = $result['totals'];
+
+    //Both cuts came out of the one bar, and the offcut was left on the shelf whole
+    expect($totals['newStock']['total'])->toBe(12000)
+        ->and($totals['oldStock']['total'])->toBe(0)
+        ->and($totals['newStock']['scrap'] + $totals['oldStock']['scrap'])->toBe(0)
+        ->and($formatter->effectiveEfficiency($totals))->toBe(100.0);
+});
+
+it('would be a disaster if the offcut nesting was not searched along with the packing', function () {
+    /**
+     * 3,300 + 2,800 + 1,200 against a 4,700mm and a 4,400mm offcut, buying nothing.
+     *
+     * Taking each cut greedily puts 3,300 in the 4,400 (the shorter one that still leaves a reusable
+     * drop), then 2,800 in the 4,700, and the 1,200 into the 1,900mm left of it - binning 700mm. Paired
+     * the other way, 3,300 + 1,200 in the 4,700 and 2,800 in the 4,400, only 200mm is destroyed. The
+     * offcut pass has to be inside the iterated search to see it.
+     */
+    $business = nestingBusiness();
+
+    $result = (new NestingFormatter())->meterageAlgorithm(
+        nestingCuts([[3300, 1], [2800, 1], [1200, 1]]),
+        [6000, 12000],
+        [nestingOffcut(1, 4700), nestingOffcut(2, 4400)],
+        [1 => 'A'],
+        $business,
+    );
+
+    $totals = $result['totals'];
+
+    expect($totals['newStock']['total'])->toBe(0)
+        ->and($totals['oldStock']['scrap'] + $totals['newStock']['scrap'])->toBe(200);
+});
+
+it('would be a disaster if two offcuts of the same length nested differently by their order', function () {
+    /**
+     * Nothing orders the offcut inventory query, and the tie between two offcuts of the same length
+     * used to be settled by whichever the database returned first - so the nest could name a different
+     * bar in the yard on the run that saves the batch than on the one the user approved.
+     */
+    $business = nestingBusiness();
+    $formatter = new NestingFormatter();
+    $cuts = nestingCuts([[2500, 2]]);
+
+    $inventory = [nestingOffcut(1, 3000), nestingOffcut(2, 3000), nestingOffcut(3, 5000)];
+
+    $first = $formatter->meterageAlgorithm($cuts, [6000], $inventory, [1 => 'A'], $business);
+    $second = $formatter->meterageAlgorithm($cuts, [6000], array_reverse($inventory), [1 => 'A'], $business);
+
+    expect($second)->toEqual($first);
+});
+
 /**
  * Efficiency
  */

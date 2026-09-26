@@ -1034,147 +1034,103 @@ class NestingFormatter
     ): array
     {
         /**
-         * STEP 1: use & optimise offcuts
-         *  1A) Sort the required cuts descending, so the big ones get first claim on the inventory
-         *  1B) For each cut, prefer an already-opened offcut, tightest remaining space first
-         *  1C) Otherwise open the offcut that leaves the least SCRAP behind - a drop at or over the
-         *      scrap threshold goes back into inventory and costs nothing, one below it is destroyed
+         * One whole nest - what is cut from the offcut inventory AND what is bought - is built end to
+         * end, scored, and compared against the best seen so far. Every candidate is a complete plan.
          *
-         * STEP 2: use & optimise new stock
-         *  "The Least Bins packing problem", searched over both the stock length and the packing
-         *  2A) Remove pieces that have been allocated to offcuts
-         *  2B) Sort the cut lengths in descending order to prioritize fitting large pieces first.
-         *  2C) Start with an empty list of bins
-         *  2D) Fitting into bins: "Best-Fit Decreasing" = place each item into the bin it leaves the
-         *      least space in. Random runs pick among the bins that fit instead.
-         *  2E) If no existing bin can accommodate it, create a new bin (smallest that fits, or a random
-         *      one on a random run)
-         *  2F) Iterate and keep the run that destroys the least material for the least purchase
-         */
-
-        /**
-         * STEP 1
-         */
-        //Nesting required cuts into offcut inventory. e.g might cut 3x 900mm from 3,000mm
-        $bestResultOffcuts = $this->bestResultOffcuts($cutLengthsRequired,$offcutInventory,$lettersProjectArray, $business);
-
-        /**
-         * STEP 2
-         */
-        /*
-         * 2A) Remove pieces from "cutLengthsRequired" that have been allocated to offcuts
+         * A) Sort the required cuts descending, so the big ones get first claim on the material
+         * B) Put the offcut inventory in a fixed order, so the nest cannot depend on how the database
+         *    happened to return it
+         * C) Build candidate nests:
+         *      - the greedy one: offcuts taken tightest-first, cuts packed "Best-Fit Decreasing" into
+         *        the shortest bar that holds them
+         *      - random ones, varying which offcuts are drawn on, which bars are opened, and how long
+         *        those bars are
+         * D) Keep the candidate that buys the least, then destroys the least - see nestScore()
          *
-         * Matched on piece_id as well as length. Matching on length alone removed "the first cut of
-         * that length", which is only the right one while the descending sort stays stable and this
-         * scan stays in input order - and it left the offcut drawing crediting another project.
+         * The offcut pass used to run ONCE, outside this search, and its cuts were taken out of the
+         * packing problem before the purchase decision existed. So a cut could be spent on shelf stock
+         * while the bar being bought anyway had room for it for nothing: 5,000 + 900 against a 12,000mm
+         * bar and an 1,800mm offcut bought the bar, cut the 900 from the offcut, and binned the 900mm
+         * left over - at the same purchase price as putting both cuts in the bar and destroying nothing.
          */
-        $cutLengthsRequiredAfterOffcutAllocation = $cutLengthsRequired;
-        foreach($bestResultOffcuts["utilisedOffcutBars"] as $offcutBar){
-            //Loop cuts
-            foreach($offcutBar["sourceOffcut"]["cuts"] as $cut){
-                foreach($cutLengthsRequiredAfterOffcutAllocation as $index => $requiredLength){
-                    $sameLength = $this->cutLength($requiredLength['length']) === $cut["length"];
-                    $samePiece = $requiredLength["piece_id"] === $cut["piece_id"];
 
-                    if($sameLength && $samePiece){
-                        unset($cutLengthsRequiredAfterOffcutAllocation[$index]);
-                        break;
-                    }
-                }
-            }
-        }
-        $cutLengthsRequiredAfterOffcutAllocation = array_values($cutLengthsRequiredAfterOffcutAllocation);
+        //A) Required cuts, longest first. This is the order every candidate is built in
+        $cutLengthsRequired = $this->sortCutLengthsDescending($cutLengthsRequired);
 
-        /*
-         * 2B) Sort the cut lengths in descending order to prioritize fitting large pieces first.
-         */
-        $cutLengthsRequiredAfterOffcutAllocation = $this->sortCutLengthsDescending($cutLengthsRequiredAfterOffcutAllocation);
+        //B) Offcut inventory in a fixed order
+        $offcutInventory = $this->sortOffcutInventory($offcutInventory);
+
+        //Stock lengths, de-duplicated and ascending
+        $purchasableStockLengths = array_values(array_unique(array_map('intval', $purchasableStockLengths)));
+        sort($purchasableStockLengths);
 
         /*
          * Deterministic randomness.
          *
          * The same inputs must always produce the same nesting, otherwise the plan the user approves on
          * the "suggested nesting" screen is not the plan saved against the batch when they start quoting.
+         *
+         * Two independent streams, so a nest with offcut inventory draws the same bar choices as one
+         * without - a shared stream would have the offcut decisions shifting the packing along with them.
          */
-        $randomizer = $this->seededRandomizer(
-            $cutLengthsRequiredAfterOffcutAllocation,
+        $offcutRandomizer = $this->seededRandomizer($cutLengthsRequired, $purchasableStockLengths, $offcutInventory, $business, 'offcuts');
+        $packingRandomizer = $this->seededRandomizer($cutLengthsRequired, $purchasableStockLengths, $offcutInventory, $business, 'packing');
+
+        /*
+         * C) Candidate nests. Compared by value: they used to be collected into an array keyed by their
+         * efficiency, and efficiency is a float, which PHP truncates to an int array key - so 96.9% and
+         * 96.1% collided on key 96 and the better nest was overwritten by whichever ran last.
+         *
+         * The greedy nest goes first, so it is what an unbeaten search falls back to.
+         */
+        $best = $this->buildNest(
+            $cutLengthsRequired,
             $purchasableStockLengths,
+            $offcutInventory,
+            $lettersProjectArray,
             $business,
+            $newPieceSpec,
+            false,
+            false,
+            $offcutRandomizer,
+            $packingRandomizer,
         );
 
         /*
-         * Keep the best run seen so far, compared by value.
-         *
-         * Runs used to be collected into an array keyed by their efficiency. Efficiency is a float and
-         * PHP truncates float array keys to int, so 96.9% and 96.1% collided on key 96 and the better
-         * run was overwritten by whichever ran last.
-         *
-         * The deterministic run goes first, so it is what an unbeaten search falls back to.
-         *
-         * The random runs then vary BOTH the stock length and the packing. Randomising the stock length
-         * alone meant every iteration packed the cuts identically, so a product with one purchasable
-         * length nested the same way a thousand times over and the iteration count bought nothing.
+         * The random nests vary BOTH the offcut draw and the packing. Randomising the stock length alone
+         * meant every iteration packed the cuts identically, so a product with one purchasable length
+         * nested the same way a thousand times over and the iteration count bought nothing.
          */
-        $singleRun = $this->singleRun(
-            $cutLengthsRequiredAfterOffcutAllocation,
-            $lettersProjectArray,
-            $purchasableStockLengths,
-            $business,
-            false,
-            $newPieceSpec,
-            $randomizer,
-        );
-        $bestScore = $this->runScore($singleRun["result"]["sums"]);
-        $bestResult = $singleRun["result"];
-
         for ($i = 1; $i <= (int) config('env.nesting_iterations'); $i++) {
-            $singleRun = $this->singleRun(
-                $cutLengthsRequiredAfterOffcutAllocation,
-                $lettersProjectArray,
+            $candidate = $this->buildNest(
+                $cutLengthsRequired,
                 $purchasableStockLengths,
+                $offcutInventory,
+                $lettersProjectArray,
                 $business,
-                true,
                 $newPieceSpec,
-                $randomizer,
+                true,
+                true,
+                $offcutRandomizer,
+                $packingRandomizer,
             );
 
-            $score = $this->runScore($singleRun["result"]["sums"]);
-
-            if ($score > $bestScore) {
-                $bestScore = $score;
-                $bestResult = $singleRun["result"];
+            if ($candidate['score'] > $best['score']) {
+                $best = $candidate;
             }
         }
 
-        //2F) Keep the run that destroys the least material for the least purchase
-        $utilisedBars = $bestResult["utilisedBars"];
-        $tooLong = $bestResult["tooLong"];
-        $sums = $bestResult["sums"];
+        //D) Keep the nest that destroys the least material for the least purchase
+        $bestResultOffcuts = $best['bestResultOffcuts'];
+        $utilisedBars = $best['utilisedBars'];
+        $tooLong = $best['tooLong'];
+        $totals = $best['totals'];
 
         /**
          * Consolidate utilised stock bars that are the same (same length and cuts array)
          */
         $orderList = $this->orderList($utilisedBars);
         $utilisedBars = $this->consolidateStockNestingResults($utilisedBars);
-
-        $totals = [
-            "oldStock" => [
-                "total" => $bestResultOffcuts["totalOffcutsLength"],
-                "used" => $bestResultOffcuts["totalUsedOffcuts"],
-                "unused" => $bestResultOffcuts["totalUnusedOffcuts"],
-                "kerf" => $bestResultOffcuts["totalKerfLength"],
-                "reusable" => $bestResultOffcuts["totalReusableLength"],
-                "scrap" => $bestResultOffcuts["totalScrapLength"],
-            ],
-            "newStock" => [
-                "total" => $sums["totalPurchasedMaterial"],
-                "used" => $sums["totalUsedMaterial"],
-                "unused" => $sums["totalUnused"],
-                "kerf" => $sums["totalKerf"],
-                "reusable" => $sums["totalReusable"],
-                "scrap" => $sums["totalScrap"],
-            ],
-        ];
 
         return [
             'utilisedBars' => $utilisedBars,
@@ -1214,15 +1170,107 @@ class NestingFormatter
     }
 
     /**
-     * Rank one packing run against another. Compared as a list, so earlier entries decide first.
+     * Build one whole candidate nest: what comes out of the offcut inventory, and what is bought to
+     * cover the rest. Returned with the score it is ranked by.
      *
-     * Ranking on used/purchased alone could not tell apart two runs that bought the same bars, so a
+     * @param  array<int, array<string, mixed>>  $cutLengthsRequired  longest first
+     * @param  array<int, int>  $purchasableStockLengths
+     * @param  array<int, array<string, mixed>>  $offcutInventory  in canonical order
+     */
+    private function buildNest(
+        array $cutLengthsRequired,
+        array $purchasableStockLengths,
+        array $offcutInventory,
+        array $lettersProjectArray,
+        Business $business,
+        ?object $newPieceSpec,
+        bool $randomOffcuts,
+        bool $randomPacking,
+        Randomizer $offcutRandomizer,
+        Randomizer $packingRandomizer,
+    ): array {
+        //Nesting required cuts into offcut inventory. e.g might cut 3x 900mm from 3,000mm
+        $bestResultOffcuts = $this->bestResultOffcuts(
+            $cutLengthsRequired,
+            $offcutInventory,
+            $lettersProjectArray,
+            $business,
+            $randomOffcuts,
+            $offcutRandomizer,
+        );
+
+        /*
+         * Whatever the offcuts did not cover is bought.
+         *
+         * Matched on piece_id as well as length. Matching on length alone removed "the first cut of
+         * that length", which is only the right one while the descending sort stays stable and this
+         * scan stays in input order - and it left the offcut drawing crediting another project.
+         */
+        $remainingCuts = $cutLengthsRequired;
+        foreach ($bestResultOffcuts["utilisedOffcutBars"] as $offcutBar) {
+            foreach ($offcutBar["sourceOffcut"]["cuts"] as $cut) {
+                foreach ($remainingCuts as $index => $requiredLength) {
+                    $sameLength = $this->cutLength($requiredLength['length']) === $cut["length"];
+                    $samePiece = $requiredLength["piece_id"] === $cut["piece_id"];
+
+                    if ($sameLength && $samePiece) {
+                        unset($remainingCuts[$index]);
+                        break;
+                    }
+                }
+            }
+        }
+
+        //Removal keeps the descending order the cuts arrived in, so there is nothing to re-sort
+        $newStock = $this->singleRun(
+            array_values($remainingCuts),
+            $lettersProjectArray,
+            $purchasableStockLengths,
+            $business,
+            $randomPacking,
+            $newPieceSpec,
+            $packingRandomizer,
+        );
+
+        $totals = [
+            "oldStock" => [
+                "total" => $bestResultOffcuts["totalOffcutsLength"],
+                "used" => $bestResultOffcuts["totalUsedOffcuts"],
+                "unused" => $bestResultOffcuts["totalUnusedOffcuts"],
+                "kerf" => $bestResultOffcuts["totalKerfLength"],
+                "reusable" => $bestResultOffcuts["totalReusableLength"],
+                "scrap" => $bestResultOffcuts["totalScrapLength"],
+            ],
+            "newStock" => [
+                "total" => $newStock["sums"]["totalPurchasedMaterial"],
+                "used" => $newStock["sums"]["totalUsedMaterial"],
+                "unused" => $newStock["sums"]["totalUnused"],
+                "kerf" => $newStock["sums"]["totalKerf"],
+                "reusable" => $newStock["sums"]["totalReusable"],
+                "scrap" => $newStock["sums"]["totalScrap"],
+            ],
+        ];
+
+        return [
+            'bestResultOffcuts' => $bestResultOffcuts,
+            'utilisedBars' => $newStock["utilisedBars"],
+            'tooLong' => $newStock["tooLong"],
+            'totals' => $totals,
+            'score' => $this->nestScore($totals, $newStock["sums"]),
+        ];
+    }
+
+    /**
+     * Rank one whole nest against another. Compared as a list, so earlier entries decide first.
+     *
+     * Ranking on used/purchased alone could not tell apart two nests that bought the same bars, so a
      * pack leaving 400mm of scrap scored the same as one leaving a 2,000mm offcut.
      *
+     * @param  array{oldStock: array<string, int>, newStock: array<string, int>}  $totals
      * @param  array<string, int>  $sums
      * @return array<int, int>
      */
-    private function runScore(array $sums): array
+    private function nestScore(array $totals, array $sums): array
     {
         /*
          * Purchase comes first because it is the only line the business actually pays. Ranking scrap
@@ -1233,19 +1281,59 @@ class NestingFormatter
         //Negated, so "greater is better" holds throughout
         return [
             //1) Buy as little steel as possible
-            -$sums["totalPurchasedMaterial"],
-            //2) Destroy as little of it as possible - scrap and saw kerf are gone for good, a drop at
-            //   or over the scrap threshold goes back into inventory
-            -($sums["totalScrap"] + $sums["totalKerf"]),
-            //3) Out of fewer bars, which is less handling for the same steel
+            -$totals["newStock"]["total"],
+            /*
+             * 2) Destroy as little material as possible, wherever it came from - scrap and saw kerf are
+             *    gone for good, a drop at or over the scrap threshold goes back into inventory.
+             *
+             *    Counting the offcut inventory here as well as the new bars is what lets the search see
+             *    that cutting a piece off the shelf can be worse than cutting it from a bar that is
+             *    being bought regardless.
+             */
+            -($totals["newStock"]["scrap"] + $totals["newStock"]["kerf"]
+                + $totals["oldStock"]["scrap"] + $totals["oldStock"]["kerf"]),
+            /*
+             * 3) Out of as little of the offcut inventory as possible. Once purchase and destruction are
+             *    settled, drawing on more shelf stock only means the same steel left the yard in more,
+             *    shorter pieces - a 4,700mm offcut reduced to 1,400mm rather than left whole.
+             */
+            -$totals["oldStock"]["total"],
+            //4) Out of fewer bars, which is less handling for the same steel
             -$sums["totalBars"],
-            //4) With what is left over in as few pieces as possible - one 2,500mm drop is a more
+            //5) With what is left over in as few pieces as possible - one 2,500mm drop is a more
             //   useful offcut than a 1,000mm and a 1,500mm, though the totals are identical
             $sums["largestReusable"],
         ];
     }
 
-    private function bestResultOffcuts(array $cutLengthsRequired, array $offcutInventory, array $lettersProjectArray, Business $business): array
+    /**
+     * Offcut inventory in an order the nest can rely on.
+     *
+     * Nothing orders the inventory query, and nesting runs twice for the same pieces - once for the
+     * suggestion and once when the batch is saved. Shortest first, then by id, so two offcuts of the
+     * same length are still separated by something stable.
+     *
+     * @param  array<int, array<string, mixed>>  $offcutInventory
+     * @return array<int, array<string, mixed>>
+     */
+    private function sortOffcutInventory(array $offcutInventory): array
+    {
+        usort($offcutInventory, function ($a, $b) {
+            return [(int) $a['length'], (int) ($a['id'] ?? 0)]
+                <=> [(int) $b['length'], (int) ($b['id'] ?? 0)];
+        });
+
+        return $offcutInventory;
+    }
+
+    private function bestResultOffcuts(
+        array $cutLengthsRequired,
+        array $offcutInventory,
+        array $lettersProjectArray,
+        Business $business,
+        bool $random = false,
+        ?Randomizer $randomizer = null,
+    ): array
     {
         /**
          * This is holistic nesting instead of piece by piece comparison which is an oversimplification.
@@ -1265,6 +1353,8 @@ class NestingFormatter
             $cutLengthsRequired,
             $lettersProjectArray,
             $business,
+            $random,
+            $randomizer,
         );
 
         $utilisedOffcutBars = [];
@@ -1335,11 +1425,19 @@ class NestingFormatter
         array $cutLengthsRequired,
         array $lettersProjectArray,
         Business $business,
+        bool $random = false,
+        ?Randomizer $randomizer = null,
     ): array
     {
         /**
          * Take a list of required cuts and a list of available offcuts, and nest them. It includes cutting the offcut.
          */
+
+        //Nothing on the shelf: return without touching the randomiser, so a nest with no offcut
+        //inventory draws exactly the bar choices it would have drawn before offcuts were searched
+        if (count($offcutInventory) === 0) {
+            return [];
+        }
 
         $utilisedOffcuts = [];
 
@@ -1357,6 +1455,22 @@ class NestingFormatter
                 "piece_id" => $pieceId,
                 'letter' => $lettersProjectArray[$projectId],
             ];
+
+            /*
+             * On a random run the whole offcut decision is part of what is being searched - including
+             * whether to use the shelf for this cut at all.
+             */
+            if ($random && $randomizer !== null) {
+                $this->placeCutIntoOffcutsAtRandom(
+                    $cutData,
+                    $utilisedOffcuts,
+                    $depletableOffcutInventory,
+                    $kerf,
+                    $randomizer,
+                );
+
+                continue;
+            }
 
             /*
              * Try an offcut already opened, the one it leaves the least room in.
@@ -1412,18 +1526,7 @@ class NestingFormatter
             }
 
             if ($selectedIndex !== null) {
-                $offcutData = $depletableOffcutInventory[$selectedIndex];
-                $offcutLength = (int) $offcutData['length'];
-
-                $utilisedOffcuts[] = [
-                    "length" => $offcutLength,
-                    "offcut_id" => $offcutData["id"],
-                    "unique_mark" => $offcutData["unique_mark"],
-                    'unused' => $offcutLength - $cutLength - $kerf,
-                    'kerf' => $kerf,
-                    "batch_from_id" => $offcutData["batch_from_id"],
-                    'cuts' => [$cutData],
-                ];
+                $utilisedOffcuts[] = $this->openOffcut($depletableOffcutInventory[$selectedIndex], $cutData, $kerf);
 
                 //Remove used offcut
                 unset($depletableOffcutInventory[$selectedIndex]);
@@ -1431,6 +1534,89 @@ class NestingFormatter
         }
 
         return $utilisedOffcuts;
+    }
+
+    /**
+     * Take one cut out of the offcut inventory at random, or decline the shelf for it.
+     *
+     * @param  array<string, mixed>  $cutData
+     * @param  array<int, array<string, mixed>>  $utilisedOffcuts
+     * @param  array<int, array<string, mixed>>  $depletableOffcutInventory
+     */
+    private function placeCutIntoOffcutsAtRandom(
+        array $cutData,
+        array &$utilisedOffcuts,
+        array &$depletableOffcutInventory,
+        int $kerf,
+        Randomizer $randomizer,
+    ): void {
+        $need = $cutData['length'] + $kerf;
+
+        /*
+         * Leave this cut to new stock, one time in three.
+         *
+         * Without the option to decline, every cut that fitted an offcut came out of the shelf whether
+         * or not that helped - so the plan where the cut rides along in a bar being bought regardless
+         * was unreachable. One in three rather than "one more option alongside the offcuts", so the
+         * decision keeps being explored however much inventory there is to choose from.
+         */
+        if ($randomizer->getInt(1, 3) === 1) {
+            return;
+        }
+
+        //Every offcut this cut fits: the ones already opened, then the ones still on the shelf
+        $candidates = [];
+        foreach ($utilisedOffcuts as $index => $bar) {
+            if ($bar['unused'] >= $need) {
+                $candidates[] = ['opened', $index];
+            }
+        }
+        foreach ($depletableOffcutInventory as $index => $offcutData) {
+            if ((int) $offcutData['length'] >= $need) {
+                $candidates[] = ['shelf', $index];
+            }
+        }
+
+        if (count($candidates) === 0) {
+            return;
+        }
+
+        [$where, $index] = $candidates[$randomizer->getInt(0, count($candidates) - 1)];
+
+        //Into an offcut already opened
+        if ($where === 'opened') {
+            $utilisedOffcuts[$index]['cuts'][] = $cutData;
+            $utilisedOffcuts[$index]['unused'] -= $need;
+            $utilisedOffcuts[$index]['kerf'] += $kerf;
+
+            return;
+        }
+
+        //Off the shelf
+        $utilisedOffcuts[] = $this->openOffcut($depletableOffcutInventory[$index], $cutData, $kerf);
+        unset($depletableOffcutInventory[$index]);
+    }
+
+    /**
+     * Open an offcut off the shelf and make the first cut in it.
+     *
+     * @param  array<string, mixed>  $offcutData
+     * @param  array<string, mixed>  $cutData
+     * @return array<string, mixed>
+     */
+    private function openOffcut(array $offcutData, array $cutData, int $kerf): array
+    {
+        $offcutLength = (int) $offcutData['length'];
+
+        return [
+            "length" => $offcutLength,
+            "offcut_id" => $offcutData["id"],
+            "unique_mark" => $offcutData["unique_mark"],
+            'unused' => $offcutLength - $cutData['length'] - $kerf,
+            'kerf' => $kerf,
+            "batch_from_id" => $offcutData["batch_from_id"],
+            'cuts' => [$cutData],
+        ];
     }
 
     private function singleRun(
@@ -1557,22 +1743,20 @@ class NestingFormatter
         }
 
         return [
-            "result" => [
-                "utilisedBars" => $utilisedBars,
-                "tooLong" => $tooLong,
-                //Every bar balances: bar_length = cuts + kerf + unused
-                "sums" => [
-                    "totalPurchasedMaterial" => $totalPurchasedMaterial,
-                    "totalUsedMaterial" => $totalUsedMaterial,
-                    "totalUnused" => $totalUnused,
-                    "totalKerf" => $totalKerf,
-                    "totalReusable" => $totalReusable,
-                    "totalScrap" => $totalScrap,
-                    //Used to rank runs, not reported
-                    "totalBars" => count($utilisedBars),
-                    "largestReusable" => $largestReusable,
-                ],
-            ]
+            "utilisedBars" => $utilisedBars,
+            "tooLong" => $tooLong,
+            //Every bar balances: bar_length = cuts + kerf + unused
+            "sums" => [
+                "totalPurchasedMaterial" => $totalPurchasedMaterial,
+                "totalUsedMaterial" => $totalUsedMaterial,
+                "totalUnused" => $totalUnused,
+                "totalKerf" => $totalKerf,
+                "totalReusable" => $totalReusable,
+                "totalScrap" => $totalScrap,
+                //Used to rank nests, not reported
+                "totalBars" => count($utilisedBars),
+                "largestReusable" => $largestReusable,
+            ],
         ];
     }
 
@@ -1613,7 +1797,9 @@ class NestingFormatter
     private function seededRandomizer(
         array $cutLengthsRequired,
         array $purchasableStockLengths,
+        array $offcutInventory,
         Business $business,
+        string $stream,
     ): Randomizer
     {
         /**
@@ -1622,6 +1808,9 @@ class NestingFormatter
          * Nesting is run twice for the same pieces: once to show the user a suggestion, and again by
          * Actions/Batch/SaveNesting when they press "start quoting". An unseeded randomiser makes those
          * two runs disagree, so the batch is ordered against a cut plan nobody looked at.
+         *
+         * Everything that goes into the seed is sorted, because none of these lists arrives in an order
+         * the database promises - and $stream keeps the offcut draw and the packing draw apart.
          */
         $lengths = array_map(fn ($cut) => $this->cutLength($cut['length']), $cutLengthsRequired);
         sort($lengths);
@@ -1629,7 +1818,16 @@ class NestingFormatter
         $stockLengths = array_map('intval', $purchasableStockLengths);
         sort($stockLengths);
 
-        $seed = crc32(implode(',', $lengths).'|'.implode(',', $stockLengths).'|'.$business->id);
+        $offcutLengths = array_map(fn ($offcut) => (int) $offcut['length'], $offcutInventory);
+        sort($offcutLengths);
+
+        $seed = crc32(
+            implode(',', $lengths)
+            .'|'.implode(',', $stockLengths)
+            .'|'.implode(',', $offcutLengths)
+            .'|'.$business->id
+            .'|'.$stream
+        );
 
         return new Randomizer(new Mt19937($seed));
     }
