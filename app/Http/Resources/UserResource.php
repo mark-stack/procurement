@@ -14,6 +14,11 @@ class UserResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        /*
+         * users.business_id is nullable, so this can legitimately be null. It used to
+         * be dereferenced straight away, which meant one orphaned user took down the
+         * whole admin users list for every admin.
+         */
         $business = $this->business;
 
         return [
@@ -21,9 +26,9 @@ class UserResource extends JsonResource
             'name' => $this->name,
             'email' => $this->email,
             'created_at' => $this->created_at,
-            'business' => $this->business,
-            'templates' => $business->templates,
-            'suppliers' => $business->suppliers,
+            'business' => $business,
+            'templates' => $business?->templates ?? [],
+            'suppliers' => $business?->suppliers ?? [],
         ];
     }
 }

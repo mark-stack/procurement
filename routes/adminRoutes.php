@@ -12,7 +12,13 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')->name('admin.')->middleware([AdminMiddleware::class])->group(function () {
     //Templates
-    Route::resource('businesses.templates', TemplateController::class);
+    //scoped(): {template} must belong to {business}, or a mistyped URL edits/deletes
+    //another business's row while the page you are on shows nothing changed
+    //only(): the screen is a single create-and-list page, so create/show/edit have no
+    //handlers and would otherwise answer with a blank 200
+    Route::resource('businesses.templates', TemplateController::class)
+        ->scoped()
+        ->only(['index', 'store', 'update', 'destroy']);
 
     //Update master materials spreadsheet
     //POST: this rewrites the whole platform catalogue, so it must not be reachable by a link,
