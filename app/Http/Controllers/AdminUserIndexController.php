@@ -15,8 +15,16 @@ class AdminUserIndexController extends Controller
      */
     public function __invoke(Request $request): Response
     {
+        /*
+         * Eager loaded: UserResource reads business, business.templates and
+         * business.suppliers, which was 3 queries per user against User::all().
+         */
+        $users = User::query()
+            ->with(['business.templates', 'business.suppliers'])
+            ->get();
+
         return Inertia::render('AdminUsersIndex', [
-            'users' => UserResource::collection(User::all()),
+            'users' => UserResource::collection($users),
         ]);
     }
 }

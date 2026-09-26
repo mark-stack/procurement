@@ -7,7 +7,6 @@ use App\Http\Requests\UpdateTemplateRequest;
 use App\Models\Business;
 use App\Models\Template;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -19,17 +18,9 @@ class TemplateController extends Controller
     public function index(Business $business): Response
     {
         return Inertia::render('AdminTemplatesIndex', [
-            'templates' => $business->templates,
+            'templates' => $business->templates()->latest()->get(),
             'business' => $business,
         ]);
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
     }
 
     /**
@@ -37,31 +28,9 @@ class TemplateController extends Controller
      */
     public function store(StoreTemplateRequest $request, Business $business): RedirectResponse
     {
-        $validated = $request->validated();
-
-        $data = array_merge($validated, [
-            'business_id' => $business->id,
-        ]);
-
-        Template::create($data);
+        $business->templates()->create($request->validated());
 
         return back();
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Business $business, Template $template)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Business $business, Template $template)
-    {
-        //
     }
 
     /**
@@ -69,9 +38,7 @@ class TemplateController extends Controller
      */
     public function update(UpdateTemplateRequest $request, Business $business, Template $template): RedirectResponse
     {
-        $validated = $request->validated();
-
-        $template->update($validated);
+        $template->update($request->validated());
 
         return back();
     }

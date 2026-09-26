@@ -10,6 +10,7 @@ use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\Rules;
@@ -39,27 +40,36 @@ class RegisteredUserController extends Controller
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        //Create user
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
+        /*
+         * The user was created first and given its business in a second save. If
+         * anything between the two failed, the user was left with a null business_id
+         * permanently, which then took down the whole admin users list.
+         */
+        $user = DB::transaction(function () use ($request) {
+            //Create user
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+            ]);
 
-        //Find or Create business
-        $domain = $user->getDomainFromEmail();
-        $business = Business::query()->firstOrCreate(
-            [
-                'domain' => $domain,
-            ],
-            [
-                'name' => $domain,
-            ],
-        );
+            //Find or Create business
+            $domain = $user->getDomainFromEmail();
+            $business = Business::query()->firstOrCreate(
+                [
+                    'domain' => $domain,
+                ],
+                [
+                    'name' => $domain,
+                ],
+            );
 
-        //Assign business to user
-        $user->business_id = $business->id;
-        $user->save();
+            //Assign business to user
+            $user->business_id = $business->id;
+            $user->save();
+
+            return $user;
+        });
 
         //Admin notify
         $adminUser = User::query()->where('email', config('env.admin_email'))->first();
