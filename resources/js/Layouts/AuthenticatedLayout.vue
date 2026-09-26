@@ -6,9 +6,11 @@
     //Component Imports
     import Notifications2 from "@/Components/Notifications2.vue";
     import NavButton from "@/Components/Buttons/NavButton.vue";
+    import ImpersonationBanner from "@/Components/ImpersonationBanner.vue";
 
     //Shared data
     const isAdmin = usePage().props.auth.isAdmin;
+    const impersonating = computed(() => usePage().props.auth.impersonating);
     const onboarded = usePage().props.auth.onboarded;
     const hasSeedImport = usePage().props.hasSeedImport;
     const user = computed(() => usePage().props.auth.user);
@@ -22,7 +24,9 @@
     //Variables
     const showNotifications = ref(false);
     const showMenu = ref(false);
-    const underNavScreenHeight = window.innerHeight - 68;
+    //The impersonation banner sits above the nav, so the fixed-height grid below has to give
+    //its height back or the page overflows by exactly the banner
+    const underNavScreenHeight = computed(() => window.innerHeight - 68 - (impersonating.value ? 52 : 0));
     const materialsImportDismissed = ref(false);
     const successDismissed = ref(false);
 
@@ -31,6 +35,8 @@
 </script>
 
 <template>
+    <ImpersonationBanner/>
+
     <div class="bg-gray-900">
         <div class="px-4 py-2 mx-auto md:px-24 lg:px-8">
             <div class="relative flex items-center justify-between">

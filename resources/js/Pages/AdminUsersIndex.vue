@@ -1,6 +1,7 @@
 <script setup>
     //General Imports
-    import {Link, Head} from '@inertiajs/vue3';
+    import {Link, Head, usePage} from '@inertiajs/vue3';
+    import {computed} from 'vue';
     import moment from 'moment';
 
     //Component Imports
@@ -10,6 +11,10 @@
     const props = defineProps({
         users: Object,
     });
+
+    //Shared data
+    //The only page that flashes this, so it is rendered here rather than in the layout
+    const warning = computed(() => usePage().props.flash?.warning);
 
     //Form
     //...
@@ -24,7 +29,13 @@
     //...
 
     //Methods
-    //...
+    //The name column is the easiest thing here to mis-click, and a mis-click swaps the
+    //account the session is signed in as
+    const confirmImpersonate = (event) => {
+        if (! window.confirm('Sign in as this user? You will see the site exactly as they do until you stop impersonating.')) {
+            event.preventDefault();
+        }
+    };
 </script>
 
 <template>
@@ -38,6 +49,13 @@
                         <h1 class="text-3xl font-semibold text-gray-800 dark:text-gray-100 mb-3">
                             Users
                         </h1>
+                        <p
+                            v-if="warning"
+                            role="alert"
+                            class="px-4 py-3 mb-3 text-sm border rounded-lg border-red-300 bg-red-50 text-red-900"
+                        >
+                            {{ warning }}
+                        </p>
                         <table class="w-full text-left">
                             <tr>
                                 <th>Name</th>
@@ -50,12 +68,25 @@
                             </tr>
                             <tr v-for="user in users.data" :key="user.id">
                                 <td>
+                                    <!--
+                                        POST: impersonating changes who the session is
+                                        authenticated as, so it must not be a link a prefetch
+                                        or a crawler can follow. It asks first because the
+                                        name column is the easiest thing on the page to
+                                        mis-click.
+                                    -->
                                     <Link
+                                        v-if="!user.isAdmin"
                                         :href="route('admin.impersonate',user.id)"
+                                        method="post"
+                                        as="button"
+                                        type="button"
                                         class="underline text-blue-500"
+                                        @click="confirmImpersonate"
                                     >
                                         {{user.name}}
                                     </Link>
+                                    <span v-else>{{user.name}}</span>
                                 </td>
                                 <td>{{user.email}}</td>
                                 <td>

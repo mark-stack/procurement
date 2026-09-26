@@ -38,6 +38,9 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
                 'business' => $request->user() ? $request->user()->business : null,
                 'isAdmin' => $request->user() && $request->user()->isAdmin(),
+                //While impersonating, isAdmin() reads the impersonated user, so nothing else
+                //on the page can tell that the session is not really theirs
+                'impersonating' => (bool) $request->session()->get('impersonator_id'),
                 //A user without a business is unexpected, but it must not 500 every
                 //page - these are shared on every Inertia response
                 'onboarded' => (bool) $request->user()?->business?->admin_setup_complete,

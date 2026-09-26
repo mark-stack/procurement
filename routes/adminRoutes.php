@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ActivateBusinessController;
 use App\Http\Controllers\AdminImpersonationController;
+use App\Http\Controllers\AdminStopImpersonationController;
 use App\Http\Controllers\AdminSupplierIndexController;
 use App\Http\Controllers\AdminSupplierStoreController;
 use App\Http\Controllers\AdminUpdateMasterMaterialsSpreadsheetController;
@@ -27,7 +28,10 @@ Route::prefix('admin')->name('admin.')->middleware([AdminMiddleware::class])->gr
 
     //Users
     Route::get('users', AdminUserIndexController::class)->name('users.index');
-    Route::get('impersonate/{user}', AdminImpersonationController::class)->name('impersonate');
+
+    //POST: this swaps which account the session is authenticated as, so it must not be
+    //reachable by a link, a prefetch or a cross-site <img> pointed at a logged-in admin
+    Route::post('impersonate/{user}', AdminImpersonationController::class)->name('impersonate');
 
     //Business
     Route::get('activate-business/{business}', ActivateBusinessController::class)->name('activate.business');
@@ -36,3 +40,9 @@ Route::prefix('admin')->name('admin.')->middleware([AdminMiddleware::class])->gr
     Route::get('/suppliers/{business}', AdminSupplierIndexController::class)->name('suppliers.index');
     Route::post('/suppliers/{business}', AdminSupplierStoreController::class)->name('suppliers.store');
 });
+
+//Outside the group on purpose: while impersonating, isAdmin() reads the impersonated
+//user's email, so AdminMiddleware would block the only route back out
+Route::post('admin/stop-impersonating', AdminStopImpersonationController::class)
+    ->middleware('auth')
+    ->name('admin.stop.impersonating');

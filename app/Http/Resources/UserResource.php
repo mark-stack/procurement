@@ -25,6 +25,9 @@ class UserResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'email' => $this->email,
+            //The admin's own row must not offer an impersonate button - the controller
+            //refuses it, and a button that always errors is worse than no button
+            'isAdmin' => $this->resource->isAdmin(),
             'created_at' => $this->created_at,
             'business' => $business,
             'templates' => $business?->templates ?? [],
