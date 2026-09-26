@@ -153,11 +153,19 @@ it('does not offer an impersonate button on the admin own row', function () {
     $admin = createUser(1, $business, true, true);
     $user = createUser(2, $business, false, true);
 
+    /*
+     * Matched by id rather than by position: the list is ordered newest first, and pinning
+     * this to a row index would only be re-asserting the order the fixtures were created in.
+     */
     $this->actingAs($admin)
         ->get(route('admin.users.index'))
         ->assertInertia(fn ($page) => $page
-            ->where('users.data.0.isAdmin', true)
-            ->where('users.data.1.isAdmin', false)
+            ->where('users.data', function ($rows) use ($admin, $user) {
+                $rows = collect($rows);
+
+                return $rows->firstWhere('id', $admin->id)['isAdmin'] === true
+                    && $rows->firstWhere('id', $user->id)['isAdmin'] === false;
+            })
         );
 
     expect(User::count())->toBe(2);

@@ -15,6 +15,15 @@ class ActivateBusinessController extends Controller
      */
     public function __invoke(Request $request, Business $business): RedirectResponse
     {
+        /*
+         * Activation is the one thing here that is visible outside the platform: it welcomes
+         * every user in the business by email. Nothing stopped it running twice, so a
+         * refresh, a double click or the back button re-welcomed all of them.
+         */
+        if ($business->admin_setup_complete) {
+            return back()->with('warning', 'That business is already active.');
+        }
+
         //Update business record
         $business->admin_setup_complete = true;
         $business->save();
@@ -24,6 +33,6 @@ class ActivateBusinessController extends Controller
             Notification::send($user, new WelcomeActivatedUserEmail($user));
         }
 
-        return back();
+        return back()->with('success', 'Business activated.');
     }
 }
