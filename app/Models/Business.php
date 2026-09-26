@@ -180,6 +180,10 @@ class Business extends Model
          * Resolved in SQL. This used to hydrate every unassigned offcut and call Offcut::deliveredOrder()
          * on each one - a batch lookup, a full supplierGroups() rebuild and an orders query per offcut -
          * then throw the models away and re-query by id.
+         *
+         * Ordered, because nesting consumes this list and an unordered query made the nest depend on
+         * whatever order the database happened to return rows in. The same pieces could be nested twice
+         * (once for the suggestion, once by Actions/Batch/SaveNesting) and produce different cut plans.
          */
 
         //Supplier categories with the products they stock. e.g "STEEL_MERCHANT" contains "PFC, UB, etc"
@@ -221,6 +225,9 @@ class Business extends Model
                             });
                     });
                 }
-            });
+            })
+            //Shortest first, then by id, so the list a nest is built from is always the same list
+            ->orderBy('length')
+            ->orderBy('id');
     }
 }
