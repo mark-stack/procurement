@@ -386,3 +386,86 @@ it('would be a disaster if a failed unwind left the batch half destroyed', funct
         ->and(Offcut::find($produced->id))->not->toBeNull()
         ->and($piece->fresh()->batch_id)->toBe($batch->id);
 });
+
+it('stops walking an offcut chain that points back into itself', function () {
+    /*
+     * $guarded is empty on the offcut, so anything that writes one can write offcut_from_id - including a
+     * request body. Two rows pointing at each other is not a nest anybody can produce, but the ancestry
+     * walk runs on every offcuts page render, and going round that loop never returns.
+     */
+    $business = createBusiness('biz', true);
+    $user = createUser(1, $business, false, true);
+    $batch = Batch::factory()->forUser($user->id)->create();
+
+    $first = create_offcut_200PFC(3000, $batch->id);
+    $second = create_offcut_200PFC(2000, $batch->id);
+
+    $first->offcut_from_id = $second->id;
+    $first->save();
+    $second->offcut_from_id = $first->id;
+    $second->save();
+
+    //The walk ends where it came in, rather than going round the loop
+    expect($first->fresh()->ancestors()->pluck('id')->all())->toBe([$second->id])
+        ->and($first->fresh()->generation())->toBe(2);
+});
+
+it('gives up on an offcut chain longer than anything a saw could produce', function () {
+    /*
+     * The real limit on generations is the scrap threshold - each cut makes the drop shorter, and once it
+     * is under the threshold it is scrapped instead of banked, so a 12m bar runs out after about a dozen
+     * generations. A chain far longer than that is corrupt data, and the walk stops rather than reading
+     * the database one generation at a time forever.
+     */
+    $business = createBusiness('biz', true);
+    $user = createUser(1, $business, false, true);
+    $batch = Batch::factory()->forUser($user->id)->create();
+
+    $previous = null;
+    $deepest = null;
+    foreach (range(1, Offcut::MAX_ANCESTRY_DEPTH + 10) as $generation) {
+        $offcut = create_offcut_200PFC(1000, $batch->id);
+
+        if ($previous) {
+            $offcut->offcut_from_id = $previous->id;
+            $offcut->save();
+        }
+
+        $previous = $offcut;
+        $deepest = $offcut;
+    }
+
+    expect($deepest->fresh()->ancestors())->toHaveCount(Offcut::MAX_ANCESTRY_DEPTH);
+});
+
+it('reads the ancestry of a whole set of offcuts one generation at a time', function () {
+    //Not one query per offcut per generation - see OffcutResource, which reads this for every row
+    $business = createBusiness('biz', true);
+    $user = createUser(1, $business, false, true);
+    $batch = Batch::factory()->forUser($user->id)->create();
+
+    //Five separate three-generation chains
+    $deepest = collect(range(1, 5))->map(function () use ($batch) {
+        $offcut = create_offcut_200PFC(3000, $batch->id);
+
+        foreach ([2000, 1000] as $length) {
+            $child = create_offcut_200PFC($length, $batch->id);
+            $child->offcut_from_id = $offcut->id;
+            $child->save();
+            $offcut = $child;
+        }
+
+        return $offcut;
+    });
+
+    $queries = 0;
+    DB::listen(function () use (&$queries) {
+        $queries++;
+    });
+
+    $loaded = Offcut::loadAncestry($deepest);
+
+    //Two generations to walk back, so two queries for all five chains
+    expect($queries)->toBe(2)
+        ->and($loaded->every(fn (Offcut $offcut) => $offcut->generation() === 3))->toBeTrue();
+});

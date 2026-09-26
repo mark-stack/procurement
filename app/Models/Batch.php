@@ -174,12 +174,31 @@ class Batch extends Model
             ];
         }
 
-        //Get original batches of these offcuts
+        /*
+         * Get the batches these offcuts came out of.
+         *
+         * The whole ancestry, not just the batch that cut each offcut. An offcut of an offcut of an
+         * offcut was cut by a batch that bought nothing at all - it nested straight out of inventory -
+         * so the purchase the mill certificate hangs off is two or more batches back up the
+         * offcut_from_id chain. Reading only batch_from_id found no certificated order from the third
+         * generation on, and the print spec answered "Offcuts are not traceable!" for steel that is
+         * fully traceable.
+         *
+         * Like the single-generation case this reports every certificate in the trail rather than the
+         * one bar the offcut came off: the bar a cut was taken from is not recorded against an order,
+         * so the honest answer is the certificates the material could have come from.
+         */
+        $assignedOffcuts = Offcut::loadAncestry($assignedOffcuts);
+
         $originalBatchIds = [];
         $productCategories = [];
         foreach($assignedOffcuts as $assignedOffcut){
             $originalBatchIds[] = $assignedOffcut->batch_from_id;
             $productCategories[] = $assignedOffcut->product_category;
+
+            foreach($assignedOffcut->ancestors() as $ancestor){
+                $originalBatchIds[] = $ancestor->batch_from_id;
+            }
         }
         $productCategories = array_unique($productCategories);
         $originalBatchIds = array_unique($originalBatchIds);

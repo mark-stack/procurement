@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 
 class Offcut extends Model
@@ -17,6 +19,22 @@ class Offcut extends Model
     use HasFactory;
 
     protected $guarded = [];
+
+    /**
+     * How far back up the offcut_from_id chain anything is ever walked.
+     *
+     * An offcut cut from an offcut is itself cuttable, so the chain has no fixed length. Each
+     * generation is shorter than the one before it by at least a cut plus the saw kerf, and the chain
+     * ends on its own when the drop falls under the business's scrap threshold and is scrapped instead
+     * of banked - a 12m bar cut down in 1m steps runs out after about a dozen generations. That is the
+     * real limit, and it is the right one: every generation is steel physically in the yard, so
+     * refusing to reuse it after an arbitrary number of cuts would throw material away.
+     *
+     * This cap is not that limit - it is protection for the walk itself. $guarded is empty on this
+     * model, so any path that writes an offcut can set offcut_from_id, and a row pointing at itself
+     * (or a pair pointing at each other) would otherwise spin forever on a page render.
+     */
+    public const MAX_ANCESTRY_DEPTH = 50;
 
     //Relationships
     public function bar(): BelongsTo
@@ -32,6 +50,119 @@ class Offcut extends Model
     public function sourceBatch(): BelongsTo
     {
         return $this->belongsTo(Batch::class, 'batch_from_id');
+    }
+
+    //Ancestry
+    /**
+     * The offcuts this one was cut from, nearest first - its source offcut, then that offcut's source,
+     * back to the one that came off a bar.
+     *
+     * Uses the chain loadAncestry() hung on the model when it was loaded as part of a set, and walks it
+     * itself otherwise, so a single offcut read on its own still answers correctly.
+     *
+     * @return Collection<int, Offcut>
+     */
+    public function ancestors(): Collection
+    {
+        if (! $this->relationLoaded('ancestorOffcuts')) {
+            /** @var Collection<int, Offcut> $justThisOne */
+            $justThisOne = collect([$this]);
+
+            //Hangs the chain on this very instance, so the walk only ever happens once
+            self::loadAncestry($justThisOne);
+        }
+
+        return $this->getRelation('ancestorOffcuts');
+    }
+
+    /**
+     * How many cuts back this offcut's steel is: 1 for one cut from a bar of new stock, 2 for an offcut
+     * of that offcut, and so on.
+     */
+    public function generation(): int
+    {
+        return $this->ancestors()->count() + 1;
+    }
+
+    /**
+     * Resolve the whole ancestry of a set of offcuts and hang each chain on its model as
+     * "ancestorOffcuts", nearest ancestor first.
+     *
+     * One query per generation for the entire set rather than one per offcut per generation - a page of
+     * third-generation offcuts would otherwise cost hundreds of reads. Ancestors are read unscoped:
+     * they are consumed (batch_to_id is set on them), so none of them is in availableOffcuts() any more,
+     * yet they are exactly where the certificate trail lives.
+     *
+     * @param  Collection<int, Offcut>  $offcuts
+     * @return Collection<int, Offcut>
+     */
+    public static function loadAncestry(Collection $offcuts): Collection
+    {
+        //Offcut id => its ancestors so far, nearest first
+        $chains = [];
+        //Ancestor id => the ids of the offcuts whose chain is waiting on it
+        $frontier = [];
+        //Offcut id => the ancestor ids already in its chain, so a corrupt chain cannot be walked twice
+        $placed = [];
+
+        foreach ($offcuts as $offcut) {
+            $chains[$offcut->id] = [];
+            $placed[$offcut->id] = [$offcut->id => true];
+
+            if ($offcut->offcut_from_id !== null) {
+                $frontier[$offcut->offcut_from_id][] = $offcut->id;
+            }
+        }
+
+        $depth = 0;
+        while (count($frontier) > 0) {
+            if ($depth >= self::MAX_ANCESTRY_DEPTH) {
+                //Truncated rather than followed, so say so - a chain this long is a data problem, and
+                //silently dropping the rest of it drops certificates with it
+                Log::warning('Offcut ancestry hit the depth cap and was truncated', [
+                    'depth' => $depth,
+                    'offcut_ids' => array_values(array_unique(array_merge(...array_values($frontier)))),
+                ]);
+
+                break;
+            }
+
+            $depth++;
+
+            $ancestors = self::query()->whereIn('id', array_keys($frontier))->get()->keyBy('id');
+
+            $nextFrontier = [];
+            foreach ($frontier as $ancestorId => $descendantIds) {
+                //A chain that points at a row that is no longer there simply ends
+                $ancestor = $ancestors->get($ancestorId);
+
+                if (! $ancestor) {
+                    continue;
+                }
+
+                foreach ($descendantIds as $descendantId) {
+                    //Already in this chain: the ids form a loop, so stop instead of going round it
+                    if (isset($placed[$descendantId][$ancestor->id])) {
+                        continue;
+                    }
+
+                    $chains[$descendantId][] = $ancestor;
+                    $placed[$descendantId][$ancestor->id] = true;
+
+                    if ($ancestor->offcut_from_id !== null) {
+                        $nextFrontier[$ancestor->offcut_from_id][] = $descendantId;
+                    }
+                }
+            }
+
+            $frontier = $nextFrontier;
+        }
+
+        foreach ($offcuts as $offcut) {
+            $offcut->setRelation('ancestorOffcuts', collect($chains[$offcut->id]));
+        }
+
+        return $offcuts;
     }
 
     //Accessors
