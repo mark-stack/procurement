@@ -154,6 +154,31 @@ it('would be a disaster if the offcut nesting was not searched along with the pa
         ->and($totals['oldStock']['scrap'] + $totals['newStock']['scrap'])->toBe(200);
 });
 
+it('would be a disaster if a cut was left unmade because making it destroyed anything', function () {
+    /**
+     * An 8,000mm cut, 6,000mm the longest stock there is to buy, and an 8,200mm offcut on the shelf.
+     * The offcut is the only thing that can hold it, and doing so bins the 200mm left over.
+     *
+     * Once the search could decline the shelf for a cut, declining looked free next to placing it: no
+     * purchase either way and nothing destroyed, so the nest that simply did not make the piece scored
+     * best. A cut nothing can hold is not a cheaper nest, so it has to outrank every millimetre.
+     */
+    $business = nestingBusiness();
+
+    $result = (new NestingFormatter())->meterageAlgorithm(
+        nestingCuts([[8000, 1]]),
+        [6000],
+        [nestingOffcut(1, 8200)],
+        [1 => 'A'],
+        $business,
+    );
+
+    expect($result['tooLong'])->toBeEmpty()
+        ->and($result['totals']['oldStock']['used'])->toBe(8000)
+        ->and($result['totals']['oldStock']['scrap'])->toBe(200)
+        ->and($result['totals']['newStock']['total'])->toBe(0);
+});
+
 it('would be a disaster if two offcuts of the same length nested differently by their order', function () {
     /**
      * Nothing orders the offcut inventory query, and the tie between two offcuts of the same length
@@ -244,6 +269,71 @@ it('would be a disaster if a pack that scrapped steel was chosen over one that d
     expect($newStock['total'])->toBe(18000)
         ->and($newStock['scrap'])->toBe(0)
         ->and($newStock['reusable'])->toBe(2000);
+});
+
+it('would be a disaster if the nest never tried one stock length throughout', function () {
+    /**
+     * Twelve 4,000mm cuts, with 6,000mm and 12,000mm stock. Three fit a 12,000mm bar exactly, so four
+     * bars cover the lot with nothing left over - 48,000mm.
+     *
+     * The search draws each bar's length on its own, so the chance of it landing on 12,000mm four times
+     * running is slim, and the only deterministic run opened the shortest bar that held the cut in hand:
+     * twelve 6,000mm bars, 72,000mm bought and 24,000mm of drop. Packing every bar to one length has to
+     * be a candidate in its own right.
+     */
+    $business = nestingBusiness();
+
+    $result = (new NestingFormatter())->meterageAlgorithm(
+        nestingCuts([[4000, 12]]),
+        [6000, 12000],
+        [],
+        [1 => 'A'],
+        $business,
+    );
+
+    $newStock = $result['totals']['newStock'];
+
+    expect($newStock['total'])->toBe(48000)
+        ->and($newStock['used'])->toBe(48000)
+        ->and($newStock['unused'])->toBe(0);
+});
+
+it('would be a disaster if a bar was bought longer than what ended up in it needed', function () {
+    /**
+     * A bar's length was chosen when it was opened, off the first cut that went into it, and nothing
+     * revisited it once the rest of the nest was known - so a 12,000mm bar opened for one 4,000mm cut
+     * stayed 12,000mm even when nothing else joined it.
+     *
+     * The invariant: every bar in the finished nest is the shortest purchasable length that holds what
+     * is in it.
+     */
+    $business = nestingBusiness();
+    $stockLengths = [6000, 9000, 12000];
+
+    $result = (new NestingFormatter())->meterageAlgorithm(
+        nestingCuts([[5800, 3], [4200, 2], [2600, 4], [1300, 3]]),
+        $stockLengths,
+        [],
+        [1 => 'A'],
+        $business,
+    );
+
+    foreach ($result['utilisedBars'] as $bar) {
+        $consumed = $bar['result']['kerf'] + array_sum(array_column($bar['result']['pieces'], 'cutLength'));
+
+        $shortestThatHolds = null;
+        foreach ($stockLengths as $stockLength) {
+            if ($stockLength >= $consumed) {
+                $shortestThatHolds = $stockLength;
+                break;
+            }
+        }
+
+        expect($bar['result']['bar_length'])->toBe(
+            $shortestThatHolds,
+            "a {$bar['result']['bar_length']}mm bar holds only {$consumed}mm of cuts",
+        );
+    }
 });
 
 it('would be a disaster if buying more steel was called an improvement', function () {
