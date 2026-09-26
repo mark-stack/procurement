@@ -34,7 +34,9 @@ Route::prefix('admin')->name('admin.')->middleware([AdminMiddleware::class])->gr
     Route::post('impersonate/{user}', AdminImpersonationController::class)->name('impersonate');
 
     //Business
-    Route::get('activate-business/{business}', ActivateBusinessController::class)->name('activate.business');
+    //POST: activating emails every user in the business, so it must not be reachable by a
+    //link, a prefetch, a crawler or the back button
+    Route::post('activate-business/{business}', ActivateBusinessController::class)->name('activate.business');
 
     //Suppliers
     Route::get('/suppliers/{business}', AdminSupplierIndexController::class)->name('suppliers.index');

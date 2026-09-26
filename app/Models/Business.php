@@ -16,6 +16,22 @@ class Business extends Model
 {
     protected $guarded = [];
 
+    /*
+     * These four are boolean columns in the migration, but without a cast the type that
+     * reaches json is whatever the driver hands back - int on mysql, the string "0" on
+     * sqlite. The admin users page compares admin_setup_complete with ===, so its Ready
+     * column silently emptied out under the test connection while it worked in production.
+     */
+    protected function casts(): array
+    {
+        return [
+            'admin_setup_complete' => 'boolean',
+            'cap_12m_stock' => 'boolean',
+            'meterage_only' => 'boolean',
+            'allow_custom_products' => 'boolean',
+        ];
+    }
+
     //Relationships
     public function users(): HasMany
     {
