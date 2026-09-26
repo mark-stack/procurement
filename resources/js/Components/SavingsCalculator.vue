@@ -5,16 +5,15 @@
     //Component Imports
     //...
 
+    //Shared Imports
+    import useSavings from "@/Shared/useSavings.js";
+
     //Props
     const props = defineProps({
-        formCalculator: Object,
-        years: Number,
-        fullPriceMultiYear: Number,
-        fullPriceAnnual: Number,
-        fullPriceMonthly: Number,
-        fullPriceWeekly: Number,
-        whichPlan: String,
-        firstYearDiscount: Number,
+        //Reactive slider values, owned by the page so the hero headline reads the same numbers
+        inputs: Object,
+        //Term and pricing for the page, see Welcome.vue
+        plan: Object,
     });
 
     //Form
@@ -27,94 +26,10 @@
     //...
 
     //Shared Methods
-    //...
+    const {savingsDisplay, termDisplay, roiDisplay} = useSavings(props.inputs, props.plan);
 
     //Methods
-    function calculate(){
-        let annualSpend = props.formCalculator.annualSpendMillions * 1000000;
-        let wasteFraction = props.formCalculator.wastePct/100; //e.g 5% = 0.05
-        let annualWaste = annualSpend * wasteFraction;
-        let annualScrapRefund = annualWaste * (props.formCalculator.scrapRefundPct/100)
-
-        return props.years * (annualWaste - annualScrapRefund);
-    }
-
-    function beforeFees(){
-        let sum = calculate();
-        let display = "";
-
-        //Thousands
-        if(sum < 1000000){
-            display = (sum/1000).toFixed(0) + "K";
-        }
-        //Millions
-        else{
-            display = (sum/1000000).toFixed(1) + "M";
-        }
-
-        return display;
-    }
-
-    function afterFees(){
-        let sum = calculate() - 10000;
-        let display = "";
-
-        //Thousands
-        if(sum < 1000000){
-            display = (sum/1000).toFixed(0) + "K";
-        }
-        //Millions
-        else{
-            display = (sum/1000000).toFixed(1) + "M";
-        }
-
-        return display;
-    }
-
-    function displayTerm(){
-        let displayTerm = "";
-
-        //1 year: "per year"
-        if(props.years === 1){
-            displayTerm = "per year";
-        }
-        //Multiple years: "over 3 years"
-        if(props.years > 1){
-            displayTerm = "over " + props.years + " years";
-        }
-
-        return displayTerm;
-    }
-
-    function roiDisplay(){
-        let priceFirstYearAfterDiscount = null;
-        let priceAfterFirstYearFullPrice = null;
-        let priceOverSavingsPeriod = null;
-
-        if(props.whichPlan === "MULTI_YEAR"){
-            priceOverSavingsPeriod = props.fullPriceMultiYear;
-        }
-        if(props.whichPlan === "ANNUAL"){
-            priceFirstYearAfterDiscount = props.fullPriceAnnual*((100-props.firstYearDiscount)/100);
-            priceAfterFirstYearFullPrice = props.fullPriceAnnual;
-            priceOverSavingsPeriod = priceFirstYearAfterDiscount + ((props.years - 1) * priceAfterFirstYearFullPrice);
-        }
-        if(props.whichPlan === "MONTHLY"){
-            priceFirstYearAfterDiscount = 12*props.fullPriceMonthly*((100-props.firstYearDiscount)/100);
-            priceAfterFirstYearFullPrice = 12*props.fullPriceMonthly;
-            priceOverSavingsPeriod = priceFirstYearAfterDiscount + ((props.years - 1) * priceAfterFirstYearFullPrice);
-        }
-        if(props.whichPlan === "WEEKLY"){
-            priceFirstYearAfterDiscount = 52*props.fullPriceWeekly*((100-props.firstYearDiscount)/100);
-            priceAfterFirstYearFullPrice = 52*props.fullPriceWeekly;
-            priceOverSavingsPeriod = priceFirstYearAfterDiscount + ((props.years - 1) * priceAfterFirstYearFullPrice);
-        }
-
-        //"1:15"
-        let ratio = (calculate()/priceOverSavingsPeriod).toFixed(0);
-
-        return "1:"+ratio;
-    }
+    //...
 </script>
 
 <template>
@@ -124,60 +39,70 @@
         <div class="flex flex-col items-center p-4">
             <!-- Slider -->
             <input
-                v-model="formCalculator.annualSpendMillions"
+                id="calculator-annual-spend"
+                v-model.number="inputs.annualSpendMillions"
                 type="range"
                 min="0.5"
                 max="6"
                 step="0.1"
+                :aria-valuetext="'$' + inputs.annualSpendMillions + ' million per year'"
                 class="w-full max-w-sm appearance-none bg-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
 
             <!-- Value Display -->
-            <div class="mt-2 text-gray-800 font-semibold">
-                Steel sections spend: ${{formCalculator.annualSpendMillions}}m/year
-            </div>
+            <label for="calculator-annual-spend" class="mt-2 text-gray-800 font-semibold">
+                Steel sections spend: ${{inputs.annualSpendMillions}}m/year
+            </label>
         </div>
 
-        <!-- waste reduction -->
+        <!-- Extra yield won back by better nesting, as a share of total spend -->
         <div class="flex flex-col items-center p-4">
             <!-- Slider -->
             <input
-                v-model="formCalculator.wastePct"
+                id="calculator-yield-gain"
+                v-model.number="inputs.yieldGainPct"
                 type="range"
                 min="3"
                 max="7"
                 step="0.5"
+                :aria-valuetext="inputs.yieldGainPct + '% of annual spend'"
                 class="w-full max-w-sm appearance-none bg-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
 
             <!-- Value Display -->
-            <div class="mt-2 text-gray-800 font-semibold">
-                Steel efficiency increase: {{formCalculator.wastePct}}%
-            </div>
+            <label for="calculator-yield-gain" class="mt-2 text-gray-800 font-semibold">
+                Extra material yield: {{inputs.yieldGainPct}}% of annual spend
+            </label>
         </div>
 
         <!-- scrap rate -->
         <div class="flex flex-col items-center p-4">
             <!-- Slider -->
             <input
-                v-model="formCalculator.scrapRefundPct"
+                id="calculator-scrap-refund"
+                v-model.number="inputs.scrapRefundPct"
                 type="range"
                 min="10"
                 max="16"
                 step="1"
+                :aria-valuetext="inputs.scrapRefundPct + '% already recovered as scrap'"
                 class="w-full max-w-sm appearance-none bg-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
 
             <!-- Value Display -->
-            <div class="mt-2 text-gray-800 font-semibold">
-                Scrap refund rate: {{formCalculator.scrapRefundPct}}%
-            </div>
+            <label for="calculator-scrap-refund" class="mt-2 text-gray-800 font-semibold">
+                Scrap refund rate: {{inputs.scrapRefundPct}}%
+            </label>
+
+            <!-- Raising this lowers the saving, which needs saying or it looks like a bug -->
+            <p class="mt-1 max-w-sm text-center text-xs text-gray-500">
+                Deducted from the saving, because offcuts you never cut are scrap you no longer sell.
+            </p>
         </div>
         <div class="flex flex-col items-center p-4 ">
-<!--            <span class="block"><b>${{ beforeFees() }}</b> - <b>${{(price/1000).toFixed(1)}}K</b> for {{years}} year software term</span>-->
-            <span class="block mt-3 text-4xl text-deep-purple-accent-400">Save <b>${{ beforeFees() }}</b> {{ displayTerm() }}</span>
-            <div class="flex mt-2">
-                <span class="text-emerald-500 font-bold">{{ roiDisplay() }} ROI</span> <span class="ml-1 text-emerald-500"> from the software</span>
+            <span class="block mt-3 text-4xl text-deep-purple-accent-400">Save <b>${{ savingsDisplay }}</b> {{ termDisplay }}</span>
+            <div v-if="roiDisplay" class="flex mt-2">
+                <span class="text-emerald-500 font-bold">{{ roiDisplay }} ROI</span> <span class="ml-1 text-emerald-500"> from the software</span>
             </div>
 
         </div>
