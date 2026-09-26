@@ -6,6 +6,7 @@ use App\Formatters\KanbanFormatter;
 use App\Formatters\NestingFormatter;
 use App\Http\Requests\StoreProjectRequest;
 use App\Http\Requests\UpdateProjectRequest;
+use App\Http\Resources\ArchivedProjectResource;
 use App\Http\Resources\ProjectResource;
 use App\Imports\ExcelImport;
 use App\Models\Project;
@@ -59,8 +60,14 @@ class ProjectController extends Controller
 
         /*
          * Archived projects
+         *
+         * ProjectResource walks rawMaterialQuotes > piece > quotes/order for every row, which is
+         * around three queries per material line and none of it eager loaded - several hundred
+         * queries on a board with a few archived projects, to draw a name and a "Restore" link.
+         * The list only grows, so it gets its own slim resource.
          */
-        $archivedProjects = ProjectResource::collection(Project::query()
+        $archivedProjects = ArchivedProjectResource::collection(Project::query()
+            ->select(['id', 'name', 'user_id', 'archive'])
             ->thisBusiness($business)
             ->where("user_id",$user->id)
             ->where('archive', true)
@@ -205,8 +212,22 @@ class ProjectController extends Controller
     {
         /**
          * Single purpose: toggle archive/restore
+         *
+         * The gate only asks whether the project belongs to your business, which is every
+         * colleague's project in the shared Nesting column - and the archived list this
+         * restores from is filtered to your own projects, so archiving a colleague's project
+         * hid it from the board with no way back for anyone but them.
          */
         Gate::authorize('owned', $project);
+
+        $user = auth()->user();
+        $prerequisiteConditions = new PrerequisiteConditions();
+
+        $allowed = $project->archive
+            ? $prerequisiteConditions->restoreProject($user, $project)
+            : $prerequisiteConditions->archiveProject($user, $project);
+
+        abort_unless($allowed, 403);
 
         $project->archive = ! $project->archive;
         $project->save();

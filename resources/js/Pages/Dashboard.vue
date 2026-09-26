@@ -74,6 +74,15 @@
     }
 
     function submitArchiveToggle(id){
+        /*
+         * One at a time. Inertia cancels a visit when the next one starts, and a cancelled
+         * visit reports nothing back - so restoring two projects in quick succession left
+         * the first one looking like it never happened.
+         */
+        if(formProjectDelete.processing){
+            return;
+        }
+
         //page loader ON
         pageLoading.value = true;
 
@@ -81,19 +90,20 @@
         formProjectDelete.delete(url, {
             preserveScroll: true,
             onSuccess: () => {
-                console.log('success');
-
                 //Hide archived projects if now zero items
                 if(props.archivedProjects.data.length === 0){
                     showArchivedProjects.value = false;
                 }
-
-                //page loader OFF
-                pageLoading.value = false;
             },
             onError: errors => {
                 console.log('errors',errors);
-
+            },
+            /*
+             * onFinish, not onSuccess/onError. The prerequisite gate aborts 403 and Inertia
+             * calls neither for that, so the full-page overlay stayed up over a board that
+             * had not changed, with nothing left to dismiss it.
+             */
+            onFinish: () => {
                 //page loader OFF
                 pageLoading.value = false;
             },
@@ -101,12 +111,15 @@
     }
 
     function toggleArchive(project) {
-        const name = project.name;
+        //The card and the archived list both show the name this way
+        const name = shared.capitalizeWords(project.name);
 
         askToConfirm(project.archive
             ? {
                 title: "Restore this project?",
-                message: `“${name}” will move back onto your board, ready for nesting.`,
+                //Not necessarily back to nesting - a project archived while it was on a batch
+                //returns to that batch, and saying "ready for nesting" promised otherwise
+                message: `“${name}” will move back onto your board.`,
                 confirmLabel: "Restore project",
                 tone: "primary",
                 onConfirmed: () => submitArchiveToggle(project.id),

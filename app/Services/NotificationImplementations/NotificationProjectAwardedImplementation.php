@@ -4,6 +4,7 @@ namespace App\Services\NotificationImplementations;
 
 use App\Models\Project;
 use App\Notifications\ProjectAwardedCheckEmail;
+use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\Interfaces\NotificationInterface;
 use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
@@ -153,9 +154,22 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
         //Mark as read
         $notification->markAsRead();
 
-        //Archive project
+        /*
+         * Archive project
+         *
+         * The same rule the Archive button answers to - your own project, and only while it is
+         * still pre-nesting. This used to archive whatever project the notification named, no
+         * questions asked, which is a project stuck off the board and a batch that can never be
+         * re-nested for a click meaning nothing more than "we didn't win it".
+         */
         if (isset($notification->data['project_id'])) {
             $project = Project::findOrFail($notification->data['project_id']);
+            $user = auth()->user();
+
+            if (! $user || ! (new PrerequisiteConditions())->archiveProject($user, $project)) {
+                return back()->with('warning', 'That project is already nested, so it was left on the board. Re-nest its batch first if you want it archived.');
+            }
+
             $project->archive = true;
             $project->save();
         }

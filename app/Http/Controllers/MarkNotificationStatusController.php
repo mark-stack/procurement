@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Notifications\DatabaseNotification;
 
 class MarkNotificationStatusController extends Controller
 {
@@ -22,7 +21,15 @@ class MarkNotificationStatusController extends Controller
             'status' => 'required',
         ]);
 
-        $notification = DatabaseNotification::findOrFail($validated['id']); // Replace with the actual notification ID
+        /*
+         * Read off the caller's own notifications. A bare findOrFail took any notification id
+         * in the table, and the red action on one of them archives the project it names - so
+         * an id was all it took to archive another business's project.
+         */
+        $notification = $request->user()->notifications()->findOrFail($validated['id']);
+
+        //No implementation claims every notification type, and the return type is not nullable
+        $return = back();
 
         $implementations = (new NotificationService)->getImplementations();
         foreach ($implementations as $implementation) {
