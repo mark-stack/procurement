@@ -22,6 +22,11 @@
             type: String,
             default: null,
         },
+        //Logging out is not the same kind of click as opening a page, so it does not hover the same
+        danger: {
+            type: Boolean,
+            default: false,
+        },
     });
 
     //Form
@@ -59,15 +64,16 @@
     <Link
         :class="[
             alert ? 'font-extrabold text-red-500' : 'font-medium text-gray-600',
-            method !== 'get' ? 'w-full text-left' : '',
+            danger ? 'hover:bg-red-50 hover:text-red-700' : 'hover:bg-gray-100 hover:text-gray-700',
         ]"
-        class="flex items-center px-3 py-2 transition-colors duration-300 transform rounded-lg hover:bg-gray-100 hover:text-gray-700"
+        class="flex items-center w-full gap-2 px-3 py-2 text-sm text-left transition-colors duration-200 rounded-lg"
         :href="route"
         :method="method"
         :as="method === 'get' ? 'a' : 'button'"
         :on-before="onBefore"
     >
-        <i :class="icon"></i>
-        <span class="mx-2 text-sm">{{label}}</span>
+        <!-- A fixed width, so labels line up however wide the icon glyph happens to be -->
+        <i :class="icon" class="w-4 text-center shrink-0"></i>
+        <span>{{label}}</span>
     </Link>
 </template>
