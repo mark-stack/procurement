@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Imports\ExcelImport;
+use Illuminate\Http\UploadedFile;
 use Maatwebsite\Excel\Exceptions\NoSheetsFoundException;
 use Maatwebsite\Excel\Exceptions\NoTypeDetectedException;
 use Maatwebsite\Excel\Exceptions\UnreadableFileException;
@@ -11,27 +12,43 @@ use PhpOffice\PhpSpreadsheet\Reader\Exception as ReaderException;
 
 class TemplateService
 {
-    public function invalidFiles(array $files): array
+    /**
+     * Single purpose: read each upload once and say which ones carry a template we know.
+     *
+     * Returns ['invalid' => [filename, ...], 'tables' => [index => detectedTables, ...]],
+     * keyed by the file's position in $files. The detected tables are handed back because
+     * the caller used to throw them away and start again from the file: two full
+     * spreadsheet parses and three template-detection passes per upload, five uploads
+     * to a submit.
+     *
+     * @param  array<int, UploadedFile>  $files
+     * @return array{invalid: array<int, string>, tables: array<int, array>}
+     */
+    public function readFiles(array $files): array
     {
         //Services
         $csvService = new CsvService;
 
+        //Same for every file in the submit - it only depends on who is uploading
+        $eligibleTables = $csvService->eligibleTables();
+
         $invalidFiles = [];
-        $validFiles = []; //Not yet used
+        $tables = [];
 
-        foreach($files as $file){
-            $path = $file->store('uploads');
-
-            //Read the CSV
-            $csvArray = null;
+        foreach ($files as $index => $file) {
+            /*
+             * Excel::toArray() reads the uploaded temp file directly. Both this and the
+             * controller used to $file->store('uploads') first and then never read the
+             * copy back - a write and a delete per file, for nothing.
+             */
             try {
                 $csvArray = Excel::toArray(new ExcelImport, $file)[0];
 
-                if($csvService->validateTemplateExists($csvArray)){
-                    //Not yet used
-                    $validFiles[] = $file->getClientOriginalName();
-                }
-                else{
+                $detectedTables = $csvService->detectedTables($csvArray, $eligibleTables);
+
+                if (count($detectedTables) > 0) {
+                    $tables[$index] = $detectedTables;
+                } else {
                     $invalidFiles[] = $file->getClientOriginalName();
                 }
             }
@@ -52,28 +69,22 @@ class TemplateService
                 report($e);
 
                 if (auth()->user()?->isAdmin()) {
-                    //Still clean up the temp file before the exception unwinds
-                    $this->deleteTempFile($path);
-
                     throw $e;
                 }
 
                 $invalidFiles[] = $file->getClientOriginalName();
             }
-
-            // Delete the file after processing
-            $this->deleteTempFile($path);
         }
 
-        return $invalidFiles;
+        return ['invalid' => $invalidFiles, 'tables' => $tables];
     }
 
-    private function deleteTempFile(string $path): void
+    /**
+     * @param  array<int, UploadedFile>  $files
+     * @return array<int, string>
+     */
+    public function invalidFiles(array $files): array
     {
-        $fullPath = storage_path("app/private/{$path}");
-
-        if (is_file($fullPath)) {
-            unlink($fullPath);
-        }
+        return $this->readFiles($files)['invalid'];
     }
 }

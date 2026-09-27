@@ -289,8 +289,6 @@ class DataClassificationService
             ->toArray();
 
         if (count($customProductMatchesAllVariations) > 0) {
-            $resultsThisProductCategory = [];
-
             //Loop each product category
             foreach ($customProductMatchesAllVariations as $productCategory => $products) {
                 //Implementation (service)
@@ -318,10 +316,16 @@ class DataClassificationService
                     ->availableFor($user)
                     ->get()
                     ->toArray();
-            }
 
-            foreach ($resultsThisProductCategory as $result) {
-                $results[] = $result;
+                /*
+                 * Collected inside the loop. This sat outside it, against a variable the
+                 * next category overwrote, so a description carrying custom products in
+                 * more than one category kept only the last category's - every earlier
+                 * one was dropped without a trace.
+                 */
+                foreach ($resultsThisProductCategory as $result) {
+                    $results[] = $result;
+                }
             }
         }
 

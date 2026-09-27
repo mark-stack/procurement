@@ -41,7 +41,7 @@
     const hasUserCustomProducts = computed(() => (bom.value?.requiresCustom?.length ?? 0) > 0);
     const hasMaterialList = computed(() => (bom.value?.materialListRows?.length ?? 0) > 0);
     const materialListRows = computed(() => bom.value?.materialListRows ?? []);
-    const unimportedItems = computed(() => bom.value?.unimportedItems ?? {notRecognised: [], otherPlan: []});
+    const unimportedItems = computed(() => bom.value?.unimportedItems ?? {notRecognised: [], otherPlan: [], couldNotBeRead: []});
 
     //Forms
     const formStore = useForm({
@@ -487,6 +487,21 @@
                             <p class="font-sans text-xs">
                                 Items recognised but not covered by your current plan:
                                 <br><span class="text-sm">{{unimportedItems.otherPlan.join(", ")}}</span>
+                            </p>
+                        </div>
+
+                        <!--
+                            Recognised, but something on the row could not be read - most often a
+                            length cell holding a dash, an "N/A" or a broken formula. These used to
+                            end the import at that row and be reported as a template failure.
+                        -->
+                        <div
+                            v-if="unimportedItems.couldNotBeRead.length > 0"
+                            class="mx-5 mt-2 rounded-lg py-2 px-4 bg-[#fff2b2] text-[#7c620c] text-left"
+                        >
+                            <p class="font-sans text-xs">
+                                We couldn't read these - most often a length cell holding a dash, an "N/A" or a broken formula:
+                                <br><span class="text-sm">{{unimportedItems.couldNotBeRead.join(", ")}}</span>
                             </p>
                         </div>
 
