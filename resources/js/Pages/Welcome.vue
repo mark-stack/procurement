@@ -55,6 +55,64 @@
     //Shared Methods
     const {savingsDisplay, termDisplay, costPerMonth} = useSavings(calculatorInputs, plan);
 
+    /*
+        The cost model section below. Kept as data rather than markup because it is a list that will
+        grow - every figure here is a real coefficient out of App\Services\NestingCostModel, and the
+        defaults quoted are that class's DEFAULTS, which are also the businesses table column defaults.
+    */
+    const materialFactors = [
+        {
+            title: "Steel bought",
+            body: "Millimetres become kilograms through the section's mass per metre, then dollars through your steel price. The only line you actually pay money out on.",
+        },
+        {
+            title: "Steel destroyed",
+            body: "Any drop shorter than your scrap threshold goes in the bin, wherever it came from. Credited back at your scrap recovery rate, because the merchant weighs it in — so binning a bad remnant costs about seven eighths of the steel, not all of it.",
+        },
+        {
+            title: "Saw kerf",
+            body: "Costed as material, with no scrap credit. Swarf mixed with coolant is not something anyone buys back.",
+        },
+        {
+            title: "Offcut value given up",
+            body: "Drawing a length off the rack spends what it was worth and earns back whatever the new drop is worth. Cutting a 2,000mm stub down to 1,500mm gives up very little; taking the same 500mm off a 9,000mm length gives up a great deal.",
+        },
+    ];
+
+    const labourFactors = [
+        {
+            title: "Every saw cut",
+            body: "A base time plus time that scales with mass per metre — how much section the blade has to get through. A cut is a cut whatever the length of the piece.",
+        },
+        {
+            title: "Fetching an offcut",
+            body: "Finding it in the rack, reading its mark and getting it to the saw. Scales with the weight of the piece being moved.",
+        },
+        {
+            title: "Handling a new bar",
+            body: "Off the lift and over to the saw. A 6m angle is carried; a 12m 500UB at over a tonne is a crane, slings and a second person.",
+        },
+        {
+            title: "The rack, for the life of the piece",
+            body: "Every offcut you keep has to be marked, recorded and shifted out of the way on every future job. Charged when a drop goes on the rack, and credited when you consume a stub outright and retire the mark for good.",
+        },
+    ];
+
+    const costModelRules = [
+        {
+            title: "A cut you don't get is not a saving",
+            body: "A cut that no bar or offcut can hold carries a penalty no amount of material or labour can buy its way past. Every piece gets made first; cost decides between the plans that manage it.",
+        },
+        {
+            title: "No cliff at the scrap threshold",
+            body: "Score a banked offcut at full value and a 1,001mm drop is free while a 999mm drop is a write-off. A thousand iterations will find that line every time and fill your rack with metre-long stubs. Value rises on a curve instead, so a drop that clears the threshold by a millimetre is worth almost nothing.",
+        },
+        {
+            title: "Keep a remnant only while it beats the labour of keeping it",
+            body: "On light angle that lands somewhere past two metres — anything shorter costs more to mark, record and shift than the steel will ever return. On a heavy beam almost anything over the threshold is worth having.",
+        },
+    ];
+
     //Methods
     //...
 </script>
@@ -161,6 +219,95 @@
                 <p class="max-w-md mb-3 text-sm text-gray-900 sm:mx-auto">
                     The tool tries multiple algorithms and iterates to find best of 1000 nesting combinations.
                 </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cost model -->
+    <div class="bg-gray-50">
+        <div class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">
+            <div class="max-w-4xl mb-12 md:mx-auto sm:text-center">
+                <h2 class="max-w-4xl mb-6 font-sans text-5xl font-bold leading-none tracking-tight text-gray-900 md:mx-auto">
+                    The tightest nest is not the cheapest nest
+                </h2>
+                <p class="text-base text-gray-700 md:text-lg">
+                    Most nesting software ranks plans on yield: the arrangement that leaves the fewest millimetres
+                    on the floor wins. That is the wrong question, because millimetres are not comparable across
+                    sections and are not comparable to time at all. Saving 500mm of 65x65 angle is worth about
+                    <strong>$6</strong>. Saving 500mm of 500UB is worth about <strong>$90</strong>. The same nesting
+                    decision is right for one and wrong for the other — and neither number says anything about the
+                    quarter hour it might take to chase.
+                </p>
+                <p class="mt-4 text-base text-gray-700 md:text-lg">
+                    So every candidate nest here is scored in <strong>dollars</strong>. Material converts through the
+                    section's mass and your steel price; labour converts through a duration and your hourly rate.
+                    Best of a thousand combinations means the cheapest to actually produce, not the tightest on paper.
+                </p>
+            </div>
+
+            <div class="grid max-w-screen-lg gap-8 mx-auto lg:grid-cols-2">
+                <!-- Material -->
+                <div class="p-6 bg-white border rounded shadow-sm sm:p-8">
+                    <h3 class="pb-4 mb-6 text-2xl font-extrabold text-gray-900 border-b">
+                        Material it consumes
+                    </h3>
+                    <ul class="space-y-6">
+                        <li v-for="factor in materialFactors" :key="factor.title" class="flex">
+                            <div class="mt-1 mr-4 shrink-0">
+                                <div class="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-50">
+                                    <svg class="w-5 h-5 text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">
+                                        <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div>
+                                <h6 class="mb-1 text-lg font-bold leading-6">{{ factor.title }}</h6>
+                                <p class="text-sm text-gray-700">{{ factor.body }}</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Labour -->
+                <div class="p-6 bg-white border rounded shadow-sm sm:p-8">
+                    <h3 class="pb-4 mb-6 text-2xl font-extrabold text-gray-900 border-b">
+                        Time it takes
+                    </h3>
+                    <ul class="space-y-6">
+                        <li v-for="factor in labourFactors" :key="factor.title" class="flex">
+                            <div class="mt-1 mr-4 shrink-0">
+                                <div class="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-50">
+                                    <svg class="w-5 h-5 text-deep-purple-accent-400" stroke="currentColor" viewBox="0 0 52 52">
+                                        <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div>
+                                <h6 class="mb-1 text-lg font-bold leading-6">{{ factor.title }}</h6>
+                                <p class="text-sm text-gray-700">{{ factor.body }}</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <p class="max-w-screen-lg mx-auto mt-6 text-sm text-center text-gray-600">
+                Cutting time scales with mass per metre. Handling time scales with the weight of the piece being
+                moved. Both are per-business settings, along with your labour rate, steel price, scrap recovery
+                rate, kerf and scrap threshold — so the nest is priced for your shop, not a generic one.
+            </p>
+
+            <!-- Rules that override the arithmetic -->
+            <div class="max-w-screen-lg mx-auto mt-16">
+                <h3 class="mb-8 text-2xl font-extrabold text-center text-gray-900">
+                    Three rules the arithmetic never gets to overrule
+                </h3>
+                <div class="grid gap-8 md:grid-cols-3">
+                    <div v-for="rule in costModelRules" :key="rule.title">
+                        <h6 class="mb-2 text-lg font-bold leading-6 text-gray-900">{{ rule.title }}</h6>
+                        <p class="text-sm text-gray-700">{{ rule.body }}</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
