@@ -8,18 +8,15 @@ use App\Http\Requests\StoreProjectRequest;
 use App\Http\Requests\UpdateProjectRequest;
 use App\Http\Resources\ArchivedProjectResource;
 use App\Http\Resources\ProjectResource;
-use App\Imports\ExcelImport;
 use App\Models\Project;
 use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\CsvService;
 use App\Services\TemplateService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
-use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Validation\ValidationException;
 
 class ProjectController extends Controller
@@ -104,16 +101,19 @@ class ProjectController extends Controller
         //Services
         $csvService = new CsvService;
 
-        //Store the uploaded files temporarily
         $files = $request->file('excel');
+        $supportEmail = config('env.admin_email');
 
         /*
-         * Validate templates exist
+         * Read and validate every upload, once.
+         *
+         * Each file used to be parsed twice over - once to check a template matched,
+         * then again here - and the detected tables thrown away in between.
          */
-        $invalidFiles = (new TemplateService())->invalidFiles($files);
-        if(count($invalidFiles) > 0){
+        $read = (new TemplateService())->readFiles($files);
+        if(count($read['invalid']) > 0){
             throw ValidationException::withMessages([
-                'invalid_template' => [$invalidFiles],
+                'invalid_template' => [$read['invalid']],
             ]);
         }
 
@@ -123,49 +123,41 @@ class ProjectController extends Controller
         $project = Project::create([
             'user_id' => $user->id,
             'name' => $validated['name'],
-            'reference' => $validated['reference'],
-            'date_materials_required' => $validated['date_materials_required'],
+            'reference' => $validated['reference'] ?? null,
+            'date_materials_required' => $validated['date_materials_required'] ?? null,
             'tentative' => $validated['tentative'],
         ]);
 
         /*
-         * Process Excel
+         * Extract the materials
+         *
+         * Each file's outcome used to overwrite the one before it in a shared $return,
+         * so a batch reported whichever file happened to be last. Outcomes are collected
+         * and answered once, below.
          */
-        $return = back();
-        $supportEmail = config('env.admin_email');
+        $failedFiles = [];
 
-        foreach($files as $file){
-            $path = $file->store('uploads');
-
-            //Process the CSV
-            $errorMsg = "The file didn't auto-detect properly. Did the template change? Please email the file to {$supportEmail} to have it re-calibrated quickly.";
-
+        foreach($read['tables'] as $index => $detectedTables){
             /*
-             * The read used to sit outside the try, so a file that got past template
-             * detection but blew up on a second read handed the user a 500 - and
-             * skipped the unlink below, leaving the upload on disk. The finally makes
-             * cleanup unconditional.
+             * A transaction per file. Individual unusable rows are already reported
+             * without stopping the file; this is for everything else, so a file that
+             * fails part way leaves nothing behind rather than half a BOM the user
+             * cannot tell apart from a whole one.
              */
             try {
-                //Read the CSV
-                $csvArray = Excel::toArray(new ExcelImport, $file)[0];
-
-                $return = $csvService->processCsv($csvArray, $project, $errorMsg);
+                DB::transaction(function () use ($csvService, $detectedTables, $project) {
+                    $csvService->processTemplate($detectedTables, $project);
+                });
             }
             //Users to get nice error message, admin to throw error.
             catch (\Throwable $e) {
                 report($e);
 
-                //The finally below still cleans up before this unwinds
                 if ($user->isAdmin()) {
                     throw $e;
                 }
 
-                $return = back()->with('warning', $errorMsg);
-            }
-            finally {
-                // Delete the file after processing
-                $this->deleteTempFile($path);
+                $failedFiles[] = $files[$index]->getClientOriginalName();
             }
         }
 
@@ -179,24 +171,21 @@ class ProjectController extends Controller
             //Discard the empty shell so the user can retry with the same name
             $project->delete();
 
-            //processCsv already flashed the project (RedirectResponse::with writes
-            //to the session immediately), so it must be cleared or the modal will
-            //close and try to download a BOM for a project that no longer exists.
-            $request->session()->forget('project');
-
-            return back()->with('warning', "No materials could be matched from the uploaded file. Please email it to {$supportEmail} so we can take a look.");
+            return back()->with('warning', count($failedFiles) > 0
+                ? "We couldn't read ".implode(', ', $failedFiles).". Please email the file to {$supportEmail} so we can take a look."
+                : "No materials could be matched from the uploaded file. Please email it to {$supportEmail} so we can take a look.");
         }
 
-        return $return;
-    }
-
-    private function deleteTempFile(string $path): void
-    {
-        $fullPath = storage_path("app/private/{$path}");
-
-        if (is_file($fullPath)) {
-            unlink($fullPath);
+        /*
+         * Something imported. The modal moves on to the BOM either way - a file that
+         * failed outright is named there, alongside the individual rows that could not
+         * be used, rather than being reported as a template that stopped auto-detecting.
+         */
+        if (count($failedFiles) > 0) {
+            $project->recordUnimportedItems([], [], $failedFiles);
         }
+
+        return back()->with('project', $project);
     }
 
     public function update(UpdateProjectRequest $request, Project $project): RedirectResponse

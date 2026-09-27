@@ -103,7 +103,6 @@ class CsvService
 
         //Services
         $dataClassificationService = new DataClassificationService;
-        $productService = new ProductService;
 
         //Prerequisite variables
         $user = $project->user;
@@ -115,32 +114,17 @@ class CsvService
             //Sense checks
             //$productService->senseChecks(); //todo incomplete
 
-            //Add general product matches to row data
+            /*
+             * A "derive a description when the column is blank" branch used to sit at the
+             * top of this loop. getTableData() never emits a row with a blank description
+             * (it is the condition for keeping the row at all), so it was unreachable -
+             * and had it ever run it fed that same blank description to the classifier,
+             * so the category it derived the label from was always null. Templates with
+             * no description column use "compoundDescription" instead, which is built in
+             * getTableData() where the sheet is still in reach.
+             */
             $rowDataWithGeneralProductMatches = [];
             foreach ($rows as $row) {
-                /*
-                 * Description (Use derived if no description column provided)
-                 */
-                if (! $row['description']) {
-                    $productConfig = $dataClassificationService->findProductConfigFromText($row['description']);
-                    $productCategory = $productConfig ? $productConfig['productCategory'] : null;
-
-                    $row['description'] = $productService->generateProductLabel(
-                        $productCategory,
-                        $row['length_required'],
-                        null, //precise_length todo
-                        $row['width_required'],
-                        null, //precise_width todo
-                        null,
-                        null, //precise_height todo
-                        $row['grade'],
-                        $row['surface'],
-                        null, //wall todo
-                        null, //kg_per_m todo
-                        $row['material'] ?? null,
-                    );
-                }
-
                 /*
                  * Find general product matches
                  */
@@ -201,7 +185,7 @@ class CsvService
         return $tables;
     }
 
-    public function detectTable(array $csvArray, array $csvRow, int $index, array $tableOptions): ?array
+    public function detectTable(array $csvArray, array $csvRow, int $index, array $tableOptions): array
     {
         /**
          * Single purpose: detect table within this document based on heading row match
@@ -209,63 +193,82 @@ class CsvService
         $detectTableInstances = [];
 
         foreach ($tableOptions as $tableOption) {
-            $firstDataRowIndex = $this->firstDataRowIndex($csvRow, $index, $tableOption);
-            $firstHeadingColumnAbsoluteIndex = $this->firstHeadingColumnAbsoluteIndex($firstDataRowIndex, $tableOption, $csvArray);
-            if ($firstDataRowIndex) {
-                $detectTableInstances[] = [
-                    'type' => $tableOption['type'],
-                    'data' => $this->getTableData($csvArray, $firstDataRowIndex, $firstHeadingColumnAbsoluteIndex, $tableOption),
-                ];
+            $headerStartIndex = $this->headerStartIndex($csvRow, $tableOption);
+
+            //Not this template's heading row
+            if ($headerStartIndex === null) {
+                continue;
             }
+
+            /*
+             * Read straight off the row that matched. This used to be derived a second
+             * time by searching the heading row again for the first label, through a
+             * helper whose "not found" answer was array_search()'s false - quietly
+             * coerced to column 0 by its int return type, so every offset in the table
+             * was measured from the wrong origin.
+             */
+            $firstDataRowIndex = $index + $tableOption['OffsetFromHeaderToFirstDataRow'];
+
+            $detectTableInstances[] = [
+                'type' => $tableOption['type'],
+                'data' => $this->getTableData($csvArray, $firstDataRowIndex, $headerStartIndex, $tableOption),
+            ];
         }
 
         return $detectTableInstances;
     }
 
-    public function firstDataRowIndex(array $csvRow, int $index, array $tableOption): ?int
+    public function headerStartIndex(array $csvRow, array $tableOption): ?int
     {
         /**
-         * Single purpose:
+         * Single purpose: the column the template's heading labels start at, or null
+         * if this row is not that heading. Labels must appear in order, though not
+         * necessarily side by side.
          */
-        $firstDataRowIndex = null;
+        $expectedHeadingLabels = $tableOption['ExpectedHeadingLabels'];
 
-        if ($this->isTableHeader($csvRow, $tableOption)) {
-            $firstDataRowIndex = $index + $tableOption['OffsetFromHeaderToFirstDataRow'];
+        //Blank cells arrive as null, which strtoupper() no longer accepts directly
+        $upperRow = array_map(fn ($columnValue) => strtoupper((string) $columnValue), $csvRow);
+
+        /*
+         * Cheap check before walking the row in order, which is the expensive part
+         */
+        if (! in_array(strtoupper($expectedHeadingLabels[0]), $upperRow, true)) {
+            return null;
         }
 
-        return $firstDataRowIndex;
-    }
+        $startIndex = null;
+        $labelIndex = 0;
 
-    public function firstHeadingColumnAbsoluteIndex(?int $firstDataRowIndex, array $tableOption, array $csvArray): int
-    {
-        $firstHeadingColumnAbsoluteIndex = 0;
+        foreach ($upperRow as $columnIndex => $columnValue) {
+            if (! isset($expectedHeadingLabels[$labelIndex])) {
+                break;
+            }
 
-        //Table was found
-        if ($firstDataRowIndex) {
-            //Get table heading
-            $indexOfHeadingRow = $firstDataRowIndex - $tableOption['OffsetFromHeaderToFirstDataRow'];
-            $headingRow = $csvArray[$indexOfHeadingRow];
-            $firstHeadingLabel = $tableOption['ExpectedHeadingLabels'][0];
+            if ($columnValue === strtoupper($expectedHeadingLabels[$labelIndex])) {
+                //Remember where the run began - that is the origin every offset is measured from
+                if ($labelIndex === 0) {
+                    $startIndex = $columnIndex;
+                }
 
-            //Get index of 1st heading label
-            $firstHeadingColumnAbsoluteIndex = $this->arraySearchCaseInsensitive($firstHeadingLabel, $headingRow);
+                $labelIndex++;
+
+                //All labels matched, in order
+                if ($labelIndex === count($expectedHeadingLabels)) {
+                    return $startIndex;
+                }
+            }
         }
 
-        return $firstHeadingColumnAbsoluteIndex;
+        return null;
     }
 
-    private function arraySearchCaseInsensitive($needle, $haystack): int
+    public function isTableHeader(array $csvRow, array $tableOption): bool
     {
         /**
-         * Single purpose: return index of the result
+         * Single purpose: confirm if this CSV row matches a known table header
          */
-        // Convert both the needle and haystack values to lowercase for comparison
-        //(blank cells arrive as null, which strtolower() no longer accepts directly)
-        $lowercaseHaystack = array_map(fn ($value) => strtolower((string) $value), $haystack);
-        $needleLowercase = strtolower((string) $needle);
-
-        // Use array_search to find the index
-        return array_search($needleLowercase, $lowercaseHaystack);
+        return $this->headerStartIndex($csvRow, $tableOption) !== null;
     }
 
     public function getTableData(array $csvArray, int $firstDataRowIndex, int $firstHeadingColumnAbsoluteIndex, array $tableOption): array
@@ -374,41 +377,7 @@ class CsvService
         return $tableData;
     }
 
-    public function isTableHeader(array $csvRow, array $tableOption): bool
-    {
-        /**
-         * Single purpose: confirm if this CSV row matches a known table header
-         */
-        $expectedHeadingLabels = $tableOption['ExpectedHeadingLabels'];
-
-        $isTableHeader = false;
-
-        /*
-         * First check if the row contains at least the first heading label before determining order which is computationally expensive
-         */
-        //Blank cells arrive as null, which strtoupper() no longer accepts directly
-        $csvRow = array_map(fn ($columnValue) => strtoupper((string) $columnValue), $csvRow);
-        $hasAtLeastOne = in_array(strtoupper($expectedHeadingLabels[0]), $csvRow);
-
-        if ($hasAtLeastOne) {
-            //Check exact order of heading titles
-            $index = 0; // Index for expectedOrder
-            foreach ($csvRow as $columnValue) {
-                if (isset($expectedHeadingLabels[$index])) {
-                    if (strtoupper($columnValue) === strtoupper($expectedHeadingLabels[$index])) {
-                        $index++;
-                        if ($index === count($expectedHeadingLabels)) {
-                            $isTableHeader = true; // All values matched in order
-                        }
-                    }
-                }
-            }
-        }
-
-        return $isTableHeader;
-    }
-
-    public function getSubQty(string $rawSubQty): float
+    public function getSubQty(?string $rawSubQty): float
     {
         /**
          * Single purpose: convert sub qty to a float. Also set "1" as default to avoid zero multiplication
@@ -418,12 +387,19 @@ class CsvService
         return $float === 0.0 ? 1.0 : $float;
     }
 
-    public function normaliseLengthWidthRequired(string $quantity, string $lengthWidthUnits): float
+    public function normaliseLengthWidthRequired(?string $quantity, string $lengthWidthUnits): float
     {
         /**
          * Single purpose: extract just the number from string number representation.
+         *
+         * $lengthWidthUnits is every template's "nominalUnits", and it is deliberately
+         * not used here. Converting by the declared unit and then letting
+         * normalisedLength() apply its "below 20 must be meters" rule would convert
+         * twice: 0.015 in a meters column would become 15mm, then 15000mm. The two
+         * rules cannot both be authoritative, and which one wins is a decision about
+         * real steel, not a tidy-up. See normalisedLength().
          */
-        $removeLetters = preg_replace('/[a-zA-Z]/', '', $quantity);
+        $removeLetters = preg_replace('/[a-zA-Z]/', '', (string) $quantity);
         $removeCurrencySymbols = preg_replace('/[€£¥₹$¢₱₽₩₦฿]/u', '', $removeLetters);
 
         return (float) $removeCurrencySymbols;
@@ -444,81 +420,119 @@ class CsvService
         $materialList = [];
         $itemsNotFound = [];
         $fromOtherPlan = [];
+        $couldNotBeRead = [];
         foreach ($rows as $row) {
-            //Find matching product config
-            $productConfig = $dataClassificationService->findProductConfigFromText($row['description']);
+            /*
+             * One unusable row used to take the rest of the file down with it. The
+             * exception unwound this whole loop, every row below it was lost without
+             * a trace, and the user was told the template had stopped auto-detecting.
+             * Each row now fails on its own and is reported back by name.
+             */
+            try {
+                //Find matching product config
+                $productConfig = $dataClassificationService->findProductConfigFromText($row['description']);
 
-            if(!$productConfig){
-                continue; //don't save this row
-            }
+                if(!$productConfig){
+                    continue; //don't save this row
+                }
 
-            //Product category
-            $productCategory = $productConfig['productCategory'];
+                //Product category
+                $productCategory = $productConfig['productCategory'];
 
-            //Algo
-            $algo = $productCategory
-                ? $nestingFormatter->getNestingLabelsFromProductCategory($productCategory)[0] ?? null
-                : null;
+                //Algo
+                $algo = $productCategory
+                    ? $nestingFormatter->getNestingLabelsFromProductCategory($productCategory)[0] ?? null
+                    : null;
 
-            //Supplier group belongs to current plan
-            $supplierGroup = $productConfig['supplierGroup']->value;
-            if (! $business->supplierGroupIsCurrentPlan($supplierGroup)) {
-                $fromOtherPlan[] = $row['description'];
-                continue; //don't save this row
-            }
-
-            //Business plan is meterage products only
-            if($business->meterage_only){
-                if($algo !== NestingEnums::METERAGE->value){
+                //Supplier group belongs to current plan
+                $supplierGroup = $productConfig['supplierGroup']->value;
+                if (! $business->supplierGroupIsCurrentPlan($supplierGroup)) {
                     $fromOtherPlan[] = $row['description'];
                     continue; //don't save this row
                 }
+
+                //Business plan is meterage products only
+                if($business->meterage_only){
+                    if($algo !== NestingEnums::METERAGE->value){
+                        $fromOtherPlan[] = $row['description'];
+                        continue; //don't save this row
+                    }
+                }
+
+                //Must have general product matches
+                if(count($row['generalProductMatches']["results"]) === 0){
+                    $itemsNotFound[] = $row['description'];
+                    continue; //don't save this row
+                }
+
+                /**
+                 * Create 'RawMaterialQuote' item
+                 */
+                $lengthRequired = $this->normalisedLength($algo, $row['length_required'] ?? null);
+                $widthRequired = $this->normalisedWidth($algo, $row['width_required'] ?? null);
+
+                /*
+                 * Nesting can do nothing with a row whose length never made it off the
+                 * sheet. A blank cell, a dash, an "N/A" and a formula that arrived as
+                 * "#REF!" all reduce to 0 here, and length_required is NOT NULL - so
+                 * this was the QueryException that used to end the import. Say which
+                 * line it was instead.
+                 */
+                if ($lengthRequired === null) {
+                    $couldNotBeRead[] = $row['description'];
+                    continue; //don't save this row
+                }
+
+                /*
+                 * A template with no SubQty column leaves this null against a NOT NULL
+                 * column. One is what getSubQty() already substitutes for a zero, for
+                 * the same reason: a missing multiplier must not zero the quantity.
+                 */
+                $subQty = $row['sub_qty'] ?? 1.0;
+
+                $rawMaterialQuote = RawMaterialQuote::create([
+                    'csv_index' => $row['index'],
+                    'description' => $row['description'],
+                    'product_category' => $productCategory,
+                    'material' => $row['material'] ?? null,
+                    'grade' => $row['grade'] ?? null,
+                    'surface' => $row['surface'] ?? null,
+                    'nominal_units' => MeasurementUnitEnums::MILLIMETERS,
+                    'length_required' => $lengthRequired,
+                    'width_required' => $widthRequired,
+                    'sub_qty' => $subQty,
+                    'project_id' => $project->id,
+                    'general_product_matches' => serialize($row['generalProductMatches']),
+                    'custom_product_matches' => serialize($row['customProductMatches']),
+                    'assembly_mark' => $row['assembly_mark'] ?? '',
+                ]);
+
+                $materialList[] = $rawMaterialQuote;
+
+                /**
+                 * Create 'Pieces'
+                 */
+                if (count($row['generalProductMatches']['results']) === 1 && $algo) {
+                    $productSpec = $row['generalProductMatches']['results'][0];
+                    $piece = $pieceService->createPieceFromProductSpec($productSpec, $rawMaterialQuote, $algo);
+                }
             }
-
-            //Must have general product matches
-            if(count($row['generalProductMatches']["results"]) === 0){
-                $itemsNotFound[] = $row['description'];
-                continue; //don't save this row
-            }
-
-            /**
-             * Create 'RawMaterialQuote' item
+            /*
+             * Anything this row does that we did not anticipate. The row is lost either
+             * way, but the rest of the file is not, and the bug is reported rather than
+             * being dressed up as a template problem.
              */
-            $lengthRequired = $row['length_required'] ?? null;
-            $widthRequired = $row['width_required'] ?? null;
+            catch (\Throwable $e) {
+                report($e);
 
-            $rawMaterialQuote = RawMaterialQuote::create([
-                'csv_index' => $row['index'],
-                'description' => $row['description'],
-                'product_category' => $productCategory,
-                'material' => $row['material'] ?? null,
-                'grade' => $row['grade'] ?? null,
-                'surface' => $row['surface'] ?? null,
-                'nominal_units' => MeasurementUnitEnums::MILLIMETERS,
-                'length_required' => $this->normalisedLength($algo, $lengthRequired),
-                'width_required' => $this->normalisedWidth($algo, $widthRequired),
-                'sub_qty' => $row['sub_qty'],
-                'project_id' => $project->id,
-                'general_product_matches' => serialize($row['generalProductMatches']),
-                'custom_product_matches' => serialize($row['customProductMatches']),
-                'assembly_mark' => $row['assembly_mark'] ?? '',
-            ]);
-
-            $materialList[] = $rawMaterialQuote;
-
-            /**
-             * Create 'Pieces'
-             */
-            if (count($row['generalProductMatches']['results']) === 1) {
-                $productSpec = $row['generalProductMatches']['results'][0];
-                $piece = $pieceService->createPieceFromProductSpec($productSpec, $rawMaterialQuote, $algo);
+                $couldNotBeRead[] = $row['description'];
             }
         }
 
         /**
          * Notify user & admin of items not found
          */
-        if(count($itemsNotFound) > 0 || count($fromOtherPlan) > 0){
+        if(count($itemsNotFound) > 0 || count($fromOtherPlan) > 0 || count($couldNotBeRead) > 0){
             //Notify admin
             $adminUser = User::query()->where('email', config('env.admin_email'))->first();
             if ($adminUser && count($itemsNotFound) > 0) {
@@ -527,7 +541,7 @@ class CsvService
             }
 
             //Notify user
-            $project->recordUnimportedItems($itemsNotFound, $fromOtherPlan);
+            $project->recordUnimportedItems($itemsNotFound, $fromOtherPlan, $couldNotBeRead);
         }
 
         /**
@@ -544,6 +558,12 @@ class CsvService
         /**
          * Single purpose: convert M to MM, or keep MM as MM depending on how it looks.
          * "length" for Bundle items like bolts is more likely a QTY multiplier, so leave it as null since sub qty will capture it
+         *
+         * Known limitation: the rule is "below 20 must be meters", applied whatever the
+         * template says its units are. It is right for a sheet that mixes meters and
+         * millimeters in one column, and wrong for a genuine sub-20mm part in a column
+         * already in millimeters - 15 becomes 15000. Templates carry a "nominalUnits"
+         * that could settle this, but only once someone decides which signal wins.
          */
         $normalisedLength = null;
 
@@ -684,8 +704,16 @@ class CsvService
     {
         /**
          * Description cell contains specific
+         *
+         * A row shorter than the check column - a trailing part-filled row, say - used
+         * to raise "Undefined array key" and then pass null to strtoupper(), which is a
+         * fatal in PHP 9. Its two sibling rules already guarded this.
          */
-        return strtoupper($csvRow[$descriptionColumnIndex]) === strtoupper($text);
+        if (! isset($csvRow[$descriptionColumnIndex])) {
+            return false;
+        }
+
+        return strtoupper((string) $csvRow[$descriptionColumnIndex]) === strtoupper($text);
     }
 
     public function getAssemblyMark(array $tableOption, array $csvRow, array $csvArray, int $firstDataRowIndex, int $firstHeadingColumnAbsoluteIndex): ?string
@@ -720,10 +748,14 @@ class CsvService
 
     private function assemblyMarkRuleColumn(int $firstHeadingColumnAbsoluteIndex, int $relativeOffset, array $csvRow): ?string
     {
-
+        /**
+         * The offset is the column NUMBER the rule gives (1 = the first heading column),
+         * hence the -1 onto a zero-based index.
+         */
         $columnIndex = $firstHeadingColumnAbsoluteIndex + $relativeOffset - 1;
 
-        return $csvRow[$columnIndex];
+        //A row that stops short of this column is not a reason to lose the row
+        return isset($csvRow[$columnIndex]) ? (string) $csvRow[$columnIndex] : null;
     }
 
     private function assemblyMarkRuleFixed(array $relativeCoordinates, array $csvArray, int $firstDataRowIndex, int $firstHeadingColumnAbsoluteIndex, array $tableOption): ?string
@@ -736,7 +768,8 @@ class CsvService
         $newX = $firstHeadingColumnAbsoluteIndex + $relativeCoordinates[0];
         $newY = $indexOfHeadingRow + $relativeCoordinates[1];
 
-        return $csvArray[$newY][$newX];
+        //Coordinates can land outside the sheet: an assembly mark is not worth the row
+        return isset($csvArray[$newY][$newX]) ? (string) $csvArray[$newY][$newX] : null;
     }
 
     private function decodeCompoundDescription(?array $compoundDescription, array $csvRow, int $firstHeadingColumnAbsoluteIndex): ?string
@@ -751,7 +784,10 @@ class CsvService
             $prefix = $compoundDescription['prefix'] ?? '';
             $decodeCompoundDescription = $prefix;
             foreach ($compoundDescription['relativeOffsets'] as $index => $offset) {
-                $decodeCompoundDescription = $decodeCompoundDescription.($index > 0 ? ' ' : '').$csvRow[$firstHeadingColumnAbsoluteIndex + $offset];
+                //A short row contributes nothing rather than raising "Undefined array key"
+                $cell = $csvRow[$firstHeadingColumnAbsoluteIndex + $offset] ?? '';
+
+                $decodeCompoundDescription = $decodeCompoundDescription.($index > 0 ? ' ' : '').$cell;
             }
             $suffix = $compoundDescription['suffix'] ?? '';
             $decodeCompoundDescription = $decodeCompoundDescription.$suffix;

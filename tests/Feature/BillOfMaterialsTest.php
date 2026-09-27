@@ -171,11 +171,12 @@ it('would be a disaster if unimported items were lost, or kept after they were i
     $user = createUser(1, $business, false, true);
     $project = createProject($user);
 
-    $project->recordUnimportedItems(['20PL 1220mm', 'M16x100'], ['SS316 M16 x 150']);
+    $project->recordUnimportedItems(['20PL 1220mm', 'M16x100'], ['SS316 M16 x 150'], ['100x100x10EA']);
 
     expect($project->fresh()->unimportedItems())->toBe([
         'notRecognised' => ['20PL 1220mm', 'M16x100'],
         'otherPlan' => ['SS316 M16 x 150'],
+        'couldNotBeRead' => ['100x100x10EA'],
     ]);
 
     //The user fixes one of them and re-uploads
@@ -187,6 +188,7 @@ it('would be a disaster if unimported items were lost, or kept after they were i
     expect($project->fresh()->unimportedItems())->toBe([
         'notRecognised' => ['M16x100'],
         'otherPlan' => ['SS316 M16 x 150'],
+        'couldNotBeRead' => ['100x100x10EA'],
     ]);
 });
 

@@ -8,6 +8,7 @@ use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\CsvService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -41,29 +42,36 @@ class ProductController extends Controller
         //Services
         $csvService = new CsvService;
 
-        //Store the uploaded file temporarily
+        /*
+         * Excel::toArray() reads the uploaded temp file directly. This used to
+         * $file->store('uploads') first and then unlink a copy it never read back -
+         * and the unlink sat after the processing, so an admin's rethrown exception
+         * left the copy on disk.
+         */
         $file = $request->file('excel');
-        $path = $file->store('uploads');
-
-        //Read the CSV
         $csvArray = Excel::toArray(new ExcelImport, $file)[0];
 
         //Process the CSV
-        $errorMsg = "The spreadsheet didn't auto-detect properly. Did the template change? Please email the file to mark.laravel.coder@gmail.com to have it re-calibrated quickly.";
+        $supportEmail = config('env.admin_email');
+        $errorMsg = "The spreadsheet didn't auto-detect properly. Did the template change? Please email the file to {$supportEmail} to have it re-calibrated quickly.";
 
         //Users to get nice error message, admin to throw error.
         if ($user->isAdmin()) {
-            $return = $csvService->processCsv($csvArray, $project, $errorMsg);
+            $return = DB::transaction(fn () => $csvService->processCsv($csvArray, $project, $errorMsg));
         } else {
+            /*
+             * A transaction so a failure part way through leaves nothing behind, and
+             * \Throwable rather than \Exception so a TypeError is caught too - it used
+             * to escape as a 500.
+             */
             try {
-                $return = $csvService->processCsv($csvArray, $project, $errorMsg);
-            } catch (\Exception $e) {
+                $return = DB::transaction(fn () => $csvService->processCsv($csvArray, $project, $errorMsg));
+            } catch (\Throwable $e) {
+                report($e);
+
                 $return = back()->with('warning', $errorMsg);
             }
         }
-
-        // Delete the file after processing
-        unlink(storage_path("app/private/{$path}"));
 
         return $return;
     }
