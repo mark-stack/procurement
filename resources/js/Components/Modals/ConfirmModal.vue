@@ -23,6 +23,14 @@
             type: String,
             default: "danger",
         },
+        /**
+         * Reporting something that already happened rather than asking permission, so
+         * there is nothing to cancel - the one button just dismisses it.
+         */
+        acknowledgeOnly: {
+            type: Boolean,
+            default: false,
+        },
     });
 
     //Variables
@@ -93,6 +101,7 @@
         <template #footer>
             <button
                 type="button"
+                :data-modal-autofocus="acknowledgeOnly ? '' : null"
                 class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm"
                 :class="isDanger
                     ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
@@ -103,6 +112,7 @@
             </button>
             <!-- Cancel takes the focus, so a stray Enter cannot confirm -->
             <button
+                v-if="!acknowledgeOnly"
                 type="button"
                 data-modal-autofocus
                 class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-900 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm"

@@ -15,7 +15,7 @@ export default function useConfirm(){
     const confirmDialog = ref(null);
 
     /**
-     * @param {{title: string, message: string, confirmLabel?: string, cancelLabel?: string, tone?: string, onConfirmed: function, onCancelled?: function}} dialog
+     * @param {{title: string, message: string, confirmLabel?: string, cancelLabel?: string, tone?: string, acknowledgeOnly?: boolean, onConfirmed: function, onCancelled?: function}} dialog
      */
     function askToConfirm(dialog){
         confirmDialog.value = dialog;

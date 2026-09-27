@@ -295,3 +295,36 @@ it('would be a disaster if detaching an order from its batch threw', function ()
 
     expect($order->fresh()->batch_id)->toBeNull();
 });
+
+it("would be a disaster if another business's quotes and orders could be downloaded", function () {
+    /*
+     * The quotes/orders modal on the projects board is fed by download.quotes.data, which replaced the
+     * /quote-order-management/{batch} page. The page authorised the batch; the endpoint has to do the
+     * same, or every supplier, PO number and cert on somebody else's batch is one guessed id away.
+     */
+    $business1 = createBusiness('biz1', true);
+    $user1 = createUser(1, $business1, false, true);
+
+    $business2 = createBusiness('biz2', true);
+    $user2 = createUser(1, $business2, false, true);
+    $theirBatch = Batch::factory()->forUser($user2->id)->create();
+    pieceOnBatch(createProject($user2), $theirBatch);
+
+    $this->actingAs($user1);
+
+    $this->getJson(route('download.quotes.data', $theirBatch))->assertForbidden();
+});
+
+it('serves the quotes and orders for your own batch', function () {
+    $business = createBusiness('biz', true);
+    $user = createUser(1, $business, false, true);
+
+    $batch = Batch::factory()->forUser($user->id)->create();
+    pieceOnBatch(createProject($user), $batch);
+
+    $this->actingAs($user);
+
+    $this->getJson(route('download.quotes.data', $batch))
+        ->assertOk()
+        ->assertJsonStructure(['quotesData' => ['info', 'supplierGroupCards']]);
+});

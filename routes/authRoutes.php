@@ -5,6 +5,7 @@ use App\Http\Controllers\BatchNestingController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DownloadBomController;
 use App\Http\Controllers\DownloadNesting;
+use App\Http\Controllers\DownloadQuotesDataController;
 use App\Http\Controllers\DownloadUsageController;
 use App\Http\Controllers\MarkAsPastProjectController;
 use App\Http\Controllers\MarkNotificationStatusController;
@@ -20,7 +21,6 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\QuoteController;
-use App\Http\Controllers\QuoteOrderManagementController;
 use App\Http\Controllers\RawMaterialListBulkDeleteController;
 use App\Http\Controllers\RawMaterialListClarificationsController;
 use App\Http\Controllers\RawMaterialListCustomisationsController;
@@ -68,7 +68,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('download-nesting/{batch_id}', DownloadNesting::class)->name('download.nesting');
 
-        Route::get('quote-order-management/{batch}', QuoteOrderManagementController::class)->name('quote.order.management');
+        //Feeds the quotes/orders modal on the projects board, which replaced a page of its own
+        Route::get('download-quotes-data/{batch}', DownloadQuotesDataController::class)->name('download.quotes.data');
 
         Route::get('download-usage-data', DownloadUsageController::class)->name('download.usage.data');
 

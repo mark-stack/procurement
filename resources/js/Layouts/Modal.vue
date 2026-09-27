@@ -188,8 +188,13 @@
 
     <!-- Modal (https://codepen.io/npmhieu/pen/mdxaEbE?editors=1000) -->
     <div id="basicModal">
+        <!--
+            Above the nav's z-30, not below it. At z-10 the nav painted over the top of any modal
+            tall enough to reach it, clipping the heading off a full-height one. ConfirmModal wraps
+            itself higher still, so it keeps sitting on top of whatever opened it.
+        -->
         <div
-            class="relative z-10"
+            class="relative z-40"
             role="dialog"
             :aria-label="ariaLabel"
             :aria-labelledby="labelledBy"
