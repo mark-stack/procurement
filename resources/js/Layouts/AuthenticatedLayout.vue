@@ -10,22 +10,24 @@
     //Shared data
     const impersonating = computed(() => usePage().props.auth.impersonating);
 
-    //The materials import used to answer with a bare string, which Inertia could not render
-    const materialsImport = computed(() => usePage().props.flash?.materialsImport);
+    //What the master materials screen said about the last edit it saved or refused. A refusal is
+    //the interesting case: the catalogue is edited from a modal, and a spec locked by work already
+    //recorded against it has to explain itself outside that modal too.
+    const materials = computed(() => usePage().props.flash?.materials);
     const success = computed(() => usePage().props.flash?.success);
 
     //Variables
     //The impersonation banner sits above the nav, so the fixed-height grid below has to give
     //its height back or the page overflows by exactly the banner
     const underNavScreenHeight = computed(() => window.innerHeight - 68 - (impersonating.value ? 52 : 0));
-    const materialsImportDismissed = ref(false);
+    const materialsDismissed = ref(false);
     const successDismissed = ref(false);
 
     //This layout survives Inertia visits, so a dismissal has to end with the message it dismissed
     watch(success, () => successDismissed.value = false);
-    //Without this, dismissing one import result hid every later one: a second import reported
-    //neither success nor failure
-    watch(materialsImport, () => materialsImportDismissed.value = false);
+    //Without this, dismissing one result hid every later one: a second edit reported neither
+    //success nor failure
+    watch(materials, () => materialsDismissed.value = false);
 </script>
 
 <template>
@@ -111,12 +113,12 @@
 <!--                        <i class="fa-solid fa-bug"></i>-->
 <!--                        <span class="mx-2 text-sm font-medium">Telescope (Admin)</span>-->
 <!--                    </a>-->
-<!--                    &lt;!&ndash; Update Materials &ndash;&gt;-->
+<!--                    &lt;!&ndash; Master Materials &ndash;&gt;-->
 <!--                    <NavButton-->
 <!--                        v-if="isAdmin"-->
-<!--                        :route="route('admin.update.master.materials.spreadsheet')"-->
-<!--                        label="Update Materials (Admin)"-->
-<!--                        icon="fa-solid fa-file-excel"-->
+<!--                        :route="route('admin.materials.index')"-->
+<!--                        label="Master Materials (Admin)"-->
+<!--                        icon="fa-solid fa-layer-group"-->
 <!--                        :alert="!hasSeedImport"-->
 <!--                    />-->
 <!--                </nav>-->
@@ -129,20 +131,18 @@
 
         <!-- Main -->
         <main class="col-span-7 overflow-y-auto pl-4 pr-4 bg-[#f9fafb]"><!--bg-gradient-to-tr from-blue-100 via-indigo-100 to-gray-100-->
-            <!-- Materials import result -->
+            <!-- What the master materials screen made of the last edit -->
             <div
-                v-if="materialsImport && !materialsImportDismissed"
-                :class="materialsImport.ok ? 'border-green-300 bg-green-50 text-green-900' : 'border-red-300 bg-red-50 text-red-900'"
+                v-if="materials && !materialsDismissed"
+                :class="materials.ok ? 'border-green-300 bg-green-50 text-green-900' : 'border-red-300 bg-red-50 text-red-900'"
                 class="flex items-start justify-between gap-4 px-4 py-3 mt-4 text-sm border rounded-lg"
             >
-                <ul class="list-disc list-inside">
-                    <li v-for="(message, index) in materialsImport.messages" :key="index">{{ message }}</li>
-                </ul>
+                <p>{{ materials.message }}</p>
                 <button
                     type="button"
                     class="font-bold shrink-0"
                     aria-label="Dismiss"
-                    @click="materialsImportDismissed = true"
+                    @click="materialsDismissed = true"
                 >
                     &times;
                 </button>

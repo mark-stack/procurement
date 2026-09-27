@@ -264,14 +264,17 @@
                                     <i class="w-4 text-center fa-solid fa-bug"></i>
                                     <span>Telescope</span>
                                 </a>
-                                <!-- Update Materials -->
+                                <!--
+                                    Master Materials
+                                    A page now, not a POST that rewrote all 1,150 rows on one click.
+                                    The alert still means "the catalogue is empty", and the page is
+                                    where that is explained and fixed.
+                                -->
                                 <NavButton
-                                    :route="route('admin.update.master.materials.spreadsheet')"
-                                    label="Update Materials"
-                                    icon="fa-solid fa-file-excel"
+                                    :route="route('admin.materials.index')"
+                                    label="Master Materials"
+                                    icon="fa-solid fa-layer-group"
                                     :alert="!hasSeedImport"
-                                    method="post"
-                                    confirm="Re-import master_materials.csv? This rewrites the whole platform product catalogue."
                                 />
                             </div>
 

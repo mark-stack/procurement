@@ -973,8 +973,27 @@ class ProductService
         return $productCategory.' '.$actualGrade.$actualSurface;
     }
 
+    /**
+     * The implementation class names, found once.
+     *
+     * This reads the directory from disk and reflects over every class in it, and it is called from
+     * getImplementationFromProductCategory - which every derived product label goes through. The
+     * admin catalogue screen renders fifty labels a page and a JSON import derives one per row, so
+     * that was a directory scan and seventeen reflections per product.
+     *
+     * Static, because the answer cannot change while the process is running: it is the contents of a
+     * directory of source files.
+     *
+     * @var array<int, string>|null
+     */
+    private static ?array $implementations = null;
+
     public function getImplementations(): array
     {
+        if (self::$implementations !== null) {
+            return self::$implementations;
+        }
+
         $namespace = 'App\Services\ProductImplementations\\';
         $path = app_path('Services/ProductImplementations');
         $exclude = 'ProductBaseImplementation';
@@ -1004,7 +1023,7 @@ class ProductService
             ->values()
             ->all();
 
-        return array_filter($implementations);
+        return self::$implementations = array_values(array_filter($implementations));
     }
 
     public function generalProductDefinition(string $productCategory): array
