@@ -414,7 +414,15 @@ it('would be a disaster if the export could not be imported back', function () {
     expect($plan['mode'])->toBe('replace')
         ->and($plan['counts']['create'])->toBe(0)
         ->and($plan['counts']['update'])->toBe(0)
-        ->and($plan['counts']['deprecate'])->toBe(0);
+        ->and($plan['counts']['deprecate'])->toBe(0)
+        /*
+         * Zero, not "few". Any invalid row blocks the whole import, so one bad row in the catalogue
+         * is enough to make a full-catalogue sync impossible - which is exactly what an anchor rod
+         * whose nominal length was "`50" and a hex bolt with a grade in its material column did
+         * until both were corrected. This is what stops another one arriving unnoticed.
+         */
+        ->and($plan['counts']['errors'])->toBe(0)
+        ->and($plan['counts']['unchanged'])->toBe(Product::count());
 });
 
 it('would be a disaster if a row the importer rejects were not already flagged on the screen', function () {
