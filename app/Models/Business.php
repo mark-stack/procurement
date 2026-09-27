@@ -17,6 +17,40 @@ class Business extends Model
     protected $guarded = [];
 
     /*
+     * Defaults for the nesting settings, mirroring the column defaults in the migrations.
+     *
+     * A column default only fills the ROW. Business::create() is called with a handful of fields, so the
+     * instance handed back had no scrap_threshold_mm attribute at all, and reading a missing attribute
+     * gives null - which means "$drop >= $business->scrap_threshold_mm" was really "$drop >= 0" and every
+     * drop, down to a millimetre, counted as reusable stock to be banked as an offcut. Nesting only got
+     * the intended 1,000mm threshold if the model happened to be re-read from the database first.
+     *
+     * Declared here rather than guarded against at each use so every consumer sees the same numbers, and
+     * so a freshly created business nests the same way it will after the next page load.
+     */
+    protected $attributes = [
+        'scrap_threshold_mm' => 1000,
+        'kerf_mm' => 0,
+        /*
+         * cap_12m_stock has the same problem: null on a newly created business, which is falsy, so the
+         * 12m delivery cap silently did not apply until the model was read back from the database.
+         */
+        'cap_12m_stock' => true,
+        'labour_rate_per_hour' => 50.00,
+        'material_cost_per_tonne' => 2000.00,
+        'scrap_recovery_rate' => 0.13,
+        'default_kg_per_m' => 10.0,
+        'cut_base_minutes' => 1.5,
+        'cut_minutes_per_kg_per_m' => 0.06,
+        'offcut_draw_base_minutes' => 4.0,
+        'bar_handling_base_minutes' => 3.0,
+        'offcut_rack_base_minutes' => 6.0,
+        'move_minutes_per_tonne' => 15.0,
+        'offcut_retention_cap' => 0.6,
+        'purchase_cost_weight' => 1.0,
+    ];
+
+    /*
      * These four are boolean columns in the migration, but without a cast the type that
      * reaches json is whatever the driver hands back - int on mysql, the string "0" on
      * sqlite. The admin users page compares admin_setup_complete with ===, so its Ready

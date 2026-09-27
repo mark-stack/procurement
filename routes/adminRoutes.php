@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ActivateBusinessController;
 use App\Http\Controllers\AdminImpersonationController;
+use App\Http\Controllers\AdminNestingAlgorithmController;
 use App\Http\Controllers\AdminStopImpersonationController;
 use App\Http\Controllers\AdminSupplierIndexController;
 use App\Http\Controllers\AdminSupplierStoreController;
@@ -37,6 +38,11 @@ Route::prefix('admin')->name('admin.')->middleware([AdminMiddleware::class])->gr
     //POST: activating emails every user in the business, so it must not be reachable by a
     //link, a prefetch, a crawler or the back button
     Route::post('activate-business/{business}', ActivateBusinessController::class)->name('activate.business');
+
+    //Nesting algorithm
+    //{business?}: the cost settings are per business, so an admin can inspect any of them, but the
+    //page explains the algorithm either way and defaults to the admin's own
+    Route::get('nesting-algorithm/{business?}', AdminNestingAlgorithmController::class)->name('nesting.algorithm');
 
     //Suppliers
     Route::get('/suppliers/{business}', AdminSupplierIndexController::class)->name('suppliers.index');

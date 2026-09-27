@@ -147,18 +147,77 @@ function nestingTestCases(): array
     ];
 }
 
+/**
+ * @param  array<string, float>  $costs  nesting cost coefficients to override - see NestingCostModel
+ */
+function nestingBusiness(int $scrapThreshold = 1000, int $kerf = 0, array $costs = []): App\Models\Business
+{
+    $business = createBusiness('biz'.uniqid(), true);
+    $business->scrap_threshold_mm = $scrapThreshold;
+    $business->kerf_mm = $kerf;
+
+    foreach ($costs as $setting => $value) {
+        $business->setAttribute($setting, $value);
+    }
+
+    $business->save();
+
+    return $business;
+}
+
+/**
+ * A piece spec carrying nothing but a mass per metre.
+ *
+ * Only the section's weight matters to the cost model, and it is what decides whether destroying a few
+ * hundred millimetres is cheaper than keeping a piece on the rack. Light angle and a heavy universal
+ * beam answer that question differently, which is the point.
+ */
+function nestingSection(float $kgPerM): object
+{
+    return (object) ['kg_per_m' => $kgPerM];
+}
+
+/**
+ * @param  array<int, array{0: int, 1: int}>  $lengthAndQty
+ */
+function nestingCuts(array $lengthAndQty, int $projectId = 1): array
+{
+    $cuts = [];
+    $pieceId = 0;
+
+    foreach ($lengthAndQty as [$length, $qty]) {
+        for ($i = 0; $i < $qty; $i++) {
+            $cuts[] = ['project' => $projectId, 'piece_id' => ++$pieceId, 'length' => $length];
+        }
+    }
+
+    return $cuts;
+}
+
+function nestingOffcut(int $id, int $length): array
+{
+    return ['id' => $id, 'length' => $length, 'unique_mark' => 'M'.$id, 'batch_from_id' => 1];
+}
+
 function nestingTestCasesWithOffcuts(): array
 {
     return [
         /**
          * Case 1
+         *   From the 1,550mm offcut: 1500 (50 scrap)
          *   1 of 9000: 2500|2500|2500|1500 (0 waste)
-         *   1 of 9000: 2500|2500|1500 (2500 reusable)
+         *   1 of 9000: 2500|2500 (4000 reusable)
          *
-         * Neither offcut is touched. The 1,550mm one holds a 1,500mm cut, and taking it used to be
-         * automatic - but it bins the 50mm left over, and both 1,500s ride along in bars that are being
-         * bought either way. Same 18,000mm purchased, 50mm less destroyed, and the 1,550mm stays whole
-         * on the shelf.
+         * The 1,550mm stub takes one of the 1,500mm cuts and 50mm goes in the skip. Same 18,000mm
+         * purchased either way, so the whole comparison is what the rack looks like afterwards:
+         *
+         *   leaving the stub alone  ->  1,200 + 1,550 + a 2,500 drop   (three pieces)
+         *   taking the stub         ->  1,200 + a 4,000 drop           (two pieces)
+         *
+         * One fewer piece to store and find, and the drop that is left is 4,000mm rather than 2,500mm,
+         * which is worth appreciably more on the retention curve. 50mm of 200PFC - just over a kilogram -
+         * buys both. The old plan read as 50mm less destroyed and a perfect yield figure while quietly
+         * keeping a stub nobody was ever going to reach for.
          */
         [
             'nest' => [
@@ -169,7 +228,7 @@ function nestingTestCasesWithOffcuts(): array
             "offcuts" => [
                 1200,1550
             ],
-            "expectedQtyOffcutsUsed" => 0,
+            "expectedQtyOffcutsUsed" => 1,
             'result' => [
                 [
                     'bar_length' => '9000',
@@ -182,9 +241,9 @@ function nestingTestCasesWithOffcuts(): array
                 [
                     'bar_length' => '9000',
                     'count' => 1,
-                    'pieces' => [2500, 2500, 1500],
-                    'unused' => 2500,
-                    "reusable" => 2500,
+                    'pieces' => [2500, 2500],
+                    'unused' => 4000,
+                    "reusable" => 4000,
                     "scrap" => 0,
                 ],
             ],

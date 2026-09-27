@@ -173,6 +173,13 @@
                                                 label="Users (Admin)"
                                                 icon="fa-solid fa-users"
                                             />
+                                            <!-- Nesting algorithm -->
+                                            <NavButton
+                                                v-if="isAdmin"
+                                                :route="route('admin.nesting.algorithm')"
+                                                label="Nesting Algorithm (Admin)"
+                                                icon="fa-solid fa-calculator"
+                                            />
                                             <!-- Telescope -->
                                             <a
                                                 v-if="isAdmin"
