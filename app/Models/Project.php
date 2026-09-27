@@ -152,23 +152,27 @@ class Project extends Model
          * created a project and imported materials, but done nothing else, there
          * will be no batch objects.
          */
-        $percentageOfMaterialsQuoted = 0;
+        $quotedRows = 0;
         $materialListRowsCount = $this->rawMaterialQuotes->count();
 
         foreach ($this->rawMaterialQuotes as $rawMaterialQuote) {
             $piece = $rawMaterialQuote->piece;
             if ($piece) {
-                //PIECE might not have quote objects yet
-                foreach ($piece->quotes as $quote) {
-                    if ($quote->quote_sent) {
-                        $percentageOfMaterialsQuoted++;
-                    }
+                /*
+                 * Counted once per material ROW, not once per sent quote. quotes is a belongsToMany
+                 * and AttachPiecesToQuote attaches every matching piece to each supplier's quote, so
+                 * a business with two steel merchants gave every piece two quotes - and once both
+                 * were sent this reported 200%. The question is whether the row has been quoted at
+                 * all, so any one sent quote answers it.
+                 */
+                if ($piece->quotes->contains('quote_sent', true)) {
+                    $quotedRows++;
                 }
             }
         }
 
-        return $percentageOfMaterialsQuoted > 0
-            ? ceil($percentageOfMaterialsQuoted / $materialListRowsCount * 100)
+        return $quotedRows > 0
+            ? (int) ceil($quotedRows / $materialListRowsCount * 100)
             : 0;
     }
 

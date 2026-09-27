@@ -28,9 +28,6 @@
     //Forms
     const formProjectDelete = useForm({});
     const formQuoteStore = useForm({});
-    const formOrdersStore = useForm({
-        batch_id: null,
-    });
 
     //Shared data
     //
@@ -174,30 +171,6 @@
              * neither for that, which would leave the overlay up with nothing to dismiss it.
              */
             onFinish: () => {
-                //Remove page loader
-                pageLoading.value = false;
-            },
-        });
-    }
-
-    function orderNow(batchId){
-        let url = route("orders.store");
-
-        //Page loader
-        pageLoading.value = true;
-
-        formOrdersStore.batch_id = batchId;
-        formOrdersStore.post(url, {
-            preserveScroll: true,
-            onSuccess: () => {
-                console.log("success after 'formOrdersStore'");
-
-                //Remove page loader
-                pageLoading.value = false;
-            },
-            onError: errors => {
-                console.log('errors',errors);
-
                 //Remove page loader
                 pageLoading.value = false;
             },
@@ -441,7 +414,6 @@
                         @toggleArchive="p => toggleArchive(p)"
                         @editMode="p => editMode(p)"
                         @quoteNow="quoteNow()"
-                        @orderNow="orderNow()"
                         @showBom="args => showBom(args)"
                         @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
                         @pageLoadingOff="pageLoading = false"
@@ -531,7 +503,6 @@
                         @editMode="p => editMode(p)"
                         @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
                         @pageLoadingOff="pageLoading = false"
-                        @orderNow="orderNow(batch['batch']['id'])"
                         @showBom="args => showBom(args)"
                         @showQuoteOrders="id => showQuoteOrders(id)"
                     />
