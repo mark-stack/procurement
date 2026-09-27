@@ -279,7 +279,7 @@
         formProjectCreate.clearErrors();
         formProjectCreate.excel = [];
 
-        //A close mid-upload used to leave this stuck on the "sip of coffee" screen
+        //A close mid-upload used to leave this stuck on the processing screen
         freezeView.value = false;
         warningDismissed.value = true;
 
@@ -460,12 +460,13 @@
                 <!-- Loading -->
                 <div
                     v-if="freezeView"
-                    class="flex items-center justify-center text-center text-xl dark:text-gray-100"
+                    class="flex flex-col items-center justify-center gap-3 text-center text-xl dark:text-gray-100"
                     style="height:300px"
                     role="status"
                     aria-live="polite"
                 >
-                    Processing: Have a sip of coffee ☕️
+                    <div class="w-12 h-12 rounded-full animate-spin border-4 border-solid border-blue-500 border-t-transparent"></div>
+                    <span>Processing...</span>
                 </div>
 
                 <!-- Edit project -->

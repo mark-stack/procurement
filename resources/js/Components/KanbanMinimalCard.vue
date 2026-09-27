@@ -29,7 +29,7 @@
     //...
 
     //Variables
-    const emit = defineEmits(['toggleArchive','editMode','pageLoadingOn','pageLoadingOff','showBom','showNesting','addProject','quoteNow']);
+    const emit = defineEmits(['toggleArchive','editMode','pageLoadingOn','pageLoadingOff','showBom','showNesting','addProject','quoteNow','showQuoteOrders']);
     const user = computed(() => usePage().props.auth.user);
     const loadingButton = ref(null);
     const expandProject = ref(null);
@@ -282,38 +282,36 @@
                 />
             </div>
 
-            <!-- Quote/order modal -->
-            <Link
+            <!--
+                Quote/order modal. Opens in place on the board - this used to navigate to
+                /quote-order-management/{batch}, a page whose only content was a modal you had to
+                leave the board to see.
+            -->
+            <div
                 v-if="kanbanColumn === 'QUOTING'"
-                :href="route('quote.order.management',batchInfo.batch.id)"
                 class="w-full"
-                @click="loadingButton = 'QUOTING'"
             >
                 <CardButtonForward
-                    :label="loadingButton === 'QUOTING' ? 'Opening...' : 'Quotes'"
-                    :insideLink="true"
-                    @click="loadingButton = 'QUOTING'"
+                    label="Quotes"
+                    @click="$emit('showQuoteOrders',batchInfo.batch.id)"
                 />
-            </Link>
+            </div>
 
-            <Link
+            <div
                 v-if="kanbanColumn === 'ORDERING' || kanbanColumn === 'DELIVERED'"
-                :href="route('quote.order.management',batchInfo.batch.id)"
                 class="w-full"
-                @click="loadingButton = 'ORDERING'"
             >
                 <CardButtonGreen
                     v-if="kanbanColumn === 'DELIVERED' && allDelivered()"
-                    :label="loadingButton === 'ORDERING' ? 'Opening...' : 'Orders'"
-                    @click="loadingButton = 'ORDERING'"
+                    label="Orders"
+                    @click="$emit('showQuoteOrders',batchInfo.batch.id)"
                 />
                 <CardButtonForward
                     v-else
-                    :label="loadingButton === 'ORDERING' ? 'Opening...' : 'Orders'"
-                    :insideLink="true"
-                    @click="loadingButton = 'ORDERING'"
+                    label="Orders"
+                    @click="$emit('showQuoteOrders',batchInfo.batch.id)"
                 />
-            </Link>
+            </div>
 
             <!--
                 Re-nest. Greyed out rather than hidden when the prerequisite fails, the way Archive is

@@ -15,6 +15,7 @@
     import ConfirmModal from "@/Components/Modals/ConfirmModal.vue";
     import PageLoadingOverlay from "@/Components/PageLoadingOverlay.vue";
     import KanbanMinimalCard from "@/Components/KanbanMinimalCard.vue";
+    import QuoteOrderModal from "@/Components/Modals/QuoteOrderModal.vue";
 
     //Props
     const props = defineProps({
@@ -48,6 +49,10 @@
     const usageData = ref(null);
     const modalCanUpload = ref(false);
     const projectAfterUpload = ref(null);
+    const showQuoteOrderModal = ref(false);
+    const quotesData = ref(null);
+    const quotesDataBatchId = ref(null);
+    const quotesLoadFailed = ref(false);
 
     //Computed
     //Card counts per column, for the badge in each column header
@@ -147,12 +152,30 @@
             preserveScroll: true,
             onSuccess: () => {
                 console.log('success');
-
-                //Remove page loader
-                pageLoading.value = false;
             },
+            /*
+             * The board redraws either way, so a rolled back "start quoting" used to look exactly
+             * like a successful one: the loader cleared, nothing moved to Quoting, no reason given.
+             */
             onError: errors => {
                 console.log('errors',errors);
+
+                askToConfirm({
+                    title: "Could not start quoting",
+                    message: errors.batch ?? "Something went wrong and the nesting was not saved, so nothing has changed. Please try again.",
+                    confirmLabel: "OK",
+                    tone: "danger",
+                    acknowledgeOnly: true,
+                    onConfirmed: () => {},
+                });
+            },
+            /*
+             * onFinish, not onSuccess/onError - the prerequisite gate aborts 403 and Inertia calls
+             * neither for that, which would leave the overlay up with nothing to dismiss it.
+             */
+            onFinish: () => {
+                //Remove page loader
+                pageLoading.value = false;
             },
         });
     }
@@ -199,6 +222,51 @@
         modalCanUpload.value = canUpload;
 
         downloadProjectBomData(bomProject.value,"BOM");
+    }
+
+    /**
+     * Quotes and orders for one batch. The modal opens straight away on its own spinner rather than
+     * behind the full-page overlay - the board stays readable underneath, and the batch you picked
+     * is still visible while its data arrives.
+     */
+    function showQuoteOrders(batchId){
+        quotesDataBatchId.value = batchId;
+        quotesData.value = null;
+        showQuoteOrderModal.value = true;
+
+        downloadQuotesData(batchId);
+    }
+
+    async function downloadQuotesData(batchId){
+        quotesLoadFailed.value = false;
+
+        try {
+            const response = await axios.get(route("download.quotes.data",batchId));
+
+            /*
+             * Only accept an answer for the batch still on screen. Opening one card, closing it and
+             * opening another leaves the first request in flight, and it used to win the race and
+             * draw the wrong batch's suppliers.
+             */
+            if(quotesDataBatchId.value !== batchId){
+                return;
+            }
+
+            quotesData.value = response.data.quotesData;
+        } catch (error) {
+            console.error('Error fetching quotes data:', error);
+
+            if(quotesDataBatchId.value === batchId){
+                quotesLoadFailed.value = true;
+            }
+        }
+    }
+
+    function closeQuoteOrders(){
+        showQuoteOrderModal.value = false;
+        quotesData.value = null;
+        quotesDataBatchId.value = null;
+        quotesLoadFailed.value = false;
     }
 
     async function getUsageData(){
@@ -434,6 +502,7 @@
                         @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
                         @pageLoadingOff="pageLoading = false"
                         @showBom="args => showBom(args)"
+                        @showQuoteOrders="id => showQuoteOrders(id)"
                         @addProject="addProject()"
                     />
 
@@ -464,6 +533,7 @@
                         @pageLoadingOff="pageLoading = false"
                         @orderNow="orderNow(batch['batch']['id'])"
                         @showBom="args => showBom(args)"
+                        @showQuoteOrders="id => showQuoteOrders(id)"
                     />
 
                     <KanbanEmptyState
@@ -492,6 +562,7 @@
                         @pageLoadingOn="seconds => pageLoaderTimer(seconds)"
                         @pageLoadingOff="pageLoading = false"
                         @showBom="args => showBom(args)"
+                        @showQuoteOrders="id => showQuoteOrders(id)"
                         @addProject="addProject()"
                     />
 
@@ -507,12 +578,21 @@
     </AuthenticatedLayout>
 
     <!-- Modals -->
+    <QuoteOrderModal
+        :show="showQuoteOrderModal"
+        :quotesData="quotesData"
+        :loadFailed="quotesLoadFailed"
+        :width="850"
+        @closeModal="closeQuoteOrders()"
+        @refresh="downloadQuotesData(quotesDataBatchId)"
+    />
     <ConfirmModal
         v-if="confirmDialog"
         :title="confirmDialog.title"
         :message="confirmDialog.message"
         :confirmLabel="confirmDialog.confirmLabel"
         :tone="confirmDialog.tone"
+        :acknowledgeOnly="confirmDialog.acknowledgeOnly ?? false"
         @confirm="confirmDialogAccepted()"
         @cancel="confirmDialogCancelled()"
     />

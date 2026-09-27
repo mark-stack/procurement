@@ -15,7 +15,7 @@ it('would be a disaster if quote deadline missed', function () {});
 
 it('would be a disaster if duplicate quotes were possible', function () {
     /*
-     * The quote/order management page provisions a quote per supplier the first time it renders. That
+     * The quotes/orders modal provisions a quote per supplier the first time it loads. That
      * was a lookup followed by a create, so two concurrent loads could both miss and both insert.
      * The unique index is what makes firstOrCreate actually safe.
      */
