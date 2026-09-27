@@ -82,6 +82,12 @@ class Business extends Model
         return $this->belongsToMany(Supplier::class);
     }
 
+    /**
+     * Annotated because select() on this relation otherwise hands back a collection of
+     * plain Models, so anything mapping over the rows loses the Template type.
+     *
+     * @return HasMany<Template, $this>
+     */
     public function templates(): HasMany
     {
         return $this->hasMany(Template::class);

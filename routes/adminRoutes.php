@@ -12,6 +12,7 @@ use App\Http\Controllers\AdminNestingAlgorithmController;
 use App\Http\Controllers\AdminStopImpersonationController;
 use App\Http\Controllers\AdminSupplierIndexController;
 use App\Http\Controllers\AdminSupplierStoreController;
+use App\Http\Controllers\AdminTemplateScreenshotController;
 use App\Http\Controllers\AdminUserIndexController;
 use App\Http\Controllers\TemplateController;
 use App\Http\Middleware\AdminMiddleware;
@@ -27,6 +28,12 @@ Route::prefix('admin')->name('admin.')->middleware([AdminMiddleware::class])->gr
     Route::resource('businesses.templates', TemplateController::class)
         ->scoped()
         ->only(['index', 'store', 'update', 'destroy']);
+
+    //scopeBindings(): same reason as scoped() above - without it a mistyped business id
+    //serves another business's screenshot
+    Route::get('businesses/{business}/templates/{template}/screenshot', AdminTemplateScreenshotController::class)
+        ->scopeBindings()
+        ->name('businesses.templates.screenshot');
 
     //Master materials
     //The catalogue is edited here row by row. It used to be authored in a spreadsheet and

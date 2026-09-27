@@ -1,7 +1,7 @@
 <script setup>
     //General Imports
     import { Head, useForm } from '@inertiajs/vue3';
-    import { ref } from "vue";
+    import { computed, ref } from "vue";
 
     //Component Imports
     import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
@@ -12,9 +12,14 @@
     import useConfirm from "@/Shared/useConfirm.js";
 
     //Props
+    /*
+     * "business" is two fields, not the model: a Business serializes 23 columns including
+     * every cost and pricing setting, and this page reads the id and the domain.
+     */
     const props = defineProps({
         templates: Array,
         business: Object,
+        detectionOptions: Array,
     });
 
     //Form
@@ -25,6 +30,8 @@
      */
     const blankTemplate = {
         name: null,
+        source: null,
+        config_label: null,
         first_description_cell: null,
         first_material_cell: null,
         first_length_required_cell: null,
@@ -43,7 +50,54 @@
     //Shared Methods
     const {confirmDialog, askToConfirm, confirmDialogAccepted, confirmDialogCancelled} = useConfirm();
 
+    //Computed
+    /*
+     * source and config_label are one choice to make - they name a single entry in
+     * config/TableTemplates.php - so they are one select, split back into the two fields
+     * the request validates as a pair.
+     */
+    const detectionKey = computed({
+        get() {
+            if(!formTemplate.source || !formTemplate.config_label){
+                return "";
+            }
+
+            return detectionKeyFor(formTemplate.source, formTemplate.config_label);
+        },
+        set(value) {
+            if(!value){
+                formTemplate.source = null;
+                formTemplate.config_label = null;
+
+                return;
+            }
+
+            const option = props.detectionOptions.find(
+                (candidate) => detectionKeyFor(candidate.source, candidate.config_label) === value,
+            );
+
+            formTemplate.source = option ? option.source : null;
+            formTemplate.config_label = option ? option.config_label : null;
+        },
+    });
+
+    //The units the importer reads for the entry currently chosen in the form
+    const selectedNominalUnits = computed(() => {
+        const option = props.detectionOptions.find(
+            (candidate) => detectionKeyFor(candidate.source, candidate.config_label) === detectionKey.value,
+        );
+
+        return option ? option.nominal_units : null;
+    });
+
     //Methods
+    //"|||" because a label can contain anything a human types, commas included
+    function detectionKeyFor(source, configLabel){
+        return `${source}|||${configLabel}`;
+    }
+    function screenshotUrl(templateId){
+        return route("admin.businesses.templates.screenshot",[props.business.id,templateId]);
+    }
     function submit(){
         //Edit mode
         if(editId.value){
@@ -94,12 +148,19 @@
          * back to the form default of false, so saving any edit deactivated the template.
          */
         formTemplate.name = template.name;
+        formTemplate.source = template.source;
+        formTemplate.config_label = template.config_label;
         formTemplate.first_description_cell = template.first_description_cell;
         formTemplate.first_material_cell = template.first_material_cell;
         formTemplate.first_length_required_cell = template.first_length_required_cell;
         formTemplate.first_width_required_cell = template.first_width_required_cell;
         formTemplate.first_sub_qty_cell = template.first_sub_qty_cell;
-        formTemplate.screenshot = template.screenshot;
+        /*
+         * Not the screenshot. It is not in the index props any more, and re-sending up to
+         * 750KB of base64 to change one word was the reason it had to be. Blank means keep
+         * the stored one; the request drops the field rather than blanking the column.
+         */
+        formTemplate.screenshot = null;
         formTemplate.length_width_units = template.length_width_units;
         formTemplate.active = template.active;
 
@@ -164,6 +225,31 @@
                                                 maxlength="255"
                                             />
                                             <InputError :message="formTemplate.errors.name"/>
+                                        </div>
+
+                                        <!--
+                                            Which entry in config/TableTemplates.php this row
+                                            documents. Without it a recorded template could not be
+                                            matched to the thing it describes, so nothing noticed
+                                            when that entry was renamed or removed.
+                                        -->
+                                        <div class="col-span-2 text-left">
+                                            <InputLabel value="Detection entry*"/>
+                                            <select
+                                                v-model="detectionKey"
+                                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                            >
+                                                <option value="">Choose the entry this template is&hellip;</option>
+                                                <option
+                                                    v-for="option in detectionOptions"
+                                                    :key="detectionKeyFor(option.source,option.config_label)"
+                                                    :value="detectionKeyFor(option.source,option.config_label)"
+                                                >
+                                                    {{option.source}} &mdash; {{option.config_label}} ({{option.nominal_units}})
+                                                </option>
+                                            </select>
+                                            <InputError :message="formTemplate.errors.source"/>
+                                            <InputError :message="formTemplate.errors.config_label"/>
                                         </div>
 
                                         <!-- first_description_cell -->
@@ -233,22 +319,32 @@
                                         </div>
 
                                         <!-- screenshot -->
-                                        <div class="col-span-2">
-                                            <InputLabel value="Screenshot (paste base64 string in 800x500px)*"/>
+                                        <div class="col-span-2 text-left">
+                                            <InputLabel :value="editId ? 'Screenshot (leave blank to keep the current one)' : 'Screenshot (paste base64 string in 800x500px)*'"/>
                                             <input
                                                 v-model="formTemplate.screenshot"
                                                 class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                                 type="text"
-                                                placeholder="data:image/png;base64,..."
+                                                :placeholder="editId ? 'Paste a new data URL to replace it' : 'data:image/png;base64,...'"
                                             />
                                             <InputError :message="formTemplate.errors.screenshot"/>
                                             <small>
                                                 Use this link to convert: <a target="_blank" class="underline text-blue-500" href="https://codepen.io/GapRay/pen/MGjWqY">Codepen</a>
                                             </small>
+
+                                            <!-- What is stored today, so "leave blank to keep" means something -->
+                                            <div v-if="editId" class="mt-2 flex items-center gap-x-2">
+                                                <img
+                                                    class="object-cover object-left-top w-32 h-20 rounded border border-gray-200 dark:border-gray-700"
+                                                    :src="screenshotUrl(editId)"
+                                                    alt="Current screenshot"
+                                                />
+                                                <small class="text-gray-500 dark:text-gray-400">Currently stored</small>
+                                            </div>
                                         </div>
 
                                         <!-- length_width_units -->
-                                        <div>
+                                        <div class="text-left">
                                             <InputLabel value="Length/width units*"/>
                                             <select
                                                 v-model="formTemplate.length_width_units"
@@ -258,6 +354,24 @@
                                                 <option value="mm">Millimeters (mm)</option>
                                             </select>
                                             <InputError :message="formTemplate.errors.length_width_units"/>
+
+                                            <!--
+                                                Recorded, not applied. CsvService::normaliseLengthWidthRequired()
+                                                ignores the template's units on purpose, and normalisedLength()
+                                                applies "below 20 must be meters" whatever they say. Saying so
+                                                here, because the field otherwise reads as a setting.
+                                            -->
+                                            <small class="block mt-1 text-gray-500 dark:text-gray-400">
+                                                Recorded for reference. The importer does not read this: lengths
+                                                are converted by the &ldquo;below 20 must be meters&rdquo; rule
+                                                in <code>normalisedLength()</code> regardless.
+                                            </small>
+                                            <small
+                                                v-if="selectedNominalUnits && selectedNominalUnits !== formTemplate.length_width_units"
+                                                class="block mt-1 text-amber-700 dark:text-amber-300"
+                                            >
+                                                The config entry says <strong>{{selectedNominalUnits}}</strong>.
+                                            </small>
                                         </div>
 
                                         <!-- active -->
@@ -307,6 +421,10 @@
                                                     Name
                                                 </th>
 
+                                                <th scope="col" class="px-4 py-3.5 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400">
+                                                    Detection entry
+                                                </th>
+
                                                 <th scope="col" class="px-12 py-3.5 text-sm font-normal text-left rtl:text-right text-gray-500 dark:text-gray-400">
                                                     Active
                                                 </th>
@@ -321,13 +439,42 @@
                                             <tr v-for="template in templates" :key="template.id">
                                                 <td class="px-4 py-4 text-sm font-medium text-gray-700 whitespace-nowrap">
                                                     <div class="flex items-center gap-x-3">
-                                                        <!-- The screenshot is how an admin recognises a template, so show it at a readable size -->
+                                                        <!--
+                                                            The screenshot is how an admin recognises a template, so show it at a
+                                                            readable size. It comes from its own cacheable endpoint rather than
+                                                            inline in the props - 750KB of base64 per template, on every visit.
+                                                        -->
                                                         <img class="object-cover object-left-top w-32 h-20 rounded border border-gray-200 dark:border-gray-700"
-                                                             :src="template.screenshot"
+                                                             :src="screenshotUrl(template.id)"
+                                                             loading="lazy"
                                                              :alt="template.name">
                                                         <h2 class="font-medium text-gray-800 dark:text-white">
                                                             {{ template.name }}
                                                         </h2>
+                                                    </div>
+                                                </td>
+                                                <td class="px-4 py-4 text-sm whitespace-nowrap">
+                                                    <!-- Named and still in the config -->
+                                                    <div v-if="template.detection.configured" class="text-gray-700 dark:text-gray-300">
+                                                        {{template.source}} &mdash; {{template.config_label}}
+                                                        <small
+                                                            v-if="template.detection.nominal_units !== template.length_width_units"
+                                                            class="block text-amber-700 dark:text-amber-300"
+                                                        >
+                                                            Recorded {{template.length_width_units}}, config says {{template.detection.nominal_units}}
+                                                        </small>
+                                                    </div>
+                                                    <!--
+                                                        Either recorded before this pair existed, or the entry it named has
+                                                        been renamed or removed since. Both are worth seeing: this record is
+                                                        only worth keeping if it still describes something real.
+                                                    -->
+                                                    <div v-else class="text-amber-700 dark:text-amber-300">
+                                                        <span v-if="template.source">
+                                                            {{template.source}} &mdash; {{template.config_label}}
+                                                            <small class="block">No longer in TableTemplates.php</small>
+                                                        </span>
+                                                        <span v-else>Not linked to an entry</span>
                                                     </div>
                                                 </td>
                                                 <td class="px-12 py-4 text-sm font-medium text-gray-700 whitespace-nowrap">
@@ -375,7 +522,7 @@
                                                 </td>
                                             </tr>
                                             <tr v-if="templates.length === 0">
-                                                <td colspan="3" class="px-4 py-6 text-sm text-center text-gray-500 dark:text-gray-400">
+                                                <td colspan="4" class="px-4 py-6 text-sm text-center text-gray-500 dark:text-gray-400">
                                                     No templates recorded for this business yet.
                                                 </td>
                                             </tr>
