@@ -33,6 +33,15 @@ class DatabaseSeeder extends Seeder
         $dataClassificationService = new dataClassificationService;
 
         /**
+         * Platform product catalogue
+         *
+         * First, and not optional. Every BOM import classifies its lines against this table, so an
+         * empty one makes an import extract nothing at all without saying why. It used to be filled
+         * by an admin button nobody knew they had to press.
+         */
+        $this->call(MasterMaterialsSeeder::class);
+
+        /**
          * Admin
          */
         //User

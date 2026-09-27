@@ -29,9 +29,9 @@ class AdminMiddleware
         }
 
         /*
-         * 'warning', not 'error': HandleInertiaRequests shares success, warning, project
-         * and materialsImport, so the old 'error' key was flashed to a page that had no way
-         * to read it and a non-admin was bounced to '/' with no explanation at all.
+         * 'warning', not 'error': HandleInertiaRequests shares success, warning, project and
+         * materials, so the old 'error' key was flashed to a page that had no way to read it and a
+         * non-admin was bounced to '/' with no explanation at all.
          */
         return redirect('/')->with('warning', 'Unauthorized access.');
     }

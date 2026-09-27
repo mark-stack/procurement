@@ -47,12 +47,21 @@ class HandleInertiaRequests extends Middleware
                 'notifications' => (new NotificationService)->getUnreadNotifications($request->user()),
                 "hasPastProjects" => (bool) $request->user()?->business?->batches()->inactive()->exists(),
             ],
-            'hasSeedImport' => Product::count() > 0,
+            /*
+             * Whether the platform catalogue has been seeded at all, which the nav turns into an
+             * alert. platformCreated(), because a business's own private products are not a
+             * catalogue - a BOM import still extracts nothing without one. exists(), not count():
+             * this runs on every Inertia response.
+             */
+            'hasSeedImport' => Product::query()->platformCreated()->exists(),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'warning' => fn () => $request->session()->get('warning'),
                 "project" => fn () => $request->session()->get('project'),
-                'materialsImport' => fn () => $request->session()->get('materialsImport'),
+                //What the master materials screen said about the last edit it saved or refused
+                'materials' => fn () => $request->session()->get('materials'),
+                //What a JSON import would do, for review before any of it is applied
+                'materialsImportPlan' => fn () => $request->session()->get('materialsImportPlan'),
             ],
             'adminEmail' => config('env.admin_email'),
             "loginAvailable" => env("LOGIN_AVAILABLE"),

@@ -2,14 +2,20 @@
 
 use App\Http\Controllers\ActivateBusinessController;
 use App\Http\Controllers\AdminImpersonationController;
+use App\Http\Controllers\AdminMaterialDestroyController;
+use App\Http\Controllers\AdminMaterialExportController;
+use App\Http\Controllers\AdminMaterialImportController;
+use App\Http\Controllers\AdminMaterialIndexController;
+use App\Http\Controllers\AdminMaterialStoreController;
+use App\Http\Controllers\AdminMaterialUpdateController;
 use App\Http\Controllers\AdminNestingAlgorithmController;
 use App\Http\Controllers\AdminStopImpersonationController;
 use App\Http\Controllers\AdminSupplierIndexController;
 use App\Http\Controllers\AdminSupplierStoreController;
-use App\Http\Controllers\AdminUpdateMasterMaterialsSpreadsheetController;
 use App\Http\Controllers\AdminUserIndexController;
 use App\Http\Controllers\TemplateController;
 use App\Http\Middleware\AdminMiddleware;
+use App\Http\Middleware\PlatformProductMiddleware;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')->name('admin.')->middleware([AdminMiddleware::class])->group(function () {
@@ -22,10 +28,28 @@ Route::prefix('admin')->name('admin.')->middleware([AdminMiddleware::class])->gr
         ->scoped()
         ->only(['index', 'store', 'update', 'destroy']);
 
-    //Update master materials spreadsheet
-    //POST: this rewrites the whole platform catalogue, so it must not be reachable by a link,
-    //a prefetch or a crawler
-    Route::post('update-master-materials-spreadsheet', AdminUpdateMasterMaterialsSpreadsheetController::class)->name('update.master.materials.spreadsheet');
+    //Master materials
+    //The catalogue is edited here row by row. It used to be authored in a spreadsheet and
+    //re-imported wholesale, which meant one click rewrote all 1,150 rows and any correction
+    //made in the app was deprecated and duplicated by the next import.
+    Route::get('materials', AdminMaterialIndexController::class)->name('materials.index');
+    Route::post('materials', AdminMaterialStoreController::class)->name('materials.store');
+
+    //Bulk changes as JSON: generated elsewhere, or exported from the other environment.
+    //Always two steps - preview writes nothing, apply re-derives the plan and refuses it if the
+    //catalogue moved while it was being reviewed.
+    Route::post('materials/import/preview', [AdminMaterialImportController::class, 'preview'])->name('materials.import.preview');
+    Route::post('materials/import/apply', [AdminMaterialImportController::class, 'apply'])->name('materials.import.apply');
+
+    //GET: reads nothing but the catalogue and changes nothing
+    Route::get('materials/export', AdminMaterialExportController::class)->name('materials.export');
+
+    //PlatformProductMiddleware: {product} resolves by id alone, so without it a mistyped id
+    //edits or deletes a business's own private product
+    Route::middleware([PlatformProductMiddleware::class])->group(function () {
+        Route::patch('materials/{product}', AdminMaterialUpdateController::class)->name('materials.update');
+        Route::delete('materials/{product}', AdminMaterialDestroyController::class)->name('materials.destroy');
+    });
 
     //Users
     Route::get('users', AdminUserIndexController::class)->name('users.index');
