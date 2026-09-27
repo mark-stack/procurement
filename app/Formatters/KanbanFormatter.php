@@ -6,39 +6,19 @@ use App\Enums\SupplierGroupEnums;
 use App\Http\Resources\ProjectResource;
 use App\Models\Business;
 use App\Models\Offcut;
-use App\Models\Project;
 use App\Models\User;
 use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\BatchService;
-use App\Services\OrderService;
-use App\Services\QuoteService;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class KanbanFormatter
 {
-    public function newProjectsColumn(Business $business): AnonymousResourceCollection
-    {
-        return ProjectResource::collection(Project::query()
-            //Clarifications required OR no rawMaterialQuotes
-            ->where(function($q) use($business){
-                $q->whereIn("id",$business->projectsRequiringClarification()->pluck("id")->toArray())
-                    ->orWhere(function($qq){
-                        $qq->doesntHave('rawMaterialQuotes');
-                    });
-            })
-            ->thisBusiness($business)
-            ->where("archive",false)
-            ->sortByUserAndLatest()
-            ->get());
-    }
-
     public function readyForNestingColumn(Business $business): array
     {
         $piecesReadyForBatching = (new NestingFormatter())->piecesReadyForBatching($business);
 
         return [
             'projects' => ProjectResource::collection($business
-                ->projectsReadyForBatching($piecesReadyForBatching,$business)
+                ->projectsReadyForBatching($piecesReadyForBatching)
                 ->sortBy('created_at')),
         ];
     }
@@ -49,8 +29,6 @@ class KanbanFormatter
          * Services
          */
         $batchService = new BatchService;
-        $quoteFormatter = new QuoteFormatter();
-        $quoteService = new QuoteService;
 
         $quoted = [];
         $batchesForQuoting = $business->batches()
@@ -80,31 +58,23 @@ class KanbanFormatter
                 $offcutsAssignedToThisBatch,
             );
 
-            /**
-             * "Quotes and orders"
-             * 1) Assign a letter to each project. A, B, C, etc
-             * 2) Get all nested pieces
-             * 3) Group nested pieces by nesting algorithm. e.g "meterage"
-             * 4) get list of supplier categories available to the business
-             * 5) filter out categories not features in the nesting list
+            /*
+             * Deliberately NOT quotesData() here.
+             *
+             * That method provisions a quote per supplier and an order per quote with firstOrCreate,
+             * so calling it from the board minted rows for every batch in this column on every render
+             * - on a GET, for batches nobody opened - and re-ran the whole nesting algorithm to do it
+             * (~440ms of the ~485ms this page took). DownloadQuotesDataController is where it belongs:
+             * the modal fetches it for the one batch the user actually opened. The card itself draws
+             * none of it.
              */
-            $quotesData = $quoteFormatter->quotesData($business, $batch, $user);
-
             $quoted[$batch->id] = [
                 'info' => [
                     'batch' => [
                         'id' => $batch->id,
-                        'totalPurchasedMaterial' => 999, //todo
-                        'totalUsage' => 999, //todo
-                        'totalWaste' => 999, //todo
                     ],
                     'projects' => ProjectResource::collection($batch->projects()),
-                    'quotes' => $batch->quotes,
-                    'totalQuotesQty' => $batch->quotes()->count(),
-                    'sentQuotesQty' => $batch->quotes()->where('quote_sent', true)->count(),
-                    'batchQuotingDeadline' => $quoteService->batchQuotingDeadline($batch),
                     "prerequisiteUndoStartQuoting" => $prerequisiteUndoStartQuoting,
-                    "quotesData" => $quotesData,
                 ],
             ];
         }
@@ -141,24 +111,12 @@ class KanbanFormatter
         $batchesForOrdering = $batchService->sortByUserAndLatest($batchesForOrdering, $business);
 
         foreach ($batchesForOrdering as $batch) {
-            //Total orders qty
-            $orders = $batch->orders;
-            $totalOrdersQty = $batchService->totalOrdersQty($batch);
-
             $ordered[$batch->id] = [
                 'info' => [
                     'batch' => [
                         'id' => $batch->id,
-                        'totalPurchasedMaterial' => 999, //todo
-                        'totalUsage' => 999, //todo
-                        'totalWaste' => 999, //todo
                     ],
                     'projects' => ProjectResource::collection($batch->projects()),
-                    'orders' => $orders,
-                    'approxDueDate' => null, //todo actual - derived from earliest project
-                    'totalOrdersQty' => $totalOrdersQty,
-                    'sentOrdersQty' => $batch->orders()->where('order_sent', true)->count(),
-                    'all_project_manager_approvals' => (new OrderService)->allProjectManagersApproved($batch),
                 ],
             ];
         }
@@ -195,10 +153,6 @@ class KanbanFormatter
         $batchesForDelivering = $batchService->sortByUserAndLatest($batchesForDelivering, $business);
 
         foreach ($batchesForDelivering as $batch) {
-            //Total orders qty
-            $orders = $batch->orders;
-            $totalOrdersQty = $batchService->totalOrdersQty($batch);
-
             /*
              * The card's "everything is in" test has to be the one MarkAsPastProjectController applies,
              * or the "Move to done" button it draws lies about what the post will do.
@@ -230,18 +184,10 @@ class KanbanFormatter
                 'info' => [
                     'batch' => [
                         'id' => $batch->id,
-                        'totalPurchasedMaterial' => 999, //todo
-                        'totalUsage' => 999, //todo
-                        'totalWaste' => 999, //todo
                     ],
                     'projects' => ProjectResource::collection($batch->projects()),
-                    'orders' => $orders,
-                    'approxDueDate' => null, //todo actual - derived from earliest project
-                    'totalOrdersQty' => $totalOrdersQty,
-                    'sentOrdersQty' => $batch->orders()->where('order_sent', true)->count(),
                     "allDelivered" => $allDelivered,
                     "steelMerchantDeliveredButNoCertsYet" => $steelMerchantDeliveredButNoCertsYet,
-                    'all_project_manager_approvals' => (new OrderService)->allProjectManagersApproved($batch),
                 ],
             ];
         }

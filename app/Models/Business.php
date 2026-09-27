@@ -125,7 +125,13 @@ class Business extends Model
     {
         $requiringClarification = $this->projectsRequiringClarification()->pluck("id")->toArray();
 
+        /*
+         * Eager loaded the way Batch::projects() is, and for the same reason: ProjectResource walks
+         * user, rawMaterialQuotes and pieces for every card it draws. Unloaded, that was two queries
+         * per material row per project - a project with 50 BOM lines cost 110 queries to draw one card.
+         */
         return Project::query()
+            ->with(['user', 'rawMaterialQuotes', 'pieces.batch'])
             ->has("rawMaterialQuotes")
             ->whereNotIn("id",$requiringClarification)
             ->whereIn("id",$piecesReadyForBatching->pluck("project_id")->toArray())

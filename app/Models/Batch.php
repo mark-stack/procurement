@@ -84,13 +84,18 @@ class Batch extends Model
     {
         /*
          * Read the ids off the pieces rather than walking $piece->project, which loaded one project
-         * per piece. The relations are the ones ProjectResource walks for every row it renders.
+         * per piece.
+         *
+         * The relations are the ones the callers walk: ProjectResource needs user, rawMaterialQuotes
+         * and pieces.batch (that last one for prerequisiteUploadMaterials, which was two N+1s per
+         * card until it was added here), and the Ordering/Delivering columns call
+         * percentageOfMaterialsOrdered(), which needs rawMaterialQuotes.piece.order.
          *
          * Memoised like projectSummaries() below - undoStartQuoting alone walks this three times on
          * the same batch instance, and each walk is the full eager-loaded tree.
          */
         return $this->projectsMemo ??= Project::query()
-            ->with(['user', 'rawMaterialQuotes.piece.quotes', 'rawMaterialQuotes.piece.order'])
+            ->with(['user', 'rawMaterialQuotes.piece.order', 'pieces.batch'])
             ->whereIn('id', $this->pieces()->distinct()->pluck('project_id'))
             ->get();
     }

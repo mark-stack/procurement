@@ -35,12 +35,14 @@ class ProjectController extends Controller
 
         /*
          * Project columns
+         *
+         * There was a "NEW_PROJECTS" column here too. Nothing on the board ever read it - the page
+         * draws READY_FOR_NESTING and the three batch columns - but building it walked every project
+         * the business has ever had, archived and completed ones included, running a price book match
+         * per material row to find the ones needing clarification.
          */
         $projects = [
             //Kanban column 1
-            "NEW_PROJECTS" => $kanbanFormatter->newProjectsColumn($business),
-
-            //Kanban column 2
             "READY_FOR_NESTING" => $kanbanFormatter->readyForNestingColumn($business),
         ];
 
@@ -78,7 +80,7 @@ class ProjectController extends Controller
          * Prerequisite Gates
          */
         $piecesReadyForBatching = (new NestingFormatter())->piecesReadyForBatching($business);
-        $projectsReadyForBatching = $business->projectsReadyForBatching($piecesReadyForBatching,$business); //Note get this before updating pieces because it gets modified
+        $projectsReadyForBatching = $business->projectsReadyForBatching($piecesReadyForBatching);
         $prerequisiteStartQuoting = (new PrerequisiteConditions())->startQuoting(
             $user,
             $projectsReadyForBatching,
