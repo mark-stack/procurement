@@ -648,19 +648,27 @@ class NestingFormatter
             /*
              * 5) Total offcuts used less than total available
              */
-            $availableOffcuts = $business->availableOffcuts()
-                ->matchProduct($product)
-                ->get();
+            /*
+             * The shelf this product was nested against, read off the spec rather than queried again.
+             * buildMeterageProductSpec() has already run exactly this query - same business, same
+             * matchProduct() - and hung the result on the spec, so asking the database a second time
+             * per product only added a query per meterage spec to every nesting page load.
+             *
+             * Fallback for a nest handed in from somewhere that did not build the spec.
+             */
+            $availableOffcutsLength = isset($product->offcutInventoryLengths)
+                ? array_sum(array_column($product->offcutInventoryLengths, 'length'))
+                : $business->availableOffcuts()->matchProduct($product)->sum('length');
 
             $sumOffcutFullLength = 0;
             foreach($utilisedOffcutBars as $utilisedOffcutBar){
                 $sumOffcutFullLength = $sumOffcutFullLength + $utilisedOffcutBar["sourceOffcut"]["offcutLength"];
             }
-            if($sumOffcutFullLength <= $availableOffcuts->sum("length")){
+            if($sumOffcutFullLength <= $availableOffcutsLength){
                 $countQ5++;
 
             }
-            $numberQ5 = $numberQ5 + $availableOffcuts->sum("length");
+            $numberQ5 = $numberQ5 + $availableOffcutsLength;
 
             /*
              * 6) New offcuts + scrap = total unused
@@ -2048,9 +2056,15 @@ class NestingFormatter
          * themselves. Sorting on length alone left cuts of equal length in whatever order the pieces
          * collection arrived in, and that order is not something the database promises.
          */
+        /*
+         * Spelled out one term at a time. Packed into a pair of array literals, the length term had to
+         * read $b-then-$a while the two tiebreakers read $a-then-$b, and a single transposition there
+         * silently changes the order the whole nest is built in.
+         */
         usort($cutLengthsRequired, function ($a, $b) {
-            return [$this->cutLength($b['length']), $a['piece_id'] ?? 0, $a['project']]
-                <=> [$this->cutLength($a['length']), $b['piece_id'] ?? 0, $b['project']];
+            return ($this->cutLength($b['length']) <=> $this->cutLength($a['length']))
+                ?: (($a['piece_id'] ?? 0) <=> ($b['piece_id'] ?? 0))
+                ?: ($a['project'] <=> $b['project']);
         });
 
         return $cutLengthsRequired;

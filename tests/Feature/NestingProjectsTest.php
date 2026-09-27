@@ -350,3 +350,40 @@ it('would be a disaster if the batch nesting page ran a query per project', func
     //Was 202 for these 12 projects, and grew by ~16 with each one added
     expect($queries)->toBeLessThan(70);
 });
+
+it('would be a disaster if the suggested nesting page asked twice for the same offcut shelf', function () {
+    /**
+     * The nest already fetches the available offcuts for each material spec and hangs them on the
+     * spec. checks() then went back to the database for exactly the same rows, so every meterage
+     * spec on the page cost two identical offcut queries instead of one.
+     */
+    $adminBusiness = createBusiness('admin', true);
+    $adminUser = createUser(1, $adminBusiness, true, true);
+    $this->actingAs($adminUser);
+    seedMasterMaterials();
+
+    $business = createBusiness('biz', true);
+    $user = createUser(2, $business, false, true);
+    $this->actingAs($user);
+
+    $dataClassificationService = new DataClassificationService;
+    for ($i = 0; $i < 3; $i++) {
+        $project = createProject($user);
+        createPieces(sampleBOM($project, $dataClassificationService, [[2500, 4], [1500, 3]]), $project, $dataClassificationService);
+    }
+
+    $offcutQueries = 0;
+    DB::listen(function ($query) use (&$offcutQueries) {
+        if (str_contains($query->sql, 'from "offcuts"')) {
+            $offcutQueries++;
+        }
+    });
+
+    $response = $this->get(route('suggested.nesting'))->assertStatus(200);
+
+    //One material spec on this page, so one look at the shelf. It was two.
+    $meterageSpecs = count($response->viewData('page')['props']['pieces']['METERAGE']);
+
+    expect($meterageSpecs)->toBe(1)
+        ->and($offcutQueries)->toBe(1);
+});
