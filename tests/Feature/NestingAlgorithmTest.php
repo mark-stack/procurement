@@ -6,46 +6,20 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-function nestingBusiness(int $scrapThreshold = 1000, int $kerf = 0): App\Models\Business
-{
-    $business = createBusiness('biz'.uniqid(), true);
-    $business->scrap_threshold_mm = $scrapThreshold;
-    $business->kerf_mm = $kerf;
-    $business->save();
-
-    return $business;
-}
-
-/**
- * @param  array<int, array{0: int, 1: int}>  $lengthAndQty
- */
-function nestingCuts(array $lengthAndQty, int $projectId = 1): array
-{
-    $cuts = [];
-    $pieceId = 0;
-
-    foreach ($lengthAndQty as [$length, $qty]) {
-        for ($i = 0; $i < $qty; $i++) {
-            $cuts[] = ['project' => $projectId, 'piece_id' => ++$pieceId, 'length' => $length];
-        }
-    }
-
-    return $cuts;
-}
-
-function nestingOffcut(int $id, int $length): array
-{
-    return ['id' => $id, 'length' => $length, 'unique_mark' => 'M'.$id, 'batch_from_id' => 1];
-}
-
 /**
  * Offcut selection
  */
-it('would be a disaster if an offcut was opened that left a drop too small to reuse', function () {
+it('would be a disaster if a stub was left on the rack to nibble a full length instead', function () {
     /**
-     * A 700mm cut, with a 1,500mm and a 12,000mm offcut on the shelf. Taking the first offcut that
-     * merely fits burns the 1,500mm and bins the 800mm left over - below the 1,000mm threshold, so it
-     * is destroyed. The 12,000mm gives 11,300mm straight back to inventory instead.
+     * A 700mm cut on light steel, with a 1,500mm stub and a 12,000mm offcut on the shelf.
+     *
+     * Taking the 12,000mm destroys nothing and gives 11,300mm straight back, which is a perfect yield
+     * figure and the wrong answer: the rack still holds two pieces, one of them a stub no closer to ever
+     * being used, and a full length has been cut into. Taking the stub bins 800mm - 4.6kg on a light
+     * section - and retires it for good, leaving the 12,000mm whole.
+     *
+     * This is the trade the cost model exists to make, and it is why the rack carries a price. See
+     * the heavy-section case below, which goes the other way on the same numbers.
      */
     $business = nestingBusiness();
 
@@ -55,6 +29,36 @@ it('would be a disaster if an offcut was opened that left a drop too small to re
         [nestingOffcut(1, 1500), nestingOffcut(2, 12000)],
         [1 => 'A'],
         $business,
+        nestingSection(5.7),
+    );
+
+    $oldStock = $result['totals']['oldStock'];
+
+    //The stub went, and nothing was bought to avoid it
+    expect($oldStock['total'])->toBe(1500)
+        ->and($oldStock['used'])->toBe(700)
+        ->and($oldStock['scrap'])->toBe(800)
+        ->and($oldStock['reusable'])->toBe(0)
+        ->and($result['totals']['newStock']['total'])->toBe(0);
+});
+
+it('would be a disaster if a stub was burned on heavy steel to save a rack slot', function () {
+    /**
+     * The case above on a heavy section. 800mm of 500UB is 72kg in the skip, which no rack slot is
+     * worth, so the long length is the one to cut and the stub stays where it is.
+     *
+     * Same settings, opposite answer. Material scales with kg/m while the handling costs are a fixed
+     * number of kilograms, so the weight of the section is what decides it.
+     */
+    $business = nestingBusiness();
+
+    $result = (new NestingFormatter())->meterageAlgorithm(
+        nestingCuts([[700, 1]]),
+        [6000],
+        [nestingOffcut(1, 1500), nestingOffcut(2, 12000)],
+        [1 => 'A'],
+        $business,
+        nestingSection(90.0),
     );
 
     $oldStock = $result['totals']['oldStock'];
@@ -112,12 +116,22 @@ it('would be a disaster if an offcut was cut up when a bar being bought had the 
     $business = nestingBusiness();
     $formatter = new NestingFormatter();
 
+    /*
+     * Costed on a heavy section on purpose. The 900mm destroyed is 81kg, about $162 of steel, so no
+     * amount of rack tidying or a shorter trip to the saw pays for it and the principle holds outright.
+     *
+     * On light steel the same comparison is far closer, because consuming the 1,800mm offcut outright
+     * leaves ONE piece on the rack where using the bar alone leaves two - the 1,800mm plus the bar's own
+     * drop. Which way that lands is decided by the rack and retrieval times, so the light-section version
+     * of this case is a setting, not an invariant, and is not asserted here.
+     */
     $result = $formatter->meterageAlgorithm(
         nestingCuts([[5000, 1], [900, 1]]),
         [12000],
         [nestingOffcut(1, 1800)],
         [1 => 'A'],
         $business,
+        nestingSection(90.0),
     );
 
     $totals = $result['totals'];
@@ -244,11 +258,16 @@ it('would be a disaster if scrapped steel did not show up in the efficiency figu
 /**
  * Packing
  */
-it('would be a disaster if a pack that scrapped steel was chosen over one that did not', function () {
+it('would be a disaster if two useless stubs were banked to avoid scrapping anything', function () {
     /**
      * 4,300 + 4,300 and 3,700 + 3,700 into two 9,000mm bars leaves 400mm (scrap) and 1,600mm.
-     * Pairing 4,300 + 3,700 twice buys exactly the same two bars at exactly the same used/purchased
-     * ratio, and destroys nothing. Ranking runs on used/purchased alone could not tell them apart.
+     * Pairing 4,300 + 3,700 twice buys exactly the same two bars and destroys nothing at all - but it
+     * leaves two 1,000mm drops, which is the scrap threshold exactly, so both go on the rack.
+     *
+     * Destroying nothing is the worse plan. A 1,000mm drop sits right at the bottom of the retention
+     * curve and is worth nothing as inventory, so that plan pays two rack slots for two pieces nobody
+     * will reach for, to avoid 400mm in the skip. One 1,600mm drop is worth having; two 1,000mm stubs
+     * are the yield figure flattering itself.
      *
      * There is one purchasable length here on purpose. Random runs used to vary only which stock length
      * opened a new bar, so with nothing to vary every iteration packed the cuts the same way and the
@@ -266,9 +285,10 @@ it('would be a disaster if a pack that scrapped steel was chosen over one that d
 
     $newStock = $result['totals']['newStock'];
 
+    //Same two bars either way; this is the pairing that banks one useful drop instead of two stubs
     expect($newStock['total'])->toBe(18000)
-        ->and($newStock['scrap'])->toBe(0)
-        ->and($newStock['reusable'])->toBe(2000);
+        ->and($newStock['scrap'])->toBe(400)
+        ->and($newStock['reusable'])->toBe(1600);
 });
 
 it('would be a disaster if the nest never tried one stock length throughout', function () {

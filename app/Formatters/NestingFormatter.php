@@ -12,6 +12,7 @@ use App\Models\Business;
 use App\Models\Piece;
 use App\Models\Product;
 use App\Models\User;
+use App\Services\NestingCostModel;
 use App\Services\ProductService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -1011,6 +1012,29 @@ class NestingFormatter
     }
 
     /**
+     * Mass per metre for a piece spec, for the nesting cost model.
+     *
+     * products.kg_per_m is nullable and the spec can match several products (one per stock length), so
+     * this takes the heaviest value any of them carries rather than whichever row came back first - two
+     * runs of the same nest have to agree, and an unordered query does not guarantee that.
+     *
+     * Null when nothing matching carries a mass, leaving the fallback to the cost model.
+     *
+     * @param  array<string, mixed>  $pieceSpec
+     */
+    private function resolveKgPerM(array $pieceSpec, Business $business): ?float
+    {
+        $query = Product::query()->availableForBusiness($business);
+        foreach ($pieceSpec as $field => $value) {
+            $query = $this->wherePieceSpecField($query, $field, $value);
+        }
+
+        $kgPerM = $query->max('kg_per_m');
+
+        return $kgPerM !== null && (float) $kgPerM > 0 ? (float) $kgPerM : null;
+    }
+
+    /**
      * Match one field of a piece spec against the products table.
      *
      * A spec field can legitimately be null - not every product category uses every mandatory field.
@@ -1045,7 +1069,9 @@ class NestingFormatter
          *        the shortest bar that holds them
          *      - random ones, varying which offcuts are drawn on, which bars are opened, and how long
          *        those bars are
-         * D) Keep the candidate that buys the least, then destroys the least - see nestScore()
+         * D) Keep the cheapest candidate - see Services\NestingCostModel, which prices steel bought,
+         *    steel destroyed, what racking each drop loses, and the shop-floor time of every offcut
+         *    fetched, bar lifted and cut made, all in dollars
          *
          * The offcut pass used to run ONCE, outside this search, and its cuts were taken out of the
          * packing problem before the purchase decision existed. So a cut could be spent on shelf stock
@@ -1077,6 +1103,13 @@ class NestingFormatter
         $packingRandomizer = $this->seededRandomizer($cutLengthsRequired, $purchasableStockLengths, $offcutInventory, $business, 'packing');
 
         /*
+         * What this nest's decisions cost. Built once and shared by every candidate, so they are all
+         * ranked on the same terms - and so the greedy offcut chooser inside bestResultOffcuts() ranks
+         * the shelf the same way the finished nest is ranked.
+         */
+        $costModel = $this->costModel($purchasableStockLengths, $offcutInventory, $business, $newPieceSpec);
+
+        /*
          * C) Candidate nests. Compared by value: they used to be collected into an array keyed by their
          * efficiency, and efficiency is a float, which PHP truncates to an int array key - so 96.9% and
          * 96.1% collided on key 96 and the better nest was overwritten by whichever ran last.
@@ -1094,6 +1127,7 @@ class NestingFormatter
             false,
             $offcutRandomizer,
             $packingRandomizer,
+            $costModel,
         );
 
         /*
@@ -1117,10 +1151,11 @@ class NestingFormatter
                 false,
                 $offcutRandomizer,
                 $packingRandomizer,
+                $costModel,
                 $stockLength,
             );
 
-            if ($candidate['score'] > $best['score']) {
+            if ($candidate['cost'] < $best['cost']) {
                 $best = $candidate;
             }
         }
@@ -1142,14 +1177,15 @@ class NestingFormatter
                 true,
                 $offcutRandomizer,
                 $packingRandomizer,
+                $costModel,
             );
 
-            if ($candidate['score'] > $best['score']) {
+            if ($candidate['cost'] < $best['cost']) {
                 $best = $candidate;
             }
         }
 
-        //D) Keep the nest that destroys the least material for the least purchase
+        //D) Keep the cheapest nest
         $bestResultOffcuts = $best['bestResultOffcuts'];
         $utilisedBars = $best['utilisedBars'];
         $tooLong = $best['tooLong'];
@@ -1167,6 +1203,13 @@ class NestingFormatter
             'tooLong' => $tooLong,
             'orderList' => $orderList,
             'totals' => $totals,
+            /*
+             * What this plan costs in dollars - material plus labour, and the figure the search
+             * minimised. Reported so a nest can be compared against another run of the same pieces, and
+             * so the screens have something to show besides a yield percentage that counts a rack full
+             * of stubs as a good result. See Services\NestingCostModel.
+             */
+            'cost' => $best['cost'],
             /*
              * "Effective efficiency": the share of every millimetre handled that was NOT destroyed.
              *
@@ -1217,6 +1260,7 @@ class NestingFormatter
         bool $randomPacking,
         Randomizer $offcutRandomizer,
         Randomizer $packingRandomizer,
+        NestingCostModel $costModel,
         ?int $openStockLength = null,
     ): array {
         //Nesting required cuts into offcut inventory. e.g might cut 3x 900mm from 3,000mm
@@ -1227,6 +1271,7 @@ class NestingFormatter
             $business,
             $randomOffcuts,
             $offcutRandomizer,
+            $costModel,
         );
 
         /*
@@ -1266,17 +1311,17 @@ class NestingFormatter
         /*
          * Shrinking each packed bar to the shortest length that still holds it.
          *
-         * Any bar that shrinks strictly lowers the purchase, which is what the score weighs first, so
-         * the shrunk nest wins whenever there was anything to shrink. Both are still scored rather than
-         * the shrunk one simply taken, so that stays true if the ranking is ever reordered.
+         * Shrinking lowers the purchase, but it is no longer automatically an improvement: a shorter bar
+         * leaves a shorter drop, and a drop that shrinks from a useful length down to a stub costs more
+         * on the rack than the steel saved by not buying it. So both are costed and the cheaper taken.
          */
-        $nest = $this->nestFromParts($bestResultOffcuts, $newStock);
+        $nest = $this->nestFromParts($bestResultOffcuts, $newStock, $costModel);
         $shrunk = $this->shrinkBars($newStock, $purchasableStockLengths, $business);
 
         if ($shrunk !== null) {
-            $shrunkNest = $this->nestFromParts($bestResultOffcuts, $shrunk);
+            $shrunkNest = $this->nestFromParts($bestResultOffcuts, $shrunk, $costModel);
 
-            if ($shrunkNest['score'] > $nest['score']) {
+            if ($shrunkNest['cost'] < $nest['cost']) {
                 return $shrunkNest;
             }
         }
@@ -1288,9 +1333,9 @@ class NestingFormatter
      * Put the offcut half and the new-stock half of a nest together, with the score it is ranked by.
      *
      * @param  array<string, mixed>  $bestResultOffcuts
-     * @param  array{utilisedBars: array<int, array<string, mixed>>, tooLong: array<int, mixed>, sums: array<string, int>}  $newStock
+     * @param  array{utilisedBars: array<int, array<string, mixed>>, tooLong: array<int, mixed>, sums: array<string, mixed>}  $newStock
      */
-    private function nestFromParts(array $bestResultOffcuts, array $newStock): array
+    private function nestFromParts(array $bestResultOffcuts, array $newStock, NestingCostModel $costModel): array
     {
         $totals = [
             "oldStock" => [
@@ -1316,63 +1361,48 @@ class NestingFormatter
             'utilisedBars' => $newStock["utilisedBars"],
             'tooLong' => $newStock["tooLong"],
             'totals' => $totals,
-            'score' => $this->nestScore($totals, $newStock["sums"], count($newStock["tooLong"])),
+            'cost' => $costModel->cost(
+                purchasedMm: $totals["newStock"]["total"],
+                scrapMm: $totals["newStock"]["scrap"] + $totals["oldStock"]["scrap"],
+                kerfMm: $totals["newStock"]["kerf"] + $totals["oldStock"]["kerf"],
+                offcutDraws: $bestResultOffcuts["offcutDraws"] ?? [],
+                barsOpened: $newStock["sums"]["barsOpened"],
+                cuts: ($bestResultOffcuts["totalCuts"] ?? 0) + $newStock["sums"]["totalCuts"],
+                unmadeCuts: count($newStock["tooLong"]),
+            ),
         ];
     }
 
     /**
-     * Rank one whole nest against another. Compared as a list, so earlier entries decide first.
+     * How the offcut inventory and the purchasable stock lengths turn into a cost model for this nest.
      *
-     * Ranking on used/purchased alone could not tell apart two nests that bought the same bars, so a
-     * pack leaving 400mm of scrap scored the same as one leaving a 2,000mm offcut.
+     * The reference length - what counts as "as good as stock" on the retention curve - is the longest
+     * bar this nest could have bought, falling back to the longest piece on the shelf for a nest with
+     * nothing purchasable to compare against.
      *
-     * @param  array{oldStock: array<string, int>, newStock: array<string, int>}  $totals
-     * @param  array<string, int>  $sums
-     * @param  int  $tooLongCount  cuts no bar or offcut could hold
-     * @return array<int, int>
+     * @param  array<int, int>  $purchasableStockLengths
+     * @param  array<int, array<string, mixed>>  $offcutInventory
      */
-    private function nestScore(array $totals, array $sums, int $tooLongCount): array
-    {
-        /*
-         * Cuts that got made come first: a plan is no use at any price if the pieces do not come out of
-         * it. Purchase comes next, because it is the only line the business actually pays. Ranking scrap
-         * above purchase buys a whole extra bar to save a few hundred millimetres of offcut - and a
-         * reusable drop is deferred value, not free steel. Scrap then settles which of the equally-priced
-         * plans to take, which is the comparison used/purchased could not make at all.
-         */
-        //Negated, so "greater is better" holds throughout
-        return [
+    private function costModel(
+        array $purchasableStockLengths,
+        array $offcutInventory,
+        Business $business,
+        ?object $newPieceSpec,
+    ): NestingCostModel {
+        $candidateLengths = $purchasableStockLengths;
+        foreach ($offcutInventory as $offcut) {
+            $candidateLengths[] = (int) $offcut['length'];
+        }
+
+        return new NestingCostModel(
+            $business,
             /*
-             * 1) Make as many of the cuts as possible. A cut nothing can hold is not a cheaper nest, it
-             *    is a piece the workshop does not get - so this outranks every millimetre below it.
-             *    Without it, declining a cut looked free next to placing it and destroying anything at
-             *    all: a 1,500mm cut left unmade beat cutting it from a 1,550mm offcut and binning 50mm.
+             * Nulled rather than defaulted here, so the cost model owns the fallback - a spec whose
+             * product carries no kg_per_m and a nest run with no spec at all then behave identically.
              */
-            -$tooLongCount,
-            //2) Buy as little steel as possible
-            -$totals["newStock"]["total"],
-            /*
-             * 3) Destroy as little material as possible, wherever it came from - scrap and saw kerf are
-             *    gone for good, a drop at or over the scrap threshold goes back into inventory.
-             *
-             *    Counting the offcut inventory here as well as the new bars is what lets the search see
-             *    that cutting a piece off the shelf can be worse than cutting it from a bar that is
-             *    being bought regardless.
-             */
-            -($totals["newStock"]["scrap"] + $totals["newStock"]["kerf"]
-                + $totals["oldStock"]["scrap"] + $totals["oldStock"]["kerf"]),
-            /*
-             * 4) Out of as little of the offcut inventory as possible. Once purchase and destruction are
-             *    settled, drawing on more shelf stock only means the same steel left the yard in more,
-             *    shorter pieces - a 4,700mm offcut reduced to 1,400mm rather than left whole.
-             */
-            -$totals["oldStock"]["total"],
-            //5) Out of fewer bars, which is less handling for the same steel
-            -$sums["totalBars"],
-            //6) With what is left over in as few pieces as possible - one 2,500mm drop is a more
-            //   useful offcut than a 1,000mm and a 1,500mm, though the totals are identical
-            $sums["largestReusable"],
-        ];
+            isset($newPieceSpec->kg_per_m) ? (float) $newPieceSpec->kg_per_m : null,
+            count($candidateLengths) > 0 ? max($candidateLengths) : null,
+        );
     }
 
     /**
@@ -1402,6 +1432,7 @@ class NestingFormatter
         Business $business,
         bool $random = false,
         ?Randomizer $randomizer = null,
+        ?NestingCostModel $costModel = null,
     ): array
     {
         /**
@@ -1424,6 +1455,7 @@ class NestingFormatter
             $business,
             $random,
             $randomizer,
+            $costModel ?? new NestingCostModel($business),
         );
 
         $utilisedOffcutBars = [];
@@ -1469,12 +1501,25 @@ class NestingFormatter
         $totalUsedOffcuts = 0;
         $totalReusableLength = 0;
         $totalKerfLength = 0;
+        $totalCuts = 0;
+        $offcutDraws = [];
         foreach($utilisedOffcutBars as $utilisedOffcutBar){
             $totalOffcutsLength = $totalOffcutsLength + $utilisedOffcutBar["sourceOffcut"]["offcutLength"];
             $totalUsedOffcuts = $totalUsedOffcuts + $utilisedOffcutBar["sourceOffcut"]["cutLength"];
             $totalKerfLength = $totalKerfLength + $utilisedOffcutBar["sourceOffcut"]["kerfLength"];
             $totalScrapLength = $totalScrapLength + $utilisedOffcutBar["scrap"]["scrapLength"];
             $totalReusableLength = $totalReusableLength + $utilisedOffcutBar["offcutFromOffcut"]["reusableLength"];
+            $totalCuts = $totalCuts + count($utilisedOffcutBar["sourceOffcut"]["cuts"]);
+
+            /*
+             * What came off the rack and what went back in its place. Scoring needs both, because what
+             * consuming an offcut costs is the value it LOST, not the length of what is left - see
+             * Services\NestingCostModel::inventoryValueMm().
+             */
+            $offcutDraws[] = [
+                'source' => (int) $utilisedOffcutBar["sourceOffcut"]["offcutLength"],
+                'drop' => (int) $utilisedOffcutBar["offcutFromOffcut"]["reusableLength"],
+            ];
         }
         $totalUnusedOffcuts = $totalReusableLength + $totalScrapLength;
 
@@ -1486,6 +1531,9 @@ class NestingFormatter
             "totalKerfLength" => $totalKerfLength,
             "totalScrapLength" => $totalScrapLength,
             "totalReusableLength" => $totalReusableLength,
+            //Used to rank nests, not reported
+            "totalCuts" => $totalCuts,
+            "offcutDraws" => $offcutDraws,
         ];
     }
 
@@ -1494,8 +1542,9 @@ class NestingFormatter
         array $cutLengthsRequired,
         array $lettersProjectArray,
         Business $business,
-        bool $random = false,
-        ?Randomizer $randomizer = null,
+        bool $random,
+        ?Randomizer $randomizer,
+        NestingCostModel $costModel,
     ): array
     {
         /**
@@ -1566,30 +1615,37 @@ class NestingFormatter
             }
 
             /*
-             * Otherwise open an offcut from inventory - the one that destroys the least material.
+             * Otherwise open an offcut from inventory - the cheapest one to open, on the same cost model
+             * the finished nest is ranked on.
              *
-             * A remainder at or over the scrap threshold goes back into inventory and costs nothing; one
-             * below it is thrown away. Taking the first offcut that merely fits burned a 1,500mm offcut
-             * on a 700mm cut and binned the 800mm left over, while a 12,000mm offcut alongside it would
-             * have given 11,300mm straight back.
+             * This used to minimise destroyed material, which is where the scrap-threshold cliff bit
+             * hardest: a drop one millimetre over the threshold was free, so a 700mm cut would open a
+             * 12,000mm offcut to bank 11,300mm rather than open a 1,500mm one and bin 800mm. That reads
+             * as perfect yield and it is how a rack fills with stubs nobody will ever reach for - the
+             * 1,500mm was no closer to being used, and a 12m length had been cut into.
+             *
+             * Now both sides are priced in dollars. On light sections the 800mm binned is about $9 of
+             * steel, worth paying to retire the stub for good; on a heavy beam the same 800mm is $144 and
+             * the long length is kept whole. Same settings, opposite answers, because the labour of
+             * dealing with a piece does not rise nearly as fast as what the steel in it is worth.
              */
             $selectedIndex = null;
-            $selectedScore = null;
+            $selectedCost = null;
             foreach ($depletableOffcutInventory as $index => $offcutData) {
                 $offcutLength = (int) $offcutData['length'];
-                $drop = $offcutLength - $cutLength - $kerf;
 
-                if ($drop < 0) {
+                $cost = $costModel->openOffcutCost($offcutLength, $cutLength, $kerf);
+
+                //Does not fit
+                if ($cost === null) {
                     continue;
                 }
 
-                $scrap = ($drop >= $business->scrap_threshold_mm) ? 0 : $drop;
+                //Among equals take the shortest offcut, so the choice cannot depend on inventory order
+                $candidate = [$cost, $offcutLength];
 
-                //Destroy as little as possible, and among equals take the shortest offcut
-                $score = [$scrap, $offcutLength];
-
-                if ($selectedScore === null || $score < $selectedScore) {
-                    $selectedScore = $score;
+                if ($selectedCost === null || $candidate < $selectedCost) {
+                    $selectedCost = $candidate;
                     $selectedIndex = $index;
                 }
             }
@@ -1803,7 +1859,7 @@ class NestingFormatter
      * Add up a set of packed bars.
      *
      * @param  array<int, array<string, mixed>>  $utilisedBars
-     * @return array<string, int>
+     * @return array<string, mixed>
      */
     private function summariseBars(array $utilisedBars, Business $business): array
     {
@@ -1813,7 +1869,8 @@ class NestingFormatter
         $totalScrap = 0;
         $totalKerf = 0;
         $totalUsedMaterial = 0;
-        $largestReusable = 0;
+        $totalCuts = 0;
+        $barsOpened = [];
         foreach($utilisedBars as $utilisedBar){
             $totalPurchasedMaterial = $totalPurchasedMaterial + $utilisedBar["bar_length"];
             $totalUnused = $totalUnused + $utilisedBar["unused"];
@@ -1821,6 +1878,7 @@ class NestingFormatter
 
             foreach($utilisedBar["pieces"] as $piece){
                 $totalUsedMaterial = $totalUsedMaterial + $piece["cutLength"];
+                $totalCuts++;
             }
 
             /*
@@ -1831,11 +1889,21 @@ class NestingFormatter
              */
             if($utilisedBar["unused"] >= $business->scrap_threshold_mm){
                 $totalReusable = $totalReusable + $utilisedBar["unused"];
-                $largestReusable = max($largestReusable, $utilisedBar["unused"]);
             }
             else{
                 $totalScrap = $totalScrap + $utilisedBar["unused"];
             }
+
+            /*
+             * Each bar's own length and its own drop. Scoring needs both individually, not as totals: how
+             * long a bar takes to get to the saw depends on how heavy that bar is, and what a drop is worth
+             * on the rack is not linear in its length - one 2,500mm drop is worth more than a 1,000mm and a
+             * 1,500mm one. See Services\NestingCostModel.
+             */
+            $barsOpened[] = [
+                'length' => (int) $utilisedBar["bar_length"],
+                'drop' => (int) $utilisedBar["unused"],
+            ];
         }
 
         //Every bar balances: bar_length = cuts + kerf + unused
@@ -1848,7 +1916,8 @@ class NestingFormatter
             "totalScrap" => $totalScrap,
             //Used to rank nests, not reported
             "totalBars" => count($utilisedBars),
-            "largestReusable" => $largestReusable,
+            "totalCuts" => $totalCuts,
+            "barsOpened" => $barsOpened,
         ];
     }
 
@@ -1861,7 +1930,7 @@ class NestingFormatter
      *
      * Null when nothing shrank, so the caller does not score the same nest twice.
      *
-     * @param  array{utilisedBars: array<int, array<string, mixed>>, tooLong: array<int, mixed>, sums: array<string, int>}  $newStock
+     * @param  array{utilisedBars: array<int, array<string, mixed>>, tooLong: array<int, mixed>, sums: array<string, mixed>}  $newStock
      * @param  array<int, int>  $purchasableStockLengths  ascending
      */
     private function shrinkBars(array $newStock, array $purchasableStockLengths, Business $business): ?array
@@ -2495,6 +2564,13 @@ class NestingFormatter
          */
         $purchasableStockLengths = $this->getPurchasableVariations($uniquePieceSpec, NestingEnums::METERAGE->value,$business);
         $newPieceSpec->purchasableLengths = $purchasableStockLengths;
+
+        /*
+         * Mass per metre, which is what lets the cost model weigh steel against handling. Without it
+         * every section is costed as though it were the same weight, and a 1m drop of 500UB is treated
+         * as no more valuable than a 1m drop of light angle.
+         */
+        $newPieceSpec->kg_per_m = $this->resolveKgPerM($uniquePieceSpec, $business);
 
         /*
          * Offcut inventory lengths
