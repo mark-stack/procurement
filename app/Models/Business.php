@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Billing\Billing;
+use App\Billing\SubscriptionState;
 use App\Enums\SupplierGroupEnums;
 use App\Formatters\SupplierFormatter;
 use App\Services\ProductService;
@@ -11,10 +13,39 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Carbon;
+use Laravel\Cashier\Billable;
 
+/**
+ * The billing columns are declared here because casts() is a method rather than a $casts array, and
+ * static analysis cannot see through that - without these, every isFuture() and isPast() call on a
+ * trial date reads as a method call on a string.
+ *
+ * @property Carbon|null $trial_ends_at
+ * @property string|null $manual_plan
+ * @property Carbon|null $manual_access_until
+ * @property string|null $stripe_id
+ */
 class Business extends Model
 {
+    /*
+     * The one seam where a payment provider touches a model.
+     *
+     * Cashier is Stripe-specific and laravel/cashier-paddle is a different package with a trait of
+     * the same name, so swapping providers swaps this line. Nothing outside app/Billing/Drivers may
+     * call what it adds - subscribed(), newSubscription(), onTrial() and the rest. Ask
+     * billingState() instead, which answers in the application's own vocabulary and does not care
+     * who is taking the money.
+     */
+    use Billable;
+
     protected $guarded = [];
+
+    /**
+     * Resolved once per instance: the billing banner, the read-only gate and the nav all ask, and
+     * with the Stripe driver each ask would otherwise be another subscriptions query.
+     */
+    private ?SubscriptionState $billingState = null;
 
     /*
      * Defaults for the nesting settings, mirroring the column defaults in the migrations.
@@ -63,10 +94,79 @@ class Business extends Model
             'cap_12m_stock' => 'boolean',
             'meterage_only' => 'boolean',
             'allow_custom_products' => 'boolean',
+            /*
+             * Both are compared against now() to decide whether the account is read-only, so a
+             * string reaching that comparison would be a lockout or a free ride depending on the
+             * driver's date format.
+             */
+            'trial_ends_at' => 'datetime',
+            'manual_access_until' => 'datetime',
+        ];
+    }
+
+    /**
+     * The free trial starts when the business does.
+     *
+     * Here rather than in the registration controller because a business is created from several
+     * places - registration, seeders, the admin screens, test factories - and a business with no
+     * trial is read-only from its first minute. One rule, no path that can forget it.
+     *
+     * Already-set values are respected, so a fixture or a seeder can dictate its own dates.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (Business $business): void {
+            if ($business->trial_ends_at === null) {
+                $business->trial_ends_at = now()->addDays((int) config('billing.trial_days'));
+            }
+        });
+    }
+
+    /**
+     * What this business is entitled to: on trial, paying, lapsed. See App\Billing\Billing.
+     */
+    public function billingState(): SubscriptionState
+    {
+        return $this->billingState ??= app(Billing::class)->state($this);
+    }
+
+    /**
+     * Whether the account may still change anything. False is read-only - every page and download
+     * stays open, writes are refused - not locked out. See BillingWriteAccessMiddleware.
+     */
+    public function allowsWrites(): bool
+    {
+        return $this->billingState()->allowsWrites();
+    }
+
+    /**
+     * Who Stripe should show as the customer. Cashier's default reads $this->email, and a business
+     * has no email of its own, so without this the Stripe dashboard is a list of blank rows.
+     *
+     * The earliest user is the one who signed the company up, which is the closest thing to an
+     * account owner this schema has.
+     */
+    public function stripeEmail(): ?string
+    {
+        return $this->users()->oldest('id')->value('email');
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function stripeMetadata(): array
+    {
+        //So a payment in the Stripe dashboard can be traced back to a business without a lookup
+        return [
+            'business_id' => (string) $this->id,
+            'domain' => (string) $this->domain,
         ];
     }
 
     //Relationships
+    /**
+     * @return HasMany<User, $this>
+     */
     public function users(): HasMany
     {
         return $this->hasMany(User::class);

@@ -58,6 +58,13 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Batch::class);
     }
 
+    /**
+     * Annotated for the same reason Business::templates() is: without it every caller of
+     * $user->business gets a plain Model, so the Business's own methods - billingState(),
+     * allowsWrites() - are invisible to static analysis at each of the dozen places that read them.
+     *
+     * @return BelongsTo<Business, $this>
+     */
     public function business(): BelongsTo
     {
         return $this->belongsTo(Business::class);

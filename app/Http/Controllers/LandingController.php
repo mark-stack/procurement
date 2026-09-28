@@ -27,6 +27,12 @@ class LandingController extends Controller
 
         return Inertia::render('Welcome', [
             "sampleNestingData" => $sampleData,
+            /*
+             * The trial length the app will actually grant, rather than a figure typed into the
+             * page. These have to agree: the button here is a promise, and App\Models\Business is
+             * what keeps it.
+             */
+            "trialDays" => (int) config('billing.trial_days'),
         ]);
     }
 }

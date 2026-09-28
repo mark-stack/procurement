@@ -7,6 +7,9 @@
     import NavButton from '@/Components/Buttons/NavButton.vue';
     import Notifications2 from '@/Components/Notifications2.vue';
 
+    //Shared Imports
+    import useBilling from '@/Shared/useBilling.js';
+
     //Props
     //...
 
@@ -23,6 +26,10 @@
     //computed, not read once: the nav alert has to clear when an import fills the catalogue,
     //not stay red until the next full page load
     const hasSeedImport = computed(() => page.props.hasSeedImport);
+
+    //A lapsed account, a failed payment or a trial about to run out. Same condition the banner
+    //uses, so the red nav item and the red bar can never disagree - see useBilling.js
+    const {needsAttention: billingNeedsAttention} = useBilling();
 
     //Variables
     const showMenu = ref(false);
@@ -240,6 +247,18 @@
                                     :route="route('profile.edit')"
                                     label="Profile"
                                     icon="fa-solid fa-gear"
+                                />
+                                <!--
+                                    Billing
+                                    Not behind onboarded: the free trial starts when the business
+                                    does, so it can run out before onboarding was ever finished, and
+                                    the page that fixes that has to stay reachable.
+                                -->
+                                <NavButton
+                                    :route="route('billing.index')"
+                                    label="Billing"
+                                    icon="fa-solid fa-credit-card"
+                                    :alert="billingNeedsAttention"
                                 />
                             </div>
 

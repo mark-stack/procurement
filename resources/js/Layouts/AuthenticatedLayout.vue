@@ -6,9 +6,15 @@
     //Component Imports
     import AuthenticatedNav from "@/Components/Nav/AuthenticatedNav.vue";
     import ImpersonationBanner from "@/Components/ImpersonationBanner.vue";
+    import BillingBanner from "@/Components/Billing/BillingBanner.vue";
+
+    //Shared Imports
+    import useBilling from "@/Shared/useBilling.js";
 
     //Shared data
     const impersonating = computed(() => usePage().props.auth.impersonating);
+    //Only needed here to give its height back below, hence the whole condition living in one place
+    const {banner: billingBanner} = useBilling();
 
     //What the master materials screen said about the last edit it saved or refused. A refusal is
     //the interesting case: the catalogue is edited from a modal, and a spec locked by work already
@@ -17,9 +23,11 @@
     const success = computed(() => usePage().props.flash?.success);
 
     //Variables
-    //The impersonation banner sits above the nav, so the fixed-height grid below has to give
-    //its height back or the page overflows by exactly the banner
-    const underNavScreenHeight = computed(() => window.innerHeight - 68 - (impersonating.value ? 52 : 0));
+    //The banners sit above the nav, so the fixed-height grid below has to give their height back
+    //or the page overflows by exactly however many of them are showing
+    const underNavScreenHeight = computed(() =>
+        window.innerHeight - 68 - (impersonating.value ? 52 : 0) - (billingBanner.value ? 52 : 0)
+    );
     const materialsDismissed = ref(false);
     const successDismissed = ref(false);
 
@@ -32,6 +40,8 @@
 
 <template>
     <ImpersonationBanner/>
+
+    <BillingBanner/>
 
     <AuthenticatedNav/>
 

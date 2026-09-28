@@ -12,3 +12,10 @@ Artisan::command('inspire', function () {
 $testMode = config('env.test_mode');
 $frequency = $testMode ? 'everyMinute' : 'hourly';
 //Schedule::job(new HourlyNotificationsJob)->$frequency();
+
+/*
+ * Trial expiry warnings. Idempotent - each business gets each reminder once, recorded in
+ * notification_logs - so running it more often only makes the warnings more timely, never
+ * duplicated. Hourly in test mode for the same reason the notifications job is.
+ */
+Schedule::command('billing:trial-reminders')->$frequency();

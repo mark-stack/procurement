@@ -20,6 +20,13 @@
     <php>
         <env name="APP_ENV" value="testing"/>
         <env name="ADMIN_EMAIL" value="mark.laravel.coder@gmail.com"/>
+        <!--
+            Billing runs on the manual driver in tests, so nothing can reach Stripe. Tests that need
+            the Stripe driver bind a fake provider over App\Billing\Contracts\BillingProvider.
+            Trial length pinned so a change to .env cannot move a test's expiry dates.
+        -->
+        <env name="BILLING_DRIVER" value="manual"/>
+        <env name="BILLING_TRIAL_DAYS" value="30"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="CACHE_STORE" value="array"/>
