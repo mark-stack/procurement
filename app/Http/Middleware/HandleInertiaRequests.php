@@ -48,6 +48,15 @@ class HandleInertiaRequests extends Middleware
                 "hasPastProjects" => (bool) $request->user()?->business?->batches()->inactive()->exists(),
             ],
             /*
+             * Trial countdown and read-only state, for the banner that every authenticated page
+             * carries. Provider-neutral by the time it gets here - see App\Billing\Billing - so
+             * nothing in the front end knows or cares who takes the money.
+             *
+             * Memoised on the business for the request, so the nav, the banner and the billing page
+             * all reading it is one resolution, not three.
+             */
+            'billing' => fn () => $request->user()?->business?->billingState()->toArray(),
+            /*
              * Whether the platform catalogue has been seeded at all, which the nav turns into an
              * alert. platformCreated(), because a business's own private products are not a
              * catalogue - a BOM import still extracts nothing without one. exists(), not count():

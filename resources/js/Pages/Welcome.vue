@@ -15,6 +15,8 @@
     //Props
     const props = defineProps({
         sampleNestingData: Object,
+        //config('billing.trial_days') - what a signup will actually be granted
+        trialDays: Number,
     });
 
     //Form
@@ -25,7 +27,24 @@
     const loginAvailable = computed(() => usePage().props.loginAvailable);
 
     //Variables
-    const trial_months = 1;
+    /*
+     * How the trial is described everywhere on this page, derived from the length the application
+     * will actually grant rather than typed in beside it. A whole number of 30-day months reads as
+     * months because that is how it is sold; anything else is quoted in days rather than rounded
+     * into a claim the app will not honour.
+     */
+    const trialLabel = computed(() => {
+        const days = props.trialDays ?? 30;
+
+        if (days % 30 === 0) {
+            const months = days / 30;
+
+            return `${months} Month${months > 1 ? 's' : ''}`;
+        }
+
+        return `${days} Day${days > 1 ? 's' : ''}`;
+    });
+
     const savings_period_years = 1;
     const fullPriceMultiYear = 10000;
     const fullPriceAnnual = 2900;
@@ -139,14 +158,14 @@
                         :href="route('register')"
                         class="inline-flex items-center justify-center w-full h-12 px-6 mb-3 font-medium tracking-wide text-white transition duration-200 rounded shadow-md md:w-auto md:mr-4 md:mb-0 bg-deep-purple-accent-400 hover:bg-deep-purple-accent-700 focus:shadow-outline focus:outline-none"
                     >
-                        <span class="mr-3">{{trial_months}} Month{{trial_months > 1 ? 's' : ''}} FREE TRIAL</span>
+                        <span class="mr-3">{{trialLabel}} FREE TRIAL</span>
                     </Link>
                     <Link
                         v-else
                         :href="route('guest.onboarding')"
                         class="inline-flex items-center justify-center w-full h-12 px-6 mb-3 font-medium tracking-wide text-white transition duration-200 rounded shadow-md md:w-auto md:mr-4 md:mb-0 bg-deep-purple-accent-400 hover:bg-deep-purple-accent-700 focus:shadow-outline focus:outline-none"
                     >
-                        <span class="mr-3">{{trial_months}} Month{{trial_months > 1 ? 's' : ''}} FREE TRIAL</span>
+                        <span class="mr-3">{{trialLabel}} FREE TRIAL</span>
                     </Link>
                 </div>
             </div>
@@ -662,7 +681,7 @@
                     <div class="flex items-center justify-between pb-6 mb-6 border-b">
                         <div>
                             <p class="text-sm font-bold tracking-wider uppercase">
-                                {{trial_months}} Month{{trial_months > 1 ? 's' : ''}} Trial
+                                {{trialLabel}} Trial
                             </p>
                             <p class="text-5xl font-extrabold">Free</p>
                         </div>
@@ -715,14 +734,14 @@
                         :href="route('register')"
                         class="inline-flex items-center justify-center w-full h-12 px-6 mb-4 font-medium tracking-wide text-white transition duration-200 bg-green-600 rounded shadow-md hover:bg-green-700 focus:shadow-outline focus:outline-none"
                     >
-                        Start {{trial_months}} Month{{trial_months > 1 ? 's' : ''}} Free Trial
+                        Start {{trialLabel}} Free Trial
                     </Link>
                     <Link
                         v-else
                         :href="route('guest.onboarding')"
                         class="inline-flex items-center justify-center w-full h-12 px-6 mb-4 font-medium tracking-wide text-white transition duration-200 bg-green-600 rounded shadow-md hover:bg-green-700 focus:shadow-outline focus:outline-none"
                     >
-                        Start {{trial_months}} Month{{trial_months > 1 ? 's' : ''}} Free Trial
+                        Start {{trialLabel}} Free Trial
                     </Link>
                 </div>
             </div>

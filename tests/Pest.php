@@ -290,6 +290,39 @@ function nestingTestCasesWithOffcuts(): array
     ];
 }
 
+/**
+ * Swap the live payment provider for one that never touches the network.
+ *
+ * App\Billing\Billing is a singleton with the provider injected, so replacing the provider binding
+ * alone would leave the already-resolved Billing holding the real one - hence the forgetInstance.
+ *
+ * Note that Business::billingState() memoises per instance: a business read before the fake was
+ * changed has to be re-read, which is what a real request does anyway.
+ */
+function fakeBillingProvider(): Tests\Fakes\FakeBillingProvider
+{
+    $fake = new Tests\Fakes\FakeBillingProvider;
+
+    app()->instance(App\Billing\Contracts\BillingProvider::class, $fake);
+    app()->forgetInstance(App\Billing\Billing::class);
+
+    return $fake;
+}
+
+/**
+ * A business whose free trial ran out yesterday and which never bought anything - the read-only
+ * state the billing gate exists for.
+ */
+function lapsedTrialBusiness(string $name = 'Lapsed'): Business
+{
+    $business = createBusiness($name, true);
+
+    $business->trial_ends_at = now()->subDay();
+    $business->save();
+
+    return $business;
+}
+
 function createBusiness(string $name, bool $adminSetupComplete): Business
 {
     return (new TestingFormatter())->createBusiness($name,$adminSetupComplete);

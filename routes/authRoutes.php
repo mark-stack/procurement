@@ -2,6 +2,10 @@
 
 use App\Http\Controllers\BatchController;
 use App\Http\Controllers\BatchNestingController;
+use App\Http\Controllers\BillingCheckoutController;
+use App\Http\Controllers\BillingController;
+use App\Http\Controllers\BillingInvoiceController;
+use App\Http\Controllers\BillingPortalController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DownloadBomController;
 use App\Http\Controllers\DownloadNesting;
@@ -27,6 +31,7 @@ use App\Http\Controllers\RawMaterialListCustomisationsController;
 use App\Http\Controllers\RawMaterialQuoteController;
 use App\Http\Controllers\SuggestedNestingController;
 use App\Http\Controllers\SupplierController;
+use App\Http\Middleware\BillingWriteAccessMiddleware;
 use App\Http\Middleware\BusinessReadyMiddleware;
 use Illuminate\Support\Facades\Route;
 
@@ -50,8 +55,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
     //Route::post("mark-as-read", NotificationMarkAsReadController::class)->name("notification.mark.as.read");
     Route::post('mark-notification-status', MarkNotificationStatusController::class)->name('mark.notification.status');
 
+    /*
+     * Billing
+     *
+     * Outside BusinessReadyMiddleware deliberately: a trial runs from the moment the business is
+     * created, so it can expire before onboarding was ever finished, and the one page that can fix
+     * that must not be behind the thing it is blocked by. Outside BillingWriteAccessMiddleware for
+     * the same reason - subscribing is the one write a read-only account has to be able to make.
+     */
+    Route::get('billing', BillingController::class)->name('billing.index');
+    Route::post('billing/checkout', BillingCheckoutController::class)->name('billing.checkout');
+    Route::get('billing/manage', BillingPortalController::class)->name('billing.manage');
+    Route::get('billing/invoice/{plan}', BillingInvoiceController::class)->name('billing.invoice');
+
     //Onboarding is finalised
-    Route::middleware([BusinessReadyMiddleware::class])->group(function () {
+    Route::middleware([BusinessReadyMiddleware::class, BillingWriteAccessMiddleware::class])->group(function () {
         //Current Projects
         //Create/show/edit were unimplemented stubs - the dashboard modals cover them
         Route::resource('projects', ProjectController::class)->only(['index', 'store', 'update', 'destroy']);
@@ -121,6 +139,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('batch.nesting');
     });
 
-    //Batches
-    Route::resource('batches', BatchController::class);
+    /*
+     * Batches
+     *
+     * Gated on its own because it sits outside the BusinessReadyMiddleware group above - nesting a
+     * batch is the single most expensive write in the application, so it is the last thing that
+     * should stay open on a lapsed account.
+     */
+    Route::resource('batches', BatchController::class)
+        ->middleware([BillingWriteAccessMiddleware::class]);
 });
