@@ -256,6 +256,15 @@ it('would be a disaster if a new write route were added outside the billing gate
         'verification.send',
         //Dismissing a notification changes nothing anyone is being billed for
         'mark.notification.status',
+        /*
+         * Test mode. Switching in and out writes one boolean on the user, and being stuck in a
+         * sandbox with no way back to the real board would be a far worse read-only experience
+         * than anything the gate is protecting. Clearing only ever deletes the caller's own test
+         * rows - the live board cannot be reached from it at all.
+         */
+        'sandbox.enter',
+        'sandbox.leave',
+        'sandbox.clear',
     ];
 
     $unguarded = [];

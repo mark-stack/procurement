@@ -12,6 +12,20 @@
 - Projects page > "+add project to nesting". Modal will popup
 - Project and upload example materials list (public > examples > material_list.xlsx)
 
+### Test mode (the sandbox):
+- Account menu > "Test mode". A violet banner then sits above every page, and the board shows only
+  what you make from that point on
+- Projects and batches created in test mode are stamped with your user id and are invisible to
+  everybody else, including colleagues in their own test mode. Switching back out leaves them
+  where they are - it is a view, not a deletion
+- Suppliers, the price book, products and templates are deliberately NOT sandboxed. The point is to
+  try a real BOM against the real merchants
+- "Clear everything" in the banner deletes the lot: projects, batches, material lists, quotes,
+  orders, offcuts, bars, scrap and any reminders raised about them. Nothing live is reachable
+  from it
+- The hourly reminder checks run with nobody logged in, so they read live data only - a test
+  project is never chased by email
+
 ### Record an import template:
 - Admin > a business > Templates > "Fill this in from a sample": upload one of that customer's
   spreadsheets and the form fills itself in, with every check it ran against the file next to it

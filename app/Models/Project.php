@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToSandbox;
 use App\Observers\ProjectObserver;
 use App\Services\ProductService;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -16,12 +17,13 @@ use Illuminate\Support\Facades\Auth;
 
 /**
  * @property array{notRecognised?: list<string>, otherPlan?: list<string>, couldNotBeRead?: list<string>}|null $items_not_found
+ * @property int|null $sandbox_user_id The user whose test mode created this, or null for a real project
  */
 #[ObservedBy([ProjectObserver::class])]
 class Project extends Model
 {
     /** @use HasFactory<\Database\Factories\ProjectFactory> */
-    use HasFactory;
+    use BelongsToSandbox, HasFactory;
 
     protected $guarded = [];
 

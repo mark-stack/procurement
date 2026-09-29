@@ -2,7 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Batch;
 use App\Models\Product;
+use App\Models\Project;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -62,6 +64,17 @@ class HandleInertiaRequests extends Middleware
              * this runs on every Inertia response.
              */
             'hasSeedImport' => Product::query()->platformCreated()->exists(),
+            /*
+             * Test mode, for the banner on the board and the marker in the nav. Shared on every
+             * response because a user who cannot tell which set of data they are looking at is the
+             * one failure this feature must not have.
+             *
+             * The two counts are what "Clear everything" would throw away. They cost nothing to
+             * ask for while test mode is on - the global scope means a plain count() of projects
+             * and batches is already a count of the sandbox's, and nothing else - and they are not
+             * asked for at all while it is off.
+             */
+            'sandbox' => fn () => $this->sandboxState($request),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'warning' => fn () => $request->session()->get('warning'),
@@ -77,6 +90,28 @@ class HandleInertiaRequests extends Middleware
             ],
             'adminEmail' => config('env.admin_email'),
             "loginAvailable" => env("LOGIN_AVAILABLE"),
+        ];
+    }
+
+    /**
+     * @return array{active: bool, projects: int, batches: int}|null
+     */
+    private function sandboxState(Request $request): ?array
+    {
+        $user = $request->user();
+
+        if ($user === null) {
+            return null;
+        }
+
+        if (! $user->sandbox_mode) {
+            return ['active' => false, 'projects' => 0, 'batches' => 0];
+        }
+
+        return [
+            'active' => true,
+            'projects' => Project::query()->count(),
+            'batches' => Batch::query()->count(),
         ];
     }
 }
