@@ -43,42 +43,41 @@ class NotificationQuotingOrderingOverDueImplementation implements NotificationIn
             ->overdueForQuotingAndOrdering()  //3) Less than [critical path] before planned project material received date
             ->get();
 
-        //Has notifications
-        if ($quoteDueProjects->count() > 0) {
-            foreach ($quoteDueProjects as $project) {
-                //Prerequisite variables
-                $projectManager = $project->user;
+        //Projects that still deserve a reminder, whether or not one is sent this run
+        $stillDue = [];
 
-                /*
-                 * continue, not break - see the same loop in
-                 * NotificationQuotingOrderingDueImplementation. One project that is already fully
-                 * ordered, or already reminded, used to end the run for every project manager
-                 * after it.
-                 */
+        foreach ($quoteDueProjects as $project) {
+            //Prerequisite variables
+            $projectManager = $project->user;
 
-                //5) Order coverage < 100%
-                if ($project->percentageOfMaterialsOrdered() === 100) {
-                    continue;
-                }
+            /*
+             * continue, not break - see the same loop in
+             * NotificationQuotingOrderingDueImplementation. One project that is already fully
+             * ordered, or already reminded, used to end the run for every project manager
+             * after it.
+             */
 
-                //6) Not notified already
-                if ($this->hasBeenNotified($projectManager, $project->id)) {
-                    continue;
-                }
-
-                //Mark all previous as read
-                $this->markPreviousAsRead($projectManager, $project);
-
-                //Send notification
-                $this->sendNotification($projectManager, $project);
+            //5) Order coverage < 100%
+            if ($project->percentageOfMaterialsOrdered() === 100) {
+                continue;
             }
+
+            $stillDue[] = $project->id;
+
+            //6) Not notified already
+            if ($this->hasBeenNotified($projectManager, $project->id)) {
+                continue;
+            }
+
+            //Mark all previous as read
+            $this->markPreviousAsRead($projectManager, $project);
+
+            //Send notification
+            $this->sendNotification($projectManager, $project);
         }
-        //NO notifications
-        else {
-            //Clear old notifications
-            $class = $this->getNotificationClass();
-            (new NotificationService)->clearPreviousNotifications($class);
-        }
+
+        //See the same call in NotificationQuotingOrderingDueImplementation
+        (new NotificationService)->clearStaleProjectReminders($this->getNotificationClass(), $stillDue);
     }
 
     public function hasBeenNotified(object $recipient, int $uniqueModelId): bool

@@ -6,7 +6,6 @@ use App\Models\Project;
 use App\Notifications\ProjectAwardedCheckEmail;
 use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\Interfaces\NotificationInterface;
-use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Carbon;
@@ -26,40 +25,15 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
 
     public function hourlyCheck(): void
     {
-        /**
-         * Has the project been awarded to you?
-         * 1) Project is active (not archived)
-         * 2) Project "awarded" = false
-         * 3) At least 2 days since creating the project (so it doesn't immediate send)
-         * 4) At least 2 days since last reminder
+        /*
+         * Sends nothing. It is also not on NotificationService::hourlyImplementations(), so this is
+         * never called - both, because the two together are what "deprecated" has to mean for a
+         * class that emails customers. It used to ask every project manager, every two days, whether
+         * they had won the work yet, and "Lost it" archived the project.
+         *
+         * The rest of the class stays live so that reminders already sitting in somebody's bell can
+         * still be read and cleared. See the note on NotificationService::implementations().
          */
-        $subInterval = $this->subInterval;
-        $nonAwardedProjects = Project::query()
-            ->active()                                                  //1) Project is active (not archived)
-            ->where('awarded', false)                                    //2) Project "awarded" = false
-            ->whereBetween('created_at', [Carbon::now()->$subInterval(2), Carbon::now()]) //3)
-            ->get();
-
-        //Has notifications
-        if ($nonAwardedProjects->count() > 0) {
-            foreach ($nonAwardedProjects as $project) {
-                $projectManager = $project->user;
-
-                if (! $this->hasBeenNotified($projectManager, $project->id)) {
-                    //Mark all previous as read
-                    $this->markPreviousAsRead($projectManager, $project);
-
-                    //Send notification
-                    $this->sendNotification($projectManager, $project);
-                }
-            }
-        }
-        //NO notifications
-        else {
-            //Clear old notifications
-            $class = $this->getNotificationClass();
-            (new NotificationService)->clearPreviousNotifications($class);
-        }
     }
 
     public function hasBeenNotified(object $recipient, int $uniqueModelId): bool

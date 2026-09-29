@@ -85,23 +85,6 @@ Route::get('notifications', function () {
 
     $notifications = (new NotificationService)->getUnreadNotifications($user);
 
-    //Find Notification implementation
-    $desiredNotificationClassName = "App\Services\NotificationImplementations\NotificationQuotingOrderingOverDueImplementation";
-    $desiredNotificationClass = null;
-
-    $implementations = (new NotificationService)->getImplementations();
-    foreach ($implementations as $implementation) {
-        $className = 'App\\Services\\NotificationImplementations\\'.$implementation;
-
-        // Check if the class exists
-        if (class_exists($className)) {
-            $service = new $className;
-
-            if ($className === $desiredNotificationClassName) {
-                $desiredNotificationClass = $service;
-            }
-        }
-    }
-
-    dd('notifications', $notifications, $desiredNotificationClass);
+    //What the bell would render, and the list it renders from
+    dd('notifications', $notifications, (new NotificationService)->implementations());
 });

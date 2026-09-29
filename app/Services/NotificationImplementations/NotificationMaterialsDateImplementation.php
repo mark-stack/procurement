@@ -37,26 +37,28 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
             ->whereBetween('created_at', [Carbon::now()->$subInterval(2), Carbon::now()]) //3)
             ->get();
 
-        //Has notifications
-        if ($tentativeProjects->count() > 0) {
-            foreach ($tentativeProjects as $project) {
-                $projectManager = $project->user;
+        foreach ($tentativeProjects as $project) {
+            $projectManager = $project->user;
 
-                if (! $this->hasBeenNotified($projectManager, $project->id)) {
-                    //Mark all previous as read
-                    $this->markPreviousAsRead($projectManager, $project);
+            if (! $this->hasBeenNotified($projectManager, $project->id)) {
+                //Mark all previous as read
+                $this->markPreviousAsRead($projectManager, $project);
 
-                    //Send notification
-                    $this->sendNotification($projectManager, $project);
-                }
+                //Send notification
+                $this->sendNotification($projectManager, $project);
             }
         }
-        //NO notifications
-        else {
-            //Clear old notifications
-            $class = $this->getNotificationClass();
-            (new NotificationService)->clearPreviousNotifications($class);
-        }
+
+        /*
+         * Anything still unread about a project that has dropped out of the query above - the date
+         * was locked in, the project was archived - no longer has a question behind it. This ran in
+         * an else branch, so it only happened when no project anywhere was tentative; see
+         * NotificationService::clearStaleProjectReminders.
+         */
+        (new NotificationService)->clearStaleProjectReminders(
+            $this->getNotificationClass(),
+            $tentativeProjects->pluck('id')->all(),
+        );
     }
 
     public function hasBeenNotified(object $recipient, int $uniqueModelId): bool

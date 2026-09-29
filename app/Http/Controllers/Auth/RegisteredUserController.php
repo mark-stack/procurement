@@ -7,6 +7,7 @@ use App\Models\Business;
 use App\Models\User;
 use App\Notifications\NewUserEmail;
 use App\Rules\BusinessEmailDomain;
+use App\Services\NotificationImplementations\NotificationNewColleagueImplementation;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -112,6 +113,13 @@ class RegisteredUserController extends Controller
             $message = 'A new user signed up:';
             Notification::send($adminUser, new NewUserEmail($user, $message));
         }
+
+        /*
+         * Colleague notify. A business is every user whose email domain matched, so nobody approved
+         * this person joining and nobody was told - the only previous attempt at this was an hourly
+         * sweep whose dedupe never matched. See NotificationNewColleagueImplementation.
+         */
+        (new NotificationNewColleagueImplementation)->notifyColleaguesOf($user);
 
         //Login
         event(new Registered($user));

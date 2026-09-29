@@ -82,6 +82,9 @@ class Batch extends Model
     }
 
     //Collection
+    /**
+     * @return EloquentCollection<int, Project>
+     */
     public function projects(): EloquentCollection
     {
         /*

@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Concerns\BellFirst;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -11,7 +12,7 @@ use MagicLink\MagicLink;
 
 class ProjectTentativeDateCheckEmail extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use BellFirst, Queueable;
 
     /**
      * Create a new notification instance.
@@ -21,16 +22,6 @@ class ProjectTentativeDateCheckEmail extends Notification implements ShouldQueue
         public object $recipient,
         public string $message,
     ) {}
-
-    /**
-     * Get the notification's delivery channels.
-     *
-     * @return array<int, string>
-     */
-    public function via(object $notifiable): array
-    {
-        return ['mail', 'database'];
-    }
 
     /**
      * Get the mail representation of the notification.

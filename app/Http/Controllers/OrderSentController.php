@@ -7,6 +7,7 @@ use App\Actions\OrderApproval\UpdateOrderApprovalStatus;
 use App\Actions\Piece\AttachPiecesToOrder;
 use App\Models\Batch;
 use App\Models\Order;
+use App\Services\NotificationImplementations\NotificationColleagueOrderedImplementation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -54,6 +55,13 @@ class OrderSentController extends Controller
          * and nobody but this one user was ever asked.
          */
         UpdateOrderApprovalStatus::run($batch, true, $request->user());
+
+        /*
+         * And tell them, which recording it does not do. approved_by_user_id makes the truth
+         * auditable afterwards; this is what puts it in front of the person whose approval was given.
+         * Once per project per batch, so undoing and re-sending an order does not ring twice.
+         */
+        (new NotificationColleagueOrderedImplementation)->notifyAffectedProjectManagers($batch, $request->user());
 
         return back();
     }

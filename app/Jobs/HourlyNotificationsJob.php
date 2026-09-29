@@ -23,16 +23,12 @@ class HourlyNotificationsJob implements ShouldQueue
         /**
          * Don't stack up notifications.
          * To “re-remind”, mark the previous as read and create new one
+         *
+         * The event-driven implementations on the list have an empty hourlyCheck(), so this is the
+         * three deadline reminders and nothing else.
          */
-        $implementations = (new NotificationService)->getImplementations();
-        foreach ($implementations as $implementation) {
-            $className = 'App\\Services\\NotificationImplementations\\'.$implementation;
-
-            // Check if the class exists
-            if (class_exists($className)) {
-                $service = new $className;
-                $service->hourlyCheck();
-            }
+        foreach ((new NotificationService)->hourlyImplementations() as $implementation) {
+            $implementation->hourlyCheck();
         }
     }
 }

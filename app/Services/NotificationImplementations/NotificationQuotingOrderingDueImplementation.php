@@ -43,44 +43,47 @@ class NotificationQuotingOrderingDueImplementation implements NotificationInterf
             ->dueForQuotingAndOrdering()     //3) Between [critical path + 1 day] and [critical path] days before planned project material received date
             ->get();
 
-        //Has notifications
-        if ($quoteDueProjects->count() > 0) {
-            foreach ($quoteDueProjects as $project) {
-                //Prerequisite variables
-                $projectManager = $project->user;
+        //Projects that still deserve a reminder, whether or not one is sent this run
+        $stillDue = [];
 
-                /*
-                 * continue, not break. Both of these are per-project questions, and breaking on
-                 * them abandoned the whole run: the first project that happened to be fully
-                 * ordered - or that had already been reminded about today - silently cancelled
-                 * this reminder for every other project manager behind it in the list. It only
-                 * shows up once a business has more than one live project, which is to say
-                 * exactly when the reminders start mattering.
-                 */
+        foreach ($quoteDueProjects as $project) {
+            //Prerequisite variables
+            $projectManager = $project->user;
 
-                //5) Order coverage < 100%
-                if ($project->percentageOfMaterialsOrdered() === 100) {
-                    continue;
-                }
+            /*
+             * continue, not break. Both of these are per-project questions, and breaking on
+             * them abandoned the whole run: the first project that happened to be fully
+             * ordered - or that had already been reminded about today - silently cancelled
+             * this reminder for every other project manager behind it in the list. It only
+             * shows up once a business has more than one live project, which is to say
+             * exactly when the reminders start mattering.
+             */
 
-                //6) Not notified already
-                if ($this->hasBeenNotified($projectManager, $project->id)) {
-                    continue;
-                }
-
-                //Mark all previous as read
-                $this->markPreviousAsRead($projectManager, $project);
-
-                //Send notification
-                $this->sendNotification($projectManager, $project);
+            //5) Order coverage < 100%
+            if ($project->percentageOfMaterialsOrdered() === 100) {
+                continue;
             }
+
+            $stillDue[] = $project->id;
+
+            //6) Not notified already
+            if ($this->hasBeenNotified($projectManager, $project->id)) {
+                continue;
+            }
+
+            //Mark all previous as read
+            $this->markPreviousAsRead($projectManager, $project);
+
+            //Send notification
+            $this->sendNotification($projectManager, $project);
         }
-        //NO notifications
-        else {
-            //Clear old notifications
-            $class = $this->getNotificationClass();
-            (new NotificationService)->clearPreviousNotifications($class);
-        }
+
+        /*
+         * A project that has since been fully ordered, or whose materials date moved out of the
+         * window, keeps no unread reminder. See NotificationService::clearStaleProjectReminders for
+         * why this is not the else branch it used to be.
+         */
+        (new NotificationService)->clearStaleProjectReminders($this->getNotificationClass(), $stillDue);
     }
 
     public function hasBeenNotified(object $recipient, int $uniqueModelId): bool
