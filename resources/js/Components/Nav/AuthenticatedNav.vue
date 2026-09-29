@@ -100,8 +100,8 @@
 
 <template>
     <!--
-        The layout sizes the rest of the page as window.innerHeight minus 68, so this bar holds a
-        fixed height rather than growing with whatever is dropped into it.
+        A fixed 68px rather than a bar that grows with whatever is dropped into it: the boards that
+        size themselves against the screen subtract exactly that much.
     -->
     <header class="relative z-30 border-b bg-gray-900 border-white/10">
         <div class="flex items-center justify-between h-[68px] gap-4 px-4 md:px-8">

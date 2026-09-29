@@ -4,8 +4,12 @@ use App\Models\Product;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
 use App\Services\CsvService;
+use App\Services\DataClassificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 uses(RefreshDatabase::class);
 
@@ -99,6 +103,8 @@ it('would be a disaster if the five file limit was only enforced in the browser'
 
 it('would be a disaster if uploading a material list extracted nothing', function () {
     $business = createBusiness('gmail', true);
+    recordExampleTemplates($business);
+
     $user = createUser(1, $business, true, true);
 
     //Seeding now runs through the admin-guarded import route
@@ -120,6 +126,8 @@ it('would be a disaster if an empty extraction looked like a success', function 
      * was handed an empty BOM with no explanation.
      */
     $business = createBusiness('gmail', true);
+    recordExampleTemplates($business);
+
     $user = createUser(1, $business, true, true);
 
     expect(Product::count())->toBe(0);
@@ -136,6 +144,8 @@ it('would be a disaster if an empty extraction looked like a success', function 
 
 it('would be a disaster if a failed extraction blocked retrying the same name', function () {
     $business = createBusiness('gmail', true);
+    recordExampleTemplates($business);
+
     $user = createUser(1, $business, true, true);
 
     //First attempt fails: no products to match against
@@ -167,7 +177,7 @@ function materialListWithUnreadableLength(): UploadedFile
         29 => [null, 'LVL 90X63', null, 4, 1, 5, 60, 1200],
     ];
 
-    $spreadsheet = new PhpOffice\PhpSpreadsheet\Spreadsheet;
+    $spreadsheet = new Spreadsheet;
     $sheet = $spreadsheet->getActiveSheet();
     foreach ($rows as $rowIndex => $row) {
         foreach ($row as $colIndex => $value) {
@@ -175,14 +185,14 @@ function materialListWithUnreadableLength(): UploadedFile
                 $sheet->setCellValueExplicit(
                     [$colIndex + 1, $rowIndex + 1],
                     $value,
-                    PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING2
+                    DataType::TYPE_STRING2
                 );
             }
         }
     }
 
     $path = tempnam(sys_get_temp_dir(), 'bom').'.xlsx';
-    (new PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet))->save($path);
+    (new Xlsx($spreadsheet))->save($path);
 
     return new UploadedFile($path, 'bad_length.xlsx', null, null, true);
 }
@@ -195,6 +205,8 @@ it('would be a disaster if one unreadable cell threw away the rest of the file',
      * told the template had stopped auto-detecting.
      */
     $business = createBusiness('gmail', true);
+    recordExampleTemplates($business);
+
     $user = createUser(1, $business, false, true);
     $this->actingAs($user);
     seedMasterMaterials();
@@ -233,7 +245,7 @@ it('would be a disaster if a template with no SubQty column crashed the import',
     seedMasterMaterials();
 
     $project = Project::factory()->create(['user_id' => $user->id]);
-    $dataClassificationService = new App\Services\DataClassificationService;
+    $dataClassificationService = new DataClassificationService;
 
     (new CsvService)->saveRawMaterialQuoteData([[
         'index' => 5,

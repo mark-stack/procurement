@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Business;
+use App\Models\Template;
 use App\Services\TemplateService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -39,6 +41,8 @@ it('would be a disaster if an unreadable upload threw instead of being reported'
 
 it('would be a disaster if a valid template was reported as invalid', function () {
     $business = createBusiness('gmail', true);
+    recordExampleTemplates($business);
+
     $user = createUser(1, $business, true, true);
     Auth::login($user);
 
@@ -48,22 +52,27 @@ it('would be a disaster if a valid template was reported as invalid', function (
 });
 
 /**
- * A malformed template config makes our own detection code blow up on a file
- * that is perfectly readable. That used to be swallowed and reported to the
- * user as "did this template change?".
+ * A malformed template makes our own detection code blow up on a file that is perfectly
+ * readable. That used to be swallowed and reported to the user as "did this template change?".
+ *
+ * This was a malformed entry in config/TableTemplates.php until templates moved into the
+ * database, and the risk moved with them - an admin can now record a row that detection cannot
+ * cope with, where before it took a deploy. A heading cell with no labels beside it is one:
+ * detectable() lets it through, and headerStartIndex() reaches for a label that is not there.
  */
-function breakTemplateDetection(): void
+function breakTemplateDetection(Business $business): void
 {
-    config(['TableTemplates' => [
-        ['ownerDomain' => null], //missing ExpectedHeadingLabels
-    ]]);
+    Template::factory()->for($business)->create([
+        'name' => 'Broken',
+        'expected_heading_labels' => [],
+    ]);
 }
 
 it('would be a disaster if a bug in detection was reported as a bad template', function () {
     $business = createBusiness('gmail', true);
     $admin = createUser(1, $business, true, true);
     Auth::login($admin);
-    breakTemplateDetection();
+    breakTemplateDetection($business);
 
     //Admin sees the real exception rather than a misleading message
     expect(fn () => (new TemplateService)->invalidFiles([exampleUpload()]))
@@ -76,7 +85,7 @@ it('would be a disaster if a bug in detection was never logged', function () {
     $business = createBusiness('gmail', true);
     $user = createUser(2, $business, false, true);
     Auth::login($user);
-    breakTemplateDetection();
+    breakTemplateDetection($business);
 
     //Regular users still get the friendly path...
     $invalid = (new TemplateService)->invalidFiles([exampleUpload()]);
@@ -104,7 +113,7 @@ it('would be a disaster if a rethrown error leaked the temp upload', function ()
     $business = createBusiness('gmail', true);
     $admin = createUser(1, $business, true, true);
     Auth::login($admin);
-    breakTemplateDetection();
+    breakTemplateDetection($business);
 
     $before = glob(storage_path('app/private/uploads/*'));
 

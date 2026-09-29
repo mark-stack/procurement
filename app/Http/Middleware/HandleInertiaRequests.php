@@ -3,7 +3,6 @@
 namespace App\Http\Middleware;
 
 use App\Models\Product;
-use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -71,6 +70,10 @@ class HandleInertiaRequests extends Middleware
                 'materials' => fn () => $request->session()->get('materials'),
                 //What a JSON import would do, for review before any of it is applied
                 'materialsImportPlan' => fn () => $request->session()->get('materialsImportPlan'),
+                //The template form, filled in from a sample spreadsheet, with the checks run on it
+                'templateProposal' => fn () => $request->session()->get('templateProposal'),
+                //Every row the template in the form would extract from a sample, and its fate
+                'templateTest' => fn () => $request->session()->get('templateTest'),
             ],
             'adminEmail' => config('env.admin_email'),
             "loginAvailable" => env("LOGIN_AVAILABLE"),

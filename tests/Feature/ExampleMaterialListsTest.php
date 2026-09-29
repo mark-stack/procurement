@@ -13,16 +13,18 @@ use Maatwebsite\Excel\Facades\Excel;
 uses(RefreshDatabase::class);
 
 /**
- * public/examples holds one workbook per template in config/TableTemplates.php, keyed
+ * public/examples holds one workbook per template in Tests\Support\ExampleTemplates, keyed
  * here by the template it demonstrates.
  *
- * The templates are calibrated entirely in relative column offsets, measured from
- * wherever the heading run starts. Nothing in the config says which spreadsheet those
- * offsets were read off, so a template is only as trustworthy as the file that proves
- * it: change "SubQtyRelativeOffset" by one and the import quietly starts multiplying
- * by the Rate column instead. These examples are that proof, and they are the files a
- * user downloads to see what we can read, so they are also the reason to keep the two
- * in step.
+ * The templates are calibrated in column offsets measured from wherever the heading run
+ * starts, so a template is only as trustworthy as the file that proves it: move the sub
+ * qty column by one and the import quietly starts multiplying by the Rate column
+ * instead. These examples are that proof, and they are the files a user downloads to see
+ * what we can read, so they are also the reason to keep the two in step.
+ *
+ * They earned a second job when detection moved out of config/TableTemplates.php and into
+ * this table. These assertions did not change across that move, and their passing either
+ * side of it is what says the two notations extract identical rows.
  */
 function exampleMaterialLists(): array
 {
@@ -41,14 +43,17 @@ function examplePath(string $file): string
 }
 
 /**
- * Staff of the business that owns the Project Quote template.
+ * Staff of a business that has recorded all five example templates.
  *
- * It is the only template with an "ownerDomain", so this is the one user who is
- * eligible for all five without being an admin.
+ * A business is created with none - an admin records one per report format a customer sends in -
+ * so the fixture that makes these files importable is part of the test rather than something
+ * registration hands out. See Tests\Support\ExampleTemplates.
  */
 function exampleUploader(): User
 {
     $business = createBusiness('gmail', true);
+    recordExampleTemplates($business);
+
     $user = createUser(2, $business, false, true);
     Auth::login($user);
 

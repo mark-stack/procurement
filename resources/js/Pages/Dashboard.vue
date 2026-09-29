@@ -361,7 +361,12 @@
         </div>
 
         <!-- Desktop view -->
-        <section class="mx-auto hidden h-[calc(100vh-68px)] w-full max-w-[1800px] flex-col md:flex">
+        <!--
+            Fills what the layout gives it, rather than measuring the screen and subtracting the
+            nav: that arithmetic knew nothing about the impersonation and billing banners, so the
+            board hung exactly one banner below the bottom of the window whenever one was up.
+        -->
+        <section class="mx-auto hidden min-h-0 flex-1 w-full max-w-[1800px] flex-col md:flex">
 
             <!-- page header -->
             <header class="flex flex-none flex-wrap items-end justify-between gap-4 py-5">

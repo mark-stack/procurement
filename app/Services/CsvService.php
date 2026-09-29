@@ -8,6 +8,7 @@ use App\Formatters\NestingFormatter;
 use App\Models\Business;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
+use App\Models\Template;
 use App\Models\User;
 use App\Notifications\AdminUnfoundItems;
 use Illuminate\Http\RedirectResponse;
@@ -61,38 +62,34 @@ class CsvService
 
     public function eligibleTables(): array
     {
-        //Users
-        $authUser = auth()->user();
-
-        $eligibleTables = [];
-        foreach (config('TableTemplates') as $table) {
-            $ownerDomain = $table['ownerDomain'];
-
-            if ($this->isEligibleForThisTable($authUser, $ownerDomain)) {
-                $eligibleTables[] = $table;
-            }
-        }
-
-        return $eligibleTables;
-    }
-
-    public function isEligibleForThisTable(object $authUser, ?string $domain): bool
-    {
         /**
-         * Single purpose: check if this template specifically is eligible for this user
+         * Single purpose: the templates this user's uploads are matched against.
+         *
+         * These used to be the entries in config/TableTemplates.php, filtered by comparing the
+         * user's email domain to each entry's "ownerDomain". They are now rows an admin records
+         * on the templates screen, filtered by who the row belongs to - so adding a customer's
+         * spreadsheet is a form submission rather than a deploy.
+         *
+         * detectionSpec() hands back the same array shape the config did, which is why nothing
+         * below this line had to change. See Template::detectionSpec().
          */
-
-        //For everybody
-        $condition_1 = $domain === null;
-
-        //Is admin (sees everything)
-        $condition_2 = $authUser->isAdmin();
-
-        //For this business ($domain is nullable, and condition_1 already covers null)
-        $condition_3 = $domain !== null
-            && strtoupper((string) $authUser->getDomainFromEmail()) === strtoupper($domain);
-
-        return $condition_1 || $condition_2 || $condition_3;
+        return Template::query()
+            ->eligibleFor(auth()->user())
+            ->detectable()
+            //Detection order decides which template a file reports as matching first
+            ->orderBy('id')
+            ->get()
+            ->map(fn (Template $template) => $template->detectionSpec())
+            /*
+             * detectable() asks the two questions a query can - is there an anchor, are there
+             * labels - and detectionSpec() asks the third, which needs the cells read: a row with
+             * no cell reference at all has no first row of data and describes no table. It cannot
+             * be saved through the form, but it can be written directly, and an empty spec reaching
+             * headerStartIndex() is an "undefined array key" on a customer's upload.
+             */
+            ->filter(fn (array $spec) => $spec !== [])
+            ->values()
+            ->all();
     }
 
     public function processTemplate(array $detectedTables, Project $project): void
@@ -448,6 +445,7 @@ class CsvService
                 $supplierGroup = $productConfig['supplierGroup']->value;
                 if (! $business->supplierGroupIsCurrentPlan($supplierGroup)) {
                     $fromOtherPlan[] = $row['description'];
+
                     continue; //don't save this row
                 }
 
@@ -455,6 +453,7 @@ class CsvService
                 if($business->meterage_only){
                     if($algo !== NestingEnums::METERAGE->value){
                         $fromOtherPlan[] = $row['description'];
+
                         continue; //don't save this row
                     }
                 }
@@ -462,6 +461,7 @@ class CsvService
                 //Must have general product matches
                 if(count($row['generalProductMatches']["results"]) === 0){
                     $itemsNotFound[] = $row['description'];
+
                     continue; //don't save this row
                 }
 
@@ -480,6 +480,7 @@ class CsvService
                  */
                 if ($lengthRequired === null) {
                     $couldNotBeRead[] = $row['description'];
+
                     continue; //don't save this row
                 }
 
@@ -776,7 +777,8 @@ class CsvService
     {
         /**
          * Decode: "M##Bolt Dia##Bolt Grade##Length(mm)"
-         * see "compoundDescription" variables in TableTemplates.php
+         * see Template::compoundDescriptionSpec(), which builds this out of the cells recorded
+         * on the template - it is how a table with no description column says what a row is
          */
         $decodeCompoundDescription = null;
 

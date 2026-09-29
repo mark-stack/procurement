@@ -64,6 +64,17 @@ class RegisteredUserController extends Controller
                 ],
             );
 
+            /*
+             * A new business is given no templates. Its uploads are matched against its own
+             * templates and nothing else, so it can import nothing until an admin records one -
+             * which is the workflow: the customer emails us the reports they export, and we
+             * build a template per report on /admin/businesses/{business}/templates.
+             *
+             * A shared starting set was tried and is deliberately gone: four Tekla reports that
+             * fit one customer's export settings are not what the next customer's file looks
+             * like, and a template that half-matches reads columns off the wrong offsets.
+             */
+
             //Assign business to user
             $user->business_id = $business->id;
             $user->save();

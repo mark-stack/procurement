@@ -193,6 +193,20 @@ class Business extends Model
         return $this->hasMany(Template::class);
     }
 
+    /**
+     * The templates an upload of this business's is actually matched against.
+     *
+     * The same two conditions CsvService::eligibleTables() imports under, which is what makes this
+     * countable as "templates available to this business": a deactivated row, or one recorded
+     * before templates carried the heading row that finds the table, detects nothing.
+     *
+     * @return HasMany<Template, $this>
+     */
+    public function detectableTemplates(): HasMany
+    {
+        return $this->templates()->where('active', true)->detectable();
+    }
+
     public function quotes(): HasManyThrough
     {
         return $this->hasManyThrough(Quote::class, User::class);

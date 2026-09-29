@@ -17,8 +17,10 @@ it('would be a disaster if user had no eligible tables', function () {
     //Services
     $csvService = new CsvService;
 
-    //User (staff of mark.laravel.coder@gmail.com)
+    //User (staff of mark.laravel.coder@gmail.com), with the examples recorded against
+    //their business - a business is created with no templates and imports nothing
     $business = createBusiness('gmail', true);
+    recordExampleTemplates($business);
     $user = createUser(2, $business, false, true);
     Auth::login($user);
 
@@ -35,6 +37,8 @@ it('would be a disaster if could not detect a table', function () {
 
     //User (staff of mark.laravel.coder@gmail.com)
     $business = createBusiness('gmail', true);
+    recordExampleTemplates($business);
+
     $user = createUser(2, $business, false, true);
     Auth::login($user);
 
@@ -177,6 +181,8 @@ it('would be a disaster if quantities misidentified', function () {
 
     //User (staff of mark.laravel.coder@gmail.com)
     $business = createBusiness('gmail', true);
+    recordExampleTemplates($business);
+
     $user = createUser(2, $business, false, true);
     Auth::login($user);
 

@@ -12,8 +12,12 @@ use App\Http\Controllers\AdminNestingAlgorithmController;
 use App\Http\Controllers\AdminStopImpersonationController;
 use App\Http\Controllers\AdminSupplierIndexController;
 use App\Http\Controllers\AdminSupplierStoreController;
+use App\Http\Controllers\AdminTemplateProposalController;
 use App\Http\Controllers\AdminTemplateScreenshotController;
+use App\Http\Controllers\AdminTemplateTestController;
 use App\Http\Controllers\AdminUserIndexController;
+use App\Http\Controllers\DeactivateBusinessController;
+use App\Http\Controllers\ResendWelcomeEmailController;
 use App\Http\Controllers\TemplateController;
 use App\Http\Middleware\AdminMiddleware;
 use App\Http\Middleware\PlatformProductMiddleware;
@@ -28,6 +32,18 @@ Route::prefix('admin')->name('admin.')->middleware([AdminMiddleware::class])->gr
     Route::resource('businesses.templates', TemplateController::class)
         ->scoped()
         ->only(['index', 'store', 'update', 'destroy']);
+
+    //Reads an uploaded sample spreadsheet and fills the template form in from it. POST because it
+    //takes a file and spends money at OpenAI, but it writes nothing - the form still has to be
+    //submitted by hand afterwards.
+    Route::post('businesses/{business}/templates/propose', AdminTemplateProposalController::class)
+        ->name('businesses.templates.propose');
+
+    //Runs the importer over an uploaded sample using the values in the form, and reports every row
+    //it would extract and what would become of each. POST because it takes a file; it writes
+    //nothing at all - no template, no project, no material row.
+    Route::post('businesses/{business}/templates/test', AdminTemplateTestController::class)
+        ->name('businesses.templates.test');
 
     //scopeBindings(): same reason as scoped() above - without it a mistyped business id
     //serves another business's screenshot
@@ -65,10 +81,18 @@ Route::prefix('admin')->name('admin.')->middleware([AdminMiddleware::class])->gr
     //reachable by a link, a prefetch or a cross-site <img> pointed at a logged-in admin
     Route::post('impersonate/{user}', AdminImpersonationController::class)->name('impersonate');
 
+    //POST: this sends mail, so it must not be reachable by a link, a prefetch or the back
+    //button. Per user rather than per business - see the controller
+    Route::post('resend-welcome/{user}', ResendWelcomeEmailController::class)->name('resend.welcome');
+
     //Business
     //POST: activating emails every user in the business, so it must not be reachable by a
     //link, a prefetch, a crawler or the back button
     Route::post('activate-business/{business}', ActivateBusinessController::class)->name('activate.business');
+
+    //POST: it writes, and it puts every user in the business back on onboarding. It sends no
+    //mail, which is the one way it is not activation's mirror
+    Route::post('deactivate-business/{business}', DeactivateBusinessController::class)->name('deactivate.business');
 
     //Nesting algorithm
     //{business?}: the cost settings are per business, so an admin can inspect any of them, but the

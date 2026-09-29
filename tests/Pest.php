@@ -333,6 +333,18 @@ function createBusiness(string $name, bool $adminSetupComplete): Business
 //    ]);
 }
 
+/**
+ * Give this business the templates the workbooks in public/examples were read with.
+ *
+ * Registration hands out no templates - a business imports with what an admin records for it and
+ * nothing else - so a test that uploads a spreadsheet has to say which templates are in place.
+ * See Tests\Support\ExampleTemplates for the records themselves.
+ */
+function recordExampleTemplates(Business $business): void
+{
+    (new Tests\Support\ExampleTemplates)->recordFor($business);
+}
+
 function createUser(int $id, Business $business, bool $isAdmin, bool $emailVerified): User
 {
     return (new TestingFormatter())->createUser($isAdmin,$id,$business,$emailVerified);
