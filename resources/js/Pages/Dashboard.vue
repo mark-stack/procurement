@@ -410,38 +410,31 @@
         -->
         <section class="mx-auto hidden min-h-0 flex-1 w-full max-w-[1800px] flex-col md:flex">
 
-            <!-- page header -->
-            <header class="flex flex-none flex-wrap items-end justify-between gap-4 py-5">
-                <div>
-                    <h1 class="text-2xl font-bold tracking-tight text-gray-900">Projects</h1>
-                    <p class="mt-1 text-sm text-gray-500">
-                        Follow every project from nesting through to delivery.
-                    </p>
-                </div>
-                <button
-                    type="button"
-                    @click="addProject()"
-                    class="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors duration-150 hover:bg-blue-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                >
-                    <i class="fa-solid fa-plus text-xs"></i>
-                    New project
-                </button>
-            </header>
+            <!--
+                No page header. The board is the whole of this page and its four columns carry
+                their own titles, so a "Projects" heading above them named nothing the user could
+                not already see, and took a row of height off a board that has to fit the viewport.
+                Its "New project" button went with it - the dashed "Add project to nesting" card at
+                the top of the first column is the same addProject() call, sitting in the column
+                the new project actually lands in.
+            -->
 
             <!-- kanban -->
-            <div class="grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-4 pb-5 xl:grid-cols-4 xl:grid-rows-1">
+            <!-- Wider gutters on the single-row layout, to give the columns' flow arrows room -->
+            <div class="grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-4 py-5 xl:grid-cols-4 xl:grid-rows-1 xl:gap-6">
 
                 <!-- Ready for auto nesting -->
                 <KanbanColumn
                     step="1"
                     title="Nesting"
                     :count="nestingProjects.length + unfinishedImports.length"
+                    :flowsOn="true"
                 >
                     <!-- new project -->
                     <button
                         type="button"
                         @click="addProject()"
-                        class="group/add flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-white px-4 py-6 text-center transition-colors duration-150 hover:border-blue-300 hover:bg-blue-50"
+                        class="group/add flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-400 bg-white px-4 py-6 text-center transition-colors duration-150 hover:border-blue-400 hover:bg-blue-50"
                     >
                         <span class="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-500 transition-colors duration-150 group-hover/add:bg-blue-100 group-hover/add:text-blue-800">
                             <i class="fa-solid fa-plus text-xs"></i>
@@ -550,6 +543,7 @@
                     step="2"
                     title="Quoting"
                     :count="quotedBatches.length"
+                    :flowsOn="true"
                 >
                     <!-- card -->
                     <KanbanMinimalCard
@@ -580,6 +574,7 @@
                     step="3"
                     title="Ordering"
                     :count="orderedBatches.length"
+                    :flowsOn="true"
                 >
                     <!-- card -->
                     <KanbanMinimalCard
