@@ -215,10 +215,10 @@ function nestingTestCasesWithOffcuts(): array
          * The 1,550mm stub takes one of the 1,500mm cuts and 50mm goes in the skip. Same 18,000mm
          * purchased either way, so the whole comparison is what the rack looks like afterwards:
          *
-         *   leaving the stub alone  ->  1,200 + 1,550 + a 2,500 drop   (three pieces)
-         *   taking the stub         ->  1,200 + a 4,000 drop           (two pieces)
+         *   leaving the stub alone  ->  1,200 + 1,550 + a 2,500 offcut   (three pieces)
+         *   taking the stub         ->  1,200 + a 4,000 offcut           (two pieces)
          *
-         * One fewer piece to store and find, and the drop that is left is 4,000mm rather than 2,500mm,
+         * One fewer piece to store and find, and the offcut that is left is 4,000mm rather than 2,500mm,
          * which is worth appreciably more on the retention curve. 50mm of 200PFC - just over a kilogram -
          * buys both. The old plan read as 50mm less destroyed and a perfect yield figure while quietly
          * keeping a stub nobody was ever going to reach for.
@@ -570,6 +570,81 @@ function csvArray(): ?array
 function create_offcut_200PFC(int $length, int $batchFromId): Offcut
 {
     return (new TestingFormatter())->create_offcut_200PFC($length, $batchFromId);
+}
+
+/**
+ * A batch with a delivered, certificated STEEL_MERCHANT order - which is what makes its offcuts
+ * "available" (see Business::availableOffcuts).
+ */
+function batchWithDeliveredOrder(User $user, ?string $cert = null, ?Supplier $supplier = null): Batch
+{
+    $batch = Batch::factory()->forUser($user->id)->create();
+    $supplier ??= Supplier::factory()->create();
+
+    $quote = Quote::create([
+        'user_id' => $user->id,
+        'batch_id' => $batch->id,
+        'supplier_id' => $supplier->id,
+        'supplier_category' => 'STEEL_MERCHANT',
+        'supplier_quote_reference' => null,
+        'quote_sent' => true,
+        'quoted_price' => null,
+        'quoted_lead_time' => null,
+    ]);
+
+    Order::create([
+        'user_id' => $user->id,
+        'batch_id' => $batch->id,
+        'supplier_id' => $supplier->id,
+        'quote_id' => $quote->id,
+        'order_sent' => true,
+        'order_confirmation_received' => true,
+        'purchase_order_number' => '123',
+        'is_delivered' => true,
+        'material_cert_numbers' => $cert,
+    ]);
+
+    return $batch;
+}
+
+/**
+ * A verified user of a set-up business - the least that is needed to reach the offcuts page.
+ */
+function offcutsIndexUser(): User
+{
+    $business = createBusiness('biz', true);
+
+    return createUser(1, $business, false, true);
+}
+
+/**
+ * A chain of offcuts, each one cut from the one before it, oldest first.
+ *
+ * Only the root batch buys steel. Every batch after it nests entirely out of inventory and so places
+ * no order at all - which is exactly what makes the certificate trail hard to follow.
+ *
+ * @return array<int, Offcut>
+ */
+function offcutGenerations(User $user, Batch $rootBatch, int $generations, int $length = 9000): array
+{
+    $chain = [create_offcut_200PFC($length, $rootBatch->id)];
+
+    foreach (range(2, $generations) as $generation) {
+        $source = end($chain);
+        $length -= 1000;
+
+        $cuttingBatch = Batch::factory()->forUser($user->id)->create();
+        $source->batch_to_id = $cuttingBatch->id;
+        $source->save();
+
+        $produced = create_offcut_200PFC($length, $cuttingBatch->id);
+        $produced->offcut_from_id = $source->id;
+        $produced->save();
+
+        $chain[] = $produced;
+    }
+
+    return $chain;
 }
 
 /**

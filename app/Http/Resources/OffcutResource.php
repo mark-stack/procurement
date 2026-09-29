@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Enums\OffcutRemovalEnums;
 use App\Models\Offcut;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -66,6 +67,20 @@ class OffcutResource extends JsonResource
 
             //Unique mark
             'unique_mark' => $this->unique_mark,
+
+            /*
+             * Taken out of inventory by hand - stolen, cut up off-system, damaged or not findable.
+             * Null on everything the available list carries, and filled in on everything the removed
+             * list does, so one resource serves both and the page does not need two shapes.
+             */
+            'removed_at' => $this->removed_at?->toIso8601String(),
+            'removed_at_label' => $this->removed_at?->format('j M Y'),
+            'removed_reason' => $this->removed_reason,
+            //Resolved here because the enum is the only place the wording lives
+            'removed_reason_label' => OffcutRemovalEnums::tryFrom((string) $this->removed_reason)?->label(),
+            'removed_note' => $this->removed_note,
+            //Eager-loaded by the controller. Deliberately not the whole user - this is a name on a row
+            'removed_by' => $this->whenLoaded('removedBy', fn () => $this->removedBy?->name),
 
             //Derived
             'bar' => $this->bar,

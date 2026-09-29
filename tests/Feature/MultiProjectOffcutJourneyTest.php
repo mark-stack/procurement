@@ -95,7 +95,7 @@ it('would be a disaster if a batch spanning several projects cut the wrong steel
      * The whole journey, start to end, in one 200PFC product so the arithmetic is checkable by hand.
      *
      * Round 1: three projects are nested together into one batch. Two of them share a bar, the third
-     *   leaves a 4,000mm drop that is banked as an offcut once the steel is delivered.
+     *   leaves a 4,000mm offcut that is banked as an offcut once the steel is delivered.
      * Round 2: two more projects nest against that inventory. One cuts its piece out of the banked
      *   offcut, leaving an offcut of an offcut; the other buys new steel.
      *
@@ -246,7 +246,7 @@ it('would be a disaster if a batch spanning several projects cut the wrong steel
     expect(cutTally(everyCutInNest($savedNestOne)))->toBe($required)
         ->and($batchOne->fresh()->letters_project_array)->toBe($letters);
 
-    //The drop off project C's bar is banked as an offcut, with a mark and the bar it came off
+    //The offcut off project C's bar is banked as an offcut, with a mark and the bar it came off
     $banked = Offcut::query()->where('batch_from_id', $batchOne->id)->get();
 
     expect($banked)->toHaveCount(1);
@@ -265,7 +265,7 @@ it('would be a disaster if a batch spanning several projects cut the wrong steel
     expect($business->availableOffcuts()->count())->toBe(0);
 
     /*
-     * Stage 4: the steel is ordered, certificated and marked delivered. Only now is the drop
+     * Stage 4: the steel is ordered, certificated and marked delivered. Only now is the offcut
      * physically in the yard, and only now can a later nest draw on it.
      */
     $supplier = Supplier::factory()->create(['name' => 'Southern Steel']);
@@ -382,7 +382,7 @@ it('would be a disaster if a batch spanning several projects cut the wrong steel
         ->and($offcutOfOffcut->generation())->toBe(2)
         ->and($offcutOfOffcut->ancestors()->pluck('id')->all())->toEqual([$drop->id]);
 
-    //And the drop off project E's new bar, which came off a bar rather than an offcut
+    //And the offcut off project E's new bar, which came off a bar rather than an offcut
     $offcutFromNewBar = Offcut::query()
         ->where('batch_from_id', $batchTwo->id)
         ->whereNull('offcut_from_id')
@@ -393,7 +393,7 @@ it('would be a disaster if a batch spanning several projects cut the wrong steel
 
     /*
      * Inventory now: the offcut of an offcut is already in the yard, because its material was
-     * delivered against the batch that cut its source. The drop off the new bar is not - batch two's
+     * delivered against the batch that cut its source. The offcut off the new bar is not - batch two's
      * own steel has not been delivered yet. And the rival's offcut was never ours to see.
      */
     expect($business->availableOffcuts()->pluck('id')->all())->toBe([$offcutOfOffcut->id])

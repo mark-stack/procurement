@@ -65,7 +65,7 @@
     function offcutMarks(bar){
         /*
          * Identical bars are consolidated into one row with a count, but each of them is cut for real
-         * and each drop becomes its own offcut record with its own mark. Only the first mark was ever
+         * and each one becomes its own offcut record with its own mark. Only the first mark was ever
          * drawn, so on a "3 off" bar two offcuts existed in inventory under marks that were never
          * written on any steel.
          */
@@ -134,7 +134,7 @@
             </div>
             <!-- reusable -->
             <!-- ">=" to match the backend and Actions/Bar/CreateBarsAndOffcuts, which decide which
-                 drops actually become offcut records. ">" drew a drop exactly on the threshold as scrap
+                 offcuts actually become records. ">" drew an offcut exactly on the threshold as scrap
                  while an offcut record was banked for it. -->
             <div
                 v-if="bar.result.unused >= bar.result.scrap_threshold_mm"

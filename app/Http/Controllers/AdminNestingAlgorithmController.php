@@ -102,7 +102,7 @@ class AdminNestingAlgorithmController extends Controller
                 'label' => 'Scrap threshold',
                 'value' => (int) $business->scrap_threshold_mm,
                 'unit' => 'mm',
-                'blurb' => 'A drop shorter than this is destroyed. At or over it, the drop is banked as an offcut and gets a mark. This is the only setting that changes what physically happens in the yard - everything below only changes which plan is chosen.',
+                'blurb' => 'An offcut shorter than this is destroyed. At or over it, the offcut is banked and gets a mark. This is the only setting that changes what physically happens in the yard - everything below only changes which plan is chosen.',
             ],
             [
                 'key' => 'kerf_mm',
@@ -130,7 +130,7 @@ class AdminNestingAlgorithmController extends Controller
                 'label' => 'Scrap recovery',
                 'value' => (float) $business->scrap_recovery_rate,
                 'unit' => 'of new price',
-                'blurb' => 'What the bin pays back on steel that is cut off and binned. Applies to solid drops only - saw kerf leaves as swarf mixed with coolant and whatever else was cut that day, which is not what a merchant weighs in, so kerf earns nothing.',
+                'blurb' => 'What the bin pays back on steel that is cut off and binned. Applies to solid offcuts only - saw kerf leaves as swarf mixed with coolant and whatever else was cut that day, which is not what a merchant weighs in, so kerf earns nothing.',
             ],
             [
                 'key' => 'default_kg_per_m',
@@ -186,7 +186,7 @@ class AdminNestingAlgorithmController extends Controller
                 'label' => 'Retention cap',
                 'value' => (float) $business->offcut_retention_cap,
                 'unit' => null,
-                'blurb' => 'The most of its value a drop can keep by going on the rack, reached when the drop is as long as a full stock length. Well under 1.0 on purpose: an offcut is deferred value that has to be found, verified and trusted again.',
+                'blurb' => 'The most of its value an offcut can keep by going on the rack, reached when the offcut is as long as a full stock length. Well under 1.0 on purpose: an offcut is deferred value that has to be found, verified and trusted again.',
             ],
             [
                 'key' => 'purchase_cost_weight',
@@ -231,7 +231,7 @@ class AdminNestingAlgorithmController extends Controller
                 'drawCost' => round($model->minutesToCost($model->offcutDrawMinutes(self::REFERENCE_LENGTH_MM)), 2),
                 'barMinutes' => round($model->barHandlingMinutes(self::REFERENCE_LENGTH_MM), 1),
                 'barHandlingCost' => round($model->minutesToCost($model->barHandlingMinutes(self::REFERENCE_LENGTH_MM)), 2),
-                //Null means no drop of this section ever pays for its own keep
+                //Null means no offcut of this section ever pays for its own keep
                 'worthRackingFromMm' => $floor,
                 'worthRackingValue' => $floor === null ? null : round($model->mmToCost($floor), 2),
             ];
@@ -241,7 +241,7 @@ class AdminNestingAlgorithmController extends Controller
     }
 
     /**
-     * One curve per section: what a drop of each length is worth, and what keeping it will cost.
+     * One curve per section: what an offcut of each length is worth, and what keeping it will cost.
      *
      * Sampled from the model rather than reimplemented in the page, so the curve drawn is the curve used.
      * Each curve starts below the scrap threshold, so the step up out of scrap is visible.
@@ -277,10 +277,10 @@ class AdminNestingAlgorithmController extends Controller
                     'retention' => round($model->retention($length), 4),
                     'valueMm' => round($model->inventoryValueMm($length), 1),
                     'banked' => $banked,
-                    //What the drop retains as inventory
+                    //What the offcut retains as inventory
                     'worth' => round($model->mmToCost($model->inventoryValueMm($length)), 2),
                     //What it will cost in labour over its life on the rack. Nothing below the threshold,
-                    //because a drop that short never goes on the rack at all
+                    //because an offcut that short never goes on the rack at all
                     'keepCost' => $banked
                         ? round($model->minutesToCost($model->offcutRackMinutes($length)), 2)
                         : 0.0,
@@ -396,7 +396,7 @@ class AdminNestingAlgorithmController extends Controller
                     $this->costOption(
                         $business,
                         'Pair like with like',
-                        'Leaves 400mm of scrap and one 1,600mm drop worth having.',
+                        'Leaves 400mm of scrap and one 1,600mm offcut worth having.',
                         [
                             'purchasedMm' => 18000,
                             'scrapMm' => 400,
@@ -407,7 +407,7 @@ class AdminNestingAlgorithmController extends Controller
                     $this->costOption(
                         $business,
                         'Pair 4,300 with 3,700',
-                        'Destroys nothing at all - and leaves two '.number_format($threshold).'mm drops, both sitting at the bottom of the curve, both taking a mark and a lifetime of handling.',
+                        'Destroys nothing at all - and leaves two '.number_format($threshold).'mm offcuts, both sitting at the bottom of the curve, both taking a mark and a lifetime of handling.',
                         [
                             'purchasedMm' => 18000,
                             'barsOpened' => [
@@ -426,7 +426,7 @@ class AdminNestingAlgorithmController extends Controller
                     $this->costOption(
                         $business,
                         'Both cuts from the bar',
-                        'Nothing destroyed and nothing fetched. Leaves a 6,100mm drop, and the 1,800mm offcut stays on the rack.',
+                        'Nothing destroyed and nothing fetched. Leaves a 6,100mm offcut, and the 1,800mm one stays on the rack.',
                         [
                             'purchasedMm' => 12000,
                             'barsOpened' => [['length' => 12000, 'drop' => 6100]],
@@ -436,7 +436,7 @@ class AdminNestingAlgorithmController extends Controller
                     $this->costOption(
                         $business,
                         'Take the 900 off the offcut',
-                        'Same bar bought, and it keeps a longer 7,000mm drop - but it costs a trip to the rack and bins the 900mm left of the offcut.',
+                        'Same bar bought, and it keeps a longer 7,000mm offcut - but it costs a trip to the rack and bins the 900mm left of the offcut.',
                         [
                             'purchasedMm' => 12000,
                             'scrapMm' => 900,

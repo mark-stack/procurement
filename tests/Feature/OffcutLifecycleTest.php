@@ -192,7 +192,7 @@ it('would be a disaster if two offcuts in one yard wore the same mark', function
 
 it('marks every bar of a consolidated count, not just the first', function () {
     /*
-     * Identical bars are drawn as one row with a count, but each is cut for real and each drop becomes
+     * Identical bars are drawn as one row with a count, but each is cut for real and each offcut becomes
      * its own offcut. Only the first mark was written into the nesting data, so on a "3 off" bar two
      * offcuts sat in inventory under marks that were never on any steel.
      */
@@ -412,7 +412,7 @@ it('stops walking an offcut chain that points back into itself', function () {
 
 it('gives up on an offcut chain longer than anything a saw could produce', function () {
     /*
-     * The real limit on generations is the scrap threshold - each cut makes the drop shorter, and once it
+     * The real limit on generations is the scrap threshold - each cut makes the offcut shorter, and once it
      * is under the threshold it is scrapped instead of banked, so a 12m bar runs out after about a dozen
      * generations. A chain far longer than that is corrupt data, and the walk stops rather than reading
      * the database one generation at a time forever.

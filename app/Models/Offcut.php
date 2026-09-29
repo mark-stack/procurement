@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\OffcutRemovalEnums;
 use App\Formatters\UniqueLetterIDGenerator;
 use App\Services\ProductService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -9,10 +10,20 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 
+/**
+ * Declared here because casts() is a method rather than a $casts array, and static analysis cannot
+ * see through that - without this, every removed_at?->format() reads as a method call on a string.
+ *
+ * @property Carbon|null $removed_at
+ * @property int|null $removed_by_user_id
+ * @property string|null $removed_reason
+ * @property string|null $removed_note
+ */
 class Offcut extends Model
 {
     /** @use HasFactory<\Database\Factories\OffcutFactory> */
@@ -25,7 +36,7 @@ class Offcut extends Model
      *
      * An offcut cut from an offcut is itself cuttable, so the chain has no fixed length. Each
      * generation is shorter than the one before it by at least a cut plus the saw kerf, and the chain
-     * ends on its own when the drop falls under the business's scrap threshold and is scrapped instead
+     * ends on its own when the offcut falls under the business's scrap threshold and is scrapped instead
      * of banked - a 12m bar cut down in 1m steps runs out after about a dozen generations. That is the
      * real limit, and it is the right one: every generation is steel physically in the yard, so
      * refusing to reuse it after an arbitrary number of cuts would throw material away.
@@ -35,6 +46,16 @@ class Offcut extends Model
      * (or a pair pointing at each other) would otherwise spin forever on a page render.
      */
     public const MAX_ANCESTRY_DEPTH = 50;
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'removed_at' => 'datetime',
+        ];
+    }
 
     //Relationships
     public function bar(): BelongsTo
@@ -50,6 +71,65 @@ class Offcut extends Model
     public function sourceBatch(): BelongsTo
     {
         return $this->belongsTo(Batch::class, 'batch_from_id');
+    }
+
+    /**
+     * Whoever took this offcut out of inventory by hand.
+     *
+     * Nullable, and stays nullable after the user is gone - the removal is a fact about the steel,
+     * and it outlives the account of the person who recorded it.
+     */
+    public function removedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'removed_by_user_id');
+    }
+
+    //Removal
+    /**
+     * Whether this offcut has been taken out of inventory by hand - stolen, cut up off-system,
+     * damaged or simply not findable.
+     *
+     * Not the same as consumed. A consumed offcut (batch_to_id) was cut into pieces by a nest this
+     * application planned; a removed one left the yard without one.
+     */
+    public function isRemoved(): bool
+    {
+        return $this->removed_at !== null;
+    }
+
+    /**
+     * Take this offcut out of inventory, recording who said so and why.
+     *
+     * Nothing cascades. An offcut cut from this one is separate steel that is still in the rack, and
+     * the ancestry chain is what carries its certificates - so the children of a removed offcut stay
+     * exactly where they are.
+     */
+    public function removeFromInventory(User $user, OffcutRemovalEnums $reason, ?string $note = null): void
+    {
+        $note = trim((string) $note);
+
+        $this->forceFill([
+            'removed_at' => now(),
+            'removed_by_user_id' => $user->id,
+            'removed_reason' => $reason->value,
+            'removed_note' => $note === '' ? null : $note,
+        ])->save();
+    }
+
+    /**
+     * Put it back, for the removal that was a mistake or the offcut that turned up again.
+     *
+     * The reason and the note go with it. Keeping them would leave a row in inventory carrying an
+     * explanation of why it is not there.
+     */
+    public function restoreToInventory(): void
+    {
+        $this->forceFill([
+            'removed_at' => null,
+            'removed_by_user_id' => null,
+            'removed_reason' => null,
+            'removed_note' => null,
+        ])->save();
     }
 
     //Ancestry

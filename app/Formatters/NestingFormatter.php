@@ -451,7 +451,7 @@ class NestingFormatter
                     "totalKerf" => $totalKerf,
                     "totalScrap" => $totalScrap,
                     /*
-                     * Efficiency: the share of everything handled that was not destroyed. A drop at or
+                     * Efficiency: the share of everything handled that was not destroyed. An offcut at or
                      * over the scrap threshold is banked as an offcut, so it is not waste - only scrap
                      * and saw kerf are.
                      */
@@ -679,7 +679,7 @@ class NestingFormatter
             $totalUnused = $oldStock["unused"] +$newStock["unused"];
             $totalKerf = ($oldStock["kerf"] ?? 0) + ($newStock["kerf"] ?? 0);
             /*
-             * Every reusable drop, not just the ones cut from new stock. Counting only newStock made
+             * Every reusable offcut, not just the ones cut from new stock. Counting only newStock made
              * this check fail whenever an offcut left a remainder big enough to bank - the one case the
              * offcut nesting is there to produce.
              */
@@ -1078,7 +1078,7 @@ class NestingFormatter
          *      - random ones, varying which offcuts are drawn on, which bars are opened, and how long
          *        those bars are
          * D) Keep the cheapest candidate - see Services\NestingCostModel, which prices steel bought,
-         *    steel destroyed, what racking each drop loses, and the shop-floor time of every offcut
+         *    steel destroyed, what racking each offcut loses, and the shop-floor time of every one
          *    fetched, bar lifted and cut made, all in dollars
          *
          * The offcut pass used to run ONCE, outside this search, and its cuts were taken out of the
@@ -1221,7 +1221,7 @@ class NestingFormatter
             /*
              * "Effective efficiency": the share of every millimetre handled that was NOT destroyed.
              *
-             * A drop at or over the scrap threshold goes back into inventory, so it is not waste - only
+             * An offcut at or over the scrap threshold goes back into inventory, so it is not waste - only
              * scrap and saw kerf are. Judging a nest on used/total instead made drawing on offcuts you
              * already own look like a worse nest than buying new steel, because the whole offcut went
              * into the denominator while the reusable remainder of it counted for nothing.
@@ -1320,7 +1320,7 @@ class NestingFormatter
          * Shrinking each packed bar to the shortest length that still holds it.
          *
          * Shrinking lowers the purchase, but it is no longer automatically an improvement: a shorter bar
-         * leaves a shorter drop, and a drop that shrinks from a useful length down to a stub costs more
+         * leaves a shorter offcut, and an offcut that shrinks from a useful length down to a stub costs more
          * on the rack than the steel saved by not buying it. So both are costed and the cheaper taken.
          */
         $nest = $this->nestFromParts($bestResultOffcuts, $newStock, $costModel);
@@ -1471,7 +1471,7 @@ class NestingFormatter
             $offcutLength = $originalOffcut["length"];
             $drop = $originalOffcut["unused"];
 
-            //Material that became pieces. The saw kerf is neither this nor the drop - it is swarf
+            //Material that became pieces. The saw kerf is neither this nor the offcut - it is swarf
             $usedLength = 0;
             foreach($originalOffcut["cuts"] as $cut){
                 $usedLength = $usedLength + $cut["length"];
@@ -1489,7 +1489,7 @@ class NestingFormatter
                     "cuts" => $originalOffcut["cuts"], //length, projectId, piece_id, letter
                 ],
                 //">=" to match the per-bar test in Actions/Bar/CreateBarsAndOffcuts, which decides
-                //which drops actually become offcut records
+                //which offcuts actually become records
                 "offcutFromOffcut" => [
                     "reusableLength" => ($drop >= $business->scrap_threshold_mm) ? $drop : 0,
                 ],
@@ -1627,7 +1627,7 @@ class NestingFormatter
              * the finished nest is ranked on.
              *
              * This used to minimise destroyed material, which is where the scrap-threshold cliff bit
-             * hardest: a drop one millimetre over the threshold was free, so a 700mm cut would open a
+             * hardest: an offcut one millimetre over the threshold was free, so a 700mm cut would open a
              * 12,000mm offcut to bank 11,300mm rather than open a 1,500mm one and bin 800mm. That reads
              * as perfect yield and it is how a rack fills with stubs nobody will ever reach for - the
              * 1,500mm was no closer to being used, and a 12m length had been cut into.
@@ -1890,10 +1890,10 @@ class NestingFormatter
             }
 
             /*
-             * Reusable vs scrap is a property of the individual drop, not of the total.
+             * Reusable vs scrap is a property of the individual offcut, not of the total.
              * Ten bars each with 400mm left over is ten pieces of scrap, not 4m of reusable stock.
              * This has to match the per-bar test in Actions/Bar/CreateBarsAndOffcuts, which decides
-             * which drops actually become offcut records.
+             * which offcuts actually become records.
              */
             if($utilisedBar["unused"] >= $business->scrap_threshold_mm){
                 $totalReusable = $totalReusable + $utilisedBar["unused"];
@@ -1903,9 +1903,9 @@ class NestingFormatter
             }
 
             /*
-             * Each bar's own length and its own drop. Scoring needs both individually, not as totals: how
-             * long a bar takes to get to the saw depends on how heavy that bar is, and what a drop is worth
-             * on the rack is not linear in its length - one 2,500mm drop is worth more than a 1,000mm and a
+             * Each bar's own length and its own offcut. Scoring needs both individually, not as totals: how
+             * long a bar takes to get to the saw depends on how heavy that bar is, and what an offcut is worth
+             * on the rack is not linear in its length - one 2,500mm offcut is worth more than a 1,000mm and a
              * 1,500mm one. See Services\NestingCostModel.
              */
             $barsOpened[] = [
@@ -2193,7 +2193,7 @@ class NestingFormatter
         $originalQty = $totalQty;
 
         /*
-         * Drop anything that isn't a usable pack size, de-duplicate, and re-index.
+         * Offcut anything that isn't a usable pack size, de-duplicate, and re-index.
          * array_filter preserves keys, so filtering without re-indexing leaves holes behind.
          */
         $boxSizes = array_values(array_unique(array_filter(
@@ -2581,8 +2581,8 @@ class NestingFormatter
 
         /*
          * Mass per metre, which is what lets the cost model weigh steel against handling. Without it
-         * every section is costed as though it were the same weight, and a 1m drop of 500UB is treated
-         * as no more valuable than a 1m drop of light angle.
+         * every section is costed as though it were the same weight, and a 1m offcut of 500UB is treated
+         * as no more valuable than a 1m offcut of light angle.
          */
         $newPieceSpec->kg_per_m = $this->resolveKgPerM($uniquePieceSpec, $business);
 

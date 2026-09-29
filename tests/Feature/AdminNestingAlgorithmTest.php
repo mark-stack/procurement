@@ -174,7 +174,7 @@ it('would be a disaster if the dollar curve did not move with the section', func
 
 it('would be a disaster if the page did not flag settings that buy steel to rack it', function () {
     /**
-     * A drop's marginal retained value reaches 1.5 x the retention cap. Once that meets the purchase
+     * An offcut's marginal retained value reaches 1.5 x the retention cap. Once that meets the purchase
      * weight, buying one more millimetre of bar and banking it pays for itself and the nest buys a long
      * bar to make a short cut. The two settings are individually reasonable and only wrong together, so
      * the page has to say so rather than leave it to be noticed in a quote.

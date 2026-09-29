@@ -14,6 +14,8 @@ use App\Http\Controllers\DownloadUsageController;
 use App\Http\Controllers\MarkAsPastProjectController;
 use App\Http\Controllers\MarkNotificationStatusController;
 use App\Http\Controllers\OffcutController;
+use App\Http\Controllers\OffcutRemoveController;
+use App\Http\Controllers\OffcutRestoreController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderMarkDeliveredController;
@@ -133,6 +135,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
         //Index only - the other resource verbs were unimplemented, and an implicitly bound {offcut}
         //carries no business scoping
         Route::resource('offcuts', OffcutController::class)->only(['index']);
+
+        /*
+         * Taking a piece of steel out of inventory by hand, and putting it back.
+         *
+         * Not offcuts.destroy: nothing is deleted. The row carries the certificate trail of every
+         * offcut cut from it and holds its mark out of circulation, so it is flagged, never removed
+         * (see the 2026_09_30 migration). {offcut} is a plain integer that the controller looks up in
+         * the business's own inventory - implicit binding would hand any business any offcut.
+         */
+        Route::post('offcuts/{offcut}/remove', OffcutRemoveController::class)
+            ->whereNumber('offcut')
+            ->name('offcuts.remove');
+
+        Route::post('offcuts/{offcut}/restore', OffcutRestoreController::class)
+            ->whereNumber('offcut')
+            ->name('offcuts.restore');
 
         //Orders
         Route::resource('orders', OrderController::class);
