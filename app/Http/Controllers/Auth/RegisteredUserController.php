@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Models\User;
 use App\Notifications\NewUserEmail;
+use App\Rules\BusinessEmailDomain;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\Rules;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -36,7 +38,15 @@ class RegisteredUserController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
+            'email' => [
+                'required',
+                'string',
+                'lowercase',
+                'email',
+                'max:255',
+                'unique:'.User::class,
+                new BusinessEmailDomain,
+            ],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
@@ -55,6 +65,20 @@ class RegisteredUserController extends Controller
 
             //Find or Create business
             $domain = $user->getDomainFromEmail();
+
+            /*
+             * Unreachable behind the email rules above, and a guard rather than a check: a null
+             * domain used to be passed straight to firstOrCreate, which created one nameless
+             * business and then pooled every later unreadable address into it. Refusing the
+             * registration is the only safe answer - there is no domain, so there is no business
+             * this person can be said to belong to.
+             */
+            if ($domain === null) {
+                throw ValidationException::withMessages([
+                    'email' => 'Please use your work email address.',
+                ]);
+            }
+
             $business = Business::query()->firstOrCreate(
                 [
                     'domain' => $domain,
