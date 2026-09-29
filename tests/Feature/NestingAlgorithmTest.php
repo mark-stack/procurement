@@ -88,7 +88,7 @@ it('would be a disaster if the order offcuts came back in changed the nest', fun
 
 it('would be a disaster if an offcut was spent on a cut a smaller one covered', function () {
     /**
-     * Both offcuts leave a reusable drop, so neither destroys anything - and then the shorter one is
+     * Both offcuts leave a reusable offcut, so neither destroys anything - and then the shorter one is
      * the one to cut, keeping the long piece whole for a job that needs it.
      */
     $business = nestingBusiness();
@@ -122,7 +122,7 @@ it('would be a disaster if an offcut was cut up when a bar being bought had the 
      *
      * On light steel the same comparison is far closer, because consuming the 1,800mm offcut outright
      * leaves ONE piece on the rack where using the bar alone leaves two - the 1,800mm plus the bar's own
-     * drop. Which way that lands is decided by the rack and retrieval times, so the light-section version
+     * offcut. Which way that lands is decided by the rack and retrieval times, so the light-section version
      * of this case is a setting, not an invariant, and is not asserted here.
      */
     $result = $formatter->meterageAlgorithm(
@@ -148,7 +148,7 @@ it('would be a disaster if the offcut nesting was not searched along with the pa
      * 3,300 + 2,800 + 1,200 against a 4,700mm and a 4,400mm offcut, buying nothing.
      *
      * Taking each cut greedily puts 3,300 in the 4,400 (the shorter one that still leaves a reusable
-     * drop), then 2,800 in the 4,700, and the 1,200 into the 1,900mm left of it - binning 700mm. Paired
+     * offcut), then 2,800 in the 4,700, and the 1,200 into the 1,900mm left of it - binning 700mm. Paired
      * the other way, 3,300 + 1,200 in the 4,700 and 2,800 in the 4,400, only 200mm is destroyed. The
      * offcut pass has to be inside the iterated search to see it.
      */
@@ -217,7 +217,7 @@ it('would be a disaster if two offcuts of the same length nested differently by 
 it('would be a disaster if using an offcut you already own scored worse than buying new', function () {
     /**
      * One 5,000mm cut. Buying a 6,000mm bar leaves 1,000mm; cutting it from an 11,000mm offcut already
-     * in the yard leaves 6,000mm. Both drops are banked as offcuts, so neither nest destroys a
+     * in the yard leaves 6,000mm. Both offcuts are banked as offcuts, so neither nest destroys a
      * millimetre - and counting the whole offcut as "purchased material" reported 45.5% against 83.3%,
      * failing the 70% check for reusing your own steel.
      */
@@ -262,11 +262,11 @@ it('would be a disaster if two useless stubs were banked to avoid scrapping anyt
     /**
      * 4,300 + 4,300 and 3,700 + 3,700 into two 9,000mm bars leaves 400mm (scrap) and 1,600mm.
      * Pairing 4,300 + 3,700 twice buys exactly the same two bars and destroys nothing at all - but it
-     * leaves two 1,000mm drops, which is the scrap threshold exactly, so both go on the rack.
+     * leaves two 1,000mm offcuts, which is the scrap threshold exactly, so both go on the rack.
      *
-     * Destroying nothing is the worse plan. A 1,000mm drop sits right at the bottom of the retention
+     * Destroying nothing is the worse plan. A 1,000mm offcut sits right at the bottom of the retention
      * curve and is worth nothing as inventory, so that plan pays two rack slots for two pieces nobody
-     * will reach for, to avoid 400mm in the skip. One 1,600mm drop is worth having; two 1,000mm stubs
+     * will reach for, to avoid 400mm in the skip. One 1,600mm offcut is worth having; two 1,000mm stubs
      * are the yield figure flattering itself.
      *
      * There is one purchasable length here on purpose. Random runs used to vary only which stock length
@@ -285,7 +285,7 @@ it('would be a disaster if two useless stubs were banked to avoid scrapping anyt
 
     $newStock = $result['totals']['newStock'];
 
-    //Same two bars either way; this is the pairing that banks one useful drop instead of two stubs
+    //Same two bars either way; this is the pairing that banks one useful offcut instead of two stubs
     expect($newStock['total'])->toBe(18000)
         ->and($newStock['scrap'])->toBe(400)
         ->and($newStock['reusable'])->toBe(1600);
@@ -298,7 +298,7 @@ it('would be a disaster if the nest never tried one stock length throughout', fu
      *
      * The search draws each bar's length on its own, so the chance of it landing on 12,000mm four times
      * running is slim, and the only deterministic run opened the shortest bar that held the cut in hand:
-     * twelve 6,000mm bars, 72,000mm bought and 24,000mm of drop. Packing every bar to one length has to
+     * twelve 6,000mm bars, 72,000mm bought and 24,000mm of offcut. Packing every bar to one length has to
      * be a candidate in its own right.
      */
     $business = nestingBusiness();
@@ -438,7 +438,7 @@ it('would be a disaster if the nest left no room for the saw blade', function ()
         ->and($newStock['used'])->toBe(12000)
         ->and($newStock['kerf'])->toBe(12);
 
-    //Every bar still balances: bar_length = cuts + kerf + drop
+    //Every bar still balances: bar_length = cuts + kerf + offcut
     foreach ($result['utilisedBars'] as $bar) {
         $cuts = array_sum(array_column($bar['result']['pieces'], 'cutLength'));
 

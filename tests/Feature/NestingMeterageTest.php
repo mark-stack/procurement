@@ -133,12 +133,12 @@ it("would be a disaster if meterage nesting for a single project didn't work cor
 
 //todo more
 
-it('would be a disaster if a small drop on every bar was counted as reusable stock', function () {
+it('would be a disaster if a small offcut on every bar was counted as reusable stock', function () {
     /**
-     * Reusable vs scrap is a property of the individual drop, not of the total.
+     * Reusable vs scrap is a property of the individual offcut, not of the total.
      *
      * Six 4,300mm cuts fill three 9,000mm bars with 400mm left on each. 400mm is below the 1,000mm
-     * scrap threshold, so all three drops are scrap and no offcut is banked. Summing the drops first
+     * scrap threshold, so all three offcuts are scrap and no offcut is banked. Summing the offcuts first
      * (1,200mm) and then testing the total against the threshold reported them all as reusable.
      */
     $business = createBusiness('biz', true);
@@ -166,7 +166,7 @@ it('would be a disaster if a small drop on every bar was counted as reusable sto
     expect($bankable)->toBeEmpty();
 });
 
-it('would be a disaster if a drop big enough to reuse was counted as scrap', function () {
+it('would be a disaster if an offcut big enough to reuse was counted as scrap', function () {
     $business = createBusiness('biz', true);
     $business->scrap_threshold_mm = 1000;
     $business->save();

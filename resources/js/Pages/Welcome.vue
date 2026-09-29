@@ -86,7 +86,7 @@
         },
         {
             title: "Steel destroyed",
-            body: "Any drop shorter than your scrap threshold goes in the bin, wherever it came from. Credited back at your scrap recovery rate, because the merchant weighs it in — so binning a bad remnant costs about seven eighths of the steel, not all of it.",
+            body: "Any offcut shorter than your scrap threshold goes in the bin, wherever it came from. Credited back at your scrap recovery rate, because the merchant weighs it in — so binning a bad remnant costs about seven eighths of the steel, not all of it.",
         },
         {
             title: "Saw kerf",
@@ -94,7 +94,7 @@
         },
         {
             title: "Offcut value given up",
-            body: "Drawing a length off the rack spends what it was worth and earns back whatever the new drop is worth. Cutting a 2,000mm stub down to 1,500mm gives up very little; taking the same 500mm off a 9,000mm length gives up a great deal.",
+            body: "Drawing a length off the rack spends what it was worth and earns back whatever the new offcut is worth. Cutting a 2,000mm stub down to 1,500mm gives up very little; taking the same 500mm off a 9,000mm length gives up a great deal.",
         },
     ];
 
@@ -113,7 +113,7 @@
         },
         {
             title: "The rack, for the life of the piece",
-            body: "Every offcut you keep has to be marked, recorded and shifted out of the way on every future job. Charged when a drop goes on the rack, and credited when you consume a stub outright and retire the mark for good.",
+            body: "Every offcut you keep has to be marked, recorded and shifted out of the way on every future job. Charged when an offcut goes on the rack, and credited when you consume a stub outright and retire the mark for good.",
         },
     ];
 
@@ -124,7 +124,7 @@
         },
         {
             title: "No cliff at the scrap threshold",
-            body: "Score a banked offcut at full value and a 1,001mm drop is free while a 999mm drop is a write-off. A thousand iterations will find that line every time and fill your rack with metre-long stubs. Value rises on a curve instead, so a drop that clears the threshold by a millimetre is worth almost nothing.",
+            body: "Score a banked offcut at full value and a 1,001mm offcut is free while a 999mm one is a write-off. A thousand iterations will find that line every time and fill your rack with metre-long stubs. Value rises on a curve instead, so an offcut that clears the threshold by a millimetre is worth almost nothing.",
         },
         {
             title: "Keep a remnant only while it beats the labour of keeping it",

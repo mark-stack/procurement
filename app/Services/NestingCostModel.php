@@ -8,11 +8,11 @@ use App\Models\Business;
  * What one candidate nest costs the business, in dollars: the steel it consumes plus the time it takes.
  *
  * Nesting used to rank candidates on a list of millimetre totals compared in order - cuts made, then
- * purchase, then destruction, then shelf drawn on, then bar count, then largest drop. Three things that
+ * purchase, then destruction, then shelf drawn on, then bar count, then largest offcut. Three things that
  * ranking could not express, and that a fabricator pays for every day:
  *
  *  1) A banked offcut cost NOTHING. Scrap and kerf were penalised, reusable material was not, so the scrap
- *     threshold was a cliff: a 999mm drop cost 999 and a 1,001mm drop cost zero. With a thousand search
+ *     threshold was a cliff: a 999mm offcut cost 999 and a 1,001mm offcut cost zero. With a thousand search
  *     iterations the solver reliably found the arrangement that landed just past the line, which is the
  *     least useful reusable length it is possible to produce. The rack filled up with 1.0-1.2m stubs of
  *     every section the shop touched, and the reported yield went UP as it happened.
@@ -83,8 +83,8 @@ class NestingCostModel
     private float $kgPerM;
 
     /**
-     * The length at which a drop is treated as being as good as stock - the longest bar this nest could
-     * have bought. A drop that long is not really an offcut; it is a stock length that happens to be on
+     * The length at which an offcut is treated as being as good as stock - the longest bar this nest could
+     * have bought. Steel that long is not really an offcut; it is a stock length that happens to be on
      * the rack.
      */
     private int $referenceLengthMm;
@@ -96,7 +96,7 @@ class NestingCostModel
     ) {
         /*
          * Guarded rather than read straight off the model. A null threshold reads as 0, and a threshold of
-         * 0 tells the model every drop is worth banking - a 50mm offcut included - which is how a rack
+         * 0 tells the model every offcut is worth banking - a 50mm one included - which is how a rack
          * fills with material nobody would ever pick up. Business declares a default for exactly this
          * reason; this is the backstop for an instance built some other way.
          */
@@ -114,7 +114,7 @@ class NestingCostModel
         /*
          * Guarded so the retention curve always has a span to work across. Without stock lengths to nest
          * against (a nest built entirely out of inventory) the threshold itself is the only anchor
-         * available, and every drop then sits at the top of the curve.
+         * available, and every offcut then sits at the top of the curve.
          */
         $this->referenceLengthMm = max($referenceLengthMm ?? 0, $this->scrapThresholdMm + 1);
     }
@@ -224,16 +224,16 @@ class NestingCostModel
     }
 
     /**
-     * The share of its value a drop of this length keeps once it is on the rack.
+     * The share of its value an offcut of this length keeps once it is on the rack.
      *
-     * Zero below the scrap threshold, because a drop that short is destroyed rather than banked. From
-     * there it rises to the cap as the drop approaches a full stock length.
+     * Zero below the scrap threshold, because an offcut that short is destroyed rather than banked. From
+     * there it rises to the cap as the offcut approaches a full stock length.
      *
      * The curve is concave (square root) for two reasons. It rises steeply just above the threshold, so a
-     * drop banked only because it cleared the line by a millimetre is worth almost nothing - that is what
+     * offcut banked only because it cleared the line by a millimetre is worth almost nothing - that is what
      * removes the cliff. And because retention rises with length, retained VALUE (length x retention)
-     * rises faster than length, so one 2,500mm drop is worth more than a 1,000mm and a 1,500mm one. The
-     * old ranking reached for that with a separate "largest drop" tiebreak; here it falls out of the curve.
+     * rises faster than length, so one 2,500mm offcut is worth more than a 1,000mm and a 1,500mm one. The
+     * old ranking reached for that with a separate "largest offcut" tiebreak; here it falls out of the curve.
      *
      * THE CAP IS BOUNDED BY purchase_cost_weight, and not by how valuable a long offcut feels.
      *
@@ -258,10 +258,10 @@ class NestingCostModel
     }
 
     /**
-     * Whether a drop this long is banked as an offcut rather than destroyed.
+     * Whether an offcut this long is banked rather than destroyed.
      *
-     * Has to agree with the per-bar test in Actions\Bar\CreateBarsAndOffcuts, which decides which drops
-     * actually become offcut records - scoring a drop as banked that the yard then throws away, or the
+     * Has to agree with the per-bar test in Actions\Bar\CreateBarsAndOffcuts, which decides which offcuts
+     * actually become records - scoring one as banked that the yard then throws away, or the
      * reverse, would have the nest optimising against something that never happens.
      */
     public function isBanked(int $dropLengthMm): bool
@@ -274,12 +274,12 @@ class NestingCostModel
      *
      * Zero for anything below the scrap threshold, because that is destroyed rather than racked. This is
      * the quantity every inventory decision is measured against: consuming a piece gives up its value,
-     * banking a drop earns it back, and the difference is what the nest actually cost the yard.
+     * banking an offcut earns it back, and the difference is what the nest actually cost the yard.
      *
-     * Valuing pieces and then differencing them - rather than charging a drop for how short it is -
+     * Valuing pieces and then differencing them - rather than charging an offcut for how short it is -
      * matters most for the stubs. A 2,000mm offcut cut down to 1,500mm has lost very little, because it
      * was worth very little to begin with; a 9,000mm length cut down to 8,500mm has given up far more,
-     * even though the same 500mm came off both. Charging the drop for its own shortness gets that
+     * even though the same 500mm came off both. Charging the offcut for its own shortness gets that
      * backwards and has the nest nibbling its long lengths while the stubs sit there forever.
      */
     public function inventoryValueMm(int $lengthMm): float
@@ -292,7 +292,7 @@ class NestingCostModel
     }
 
     /**
-     * The shortest drop of this section that is worth putting on the rack at all.
+     * The shortest offcut of this section that is worth putting on the rack at all.
      *
      * The rule this model exists to apply: keeping a remnant is only worth it while the remnant is worth
      * more than the labour of keeping it. On light angle that lands somewhere past two metres - a shorter
@@ -300,7 +300,7 @@ class NestingCostModel
      * almost anything over the scrap threshold is worth having, because a metre of it is worth far more
      * than the quarter hour it takes to deal with.
      *
-     * Null when nothing up to a full stock length clears its own overhead, which means no drop of this
+     * Null when nothing up to a full stock length clears its own overhead, which means no offcut of this
      * section should ever be banked.
      */
     public function worthRackingFromMm(): ?int
@@ -334,7 +334,7 @@ class NestingCostModel
         $banked = $this->isBanked($drop);
 
         /*
-         * One piece leaves the rack and, if the drop is long enough to bank, one goes back on. Consuming a
+         * One piece leaves the rack and, if the offcut is long enough to bank, one goes back on. Consuming a
          * stub outright is a credit: that is a mark retired and a lifetime of handling saved.
          */
         $rackLabour = $banked
@@ -342,7 +342,7 @@ class NestingCostModel
             : -$this->minutesToCost($this->offcutRackMinutes($offcutLengthMm));
 
         /*
-         * Inventory value given up, plus what gets destroyed. A solid drop that goes in the bin is credited
+         * Inventory value given up, plus what gets destroyed. A solid offcut that goes in the bin is credited
          * back at the scrap rate; the kerf is not, because swarf is not what a merchant weighs in.
          */
         $scrapped = $banked ? 0 : $drop;
@@ -358,11 +358,11 @@ class NestingCostModel
      * The cost of one whole candidate nest, in dollars. Lower is better.
      *
      * @param  int  $purchasedMm  new stock bought
-     * @param  int  $scrapMm  solid drops binned, from new bars and from the offcut inventory alike
+     * @param  int  $scrapMm  solid offcuts binned, from new bars and from the offcut inventory alike
      * @param  int  $kerfMm  saw kerf, which leaves as swarf and earns nothing back
-     * @param  array<int, array{source: int, drop: int}>  $offcutDraws  each offcut taken off the rack,
+     * @param  array<int, array{source: int, offcut: int}>  $offcutDraws  each offcut taken off the rack,
      *                                                                 with what was left of it
-     * @param  array<int, array{length: int, drop: int}>  $barsOpened  each new bar bought, with its drop
+     * @param  array<int, array{length: int, offcut: int}>  $barsOpened  each new bar bought, with its offcut
      * @param  int  $cuts  saw cuts made
      * @param  int  $unmadeCuts  cuts no bar or offcut could hold
      */
@@ -390,7 +390,7 @@ class NestingCostModel
          *    bought or a stub that had sat on the rack for two years. Discounting it by its carried value is
          *    what made destroying a low-valued stub look almost free.
          *
-         *    A solid drop is credited back at the scrap rate, because the bin pays: binning is a real loss
+         *    A solid offcut is credited back at the scrap rate, because the bin pays: binning is a real loss
          *    but only of about seven eighths of the steel, which makes scrap a legitimately cheap way out of
          *    a remnant that is not worth keeping. Saw kerf gets nothing - it leaves as swarf mixed with
          *    coolant and whatever else was cut that day, not as something a merchant weighs in.
@@ -400,10 +400,10 @@ class NestingCostModel
 
         /*
          * 4) Inventory value given up, netted against what went back. Each offcut drawn gives up its own
-         *    value and earns back whatever its drop is worth; each drop off a new bar is value added.
+         *    value and earns back whatever its offcut is worth; each offcut off a new bar is value added.
          *
          *    This is the term the old ranking was missing entirely, and it is a DIFFERENCE rather than a
-         *    charge on the drop alone - see inventoryValueMm().
+         *    charge on the offcut alone - see inventoryValueMm().
          *
          *    An offcut consumed down to nothing is charged twice over on purpose: once for the steel that
          *    went in the skip, at (3) above, and once for the piece of inventory that no longer exists.
@@ -422,12 +422,12 @@ class NestingCostModel
         }
 
         /*
-         * 5) The labour a racked offcut costs over its life, on the NET change to the rack. Banking a drop
+         * 5) The labour a racked offcut costs over its life, on the NET change to the rack. Banking an offcut
          *    off an offcut is close to free - one piece replaced another, and only the change in how heavy
-         *    it is to shift counts. Consuming a stub outright is a credit: a mark retired for good. A drop
+         *    it is to shift counts. Consuming a stub outright is a credit: a mark retired for good. An offcut
          *    off a new bar is one more piece to store, find, verify and move on every future job.
          *
-         *    Weighed against what the drop is worth at (4), this is the rule the whole model turns on: a
+         *    Weighed against what the offcut is worth at (4), this is the rule the whole model turns on: a
          *    remnant is worth keeping only while it is worth more than the labour of keeping it. See
          *    worthRackingFromMm().
          */

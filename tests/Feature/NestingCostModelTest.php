@@ -13,7 +13,7 @@ function costModelBusiness(): Business
 }
 
 /**
- * A nest that buys one 9,000mm bar per drop listed, makes one cut in each, and is left with that drop.
+ * A nest that buys one 9,000mm bar per offcut listed, makes one cut in each, and is left with that offcut.
  *
  * @param  array<int, int>  $drops
  */
@@ -80,9 +80,9 @@ it('would be a disaster if scrapping steel was treated as a total loss', functio
         ->and($beam->netScrapCost(800))->toBeLessThan($beam->mmToCost(800));
 });
 
-it('would be a disaster if saw kerf earned the same recycling credit as a solid drop', function () {
+it('would be a disaster if saw kerf earned the same recycling credit as a solid offcut', function () {
     /**
-     * A solid drop goes in the bin and gets weighed in. Saw kerf leaves as swarf mixed with coolant and
+     * A solid offcut goes in the bin and gets weighed in. Saw kerf leaves as swarf mixed with coolant and
      * whatever else was cut that day, which is not what a merchant pays for - so the same millimetres cost
      * more as kerf than as scrap.
      */
@@ -164,13 +164,13 @@ it('would be a disaster if labour was spent preserving a remnant worth less than
 
 it('would be a disaster if a remnant cost more labour to keep than the remnant is worth', function () {
     /**
-     * The same 1,200mm drop, on two sections, asked the way the rule is actually framed: is what the
+     * The same 1,200mm offcut, on two sections, asked the way the rule is actually framed: is what the
      * remnant retains worth more than the labour of keeping it?
      *
      * On angle it retains about a dollar against five dollars of marking, recording and shifting, so it is
      * not worth preserving. On a 500UB the same 1,200mm retains seventeen dollars against six, so it is.
      *
-     * Note this is NOT the same question as bank-versus-bin at a fixed drop length. Binning forfeits every
+     * Note this is NOT the same question as bank-versus-bin at a fixed offcut length. Binning forfeits every
      * millimetre of the steel, so racking beats binning almost whatever the section - you would have to be
      * very pessimistic about ever using it to prefer the skip. What the rule governs is whether the nest
      * should ARRANGE itself to produce a remnant in the first place, which is where it bites: engineering a
@@ -194,10 +194,10 @@ it('would be a disaster if a remnant cost more labour to keep than the remnant i
 /**
  * The scrap threshold cliff
  */
-it('would be a disaster if a drop one millimetre over the scrap threshold was still free', function () {
+it('would be a disaster if an offcut one millimetre over the scrap threshold was still free', function () {
     /**
      * This is the defect the cost model was built for. Scrap was penalised and banked material was not, so
-     * a 999mm drop cost 999 and a 1,001mm drop cost nothing at all. With a thousand search iterations the
+     * a 999mm offcut cost 999 and a 1,001mm offcut cost nothing at all. With a thousand search iterations the
      * solver reliably found the arrangement that landed just past the line, and the rack filled with stubs
      * at the least useful reusable length there is - while the yield figure went up.
      *
@@ -205,7 +205,7 @@ it('would be a disaster if a drop one millimetre over the scrap threshold was st
      */
     $model = new NestingCostModel(costModelBusiness(), 10.0, 12000);
 
-    //A 1,001mm drop is worth essentially nothing on the retention curve
+    //A 1,001mm offcut is worth essentially nothing on the retention curve
     expect($model->retention(1001))->toBeLessThan(0.01)
         ->and($model->inventoryValueMm(1001))->toBeLessThan(10.0);
 
@@ -222,7 +222,7 @@ it('would be a disaster if a drop one millimetre over the scrap threshold was st
     /*
      * A step remains at the threshold, and it should: the threshold is what decides whether the steel is
      * kept at all, and binning forfeits every millimetre of it. What matters is that the step is now
-     * smaller than simply writing the drop off, where the old ranking put the entire value of the steel
+     * smaller than simply writing the offcut off, where the old ranking put the entire value of the steel
      * against zero.
      */
     expect(abs(costOfDrops($model, [999]) - costOfDrops($model, [1001])))
@@ -232,10 +232,10 @@ it('would be a disaster if a drop one millimetre over the scrap threshold was st
 /**
  * Retention
  */
-it('would be a disaster if two short drops were worth as much as one long one', function () {
+it('would be a disaster if two short offcuts were worth as much as one long one', function () {
     /**
-     * One 2,500mm drop is a more useful offcut than a 1,000mm and a 1,500mm, though the totals are
-     * identical. The old ranking reached for this with a separate "largest drop" tiebreak; here it falls
+     * One 2,500mm offcut is a more useful offcut than a 1,000mm and a 1,500mm, though the totals are
+     * identical. The old ranking reached for this with a separate "largest offcut" tiebreak; here it falls
      * out of the retention curve being concave, which makes retained value rise faster than length - and
      * out of two pieces on the rack costing two pieces' worth of handling.
      */
@@ -254,7 +254,7 @@ it('would be a disaster if consuming a stub was costed as though its shortness w
      * with. A 9,000mm length cut down to 8,500mm has given up far more, even though the same 500mm came
      * off both.
      *
-     * Charging the drop for its own shortness instead of differencing the two values gets this backwards,
+     * Charging the offcut for its own shortness instead of differencing the two values gets this backwards,
      * and has the nest nibbling its long lengths while the stubs sit there forever.
      */
     $model = new NestingCostModel(costModelBusiness(), 10.0, 9000);
@@ -313,7 +313,7 @@ it('would be a disaster if a newly created business nested with no scrap thresho
         //Same class of bug: falsy meant the 12m delivery cap silently did not apply
         ->and($business->cap_12m_stock)->toBeTrue();
 
-    //A 50mm drop is scrap, not inventory
+    //A 50mm offcut is scrap, not inventory
     $model = new NestingCostModel($business, 10.0, 12000);
     expect($model->isBanked(50))->toBeFalse()
         ->and($model->inventoryValueMm(50))->toBe(0.0);

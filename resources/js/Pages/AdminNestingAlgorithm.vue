@@ -24,7 +24,7 @@
      *
      * TWO STACKED PANELS sharing one x axis, rather than two lines on one y axis.
      *
-     * What a drop retains and what it costs to keep are both dollars, but they differ by one to two orders
+     * What an offcut retains and what it costs to keep are both dollars, but they differ by one to two orders
      * of magnitude: on a 500UB the retained value peaks at $1,296 while the labour peaks at $18.50, so on a
      * shared scale the cost line used 1.4% of the height and sat on the axis - and the crossover, which is
      * the only thing this chart exists to show, was invisible. Two y scales on one chart is never the answer;
@@ -38,7 +38,7 @@
     };
 
     const PANELS = [
-        {key: 'worth', title: 'What the drop retains', top: 26, height: 128, series: 'worth', cls: 'worth', bankedOnly: false},
+        {key: 'worth', title: 'What the offcut retains', top: 26, height: 128, series: 'worth', cls: 'worth', bankedOnly: false},
         {key: 'keep', title: 'What keeping it costs', top: 196, height: 64, series: 'keepCost', cls: 'keep', bankedOnly: true},
     ];
 
@@ -82,7 +82,7 @@
 
     /*
      * Each panel scaled to its own series, rounded up to something a tick can land on. The lower panel only
-     * draws where a drop actually goes on the rack: below the threshold it is destroyed, so a cost line there
+     * draws where an offcut actually goes on the rack: below the threshold it is destroyed, so a cost line there
      * would imply a rack slot that is never taken.
      */
     const panels = computed(() => PANELS.map(panel => {
@@ -260,7 +260,7 @@
                 <div>
                     <p class="font-semibold">These settings will make the nest buy steel in order to rack it.</p>
                     <p class="mt-1">
-                        A drop's marginal retained value reaches
+                        An offcut's marginal retained value reaches
                         <strong>{{ invariant.marginalRetainedValue }}</strong> per millimetre, which is at or above
                         the purchase weight of <strong>{{ invariant.purchaseCostWeight }}</strong>. Buying one more
                         millimetre of bar and banking it then pays for itself, and the nest will buy a long bar to
@@ -305,7 +305,7 @@
                             <p>
                                 Never discounted by what the piece it came off was carried at &mdash; a millimetre in
                                 the skip is the same millimetre whether it came off a bar just bought or a stub that
-                                had sat on the rack for years. But scrap is not a write-off: a solid drop is weighed
+                                had sat on the rack for years. But scrap is not a write-off: a solid offcut is weighed
                                 in and credited at
                                 <strong class="font-semibold text-gray-900">{{ scrapRecoveryPct }}%</strong> of the
                                 new price, which makes the bin a legitimately cheap way out of a remnant nobody
@@ -320,7 +320,7 @@
                             <p class="font-semibold text-gray-900">Inventory value given up, less what went back</p>
                             <p>
                                 Each offcut taken off the rack gives up its own value and earns back whatever its
-                                drop is worth; each drop off a new bar is value added. Measured as a
+                                offcut is worth; each offcut off a new bar is value added. Measured as a
                                 <em>difference</em>, which is why cutting a 2,000mm stub down to 1,500mm costs far
                                 less than taking the same 500mm off a 9,000mm length - the stub was worth little to
                                 begin with.
@@ -333,11 +333,11 @@
                             <p class="font-semibold text-gray-900">The labour a racked offcut will cost over its life</p>
                             <p>
                                 Marking it, recording it, and shifting it about before it is finally used or
-                                scrapped &mdash; charged on the net change to the rack. Banking a drop off an offcut
+                                scrapped &mdash; charged on the net change to the rack. Banking an offcut cut from an offcut
                                 is close to free, since one piece replaced another. Consuming a stub outright is a
                                 <strong class="font-semibold text-gray-900">credit</strong>: a mark retired for good.
-                                A drop off a new bar is one more piece to find, verify and move on every future job.
-                                Weighed against what the drop is worth above, this is the rule the model turns on.
+                                An offcut off a new bar is one more piece to find, verify and move on every future job.
+                                Weighed against what the offcut is worth above, this is the rule the model turns on.
                             </p>
                         </div>
                     </div>
@@ -364,7 +364,7 @@
                         Is a remnant worth keeping?
                     </h2>
                     <p class="mt-1 text-xs leading-relaxed text-gray-600">
-                        What a drop retains as inventory, against the labour it will cost on the rack &mdash; both in
+                        What an offcut retains as inventory, against the labour it will cost on the rack &mdash; both in
                         dollars, against a {{ formatMm(referenceLengthMm) }} stock length.
                     </p>
                 </header>
@@ -399,9 +399,9 @@
                     </div>
 
                     <p class="mb-3 max-w-3xl text-sm leading-relaxed text-gray-700">
-                        A drop that clears the scrap threshold by a millimetre is banked, but it retains
+                        An offcut that clears the scrap threshold by a millimetre is banked, but it retains
                         <strong class="font-semibold text-gray-900">almost nothing</strong> &mdash; so producing one
-                        is not a win. Value climbs steeply as the drop gets genuinely usable and flattens towards
+                        is not a win. Value climbs steeply as the offcut gets genuinely usable and flattens towards
                         {{ retentionCapPct }}% of the steel, which it never exceeds: an offcut is deferred value on a
                         rack, not steel in a bar.
                     </p>
@@ -416,7 +416,7 @@
                             &mdash; about {{ formatMoney(section.worthRackingValue) }} of steel.
                         </template>
                         <template v-else>
-                            On this section they never cross: no drop up to a full stock length pays for its own keep.
+                            On this section they never cross: no offcut up to a full stock length pays for its own keep.
                         </template>
                     </p>
 
@@ -425,7 +425,7 @@
                         <figcaption class="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600">
                             <span class="inline-flex items-center gap-1.5">
                                 <span class="viz-key viz-key-worth" aria-hidden="true"></span>
-                                What the drop retains
+                                What the offcut retains
                             </span>
                             <span class="inline-flex items-center gap-1.5">
                                 <span class="viz-key viz-key-keep" aria-hidden="true"></span>
@@ -441,7 +441,7 @@
                             :viewBox="`0 0 ${PLOT.width} ${PLOT.height}`"
                             class="block h-auto w-full"
                             role="img"
-                            :aria-label="`For ${section.label}, what a drop retains rises steeply with its length while the labour of keeping it stays nearly flat. ${section.worthRackingFromMm === null ? 'They never meet, so no drop pays for its keep.' : 'They meet at ' + formatMm(section.worthRackingFromMm) + ', which is where a remnant starts paying for its keep.'} The table below lists the same values.`"
+                            :aria-label="`For ${section.label}, what an offcut retains rises steeply with its length while the labour of keeping it stays nearly flat. ${section.worthRackingFromMm === null ? 'They never meet, so no offcut pays for its keep.' : 'They meet at ' + formatMm(section.worthRackingFromMm) + ', which is where a remnant starts paying for its keep.'} The table below lists the same values.`"
                             @pointermove="trackPointer"
                             @pointerleave="hoverIndex = null"
                         >
@@ -568,7 +568,7 @@
                                 :y="PLOT.height - 4"
                                 text-anchor="middle"
                                 class="viz-axis-text"
-                            >drop length</text>
+                            >offcut length</text>
 
                             <!--
                                 The threshold named once, at the top. The crossover is named in the legend
@@ -585,7 +585,7 @@
                         <figcaption class="mt-2 min-h-[2.5rem] text-xs leading-relaxed text-gray-600">
                             <template v-if="hoveredPoint">
                                 A <strong class="font-semibold text-gray-900">{{ formatMm(hoveredPoint.lengthMm) }}</strong>
-                                drop of {{ section.label }}
+                                offcut of {{ section.label }}
                                 <template v-if="hoveredPoint.banked">
                                     retains <strong class="font-semibold text-gray-900">{{ formatMoney(hoveredPoint.worth) }}</strong>
                                     ({{ Math.round(hoveredPoint.retention * 100) }}% of its steel) and will cost
@@ -599,7 +599,7 @@
                                 </template>
                             </template>
                             <template v-else>
-                                Hover the chart to read a drop length.
+                                Hover the chart to read an offcut length.
                             </template>
                         </figcaption>
                     </figure>
@@ -608,11 +608,11 @@
                     <div class="mt-4 overflow-x-auto">
                         <table class="w-full min-w-[40rem] text-left text-sm">
                             <caption class="sr-only">
-                                Retained value and cost to keep, at selected drop lengths, for {{ section.label }}
+                                Retained value and cost to keep, at selected offcut lengths, for {{ section.label }}
                             </caption>
                             <thead>
                                 <tr class="border-b border-gray-200 text-xs uppercase tracking-wide text-gray-500">
-                                    <th scope="col" class="py-2 pr-3 font-semibold">Drop</th>
+                                    <th scope="col" class="py-2 pr-3 font-semibold">Offcut</th>
                                     <th scope="col" class="py-2 pr-3 font-semibold">Outcome</th>
                                     <th scope="col" class="py-2 pr-3 text-right font-semibold">Keeps</th>
                                     <th scope="col" class="py-2 pr-3 text-right font-semibold">Retains</th>
@@ -662,8 +662,8 @@
                     <p class="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs leading-relaxed text-gray-600">
                         <strong class="font-semibold text-gray-800">Why this matters.</strong>
                         Scrap used to be penalised and banked material was not, so the threshold was a cliff: a
-                        {{ formatMm(scrapThresholdMm - 1) }} drop cost its whole length and a
-                        {{ formatMm(scrapThresholdMm + 1) }} drop cost nothing at all. With a thousand search
+                        {{ formatMm(scrapThresholdMm - 1) }} offcut cost its whole length and a
+                        {{ formatMm(scrapThresholdMm + 1) }} offcut cost nothing at all. With a thousand search
                         iterations per nest, the solver reliably found the arrangement that landed just past the
                         line &mdash; the least useful reusable length there is. The rack filled with stubs, and the
                         reported yield went up while it happened.
@@ -748,7 +748,7 @@
                     <p class="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs leading-relaxed text-gray-600">
                         <strong class="font-semibold text-gray-800">Read the last column as a floor, not a rule.</strong>
                         It is the point at which a remnant starts paying for its own keep. Below it, the nest will
-                        still rather bank a drop than bin it &mdash; binning forfeits every millimetre of the steel,
+                        still rather bank an offcut than bin it &mdash; binning forfeits every millimetre of the steel,
                         so you would have to be very pessimistic about ever using it to prefer the skip. What the
                         floor governs is whether the nest should <em>arrange itself</em> to produce a remnant at all,
                         which is where it bites: engineering a stub gains almost nothing and costs a rack slot for
@@ -856,7 +856,7 @@
                         the whole order is invisible to it:
                     </p>
                     <ul class="mt-2 list-disc space-y-1 pl-5">
-                        <li><strong class="font-semibold">Delivery fees.</strong> A per-drop cost cannot be weighed inside a single product's nest.</li>
+                        <li><strong class="font-semibold">Delivery fees.</strong> A per-delivery cost cannot be weighed inside a single product's nest.</li>
                         <li><strong class="font-semibold">Minimum order values</strong> and bundle quantities per supplier, so a plan may not be orderable as it stands.</li>
                         <li><strong class="font-semibold">Consolidating products onto a shared stock length</strong>, which is what would collapse several deliveries into one.</li>
                     </ul>

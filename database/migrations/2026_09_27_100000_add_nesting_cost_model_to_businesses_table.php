@@ -12,8 +12,8 @@ return new class extends Migration
      * Nesting used to rank candidate nests on a list of millimetre totals, purchase first, and it counted
      * a banked offcut as costing nothing at all. Two consequences on the shop floor:
      *
-     *  - A drop was either 100% scrap or 100% free at the scrap threshold, so a 999mm drop cost 999 and a
-     *    1,001mm drop cost zero. The search had a thousand iterations to find the arrangement that landed
+     *  - An offcut was either 100% scrap or 100% free at the scrap threshold, so a 999mm offcut cost 999 and a
+     *    1,001mm offcut cost zero. The search had a thousand iterations to find the arrangement that landed
      *    just past the line, which is the least useful reusable length there is.
      *  - Handling was unpriced. Rack space, retrieving an offcut, a saw cut and a bar to lift were all
      *    free, so yield always won however much labour it cost to get it.
@@ -44,7 +44,7 @@ return new class extends Migration
              * What the scrap bin pays back, as a share of the new price. Steel cut off and binned is not a
              * total loss - it is weighed in and credited, at roughly 13% of what it cost.
              *
-             * Applies to solid scrap drops only. Saw kerf gets nothing: it leaves as swarf mixed with
+             * Applies to solid scrap offcuts only. Saw kerf gets nothing: it leaves as swarf mixed with
              * coolant and other sections, which is not what a merchant weighs in and pays for.
              */
             $table->float('scrap_recovery_rate')->default(0.13)->after('material_cost_per_tonne');
@@ -86,7 +86,7 @@ return new class extends Migration
             $table->float('move_minutes_per_tonne')->default(15.0)->after('offcut_rack_base_minutes');
 
             /*
-             * The most of its value a drop keeps by going on the rack, reached when it is as long as a full
+             * The most of its value an offcut keeps by going on the rack, reached when it is as long as a full
              * stock length. Bounded by purchase_cost_weight rather than by how valuable a long offcut
              * feels: if racking a millimetre is worth as much as buying one, the nest buys steel in order
              * to rack it. See NestingCostModel::retention().

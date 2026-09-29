@@ -10,7 +10,7 @@ return new class extends Migration
      * Saw kerf: the material the blade turns into swarf on every cut.
      *
      * Nesting had no allowance for it anywhere, so a 12,000mm bar could be filled with 4x 3,000mm and
-     * reported as 100% efficient with a 0mm drop. On the saw that plan is short by three blade widths
+     * reported as 100% efficient with a 0mm offcut. On the saw that plan is short by three blade widths
      * and the last piece comes up undersize.
      *
      * Defaults to 0 so existing nests keep the numbers they were approved with. It is a shop-floor
