@@ -40,7 +40,7 @@ class ProjectController extends Controller
          */
         $projects = [
             //Kanban column 1
-            "READY_FOR_NESTING" => $kanbanFormatter->readyForNestingColumn($business),
+            "READY_FOR_NESTING" => $kanbanFormatter->readyForNestingColumn($business, $user),
         ];
 
         /*

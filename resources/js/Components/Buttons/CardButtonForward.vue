@@ -11,6 +11,11 @@
          * and would add a second tab stop for the one action.
          */
         insideLink: Boolean,
+        /*
+         * Optional. Declared rather than left to attribute fallthrough because this component has
+         * a v-if/v-else pair at its root, and the two branches should carry it identically.
+         */
+        title: String,
     });
 
     //Methods
@@ -33,6 +38,7 @@
     <!-- The "move this along" action - always the loudest button on a card -->
     <div
         v-if="insideLink"
+        :title="title"
         :class="getClass()"
     >
         <span class="truncate">{{label}}</span>
@@ -42,6 +48,7 @@
         v-else
         type="button"
         :disabled="disabled"
+        :title="title"
         :class="getClass()"
     >
         <span class="truncate">{{label}}</span>

@@ -34,6 +34,13 @@ class RawMaterialListCustomisationsController extends Controller
         $business = $this->businessOf($request);
         $deletedIds = $request->input('deletedIds');
 
+        /*
+         * The material rows are the owner's; the price book the custom products land in is the
+         * whole business's. Only the first of those is narrowed here - see
+         * RawMaterialQuote::scopeOwnedByUser.
+         */
+        $user = $request->user();
+
         $productService = new ProductService;
         $csvService = new CsvService;
         $dataClassificationService = new DataClassificationService;
@@ -50,7 +57,7 @@ class RawMaterialListCustomisationsController extends Controller
              * Delete the "promised to delete" items
              */
             $deleteRawMaterialQuotes = RawMaterialQuote::query()
-                ->ownedBy($business)
+                ->ownedByUser($user)
                 ->whereIn('id', $deletedIds)
                 ->get();
             foreach($deleteRawMaterialQuotes as $rawMaterialQuote){
@@ -64,18 +71,17 @@ class RawMaterialListCustomisationsController extends Controller
                 $rawMaterialQuote->delete();
             }
 
-            $user = $request->user();
-
             foreach ($rows as $formData) {
                 $id = isset($formData['data']) ? $formData['data']['id'] : null;
 
                 if ($id && ! in_array($id, $deletedIds)) {
                     /**
-                     * Scoped rather than a bare find: the id comes from the request body,
-                     * so an id from another business must not resolve here.
+                     * Scoped rather than a bare find: the id comes from the request body, so an id
+                     * belonging to somebody else - another business, or a colleague's project -
+                     * must not resolve here.
                      */
                     $rawMaterialQuote = RawMaterialQuote::query()
-                        ->ownedBy($business)
+                        ->ownedByUser($user)
                         ->findOrFail($id);
 
                     //Prepare single product item

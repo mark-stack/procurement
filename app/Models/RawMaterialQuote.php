@@ -41,6 +41,25 @@ class RawMaterialQuote extends Model
         );
     }
 
+    public function scopeOwnedByUser(Builder $query, User $user): Builder
+    {
+        /**
+         * Narrower than ownedBy(), for the endpoints that change a material list rather than read
+         * one: clarifying a partial price book match, saving a custom product, deleting rows.
+         *
+         * The Bill of Materials modal is openable on any colleague's project - the Nesting column
+         * is shared - and it hides the upload dropzone and the row-delete checkboxes on somebody
+         * else's project. It did not hide the clarification and custom-product forms, and these
+         * endpoints scoped only to the business, so the one thing a colleague could not do to your
+         * BOM was add to it, while committing product choices and deleting rows outright - the
+         * half that does not come back - went through.
+         */
+        return $query->whereHas(
+            'project',
+            fn (Builder $project) => $project->where('user_id', $user->id)
+        );
+    }
+
     /**
      * Strings
      */

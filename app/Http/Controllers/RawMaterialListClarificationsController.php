@@ -31,7 +31,6 @@ class RawMaterialListClarificationsController extends Controller
         ]);
 
         $user = $request->user();
-        $business = $this->businessOf($request);
         $deletedIds = $request->input('deletedIds');
 
         //Services
@@ -42,8 +41,13 @@ class RawMaterialListClarificationsController extends Controller
             //Delete items
             if ($index === 'deletedIds') {
                 //Delete the "promised to delete" items
+                /*
+                 * The owner's rows only, not the business's - the modal offers this form on a
+                 * colleague's project while hiding the upload and the row-delete checkboxes
+                 * beside it. See RawMaterialQuote::scopeOwnedByUser.
+                 */
                 RawMaterialQuote::query()
-                    ->ownedBy($business)
+                    ->ownedByUser($user)
                     ->whereIn('id', $formData)
                     ->delete();
             }
@@ -53,11 +57,12 @@ class RawMaterialListClarificationsController extends Controller
 
                 if ($id && ! in_array($id, $deletedIds)) {
                     /**
-                     * Scoped rather than a bare find: the id comes from the request body,
-                     * so an id from another business must not resolve here.
+                     * Scoped rather than a bare find: the id comes from the request body, so an id
+                     * belonging to somebody else - another business, or a colleague's project -
+                     * must not resolve here.
                      */
                     $rawMaterialQuote = RawMaterialQuote::query()
-                        ->ownedBy($business)
+                        ->ownedByUser($user)
                         ->findOrFail($id);
 
                     //Customise option (selected "other")

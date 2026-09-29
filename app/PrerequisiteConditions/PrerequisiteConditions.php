@@ -206,6 +206,35 @@ class PrerequisiteConditions
             $condition_4;
     }
 
+    public function editProject(User $user, Project $project): bool
+    {
+        /**
+         * The same answer archiveProject gives, and for the same reason. The Nesting column is
+         * shared, so every colleague's project carried a live Edit button beside a greyed-out
+         * Archive one - and Edit is not the smaller of the two. The name is how the rest of the
+         * business recognises the project on the board and in Past Projects, and
+         * date_materials_required drives the critical path and every deadline notification the
+         * owner receives. A colleague could move both, silently, with nothing recording that
+         * they had.
+         *
+         * Nothing enforced this server side: ProjectPolicy asks only whether the project belongs
+         * to your business.
+         *
+         * 1) BUSINESS: Your business
+         * 2) PROJECT: Your project
+         */
+
+        //1) BUSINESS: Your business
+        $condition_1 = $project->user->business->id === $user->business->id;
+
+        //2) PROJECT: Your project
+        $condition_2 = $project->user->id === $user->id;
+
+        return
+            $condition_1 &&
+            $condition_2;
+    }
+
     public function archiveProject(User $user, Project $project): bool
     {
         /**

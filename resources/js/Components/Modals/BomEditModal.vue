@@ -250,6 +250,16 @@
     }
 
     function showTable(){
+        /*
+         * A colleague is never shown the clarification or custom-product forms, so for them the
+         * table is the whole modal. Without this branch, opening somebody else's half-finished
+         * import gave an empty box: the forms were suppressed and the table was suppressed behind
+         * them too.
+         */
+        if(!canEditRows.value){
+            return hasMaterialList.value;
+        }
+
         return !hasClarifications.value && !hasUserCustomProducts.value && hasMaterialList.value;
     }
 
@@ -362,6 +372,33 @@
         return props.modalCanUpload;
     }
 
+    /**
+     * Whether this modal may change the material list at all.
+     *
+     * modalCanUpload is the owner test (PrerequisiteConditions::uploadMaterials), and it used to
+     * govern only the dropzone and the row-delete checkboxes. The clarification and custom-product
+     * forms below rendered for anyone who could open the modal - which is everyone, because the
+     * Nesting column is shared - and their endpoints scoped to the business rather than the owner.
+     * So the one thing a colleague could not do to your BOM was add to it, while committing your
+     * product choices and deleting rows outright went through. The server refuses those now, and
+     * a form that can only answer 403 has no business being drawn.
+     */
+    const canEditRows = computed(() => props.modalCanUpload);
+
+    //Whose project this is, for a modal that opens on every colleague's work as readily as your own
+    const isMine = computed(() => props.project?.user_id === usePage().props.auth.user?.id);
+
+    const ownerName = computed(() => {
+        /*
+         * Two shapes reach this modal: a kanban card, where ProjectResource carries the whole user
+         * object as "projectManager", and the unfinished-imports list, where
+         * UnfinishedImportResource carries just the name.
+         */
+        const projectManager = props.project?.projectManager?.name ?? props.project?.projectManagerName;
+
+        return projectManager ? shared.capitalizeWords(projectManager) : "another project manager";
+    });
+
     //Watcher
     const { refreshModalBom } = toRefs(props);
     watch(refreshModalBom, () => {
@@ -386,6 +423,38 @@
                     <h1 class="text-3xl font-semibold text-gray-800 dark:text-gray-100">
                         Bill of Materials
                     </h1>
+
+                    <!--
+                        Whose list this is. The modal opens on any colleague's project from the
+                        shared Nesting column and named neither the project nor its owner, so a
+                        read-only one was indistinguishable from your own with the upload missing.
+                    -->
+                    <p v-if="project" class="mt-1 text-sm text-gray-500">
+                        {{ shared.capitalizeWords(project.name) }}
+                        <span v-if="!isMine"> · {{ ownerName }}'s project</span>
+                    </p>
+
+                    <!--
+                        And why there is nothing to press on it. Said once, here, rather than left
+                        as an absence for the reader to interpret.
+                    -->
+                    <div
+                        v-if="project && !canEditRows"
+                        class="mx-5 mt-3 flex gap-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-left text-xs leading-relaxed text-gray-600"
+                    >
+                        <i class="fa-solid fa-circle-info mt-0.5 flex-none text-gray-400"></i>
+                        <span v-if="!isMine">
+                            You can read {{ ownerName }}'s material list here, but only they can add to it or
+                            change it.
+                            <template v-if="hasClarifications || hasUserCustomProducts">
+                                Some rows are still waiting on them to confirm the exact product.
+                            </template>
+                        </span>
+                        <span v-else>
+                            This material list can no longer be changed - the project has been nested, or
+                            archived. Re-nest its batch first if you need to edit it.
+                        </span>
+                    </div>
 
                     <div
                         v-if="freezeView"
@@ -510,7 +579,7 @@
                         <div class="pl-5 pr-1">
                             <!-- Clarifications  -->
                             <section
-                                v-if="showClarifications && hasClarifications"
+                                v-if="showClarifications && hasClarifications && canEditRows"
                                 class="min-h-[300px] max-h-[50vh] overflow-y-auto pl-5"
                             >
                                 <h2 class="font-bold text-lg">Exact product clarifications</h2>
@@ -557,7 +626,7 @@
 
                             <!-- User custom products -->
                             <section
-                                v-else-if="showUserCustomProducts && hasUserCustomProducts"
+                                v-else-if="showUserCustomProducts && hasUserCustomProducts && canEditRows"
                                 class="min-h-[300px] max-h-[50vh] overflow-y-auto"
                             >
                                 <h2 class="font-bold text-lg">Custom products (add to price book)</h2>

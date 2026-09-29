@@ -137,7 +137,7 @@ it('would be a disaster if a project could keep its own name only by accident', 
     expect($project->fresh()->reference)->toBe('a new reference');
 });
 
-it('would be a disaster if user could edit other staff projects', function () {
+it('would be a disaster if user could edit another business’s projects', function () {
     /**
      * Validation used to run first, so another business's project was checked for
      * name clashes - and told the caller about them - before anything refused it.
@@ -157,6 +157,55 @@ it('would be a disaster if user could edit other staff projects', function () {
 
     $response->assertForbidden();
     expect($otherProject->fresh()->name)->not->toBe('Taken over');
+});
+
+it('would be a disaster if user could edit other staff projects', function () {
+    /**
+     * The test of this name used to assert against another BUSINESS, which the gate already
+     * refused - so what it was named for went uncovered. ProjectPolicy asks only whether a
+     * project belongs to your business, and the Nesting column is shared, so every colleague's
+     * card carried a live Edit button beside a greyed-out Archive one.
+     *
+     * Edit is not the smaller of the two: the name is how the rest of the business recognises
+     * the project on the board and in Past Projects, and date_materials_required drives the
+     * critical path and every deadline reminder its owner is sent.
+     */
+    $business = createBusiness('gmail', true);
+    $user = createUser(1, $business, false, true);
+    $colleague = createUser(2, $business, false, true);
+
+    $colleaguesProject = createProject($colleague);
+
+    $response = $this->actingAs($user)
+        ->from('/dashboard')
+        ->put(route('projects.update', $colleaguesProject->id), [
+            'name' => 'Taken over',
+            'reference' => 'renamed',
+        ]);
+
+    $response->assertForbidden();
+    expect($colleaguesProject->fresh()->name)->not->toBe('Taken over');
+});
+
+it('would be a disaster if a user could not edit their own project', function () {
+    /**
+     * The other half of the rule above - the owner-only check runs in the form request, before
+     * validation, so getting it wrong would lock everybody out rather than just colleagues.
+     */
+    $business = createBusiness('gmail', true);
+    $user = createUser(1, $business, false, true);
+
+    $project = createProject($user);
+
+    $response = $this->actingAs($user)
+        ->from('/dashboard')
+        ->put(route('projects.update', $project->id), [
+            'name' => $project->name,
+            'reference' => 'my own reference',
+        ]);
+
+    $response->assertValid();
+    expect($project->fresh()->reference)->toBe('my own reference');
 });
 
 it('would be a disaster if user could see other business’s projects', function () {});
@@ -334,6 +383,121 @@ it('would be a disaster if the archived list cost a walk of every material row',
                 ->where('user_id', $user->id)
                 ->where('archive', true)
             )
+        );
+});
+
+it('would be a disaster if a half-finished import was on nobody’s board', function () {
+    /**
+     * A project with an unconfirmed price book match is excluded from projectsReadyForBatching,
+     * and the Nesting column is the only place a project that has not been nested is ever drawn.
+     * So closing the upload modal part way through took the project off every screen in the app:
+     * its owner had no route back to it, and a colleague could not so much as discover it
+     * existed. It is listed separately now, alongside the column it is stuck before.
+     */
+    $business = createBusiness('gmail', true);
+    $user = createUser(1, $business, false, true);
+    $colleague = createUser(2, $business, false, true);
+
+    $project = createProject($colleague);
+    $row = createRawMaterialQuote200Pfc($project, MaterialEnums::PLAIN_CARBON_STEEL, GradeEnums::GR300, 9000);
+
+    //Two candidate products on the row is what "needs clarification" means - see ProductService
+    $row->update(['general_product_matches' => serialize(['results' => [
+        ['product_category' => 'PFC', 'grade' => 'GR300', 'surface' => 'NONE', 'nominal_height' => 200],
+        ['product_category' => 'PFC', 'grade' => 'GR350', 'surface' => 'NONE', 'nominal_height' => 200],
+    ]])]);
+
+    $this->actingAs($user)
+        ->get(route('projects.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            //Not in the column itself - it cannot be nested until the product is confirmed
+            ->has('projects.READY_FOR_NESTING.projects.data', 0)
+            ->has('projects.READY_FOR_NESTING.unfinishedImports.data', 1)
+            ->has('projects.READY_FOR_NESTING.unfinishedImports.data.0', fn (Assert $unfinished) => $unfinished
+                ->where('id', $project->id)
+                ->where('name', $project->name)
+                ->where('user_id', $colleague->id)
+                //Named, so a colleague knows who to go and ask rather than just seeing it stuck
+                ->where('projectManagerName', $colleague->name)
+                //Only its owner can finish it
+                ->where('prerequisiteUploadMaterials', false)
+            )
+        );
+});
+
+it('still offers the owner of a half-finished import a way to finish it', function () {
+    $business = createBusiness('gmail', true);
+    $user = createUser(1, $business, false, true);
+
+    $project = createProject($user);
+    $row = createRawMaterialQuote200Pfc($project, MaterialEnums::PLAIN_CARBON_STEEL, GradeEnums::GR300, 9000);
+
+    $row->update(['general_product_matches' => serialize(['results' => [
+        ['product_category' => 'PFC', 'grade' => 'GR300', 'surface' => 'NONE', 'nominal_height' => 200],
+        ['product_category' => 'PFC', 'grade' => 'GR350', 'surface' => 'NONE', 'nominal_height' => 200],
+    ]])]);
+
+    $this->actingAs($user)
+        ->get(route('projects.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('projects.READY_FOR_NESTING.unfinishedImports.data.0', fn (Assert $unfinished) => $unfinished
+                ->where('id', $project->id)
+                ->where('prerequisiteUploadMaterials', true)
+                ->etc()
+            )
+        );
+});
+
+it('would be a disaster if an archived project reappeared as an unfinished import', function () {
+    /*
+     * The clarification walk covers every project the business has ever had, archived and nested
+     * ones included - listing those would put projects back on the board that were deliberately
+     * taken off it.
+     */
+    $business = createBusiness('gmail', true);
+    $user = createUser(1, $business, false, true);
+
+    $project = createProject($user);
+    $row = createRawMaterialQuote200Pfc($project, MaterialEnums::PLAIN_CARBON_STEEL, GradeEnums::GR300, 9000);
+
+    $row->update(['general_product_matches' => serialize(['results' => [
+        ['product_category' => 'PFC', 'grade' => 'GR300', 'surface' => 'NONE', 'nominal_height' => 200],
+        ['product_category' => 'PFC', 'grade' => 'GR350', 'surface' => 'NONE', 'nominal_height' => 200],
+    ]])]);
+
+    $project->update(['archive' => true]);
+
+    $this->actingAs($user)
+        ->get(route('projects.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('projects.READY_FOR_NESTING.unfinishedImports.data', 0)
+        );
+});
+
+it('puts your own projects first in the shared nesting column', function () {
+    /**
+     * The column draws the whole business's work as one pile, in creation order, so on a board
+     * with a few colleagues on it your own project was wherever it happened to land. The three
+     * batch columns already sort this way through BatchService::sortByUserAndLatest; only the
+     * column of projects did not.
+     */
+    $business = createBusiness('gmail', true);
+    $user = createUser(1, $business, false, true);
+    $colleague = createUser(2, $business, false, true);
+
+    //Theirs first, so creation order alone would put it at the top
+    $theirs = createProject($colleague);
+    pieceReadyForBatching($theirs);
+
+    $mine = createProject($user);
+    pieceReadyForBatching($mine);
+
+    $this->actingAs($user)
+        ->get(route('projects.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('projects.READY_FOR_NESTING.projects.data.0.id', $mine->id)
+            ->where('projects.READY_FOR_NESTING.projects.data.1.id', $theirs->id)
+            ->etc()
         );
 });
 

@@ -74,9 +74,17 @@ class BatchService
     public function projectManagerApprovalMessage(Batch $batch): string
     {
         /**
-         * A string like "Bruce, Matt, and yourself";
+         * What the confirmation in front of "Sent order" is entitled to say.
+         *
+         * It used to ask "Do Bruce,Matt and yourself approve ordering materials?" - a question put
+         * to one person about three people's intentions, answered by that one person, after which
+         * every project on the batch was recorded as approved by its manager. Bruce and Matt were
+         * neither asked nor told. The only honest reading of the button is that the person
+         * pressing it is ordering on their colleagues' behalf, so that is what it now says.
+         *
+         * (The list also read "Bruce,Matt" against a docblock promising "Bruce, Matt, and
+         * yourself" - implode() with no space.)
          */
-        $message = '';
 
         //Get all projects for this batch
         $otherProjectManagers = [];
@@ -92,16 +100,16 @@ class BatchService
 
         }
 
-        //Has others
-        if (count($otherProjectManagers) > 0) {
-            $message = 'Do '.implode(',', $otherProjectManagers).' and yourself approve ordering materials?';
-        }
-        //Just you
-        else {
-            $message = 'Do you approve ordering materials?';
+        //Just you - nobody else's project is on this batch, so there is nobody to speak for
+        if (count($otherProjectManagers) === 0) {
+            return 'This marks the order as placed. Do you want to go ahead?';
         }
 
-        return $message;
+        //Has others
+        $names = collect($otherProjectManagers)->sort()->values()->join(', ', ' and ');
+
+        return "This batch also carries {$names}'s work, and marking the order placed commits it "
+            .'on their behalf. They will not be asked. Go ahead?';
     }
 
     public function totalOrdersQty(Batch $batch): int

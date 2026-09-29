@@ -1,7 +1,7 @@
 <script setup>
     //General Imports
-    import {Head, Link, useForm} from '@inertiajs/vue3';
-    import {computed, ref, toRefs, watch} from "vue";
+    import {Head, Link, router, useForm} from '@inertiajs/vue3';
+    import {computed, onUnmounted, ref, toRefs, watch} from "vue";
     import useConfirm from "@/Shared/useConfirm.js";
     import shared from "@/Shared/shared.js";
     import axios from 'axios';
@@ -54,6 +54,14 @@
     //Computed
     //Card counts per column, for the badge in each column header
     const nestingProjects = computed(() => props.projects['READY_FOR_NESTING'].projects.data);
+
+    /*
+     * Projects whose import stopped at a price book clarification. They are excluded from the
+     * column above - and from every other screen - so until now they were on nobody's board at
+     * all, their owner's included. They count towards the column's badge because they are work
+     * sitting in this step.
+     */
+    const unfinishedImports = computed(() => props.projects['READY_FOR_NESTING'].unfinishedImports?.data ?? []);
     const quotedBatches = computed(() => props.batches['QUOTED']);
     const orderedBatches = computed(() => props.batches['ORDERED']);
     const deliveredBatches = computed(() => props.batches['DELIVERED']);
@@ -315,6 +323,40 @@
     }
 
 
+    /**
+     * The board is drawn once and never refreshes itself, and every action on it is answered by a
+     * prerequisite gate that aborts 403. Nothing here is per-user: a colleague pressing "Start
+     * quoting" moves every project in the Nesting column, so the most likely reason your button
+     * just failed is that somebody else got there first.
+     *
+     * A bare abort() is not an Inertia response, so it reaches neither onSuccess nor onError - the
+     * overlay cleared (the calls all use onFinish for exactly this reason) and then nothing
+     * happened at all, with no reason given and a board still showing the state that no longer
+     * exists. Inertia raises "invalid" for that response, which is the one place it can be caught.
+     */
+    const stopListeningForStaleBoard = router.on('invalid', (event) => {
+        if(event.detail.response?.status !== 403){
+            return;
+        }
+
+        //Don't let the error modal Inertia would otherwise show take over the page
+        event.preventDefault();
+
+        pageLoading.value = false;
+
+        askToConfirm({
+            title: "This board has moved on",
+            message: "That is no longer possible - someone else in your business has changed this board "
+                + "since it was loaded. Reloading it now so you can see where things stand.",
+            confirmLabel: "OK",
+            tone: "danger",
+            acknowledgeOnly: true,
+            onConfirmed: () => router.reload({preserveScroll: true}),
+        });
+    });
+
+    onUnmounted(() => stopListeningForStaleBoard());
+
     //Watcher
     const { batches } = toRefs(props);
     watch(batches, (newVal) => {
@@ -393,7 +435,7 @@
                 <KanbanColumn
                     step="1"
                     title="Nesting"
-                    :count="nestingProjects.length"
+                    :count="nestingProjects.length + unfinishedImports.length"
                 >
                     <!-- new project -->
                     <button
@@ -424,6 +466,48 @@
                         @pageLoadingOff="pageLoading = false"
                         @addProject="addProject()"
                     />
+
+                    <!--
+                        Imports that stopped at a clarification.
+
+                        A project with an unconfirmed price book match is excluded from the card
+                        above, and nothing else in the app lists a project that has not been
+                        nested - so closing the upload modal half way through left it on no screen
+                        at all. Its owner had no route back to it and a colleague could not so
+                        much as discover it existed. Drawn as a list rather than a card because
+                        none of a card's actions apply to it yet: there is one thing to do here,
+                        and only its owner can do it.
+                    -->
+                    <ul v-if="unfinishedImports.length > 0" class="space-y-1.5 pt-1">
+                        <li
+                            v-for="project in unfinishedImports"
+                            :key="'unfinished-'+project.id"
+                            class="rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-2"
+                        >
+                            <div class="flex items-start gap-2">
+                                <i class="fa-solid fa-circle-half-stroke mt-0.5 flex-none text-[11px] text-orange-500"></i>
+                                <div class="min-w-0 flex-1">
+                                    <p class="truncate text-xs font-semibold text-gray-900" :title="project.name">
+                                        {{ shared.capitalizeWords(project.name) }}
+                                    </p>
+                                    <p class="mt-0.5 text-[11px] text-orange-800">
+                                        Import unfinished ·
+                                        {{ project.prerequisiteUploadMaterials ? 'You' : shared.capitalizeWords(project.projectManagerName) }}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    @click="pageLoaderTimer(null); showBom(project)"
+                                    class="flex-none text-[11px] font-semibold text-blue-800 transition-colors duration-150 hover:text-blue-900 hover:underline"
+                                    :title="project.prerequisiteUploadMaterials
+                                        ? 'Confirm the remaining products so this project can be nested'
+                                        : 'See what is still to be confirmed on this project'"
+                                >
+                                    {{ project.prerequisiteUploadMaterials ? 'Finish import' : 'View' }}
+                                </button>
+                            </div>
+                        </li>
+                    </ul>
 
                     <!-- toggle archived projects -->
                     <div v-if="archivedProjects.data.length > 0" class="pt-1">

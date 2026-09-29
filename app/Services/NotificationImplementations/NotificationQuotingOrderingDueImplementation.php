@@ -49,14 +49,23 @@ class NotificationQuotingOrderingDueImplementation implements NotificationInterf
                 //Prerequisite variables
                 $projectManager = $project->user;
 
+                /*
+                 * continue, not break. Both of these are per-project questions, and breaking on
+                 * them abandoned the whole run: the first project that happened to be fully
+                 * ordered - or that had already been reminded about today - silently cancelled
+                 * this reminder for every other project manager behind it in the list. It only
+                 * shows up once a business has more than one live project, which is to say
+                 * exactly when the reminders start mattering.
+                 */
+
                 //5) Order coverage < 100%
                 if ($project->percentageOfMaterialsOrdered() === 100) {
-                    break;
+                    continue;
                 }
 
                 //6) Not notified already
                 if ($this->hasBeenNotified($projectManager, $project->id)) {
-                    break;
+                    continue;
                 }
 
                 //Mark all previous as read

@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\GradeEnums;
 use App\Enums\MaterialEnums;
 use App\Enums\NestingEnums;
 use App\Services\CsvService;
@@ -224,7 +225,89 @@ it('would be a disaster if imported duplicate materials accidentally', function 
 
 it('would be a disaster if back buttons lose progress requiring users to re-upload files', function () {});
 
-it('would be a disaster if user could delete other staff material lists', function () {});
+it('would be a disaster if user could delete other staff material lists', function () {
+    /*
+     * The Bill of Materials modal opens on any colleague's project - the Nesting column is shared -
+     * and it hides the row checkboxes on one that is not yours. The ids still travel in the request
+     * body, and this endpoint scoped them to the BUSINESS, so the hidden checkbox was the only
+     * thing standing between a colleague and your material list.
+     */
+    $business = createBusiness('biz', true);
+    $user = createUser(1, $business, false, true);
+    $colleague = createUser(2, $business, false, true);
+
+    $colleaguesProject = createProject($colleague);
+    $theirRow = createRawMaterialQuote200Pfc(
+        $colleaguesProject,
+        MaterialEnums::PLAIN_CARBON_STEEL,
+        GradeEnums::GR300,
+        6000,
+    );
+
+    $this->actingAs($user)
+        ->from('/dashboard')
+        ->post(route('raw.material.quote.bulk.destroy'), [
+            'selectedRawMaterialQuoteIds' => [$theirRow->id],
+        ])
+        ->assertRedirect();
+
+    expect($theirRow->fresh())->not->toBeNull();
+});
+
+it('would be a disaster if user could clarify other staff material lists', function () {
+    /*
+     * The same hole, through the other endpoint, and a worse one: clarifying commits a product
+     * choice and deletes the rows listed in deletedIds outright. The modal never hid this form on a
+     * colleague's project at all, so the one thing you could not do to somebody else's BOM was add
+     * to it.
+     */
+    $business = createBusiness('biz', true);
+    $user = createUser(1, $business, false, true);
+    $colleague = createUser(2, $business, false, true);
+
+    $colleaguesProject = createProject($colleague);
+    $theirRow = createRawMaterialQuote200Pfc(
+        $colleaguesProject,
+        MaterialEnums::PLAIN_CARBON_STEEL,
+        GradeEnums::GR300,
+        6000,
+    );
+
+    $this->actingAs($user)
+        ->from('/dashboard')
+        ->post(route('raw.material.quote.clarifications'), [
+            'deletedIds' => [$theirRow->id],
+        ])
+        ->assertRedirect();
+
+    expect($theirRow->fresh())->not->toBeNull();
+});
+
+it('still lets a project manager clear rows from their own material list', function () {
+    /*
+     * The other half of the rule above - the scope narrowed from the business to the owner, so
+     * getting it wrong would lock everybody out of their own BOM.
+     */
+    $business = createBusiness('biz', true);
+    $user = createUser(1, $business, false, true);
+
+    $project = createProject($user);
+    $myRow = createRawMaterialQuote200Pfc(
+        $project,
+        MaterialEnums::PLAIN_CARBON_STEEL,
+        GradeEnums::GR300,
+        6000,
+    );
+
+    $this->actingAs($user)
+        ->from('/dashboard')
+        ->post(route('raw.material.quote.bulk.destroy'), [
+            'selectedRawMaterialQuoteIds' => [$myRow->id],
+        ])
+        ->assertRedirect();
+
+    expect($myRow->fresh())->toBeNull();
+});
 
 it('would be a disaster if importing misses tables and does not notify the user', function () {});
 
