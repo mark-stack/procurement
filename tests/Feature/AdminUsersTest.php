@@ -207,6 +207,65 @@ it('would be a disaster if activating a business welcomed everyone in it twice',
     Notification::assertSentTimes(WelcomeActivatedUserEmail::class, 2);
 });
 
+it('would be a disaster if the welcome email signed everyone in as the same user', function () {
+    /**
+     * The notification carries a magic link that signs its recipient in, and it used to read
+     * that recipient off a constructor argument rather than off the notifiable. It was only
+     * correct because the controller built a fresh instance per user inside a loop - sending
+     * one instance to the collection, which is what it does now, would have handed every user
+     * in the business a link that signed them in as the first of them.
+     */
+    $business = createBusiness('Business A', false);
+    $first = createUser(1, $business, true, true);
+    $second = createUser(2, $business, false, true);
+
+    $notification = new WelcomeActivatedUserEmail;
+
+    foreach ([$first, $second] as $user) {
+        $this->get($notification->toMail($user)->actionUrl);
+
+        $this->assertAuthenticatedAs($user);
+        auth()->logout();
+    }
+});
+
+it('verifies the address the welcome email reached', function () {
+    /**
+     * Reaching the link is the same proof the verification email asks for. Without marking the
+     * address verified, the link signed the user in and EnsureEmailIsVerified - which guards
+     * projects.index - bounced them to the verification prompt, and an unverified signup is
+     * exactly who this email welcomes.
+     */
+    $business = createBusiness('Business A', false);
+    $user = createUser(2, $business, false, false);
+
+    expect($user->hasVerifiedEmail())->toBeFalse();
+
+    $this->get((new WelcomeActivatedUserEmail)->toMail($user)->actionUrl)
+        ->assertRedirect(route('projects.index'));
+
+    expect($user->fresh()->hasVerifiedEmail())->toBeTrue();
+});
+
+it('would be a disaster if a business could be left active with nobody welcomed', function () {
+    /**
+     * The column was saved and the welcome sent afterwards, so a failure in between left the
+     * business reading "Active" with nobody emailed - and the already-active refusal then
+     * turned away every attempt to put that right.
+     */
+    $business = createBusiness('Business A', false);
+    $admin = createUser(1, $business, true, true);
+
+    Notification::shouldReceive('send')->andThrow(new RuntimeException('the queue is down'));
+
+    $this->withoutExceptionHandling();
+
+    expect(fn () => $this->actingAs($admin)->post(route('admin.activate.business', $business)))
+        ->toThrow(RuntimeException::class);
+
+    expect($business->fresh()->admin_setup_complete)->toBeFalse();
+});
+
 it('says which users have not verified their email', function () {
     /**
      * Impersonating an unverified user lands on the verification prompt rather than the

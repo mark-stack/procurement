@@ -30,20 +30,23 @@
     //...
 
     //Methods
+    /*
+     * Both of these are Link's onBefore, which cancels the visit when it returns false. They were
+     * @click handlers calling event.preventDefault(), which cannot work: Link's own click handler
+     * is registered first - its render spreads attrs and then overwrites onClick with its own, and
+     * Vue's attribute fallthrough re-merges ours after it - so router.visit() had already fired by
+     * the time the dialog opened, and shouldIntercept had already read defaultPrevented as false.
+     * Cancel activated the business and emailed everyone in it anyway.
+     */
+
     //The name column is the easiest thing here to mis-click, and a mis-click swaps the
     //account the session is signed in as
-    const confirmImpersonate = (event) => {
-        if (! window.confirm('Sign in as this user? You will see the site exactly as they do until you stop impersonating.')) {
-            event.preventDefault();
-        }
-    };
+    const confirmImpersonate = () =>
+        window.confirm('Sign in as this user? You will see the site exactly as they do until you stop impersonating.');
 
     //Activating emails every user in the business, and that cannot be taken back
-    const confirmActivate = (event) => {
-        if (! window.confirm('Activate this business? Every user in it is emailed a welcome message.')) {
-            event.preventDefault();
-        }
-    };
+    const confirmActivate = () =>
+        window.confirm('Activate this business? Every user in it is emailed a welcome message.');
 </script>
 
 <template>
@@ -93,7 +96,7 @@
                                             as="button"
                                             type="button"
                                             class="underline text-blue-500"
-                                            @click="confirmImpersonate"
+                                            :on-before="confirmImpersonate"
                                         >
                                             {{user.name}}
                                         </Link>
@@ -154,7 +157,7 @@
                                                 as="button"
                                                 type="button"
                                                 class="text-green-500 font-bold"
-                                                @click="confirmActivate"
+                                                :on-before="confirmActivate"
                                             >
                                                 Activate
                                             </Link>
