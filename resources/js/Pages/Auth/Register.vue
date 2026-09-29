@@ -42,7 +42,7 @@ const submit = () => {
             </div>
 
             <div class="mt-4">
-                <InputLabel for="email" value="Email" />
+                <InputLabel for="email" value="Work email" />
 
                 <TextInput
                     id="email"
@@ -52,6 +52,11 @@ const submit = () => {
                     required
                     autocomplete="username"
                 />
+
+                <p class="mt-2 text-sm text-gray-600">
+                    Your company's domain, not a personal address — everyone at your
+                    company shares the one account.
+                </p>
 
                 <InputError class="mt-2" :message="form.errors.email" />
             </div>

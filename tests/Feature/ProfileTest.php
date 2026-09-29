@@ -53,6 +53,45 @@ test('email verification status is unchanged when the email address is unchanged
     $this->assertNotNull($user->refresh()->email_verified_at);
 });
 
+test('the email cannot be changed to a personal address', function () {
+    $business = createBusiness('admin', true);
+    $user = createUser(1, $business, false, true);
+
+    $response = $this
+        ->actingAs($user)
+        ->patch('/profile', [
+            'name' => 'Test User',
+            'email' => 'sam@gmail.com',
+        ]);
+
+    $response->assertSessionHasErrors('email');
+    $this->assertNotSame('sam@gmail.com', $user->refresh()->email);
+});
+
+/*
+ * Someone already on a personal address - the admin account is one - still has to be able to
+ * fix a typo in their name without the form rejecting an email they never touched.
+ */
+test('an existing personal address can be kept', function () {
+    $business = createBusiness('admin', true);
+    $user = createUser(1, $business, false, true);
+    $user->email = 'sam@gmail.com';
+    $user->save();
+
+    $response = $this
+        ->actingAs($user)
+        ->patch('/profile', [
+            'name' => 'A New Name',
+            'email' => 'sam@gmail.com',
+        ]);
+
+    $response
+        ->assertSessionHasNoErrors()
+        ->assertRedirect('/profile');
+
+    $this->assertSame('A New Name', $user->refresh()->name);
+});
+
 test('user can delete their account', function () {
     $business = createBusiness('admin', true);
     $user = createUser(1, $business, false, true);
