@@ -1,69 +1,134 @@
 <script setup>
     //General Imports
-    import {Link, Head, usePage} from '@inertiajs/vue3';
+    import {Link, Head} from '@inertiajs/vue3';
+    import {computed, ref} from 'vue';
 
     //Component Imports
     import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
     import OffcutsDatatable from "@/Components/Tables/OffcutsDatatable.vue";
+    import RemovedOffcutsTable from "@/Components/Tables/RemovedOffcutsTable.vue";
+    import RemoveOffcutModal from "@/Components/Modals/RemoveOffcutModal.vue";
 
     //Props
     const props = defineProps({
         offcuts: Object,
+        removedOffcuts: Object,
+        removedTotal: Number,
+        removalReasons: Array,
     });
 
     //Form
-    //
+    //...
 
     //Shared data
-    const isAdmin = usePage().props.auth.isAdmin;
+    //...
 
     //Variables
-    //
+    //"inventory" or "removed". Two tabs rather than two pages: the removed list is only ever
+    //reached from here, and it is short enough that a page of its own would be mostly chrome.
+    const tab = ref('inventory');
+
+    //The row the removal modal is asking about, or null when it is closed
+    const removing = ref(null);
+
+    //Computed
+    const inventory = computed(() => props.offcuts?.data ?? []);
+    const removed = computed(() => props.removedOffcuts?.data ?? []);
 
     //Methods
-    //
+    //...
 </script>
 
 <template>
     <Head title="Offcuts" />
 
     <AuthenticatedLayout>
-        <div class="py-12">
-            <div class="mx-auto max-w-5xl sm:px-6 lg:px-8">
-                <div class="mb-3">
-                    <Link
-                        class="font-semibold px-3 py-2 text-gray-800 transition-colors duration-300 transform rounded-lg hover:text-deep-purple-accent-400"
-                        :href="route('projects.index')"
-                    >
-                        <i class="fa-regular fa-hand-point-left pr-2"></i> Current Projects
-                    </Link>
+        <div class="py-8">
+            <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+                <!--
+                    A text link, like every other page's way back. This was a pointing-hand icon,
+                    which is not a control anywhere else in the application.
+                -->
+                <Link
+                    class="inline-flex items-center gap-x-2 text-sm font-medium text-gray-600 transition-colors duration-200 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
+                    :href="route('projects.index')"
+                >
+                    <span aria-hidden="true">&larr;</span> Current projects
+                </Link>
+
+                <!-- The page had no heading at all, and no statement of what it is for -->
+                <header class="mt-4">
+                    <h1 class="text-2xl font-semibold text-gray-900 dark:text-gray-100">Offcuts</h1>
+                    <p class="mt-1 max-w-3xl text-sm text-gray-600 dark:text-gray-400">
+                        The steel in your yard that a nest has already paid for. Every batch nested
+                        from here on draws on this list before it buys anything, so a piece listed
+                        here that is not really in the rack is a bar the next job will be short.
+                    </p>
+                </header>
+
+                <!-- Tabs -->
+                <div class="mt-6 border-b border-gray-200 dark:border-gray-700">
+                    <!--
+                        Two buttons rather than role="tablist": these swap what the section below
+                        shows without navigating, and a real tablist owes the arrow keys behaviour
+                        that nothing here implements. aria-pressed says which one is on.
+                    -->
+                    <div class="-mb-px flex gap-x-6">
+                        <button
+                            type="button"
+                            :aria-pressed="tab === 'inventory'"
+                            class="border-b-2 px-1 pb-3 text-sm font-medium transition-colors duration-200"
+                            :class="tab === 'inventory'
+                                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
+                            @click="tab = 'inventory'"
+                        >
+                            Offcut inventory
+                            <span class="ml-1 text-xs text-gray-400 dark:text-gray-500">{{ inventory.length }}</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            :aria-pressed="tab === 'removed'"
+                            class="border-b-2 px-1 pb-3 text-sm font-medium transition-colors duration-200"
+                            :class="tab === 'removed'
+                                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
+                            @click="tab = 'removed'"
+                        >
+                            Removed
+                            <span class="ml-1 text-xs text-gray-400 dark:text-gray-500">{{ removedTotal }}</span>
+                        </button>
+                    </div>
                 </div>
-                <section class="bg-white dark:bg-gray-900 rounded-xl mt-5">
 
-                    <OffcutsDatatable :data="offcuts.data"/>
+                <section class="mt-4 overflow-hidden bg-white border border-gray-200 rounded-xl dark:border-gray-700 dark:bg-gray-900">
+                    <OffcutsDatatable
+                        v-if="tab === 'inventory'"
+                        :data="inventory"
+                        @remove="removing = $event"
+                    />
 
-<!--                    <table class="min-w-full table-auto border-collapse border border-gray-300">-->
-<!--                        <thead>-->
-<!--                            <tr class="bg-gray-100">-->
-<!--                                <th class="border border-gray-300 px-4 py-2 text-left">Material</th>-->
-<!--                                <th class="border border-gray-300 px-4 py-2 text-left">Length (mm)</th>-->
-<!--                                <th class="border border-gray-300 px-4 py-2 text-left">Marked</th>-->
-<!--                                <th class="border border-gray-300 px-4 py-2 text-left">From Batch/Projects</th>-->
-<!--                                <th class="border border-gray-300 px-4 py-2 text-left">Certificates</th>-->
-<!--                            </tr>-->
-<!--                        </thead>-->
-<!--                        <tbody>-->
-<!--                            <tr v-for="offcut in offcuts.data">-->
-<!--                                <td class="border border-gray-300 px-4 py-2">{{offcut.label}}</td>-->
-<!--                                <td class="border border-gray-300 px-4 py-2">{{offcut.length}}</td>-->
-<!--                                <td class="border border-gray-300 px-4 py-2"><i>{{offcut.unique_mark}}</i></td>-->
-<!--                                <td class="border border-gray-300 px-4 py-2">#{{offcut.batch_from_id}}: {{getProjectNames(offcut)}}</td>-->
-<!--                                <td class="border border-gray-300 px-4 py-2">{{getCerts(offcut)}}</td>-->
-<!--                            </tr>-->
-<!--                        </tbody>-->
-<!--                    </table>-->
+                    <RemovedOffcutsTable
+                        v-else
+                        :data="removed"
+                        :total="removedTotal"
+                    />
                 </section>
             </div>
         </div>
     </AuthenticatedLayout>
+
+    <!--
+        Taking a piece of steel out of inventory. Keyed by the row so the form starts empty for each
+        one - a reason left over from the last removal is the wrong reason recorded on this one.
+    -->
+    <RemoveOffcutModal
+        v-if="removing"
+        :key="removing.id"
+        :offcut="removing"
+        :reasons="removalReasons"
+        @removed="removing = null"
+        @cancel="removing = null"
+    />
 </template>

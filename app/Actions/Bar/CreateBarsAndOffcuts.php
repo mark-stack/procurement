@@ -143,6 +143,23 @@ class CreateBarsAndOffcuts
                          */
                         $offcut = Offcut::find($offcutData["sourceOffcut"]["offcutId"]);
                         if ($offcut) {
+                            /*
+                             * Somebody took this piece out of inventory between the nest being
+                             * suggested and it being saved - see Offcut::removeFromInventory. The nest
+                             * is a cut plan built around it, so unpicking it here would leave the
+                             * batch's totals unbalanced; it is consumed as planned and the
+                             * contradiction is said out loud instead, because the yard is about to go
+                             * looking for steel somebody has already reported gone.
+                             */
+                            if ($offcut->isRemoved()) {
+                                Log::warning('A nest consumed an offcut that had been removed from inventory', [
+                                    'offcut_id' => $offcut->id,
+                                    'unique_mark' => $offcut->unique_mark,
+                                    'batch_id' => $batch->id,
+                                    'removed_reason' => $offcut->removed_reason,
+                                ]);
+                            }
+
                             $offcut->batch_to_id = $batch->id;
                             $offcut->save();
                         }

@@ -58,7 +58,7 @@ class Business extends Model
      * A column default only fills the ROW. Business::create() is called with a handful of fields, so the
      * instance handed back had no scrap_threshold_mm attribute at all, and reading a missing attribute
      * gives null - which means "$drop >= $business->scrap_threshold_mm" was really "$drop >= 0" and every
-     * drop, down to a millimetre, counted as reusable stock to be banked as an offcut. Nesting only got
+     * offcut, down to a millimetre, counted as reusable stock to be banked as an offcut. Nesting only got
      * the intended 1,000mm threshold if the model happened to be re-read from the database first.
      *
      * Declared here rather than guarded against at each use so every consumer sees the same numbers, and
@@ -382,21 +382,59 @@ class Business extends Model
             ->get();
     }
 
+    /**
+     * @return Builder<Offcut>
+     */
     public function availableOffcuts(): Builder
     {
         /**
          * Offcuts from this business's batches that are still unassigned, and whose source batch has a
          * delivered order from the supplier category that stocks the offcut's product.
          *
-         * Resolved in SQL. This used to hydrate every unassigned offcut and call Offcut::deliveredOrder()
-         * on each one - a batch lookup, a full supplierGroups() rebuild and an orders query per offcut -
-         * then throw the models away and re-query by id.
-         *
          * Ordered, because nesting consumes this list and an unordered query made the nest depend on
          * whatever order the database happened to return rows in. The same pieces could be nested twice
          * (once for the suggestion, once by Actions/Batch/SaveNesting) and produce different cut plans.
          */
+        return $this->offcutsInInventory()
+            /*
+             * Steel somebody took, cut up off-system, damaged or cannot find. The row is still there -
+             * its descendants' certificates run through it - but the material is not in the yard, so
+             * neither the inventory page nor the nest may promise it. See Offcut::removeFromInventory.
+             */
+            ->whereNull('removed_at')
+            //Shortest first, then by id, so the list a nest is built from is always the same list
+            ->orderBy('length')
+            ->orderBy('id');
+    }
 
+    /**
+     * The offcuts somebody took out of inventory by hand, most recently removed first.
+     *
+     * The same set availableOffcuts() draws on, on the other side of the removal flag: these are the
+     * rows the offcuts page has to be able to show and put back, not a separate kind of record.
+     *
+     * @return Builder<Offcut>
+     */
+    public function removedOffcuts(): Builder
+    {
+        return $this->offcutsInInventory()
+            ->whereNotNull('removed_at')
+            ->orderByDesc('removed_at')
+            ->orderByDesc('id');
+    }
+
+    /**
+     * Every offcut this business has that is steel rather than history: cut from one of its batches,
+     * not yet consumed by a nest, and delivered.
+     *
+     * Resolved in SQL. This used to hydrate every unassigned offcut and call Offcut::deliveredOrder()
+     * on each one - a batch lookup, a full supplierGroups() rebuild and an orders query per offcut -
+     * then throw the models away and re-query by id.
+     *
+     * @return Builder<Offcut>
+     */
+    private function offcutsInInventory(): Builder
+    {
         //Supplier categories with the products they stock. e.g "STEEL_MERCHANT" contains "PFC, UB, etc"
         $categories = (new SupplierFormatter)->supplierGroups($this);
 
@@ -436,9 +474,6 @@ class Business extends Model
                             });
                     });
                 }
-            })
-            //Shortest first, then by id, so the list a nest is built from is always the same list
-            ->orderBy('length')
-            ->orderBy('id');
+            });
     }
 }

@@ -2,58 +2,15 @@
 
 use App\Models\Bar;
 use App\Models\Batch;
-use App\Models\Offcut;
-use App\Models\Order;
-use App\Models\Quote;
 use App\Models\Supplier;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
 
-/**
- * A batch with a delivered, certificated STEEL_MERCHANT order - which is what makes its offcuts
- * "available" on the offcuts index.
- */
-function batchWithDeliveredOrder(User $user, ?string $cert = null, ?Supplier $supplier = null): Batch
-{
-    $batch = Batch::factory()->forUser($user->id)->create();
-    $supplier ??= Supplier::factory()->create();
-
-    $quote = Quote::create([
-        'user_id' => $user->id,
-        'batch_id' => $batch->id,
-        'supplier_id' => $supplier->id,
-        'supplier_category' => 'STEEL_MERCHANT',
-        'supplier_quote_reference' => null,
-        'quote_sent' => true,
-        'quoted_price' => null,
-        'quoted_lead_time' => null,
-    ]);
-
-    Order::create([
-        'user_id' => $user->id,
-        'batch_id' => $batch->id,
-        'supplier_id' => $supplier->id,
-        'quote_id' => $quote->id,
-        'order_sent' => true,
-        'order_confirmation_received' => true,
-        'purchase_order_number' => '123',
-        'is_delivered' => true,
-        'material_cert_numbers' => $cert,
-    ]);
-
-    return $batch;
-}
-
-function offcutsIndexUser(): User
-{
-    $business = createBusiness('biz', true);
-
-    return createUser(1, $business, false, true);
-}
+//batchWithDeliveredOrder(), offcutsIndexUser() and offcutGenerations() live in tests/Pest.php -
+//OffcutRemovalTest builds on the same fixtures
 
 it('renders offcuts that have no bar', function () {
     /*
@@ -356,36 +313,6 @@ it('only exposes the index route', function () {
     }
 });
 
-/**
- * A chain of offcuts, each one cut from the one before it, oldest first.
- *
- * Only the root batch buys steel. Every batch after it nests entirely out of inventory and so places
- * no order at all - which is exactly what makes the certificate trail hard to follow.
- *
- * @return array<int, Offcut>
- */
-function offcutGenerations(User $user, Batch $rootBatch, int $generations, int $length = 9000): array
-{
-    $chain = [create_offcut_200PFC($length, $rootBatch->id)];
-
-    foreach (range(2, $generations) as $generation) {
-        $source = end($chain);
-        $length -= 1000;
-
-        $cuttingBatch = Batch::factory()->forUser($user->id)->create();
-        $source->batch_to_id = $cuttingBatch->id;
-        $source->save();
-
-        $produced = create_offcut_200PFC($length, $cuttingBatch->id);
-        $produced->offcut_from_id = $source->id;
-        $produced->save();
-
-        $chain[] = $produced;
-    }
-
-    return $chain;
-}
-
 it('keeps the certificate trail on an offcut of an offcut of an offcut', function () {
     /*
      * The trail only ever looked at the batch that CUT each offcut. That batch bought the steel for a
@@ -419,8 +346,8 @@ it('keeps the certificate trail on an offcut of an offcut of an offcut', functio
 it('reports how far down an offcut has been cut, and the marks it came through', function () {
     /*
      * There is no limit on cutting an offcut out of an offcut - every generation is real steel in the
-     * yard, and the chain ends on its own once the drop falls under the scrap threshold. So the yard has
-     * to be able to see how many times a piece has already been cut down: a 6m drop that has been
+     * yard, and the chain ends on its own once the offcut falls under the scrap threshold. So the yard has
+     * to be able to see how many times a piece has already been cut down: a 6m offcut that has been
      * through four batches otherwise looks exactly like one straight off a 12m bar.
      */
     $user = offcutsIndexUser();
@@ -460,8 +387,8 @@ it('calls an offcut straight off a bar the first generation', function () {
 it('does not stamp an offcut of an offcut with its cutting batch\'s own new stock certificate', function () {
     /*
      * A batch that reuses an offcut can buy new steel for other products in the same nest. That
-     * purchase has nothing to do with the drop left on the reused offcut, so crediting its certificate
-     * to that drop labels the steel with a certificate it was never part of. The offcut's own trail runs
+     * purchase has nothing to do with the offcut left on the reused offcut, so crediting its certificate
+     * to that offcut labels the steel with a certificate it was never part of. The offcut's own trail runs
      * back up the chain.
      */
     $user = offcutsIndexUser();
