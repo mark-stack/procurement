@@ -51,13 +51,33 @@
 
     //Methods
     /**
+     * Whose project this is. Every column here draws the whole business's work - the Nesting one
+     * puts every colleague's project in a single card - and the board said so nowhere: the owner's
+     * name appeared only in the tooltip of a disabled Archive button, so the one way to find out
+     * who to go and ask was to hover a button you could not press.
+     */
+    function isMine(project){
+        return project.user_id === user.value.id;
+    }
+
+    function ownerLabel(project){
+        if(isMine(project)){
+            return "You";
+        }
+
+        const projectManager = project.projectManager?.name;
+
+        return projectManager ? shared.capitalizeWords(projectManager) : "Another project manager";
+    }
+
+    /**
      * Archiving is the owner's call and only before the project is nested - the server refuses
      * anything else, and a button that can only answer 403 reads as a broken button. The column
      * was already the test here; the owner half is new, because the archived list you restore
      * from only holds your own projects.
      */
     function canArchive(project){
-        return props.kanbanColumn === 'NESTING' && project.user_id === user.value.id;
+        return props.kanbanColumn === 'NESTING' && isMine(project);
     }
 
     function archiveTitle(project){
@@ -65,7 +85,7 @@
             return 'This project is on a batch - re-nest the batch first if you want to archive it';
         }
 
-        if(project.user_id !== user.value.id){
+        if(!isMine(project)){
             const projectManager = project.projectManager?.name;
 
             return projectManager
@@ -74,6 +94,63 @@
         }
 
         return 'Take this project off the board. You can restore it later';
+    }
+
+    /**
+     * Editing is the owner's call, the same as archiving. The two buttons sit side by side and
+     * used to disagree: Archive greyed itself out on a colleague's project while Edit stayed live
+     * next to it, and Edit is not the smaller of the two - the name is how everyone else finds the
+     * project, and the materials date drives the owner's deadlines and reminders. The server
+     * refuses this now, so a live button could only ever answer 403.
+     */
+    function canEdit(project){
+        return isMine(project);
+    }
+
+    function editTitle(project){
+        if(!canEdit(project)){
+            const projectManager = project.projectManager?.name;
+
+            return projectManager
+                ? `Only ${shared.capitalizeWords(projectManager)} can edit this project`
+                : 'Only the project manager can edit this project';
+        }
+
+        return 'Change the name, reference or materials date';
+    }
+
+    /**
+     * "Start quoting" does not nest your card - it nests everything in the column, every
+     * colleague's project included, into one batch under your name, which settles their material
+     * grouping, their suppliers and their delivery dates. It fired on the click, with nothing
+     * naming what it was about to take. Re-nest and "Move to done" either side of it both ask
+     * first, and neither reaches across as far as this one does.
+     */
+    function confirmQuoteNow(){
+        const mine = props.projects.filter(project => isMine(project));
+        const theirs = props.projects.filter(project => !isMine(project));
+
+        const nameList = projects => projects
+            .map(project => shared.capitalizeWords(project.name))
+            .join(", ");
+
+        const message = theirs.length > 0
+            ? `${nameList(props.projects)} will be nested together into one batch. `
+                + `That includes ${nameList(theirs)}, which ${theirs.length > 1 ? 'are' : 'is'} not yours - `
+                + `nesting ${theirs.length > 1 ? 'them' : 'it'} now fixes the suppliers and delivery dates for `
+                + `${theirs.length > 1 ? 'those projects' : 'that project'} too.`
+            : `${nameList(mine)} will be nested into one batch and moved to Quoting.`;
+
+        askToConfirm({
+            title: theirs.length > 0 ? "Nest your colleagues' projects too?" : "Start quoting?",
+            message: message,
+            confirmLabel: "Start quoting",
+            tone: "primary",
+            onConfirmed: () => {
+                emit('pageLoadingOn',null);
+                emit('quoteNow');
+            },
+        });
     }
 
     /**
@@ -205,6 +282,25 @@
                     Ref: {{ project.reference }}
                 </p>
 
+                <!--
+                    Whose project this is. Every column draws the whole business's work, so without
+                    this the board is an undifferentiated pile - and the two disabled buttons below
+                    make no sense until you know the answer.
+                -->
+                <p class="mt-1.5 flex items-center gap-1.5 text-xs">
+                    <i
+                        class="fa-solid fa-user text-[9px]"
+                        :class="isMine(project) ? 'text-blue-700' : 'text-gray-400'"
+                    ></i>
+                    <span
+                        class="truncate font-medium"
+                        :class="isMine(project) ? 'text-blue-800' : 'text-gray-500'"
+                        :title="ownerLabel(project)"
+                    >
+                        {{ ownerLabel(project) }}
+                    </span>
+                </p>
+
                 <div class="mt-3 grid grid-cols-7 gap-1.5">
                     <CardButtonGreen
                         @click="$emit('pageLoadingOn',null);$emit('showBom',project)"
@@ -225,6 +321,8 @@
                         class="col-span-2"
                         @click="$emit('editMode',project)"
                         label="Edit"
+                        :title="editTitle(project)"
+                        :disabled="!canEdit(project)"
                         :fullWidth="true"
                     />
                 </div>
@@ -278,7 +376,8 @@
             >
                 <CardButtonForward
                     label="Start quoting"
-                    @click="$emit('pageLoadingOn',null);$emit('quoteNow')"
+                    title="Nest everything in this column into one batch and move it to Quoting"
+                    @click="confirmQuoteNow()"
                 />
             </div>
 

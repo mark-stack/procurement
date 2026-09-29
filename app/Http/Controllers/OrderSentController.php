@@ -48,8 +48,12 @@ class OrderSentController extends Controller
         //Attach pieces to order
         AttachPiecesToOrder::run($batch, $orderedOrder);
 
-        //All project managers approve ordering materials
-        UpdateOrderApprovalStatus::run($batch, true);
+        /*
+         * Ordering is approved for the batch, on behalf of every project manager on it, by the
+         * person who pressed the button - recorded, because the flag alone said "they all agreed"
+         * and nobody but this one user was ever asked.
+         */
+        UpdateOrderApprovalStatus::run($batch, true, $request->user());
 
         return back();
     }

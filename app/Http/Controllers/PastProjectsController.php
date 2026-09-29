@@ -26,6 +26,7 @@ class PastProjectsController extends Controller
 
         $batchIds = $pastBatches->pluck('id');
         $projectsByBatch = $this->projectsByBatch($batchIds);
+        $projectManagersByBatch = $this->projectManagersByBatch($batchIds);
         $ordersQtyByBatch = $this->ordersQtyByBatch($batchIds);
 
         /*
@@ -38,7 +39,18 @@ class PastProjectsController extends Controller
             $pastBatchesWithExtraData[] = [
                 'id' => $pastBatch->id,
                 'createdAt' => $pastBatch->created_at->diffForHumans(),
-                'projectManager' => $pastBatch->user->name,
+                /*
+                 * The owners of the projects in the batch, not $pastBatch->user - that is whoever
+                 * pressed "Start quoting", which sweeps in every colleague's project that was ready
+                 * at the time. A batch spanning two project managers was labelled with one name,
+                 * and it was the batcher's rather than either manager's.
+                 *
+                 * A joined string rather than the owners themselves: the table prints one line, and
+                 * shipping the project's user is what this screen was trimmed back from.
+                 */
+                'projectManagers' => $projectManagersByBatch->get($pastBatch->id, '-'),
+                //Who nested it. A different question, so it gets a line of its own
+                'batchedBy' => $pastBatch->user->name,
                 'projects' => $projectsByBatch->get($pastBatch->id, collect()),
                 'ordersQty' => $ordersQtyByBatch->get($pastBatch->id, 0),
             ];
@@ -79,6 +91,33 @@ class PastProjectsController extends Controller
                 ->map(fn (Piece $row) => $projects->get($row->project_id))
                 ->filter()
                 ->values()
+            );
+    }
+
+    /**
+     * The distinct owners of each batch's projects, as one readable line, keyed by batch id.
+     *
+     * Resolved in bulk alongside everything else on this screen - the archive only grows, and a
+     * per-row lookup here would be the nine-queries-a-row problem the rest of it was trimmed back
+     * from. The names are joined here rather than sent as a list because the table prints a line.
+     *
+     * @return Collection<int, string>
+     */
+    private function projectManagersByBatch(Collection $batchIds): Collection
+    {
+        return Piece::query()
+            ->join('projects', 'projects.id', '=', 'pieces.project_id')
+            ->join('users', 'users.id', '=', 'projects.user_id')
+            ->whereIn('pieces.batch_id', $batchIds)
+            ->distinct()
+            ->get(['pieces.batch_id as batch_id', 'users.name as name'])
+            ->groupBy('batch_id')
+            ->map(fn (Collection $rows) => $rows
+                ->pluck('name')
+                ->unique()
+                ->sort()
+                ->values()
+                ->join(', ', ' and ')
             );
     }
 

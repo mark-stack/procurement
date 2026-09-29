@@ -47,6 +47,11 @@ class Business extends Model
      */
     private ?SubscriptionState $billingState = null;
 
+    /**
+     * Resolved once per instance, for the reason spelled out on projectsRequiringClarification().
+     */
+    private ?Collection $projectsRequiringClarificationMemo = null;
+
     /*
      * Defaults for the nesting settings, mirroring the column defaults in the migrations.
      *
@@ -258,8 +263,20 @@ class Business extends Model
             ->get();
     }
 
+    /**
+     * Projects with a partial price book match still to be confirmed.
+     *
+     * Memoised: this runs a price book match per material row of every project the business has
+     * ever had, and the board asks for it three times over on a single render -
+     * projectsReadyForBatching() is called twice by ProjectController, and the Nesting column
+     * asks again to list the ones stuck here.
+     */
     public function projectsRequiringClarification(): Collection
     {
+        if ($this->projectsRequiringClarificationMemo !== null) {
+            return $this->projectsRequiringClarificationMemo;
+        }
+
         $projectsRequiringClarification = [];
 
         //Services
@@ -290,7 +307,25 @@ class Business extends Model
             }
         }
 
-        return collect($projectsRequiringClarification);
+        return $this->projectsRequiringClarificationMemo = collect($projectsRequiringClarification);
+    }
+
+    /**
+     * The subset of those that belong on the board: still live, and not already nested.
+     *
+     * projectsReadyForBatching() excludes a project with an unconfirmed partial match, and the
+     * Nesting column is the only place a pre-batch project is ever drawn - so an import left half
+     * finished fell off the board entirely, for its owner as well as for everybody else. Nothing
+     * else lists it, and the archived list holds only your own archived projects, so there was no
+     * route back to it at all: a colleague could not so much as discover it existed.
+     */
+    public function projectsWithUnfinishedImport(): Collection
+    {
+        return $this->projectsRequiringClarification()
+            ->reject(fn (Project $project) => $project->archive)
+            ->filter(fn (Project $project) => $project->pieces()->whereNotNull('batch_id')->doesntExist())
+            ->sortBy('created_at')
+            ->values();
     }
 
     public function currentProjects(): Collection

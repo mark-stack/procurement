@@ -152,12 +152,18 @@
         formUndoOrderSent.post(url, {preserveScroll: true, onSuccess: () => emit('refresh')});
     }
 
+    /**
+     * This used to ask "Do Bruce,Matt and yourself approve ordering materials?" - one person
+     * answering for three, after which every project on the batch was recorded as approved by its
+     * own manager. Bruce and Matt were neither asked nor told. The message now says what is
+     * actually happening (see BatchService::projectManagerApprovalMessage), so the title and the
+     * buttons have to stop claiming an approval was collected as well.
+     */
     function projectManagersApprovalBeforeOrderSent(row) {
-        // Show the confirmation dialog
         askToConfirm({
-            title: "Approval to order",
+            title: "Mark this order as placed?",
             message: props.quotesData.info.projectManagerApprovalMessage,
-            confirmLabel: "Yes, approved",
+            confirmLabel: "Mark as placed",
             cancelLabel: "Not yet",
             tone: "primary",
             onConfirmed: () => orderSentCheckbox(row),
@@ -182,6 +188,26 @@
         }
 
         return shouldDisableQuoteSent;
+    }
+
+    /**
+     * Why the checkbox above is dead.
+     *
+     * It greyed itself out and said nothing. Marking a quote sent needs you to be the manager of
+     * at least one project on the batch, and this modal opens on every batch the business has -
+     * so a colleague looking at somebody else's batch got a disabled checkbox and no reason for
+     * it. Every button on the board behind this modal explains itself this way; this one did not.
+     */
+    function quoteSentTitle(row){
+        if(!shouldDisableQuoteSent(row)){
+            return row.formQuoteUpdate.quote_sent
+                ? "Undo - this quote has not been sent after all"
+                : "Mark this supplier's quote request as sent";
+        }
+
+        return row.formQuoteUpdate.quote_sent
+            ? "This can no longer be undone - the order has been sent or delivered, or no project on this batch is yours"
+            : "Only a project manager on this batch can mark its quotes as sent";
     }
 
     function format(string) {
@@ -346,7 +372,8 @@
                                 <input
                                     v-model="row.formQuoteUpdate.quote_sent"
                                     :disabled="shouldDisableQuoteSent(row)"
-                                    :class="shouldDisableQuoteSent(row) ? 'bg-gray-300 checked:bg-gray-400 hover:checked:bg-gray-400' : ''"
+                                    :title="quoteSentTitle(row)"
+                                    :class="shouldDisableQuoteSent(row) ? 'cursor-not-allowed bg-gray-300 checked:bg-gray-400 hover:checked:bg-gray-400' : ''"
                                     @change="quoteSentCheckbox(row)"
                                     type="checkbox"
                                 />
@@ -359,13 +386,17 @@
                                         v-if="row.info.order_sent"
                                         @click="undoOrderSent(row)"
                                         :disabled="row.info.is_delivered"
-                                        :class="row.info.is_delivered ? 'text-gray-500' : ''"
+                                        :title="row.info.is_delivered
+                                            ? 'This order has been delivered - it cannot be un-sent'
+                                            : 'Undo - this order has not been placed after all'"
+                                        :class="row.info.is_delivered ? 'cursor-not-allowed text-gray-500' : ''"
                                         type="checkbox"
                                         checked
                                     />
                                     <input
                                         v-else
                                         @click.prevent="projectManagersApprovalBeforeOrderSent(row)"
+                                        title="Mark this supplier's order as placed, for every project on this batch"
                                         type="checkbox"
                                     />
 
@@ -405,8 +436,11 @@
                                     v-model="row.info.is_delivered"
                                     @change="deliveredCheckbox(row)"
                                     :disabled="row.info.is_delivered"
+                                    :title="row.info.is_delivered
+                                        ? 'Already marked delivered - this cannot be undone'
+                                        : 'Mark this supplier\'s materials as delivered'"
                                     type="checkbox"
-                                    :class="row.info.is_delivered ? 'text-gray-500' : ''"
+                                    :class="row.info.is_delivered ? 'cursor-not-allowed text-gray-500' : ''"
                                 />
                             </div>
                             <!-- Certs -->

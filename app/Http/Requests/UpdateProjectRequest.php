@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\PrerequisiteConditions\PrerequisiteConditions;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
@@ -12,10 +13,22 @@ class UpdateProjectRequest extends FormRequest
      * The controller gate used to be the only check, and it runs after validation -
      * so a project belonging to another business was validated (and its name clashes
      * reported back) before anything refused the request.
+     *
+     * The gate answers "is this my business", which is every colleague's project in the
+     * shared Nesting column. Editing is the owner's call, the same as archiving: see
+     * PrerequisiteConditions::editProject for why the two belong together.
      */
     public function authorize(): bool
     {
-        return $this->user()?->can('owned', $this->route('project')) ?? false;
+        $user = $this->user();
+        $project = $this->route('project');
+
+        if (! $user || ! $project) {
+            return false;
+        }
+
+        return $user->can('owned', $project)
+            && (new PrerequisiteConditions())->editProject($user, $project);
     }
 
     public function rules(): array

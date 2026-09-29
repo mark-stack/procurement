@@ -4,22 +4,47 @@ namespace App\Formatters;
 
 use App\Enums\SupplierGroupEnums;
 use App\Http\Resources\ProjectResource;
+use App\Http\Resources\UnfinishedImportResource;
 use App\Models\Business;
 use App\Models\Offcut;
+use App\Models\Project;
 use App\Models\User;
 use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\BatchService;
 
 class KanbanFormatter
 {
-    public function readyForNestingColumn(Business $business): array
+    public function readyForNestingColumn(Business $business, User $user): array
     {
         $piecesReadyForBatching = (new NestingFormatter())->piecesReadyForBatching($business);
 
+        /*
+         * Your own projects first, then oldest first within each group.
+         *
+         * This column is the whole business's, drawn as one undifferentiated pile in creation
+         * order - so on a board with a few colleagues on it your own work was wherever it
+         * happened to land. The three batch columns below already sort this way, through
+         * BatchService::sortByUserAndLatest; only the column of projects did not.
+         */
+        $projects = $business->projectsReadyForBatching($piecesReadyForBatching)
+            ->sortBy(fn (Project $project) => [
+                $project->user_id === $user->id ? 0 : 1,
+                $project->created_at->timestamp,
+                //Two projects created in the same second would otherwise order arbitrarily
+                $project->id,
+            ])
+            ->values();
+
         return [
-            'projects' => ProjectResource::collection($business
-                ->projectsReadyForBatching($piecesReadyForBatching)
-                ->sortBy('created_at')),
+            'projects' => ProjectResource::collection($projects),
+            /*
+             * Imports that stopped at a clarification. These are excluded from the column above -
+             * and from everywhere else in the app - so without this they are on nobody's board at
+             * all. See Business::projectsWithUnfinishedImport().
+             */
+            'unfinishedImports' => UnfinishedImportResource::collection(
+                $business->projectsWithUnfinishedImport()
+            ),
         ];
     }
 

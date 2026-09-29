@@ -49,14 +49,21 @@ class NotificationQuotingOrderingOverDueImplementation implements NotificationIn
                 //Prerequisite variables
                 $projectManager = $project->user;
 
+                /*
+                 * continue, not break - see the same loop in
+                 * NotificationQuotingOrderingDueImplementation. One project that is already fully
+                 * ordered, or already reminded, used to end the run for every project manager
+                 * after it.
+                 */
+
                 //5) Order coverage < 100%
                 if ($project->percentageOfMaterialsOrdered() === 100) {
-                    break;
+                    continue;
                 }
 
                 //6) Not notified already
                 if ($this->hasBeenNotified($projectManager, $project->id)) {
-                    break;
+                    continue;
                 }
 
                 //Mark all previous as read

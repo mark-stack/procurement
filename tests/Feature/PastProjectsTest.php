@@ -200,9 +200,52 @@ it('sends the archive nothing but the project names it renders', function () {
     $response = $this->get(route('past.projects.index'))->assertOk();
     $row = collect($response->viewData('page')['props']['pastBatches'])->firstWhere('id', $batch->id);
 
-    expect(array_keys($row))->toBe(['id', 'createdAt', 'projectManager', 'projects', 'ordersQty'])
+    expect(array_keys($row))->toBe(['id', 'createdAt', 'projectManagers', 'batchedBy', 'projects', 'ordersQty'])
         ->and($row['projects'])->toHaveCount(1)
-        ->and(array_keys($row['projects'][0]))->toBe(['id', 'name']);
+        //Still just the names: the managers arrive as one joined string, not as the owners themselves
+        ->and(array_keys($row['projects'][0]))->toBe(['id', 'name'])
+        ->and($row['projectManagers'])->toBeString();
+});
+
+it('would be a disaster if the archive credited a batch to the wrong person', function () {
+    /*
+     * "Start quoting" sweeps in every project that was ready, colleagues' included, and the batch
+     * belongs to whoever pressed it. This row used to be labelled with that person - so a batch
+     * spanning two project managers named one of them at most, and often neither.
+     */
+    $business = createBusiness('biz', true);
+    $batcher = createUser(1, $business, false, true);
+    $colleague = createUser(2, $business, false, true);
+
+    $batch = Batch::factory()->forUser($batcher->id)->create(['done' => true]);
+    pieceOnBatch(createProject($colleague), $batch);
+
+    $this->actingAs($batcher);
+
+    $response = $this->get(route('past.projects.index'))->assertOk();
+    $row = collect($response->viewData('page')['props']['pastBatches'])->firstWhere('id', $batch->id);
+
+    //The owner of the work, not the person who nested it
+    expect($row['projectManagers'])->toBe($colleague->name)
+        ->and($row['batchedBy'])->toBe($batcher->name);
+});
+
+it('would be a disaster if a batch spanning two managers named only one', function () {
+    $business = createBusiness('biz', true);
+    $user = createUser(1, $business, false, true);
+    $colleague = createUser(2, $business, false, true);
+
+    $batch = Batch::factory()->forUser($user->id)->create(['done' => true]);
+    pieceOnBatch(createProject($user), $batch);
+    pieceOnBatch(createProject($colleague), $batch);
+
+    $this->actingAs($user);
+
+    $response = $this->get(route('past.projects.index'))->assertOk();
+    $row = collect($response->viewData('page')['props']['pastBatches'])->firstWhere('id', $batch->id);
+
+    expect($row['projectManagers'])->toContain($user->name)
+        ->and($row['projectManagers'])->toContain($colleague->name);
 });
 
 it('reads the archive in a fixed number of queries however many batches it holds', function () {

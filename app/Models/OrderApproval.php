@@ -13,6 +13,7 @@ class OrderApproval extends Model
     {
         return [
             'project_manager_approved' => 'boolean',
+            'approved_at' => 'datetime',
         ];
     }
 
@@ -20,5 +21,14 @@ class OrderApproval extends Model
     public function batch(): BelongsTo
     {
         return $this->belongsTo(Batch::class);
+    }
+
+    /**
+     * Whoever pressed "Sent order", which settles the approval for the whole batch. Not
+     * necessarily this project's manager - see UpdateOrderApprovalStatus.
+     */
+    public function approvedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by_user_id');
     }
 }

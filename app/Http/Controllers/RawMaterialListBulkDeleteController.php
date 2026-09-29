@@ -24,15 +24,13 @@ class RawMaterialListBulkDeleteController extends Controller
             'selectedRawMaterialQuoteIds.*' => ['integer'],
         ]);
 
-        $business = $this->businessOf($request);
-
         /**
-         * Only this business's rows, and only ones not already quoted or ordered.
-         * The modal hides the checkbox on those, but the ids arrive in the request
-         * body, so both rules have to hold here too.
+         * Only your own rows, and only ones not already quoted or ordered. The modal hides the
+         * checkbox on both - on a colleague's project it draws no checkboxes at all - but the ids
+         * arrive in the request body, so both rules have to hold here too.
          */
         $rawMaterialQuotes = RawMaterialQuote::query()
-            ->ownedBy($business)
+            ->ownedByUser($request->user())
             ->whereIn('id', $validated['selectedRawMaterialQuoteIds'])
             ->with('piece.quotes', 'piece.order')
             ->get()
