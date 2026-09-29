@@ -21,7 +21,17 @@
     const isAdmin = page.props.auth.isAdmin;
     const onboarded = page.props.auth.onboarded;
     const user = computed(() => page.props.auth.user);
-    const notifications = computed(() => page.props.auth.notifications);
+    const notifications = computed(() => page.props.auth.notifications ?? []);
+
+    /*
+     * Counted off the rendered list, not off a raw unread count in the database.
+     *
+     * Only the types on NotificationService::implementations() produce a row for the panel, so a
+     * notification whose type is no longer rendered - the deprecated "has this been awarded to you"
+     * reminders, say - would show in a database count and then not be in the panel. A badge saying
+     * 3 above a list of two is the sort of thing that makes people stop trusting the badge.
+     */
+    const unreadCount = computed(() => notifications.value.length);
     const hasPastProjects = computed(() => page.props.auth.hasPastProjects);
     //computed, not read once: the nav alert has to clear when an import fills the catalogue,
     //not stay red until the next full page load
@@ -53,11 +63,17 @@
      */
     const closeMenu = () => showMenu.value = false;
     const closeMobileNav = () => showMobileNav.value = false;
+    const closeNotifications = () => showNotifications.value = false;
 
     //Only one panel at a time, or the account menu opens underneath the notifications list
     const toggleMenu = () => {
         showNotifications.value = false;
         showMenu.value = !showMenu.value;
+    };
+
+    const toggleNotifications = () => {
+        showMenu.value = false;
+        showNotifications.value = !showNotifications.value;
     };
 
     const toggleMobileNav = () => showMobileNav.value = !showMobileNav.value;
@@ -66,12 +82,14 @@
     watch(() => page.url, () => {
         closeMenu();
         closeMobileNav();
+        closeNotifications();
     });
 
     const closeOnEscape = (e) => {
         if (e.key === 'Escape') {
             closeMenu();
             closeMobileNav();
+            closeNotifications();
         }
     };
 
@@ -140,33 +158,56 @@
             </div>
 
             <div class="flex items-center gap-2">
-                <!--
-                    Notifications. The bell itself stays switched off; the panel below is what it
-                    opens, kept here so turning it back on is a matter of restoring the button.
-                -->
-                <div class="relative">
-<!--                    <button-->
-<!--                        @click="showMenu = false; showNotifications = !showNotifications"-->
-<!--                        :disabled="notifications.length === 0"-->
-<!--                        class="relative p-2 text-gray-300 transition-colors duration-200 rounded-md hover:bg-white/10 hover:text-white focus:outline-none"-->
-<!--                    >-->
-<!--                        <svg-->
-<!--                            :class="notifications.length > 0 ? 'animate-wiggle text-orange-300' : 'text-gray-400'"-->
-<!--                            class="w-5 h-5"-->
-<!--                            viewBox="0 0 24 24"-->
-<!--                            fill="none"-->
-<!--                            xmlns="http://www.w3.org/2000/svg"-->
-<!--                        >-->
-<!--                            <path d="M12 22C10.8954 22 10 21.1046 10 20H14C14 21.1046 13.1046 22 12 22ZM20 19H4V17L6 16V10.5C6 7.038 7.421 4.793 10 4.18V2H13C12.3479 2.86394 11.9967 3.91762 12 5C12 5.25138 12.0187 5.50241 12.056 5.751H12C10.7799 5.67197 9.60301 6.21765 8.875 7.2C8.25255 8.18456 7.94714 9.33638 8 10.5V17H16V10.5C16 10.289 15.993 10.086 15.979 9.9C16.6405 10.0366 17.3226 10.039 17.985 9.907C17.996 10.118 18 10.319 18 10.507V16L20 17V19ZM17 8C16.3958 8.00073 15.8055 7.81839 15.307 7.477C14.1288 6.67158 13.6811 5.14761 14.2365 3.8329C14.7919 2.5182 16.1966 1.77678 17.5954 2.06004C18.9942 2.34329 19.9998 3.5728 20 5C20 6.65685 18.6569 8 17 8Z" fill="currentColor"></path>-->
-<!--                        </svg>-->
-<!--                    </button>-->
-
-                    <div
-                        v-if="showNotifications && notifications.length > 0"
-                        class="absolute right-0 z-40 w-64 mt-2 origin-top-right bg-white shadow-xl rounded-xl ring-1 ring-black ring-opacity-5"
+                <!-- Notifications -->
+                <div v-click-away="closeNotifications" class="relative">
+                    <button
+                        type="button"
+                        @click="toggleNotifications"
+                        aria-haspopup="true"
+                        :aria-expanded="showNotifications"
+                        :aria-label="unreadCount > 0 ? `Notifications (${unreadCount} unread)` : 'Notifications'"
+                        :title="unreadCount > 0 ? `${unreadCount} notification${unreadCount === 1 ? '' : 's'}` : 'Notifications'"
+                        class="relative p-2 text-gray-300 transition-colors duration-200 rounded-md hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-accent-400"
                     >
-                        <Notifications2 :notifications="notifications"/>
-                    </div>
+                        <svg
+                            :class="unreadCount > 0 ? 'animate-wiggle text-orange-300' : 'text-gray-400'"
+                            class="w-5 h-5"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                        >
+                            <path d="M12 22C10.8954 22 10 21.1046 10 20H14C14 21.1046 13.1046 22 12 22ZM20 19H4V17L6 16V10.5C6 7.038 7.421 4.793 10 4.18V2H13C12.3479 2.86394 11.9967 3.91762 12 5C12 5.25138 12.0187 5.50241 12.056 5.751H12C10.7799 5.67197 9.60301 6.21765 8.875 7.2C8.25255 8.18456 7.94714 9.33638 8 10.5V17H16V10.5C16 10.289 15.993 10.086 15.979 9.9C16.6405 10.0366 17.3226 10.039 17.985 9.907C17.996 10.118 18 10.319 18 10.507V16L20 17V19ZM17 8C16.3958 8.00073 15.8055 7.81839 15.307 7.477C14.1288 6.67158 13.6811 5.14761 14.2365 3.8329C14.7919 2.5182 16.1966 1.77678 17.5954 2.06004C18.9942 2.34329 19.9998 3.5728 20 5C20 6.65685 18.6569 8 17 8Z" fill="currentColor"></path>
+                        </svg>
+
+                        <!-- The count, not just a dot: "quote overdue on three projects" is a different morning -->
+                        <span
+                            v-if="unreadCount > 0"
+                            class="absolute -top-0.5 -right-0.5 min-w-[1.05rem] px-1 text-[0.625rem] font-bold leading-[1.05rem] text-white bg-orange-500 rounded-full ring-2 ring-gray-900"
+                        >
+                            {{ unreadCount > 9 ? '9+' : unreadCount }}
+                        </span>
+                    </button>
+
+                    <Transition
+                        enter-active-class="transition ease-out duration-200"
+                        enter-from-class="opacity-0 scale-95"
+                        enter-to-class="opacity-100 scale-100"
+                        leave-active-class="transition ease-in duration-75"
+                        leave-from-class="opacity-100 scale-100"
+                        leave-to-class="opacity-0 scale-95"
+                    >
+                        <!--
+                            Wider than the account menu and clamped to the viewport: these read as
+                            sentences naming a project, and w-64 wrapped every one of them to five
+                            lines.
+                        -->
+                        <div
+                            v-show="showNotifications"
+                            class="absolute right-0 z-40 mt-2 origin-top-right bg-white shadow-xl w-[min(22rem,calc(100vw-2rem))] rounded-xl ring-1 ring-black ring-opacity-5"
+                        >
+                            <Notifications2 :notifications="notifications"/>
+                        </div>
+                    </Transition>
                 </div>
 
                 <!-- Account menu -->
@@ -392,7 +433,19 @@
         50% { transform: rotate(3deg); }
     }
 
+    /*
+     * Three shakes, not infinite. This bell sits on every authenticated page, so "infinite" meant a
+     * permanently moving object in the corner of the screen for as long as anything was unread -
+     * which, with deadline reminders that re-ask every day, is most of the time. The orange colour
+     * and the count carry the signal after the animation has had its say.
+     */
     .animate-wiggle {
-        animation: wiggle 0.5s ease-in-out infinite;
+        animation: wiggle 0.5s ease-in-out 3;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .animate-wiggle {
+            animation: none;
+        }
     }
 </style>

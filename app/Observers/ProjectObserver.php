@@ -32,15 +32,8 @@ class ProjectObserver
         /*
          * Check if any notifications are now redundant because of this update
          */
-        $implementations = (new NotificationService)->getImplementations();
-        foreach ($implementations as $implementation) {
-            $className = 'App\\Services\\NotificationImplementations\\'.$implementation;
-
-            // Check if the class exists
-            if (class_exists($className)) {
-                $service = new $className;
-                $service->checkProjectChanges($project);
-            }
+        foreach ((new NotificationService)->implementations() as $implementation) {
+            $implementation->checkProjectChanges($project);
         }
     }
 

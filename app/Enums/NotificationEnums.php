@@ -2,6 +2,33 @@
 
 namespace App\Enums;
 
+/**
+ * The notification types this application has ever intended to send.
+ *
+ * Read it as a wishlist, not a switchboard - nothing dispatches on these values. What actually
+ * exists is NotificationService::implementations(), and the two lists disagree on purpose:
+ *
+ *  Built, hourly:      TENTATIVE_MATERIALS_DATE_CORRECT, QUOTE_DUE, QUOTE_OVERDUE
+ *  Built, event-driven: COLLEAGUE_JOINED, A_COLLEAGUE_QUOTED_YOUR_MATERIALS,
+ *                       A_COLLEAGUE_ORDERED_YOUR_MATERIALS
+ *
+ * Deliberately not built:
+ *
+ *  ORDER_APPROVAL_REQUIRED - asking for approval implies the order waits for each project manager's
+ *      answer, and per-manager approval was explicitly not built: "Sent order" settles the approval
+ *      for every project on the batch on one press. A notification that asks for something the app
+ *      will not then wait for is worse than none. A_COLLEAGUE_ORDERED_YOUR_MATERIALS reports the
+ *      press after the fact instead, which is what actually happens.
+ *
+ *  DID_YOU_SEND_QUOTE, DID_YOU_RECEIVE_QUOTE_RESPONSE, DID_YOU_PLACE_THE_ORDER,
+ *  DID_YOU_RECEIVE_ORDER_CONFIRMATION - each one duplicates a column the board already shows, and
+ *      the screen that shows it is where you would go to answer. QUOTE_DUE/QUOTE_OVERDUE already
+ *      chase the deadline behind all four.
+ *
+ *  ORDER_DUE, ORDER_OVERDUE - the critical path is quote time plus delivery time and is chased as
+ *      one deadline, because there is no separate date to be late against. See
+ *      Project::criticalPathDays().
+ */
 enum NotificationEnums: string
 {
     //A colleague joined

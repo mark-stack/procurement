@@ -40,6 +40,15 @@ class Project extends Model
     }
 
     //Relationships
+    /**
+     * The project manager - the owner, and the one distinction the app draws between colleagues.
+     *
+     * Typed generically because callers do more with it than read columns: the notifications call
+     * $project->user->notify(), which is a Notifiable method and not a Model one, and without the
+     * generic every one of those reads as a call to an undefined method on Model.
+     *
+     * @return BelongsTo<User, $this>
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

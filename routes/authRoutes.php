@@ -54,8 +54,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     //Dashboard
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
-    //Notifications
-    //Route::post("mark-as-read", NotificationMarkAsReadController::class)->name("notification.mark.as.read");
+    /*
+     * Notifications. One route: every button in the bell is this, with a GREEN/YELLOW/RED status,
+     * and each notification type decides what its own colours mean.
+     *
+     * The commented-out "mark-as-read" route that sat here is gone along with its controller and the
+     * Notifications.vue that called it - a component nothing rendered, posting to a route that did
+     * not exist.
+     */
     Route::post('mark-notification-status', MarkNotificationStatusController::class)->name('mark.notification.status');
 
     /*

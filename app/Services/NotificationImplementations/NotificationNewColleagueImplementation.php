@@ -4,55 +4,62 @@ namespace App\Services\NotificationImplementations;
 
 use App\Models\Project;
 use App\Models\User;
-use App\Notifications\NewUserEmail;
+use App\Notifications\ColleagueJoined;
 use App\Services\Interfaces\NotificationInterface;
-use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Notifications\DatabaseNotification;
-use Illuminate\Support\Carbon;
 
+/**
+ * "So-and-so joined your business."
+ *
+ * There is no invitation flow and no staff list: a business is every user whose email domain matched
+ * at registration, so a colleague can appear without anybody being told. That makes this the only
+ * signal the existing staff get that the headcount changed - and it matters practically, because
+ * batching across project managers is the thing that saves money and you cannot batch with somebody
+ * you do not know is there.
+ *
+ * Sent at registration now, not swept for hourly. The sweep asked for every user created in the last
+ * two days and re-derived who should have heard about them, which was wrong three ways:
+ *
+ *  - markPreviousAsRead() matched `data->user_id` against $otherObject, the User model, not its id.
+ *    Compared against a JSON scalar that never matched anything, so it cleared nothing, ever.
+ *  - hasBeenNotified() was the only thing standing between that and a duplicate. It has no time
+ *    window, so it worked - but it meant the sweep queried every colleague of every new user every
+ *    hour to decide to do nothing.
+ *  - the else branch cleared every NewUserEmail row on the platform whenever nobody had registered
+ *    in two days, which included the platform admin's own signup alerts.
+ *
+ * Registration is a single moment and knows exactly who the colleagues are, so it says so then.
+ */
 class NotificationNewColleagueImplementation implements NotificationInterface
 {
-    public string $subInterval;
-
-    public function __construct()
-    {
-        $testMode = config('env.test_mode');
-        $this->subInterval = $testMode ? 'subMinutes' : 'subDays';
-    }
-
     public function hourlyCheck(): void
     {
-        /**
-         * A new colleague signed up. Notify existing staff users of the same business
-         * 1) User created within 2 day
-         * 2) Not yourself
+        /*
+         * Nothing to sweep for. notifyColleaguesOf() is called from registration; there is no state
+         * an hourly pass could look at that would tell it anything registration did not already know.
          */
-        $subInterval = $this->subInterval;
-        $newUsers = User::query()
-            ->whereBetween('created_at', [Carbon::now()->$subInterval(2), Carbon::now()])
-            ->get();
+    }
 
-        //Has notifications
-        if ($newUsers->count() > 0) {
-            foreach ($newUsers as $newUser) {
-                $colleagues = $newUser->business->users()->where('id', '!=', $newUser->id)->get();
-                foreach ($colleagues as $colleague) {
-                    if (! $this->hasBeenNotified($colleague, $newUser->id)) {
-                        //Mark all previous as read
-                        $this->markPreviousAsRead($colleague, $newUser);
+    /**
+     * Tell everyone already in the business that someone new turned up.
+     */
+    public function notifyColleaguesOf(User $newUser): void
+    {
+        $business = $newUser->business;
 
-                        //Send notification
-                        $this->sendNotification($colleague, $newUser);
-                    }
-                }
-            }
+        if (! $business) {
+            return;
         }
-        //NO notifications
-        else {
-            //Clear old notifications
-            $class = $this->getNotificationClass();
-            (new NotificationService)->clearPreviousNotifications($class);
+
+        $colleagues = $business->users()->whereKeyNot($newUser->id)->get();
+
+        foreach ($colleagues as $colleague) {
+            if ($this->hasBeenNotified($colleague, $newUser->id)) {
+                continue;
+            }
+
+            $this->sendNotification($colleague, $newUser);
         }
     }
 
@@ -64,67 +71,51 @@ class NotificationNewColleagueImplementation implements NotificationInterface
         return $recipient->notifications()
             ->where('type', $classWithPath)
             ->where('notifiable_type', "App\Models\User")
-            ->where('data->user_id', $uniqueModelId)
+            ->where('data->colleague_id', $uniqueModelId)
             ->exists();
     }
 
     public function sendNotification(object $recipient, object $otherObject): void
     {
-        $newColleague = $otherObject;
-        $message = $this->message($newColleague->name, '');
-
-        $recipient->notify(new NewUserEmail($newColleague, $message));
+        $recipient->notify(new ColleagueJoined($otherObject));
     }
 
     public function checkProjectChanges(Project $project): void
     {
-        /**
-         * Look for any notifications made redundant by project model update, and mark as read
-         */
+        //Nothing about a project makes a colleague's arrival redundant
     }
 
     public function getNotificationClass(): string
     {
-        return 'NewUserEmail';
+        return 'ColleagueJoined';
     }
 
     public function markPreviousAsRead(object $recipient, object $otherObject): void
     {
-        $class = $this->getNotificationClass();
-        $classWithPath = "App\Notifications\\".$class;
-
-        $recipient->notifications()
-            ->where('type', $classWithPath)
-            ->where('notifiable_type', "App\Models\User")
-            ->where('data->user_id', $otherObject)
-            ->update(['read_at' => now()]);
+        /*
+         * Each colleague is announced once - hasBeenNotified() has no time window, so there is never
+         * a previous one of these to supersede. Kept because the interface asks for it.
+         */
     }
 
     public function trafficLight(DatabaseNotification $notification, string $status): ?RedirectResponse
     {
-        $return = null;
-        if ($this->isCorrectClass($notification)) {
-            $return = match ($status) {
-                'GREEN' => $this->markGreen($notification),
-                'YELLOW' => $this->markYellow($notification),
-                'RED' => $this->markRed($notification),
-                default => back(),
-            };
+        if (! $this->isCorrectClass($notification)) {
+            return null;
         }
 
-        return $return;
+        //There is nothing to decide, so every button is "seen it"
+        return $this->markYellow($notification);
     }
 
     public function markGreen(DatabaseNotification $notification): RedirectResponse
     {
-        // Not used
-        return back();
+        return $this->markYellow($notification);
     }
 
     public function markRed(DatabaseNotification $notification): RedirectResponse
     {
-        // Not used
-        return back();
+        return $this->markYellow($notification);
     }
 
     public function markYellow(DatabaseNotification $notification): RedirectResponse
@@ -144,29 +135,28 @@ class NotificationNewColleagueImplementation implements NotificationInterface
 
     public function notificationData(DatabaseNotification $notification): ?array
     {
-        $notificationData = null;
-
-        if ($this->isCorrectClass($notification)) {
-            $userName = $notification->data['new_user_name'] ?? null;
-            if ($userName) {
-                $message = $this->message($userName, '');
-
-                $notificationData = [
-                    'id' => $notification->id,
-                    'message' => $message,
-                    'timestamp' => $notification->created_at->diffForHumans(),
-                    'trafficLights' => null,
-                ];
-            }
+        if (! $this->isCorrectClass($notification)) {
+            return null;
         }
 
-        return $notificationData;
+        $colleagueName = $notification->data['colleague_name'] ?? null;
+
+        if (! $colleagueName) {
+            return null;
+        }
+
+        return [
+            'id' => $notification->id,
+            'message' => $this->message($colleagueName, ''),
+            'timestamp' => $notification->created_at->diffForHumans(),
+            'trafficLights' => null,
+        ];
     }
 
     public function message(string $string_1, string $string_2): string
     {
-        $userName = $string_1;
+        $colleagueName = $string_1;
 
-        return $userName.' recently joined. You can now batch orders together.';
+        return $colleagueName.' joined your business. You can now batch orders together.';
     }
 }

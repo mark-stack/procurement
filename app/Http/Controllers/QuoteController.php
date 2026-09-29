@@ -10,6 +10,7 @@ use App\Http\Requests\UpdateQuoteRequest;
 use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Models\Batch;
 use App\Models\Quote;
+use App\Services\NotificationImplementations\NotificationColleagueQuotedImplementation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -51,7 +52,7 @@ class QuoteController extends Controller
         abort_if(!$prerequisiteStartQuoting,403);
 
         try {
-            DB::transaction(function () use($business,$user,$projectsReadyForBatching,$piecesReadyForBatching){
+            $batch = DB::transaction(function () use($business,$user,$projectsReadyForBatching,$piecesReadyForBatching){
                 /*
                  * Create batch
                  */
@@ -67,6 +68,8 @@ class QuoteController extends Controller
 
                 //Save the current nesting state (points offcuts to new batch)
                 SaveNesting::run($piecesReadyForBatching, $batch, $business);
+
+                return $batch;
             });
         } catch (Throwable $e) {
             /*
@@ -82,6 +85,20 @@ class QuoteController extends Controller
                 'batch' => 'Could not start quoting. The nesting was not saved, so nothing has changed.',
             ]);
         }
+
+        /*
+         * Tell the other project managers. This button takes every project in the Nesting column into
+         * one batch owned by whoever pressed it, which fixes their suppliers and delivery dates and
+         * takes Edit, Archive and BOM upload away from them - and the confirmation naming whose work
+         * is being taken is shown only to the person taking it.
+         *
+         * After the transaction, so a rolled-back batch notifies nobody. Read off $batch->projects()
+         * rather than $projectsReadyForBatching because the pieces are what actually got nested, and
+         * the two sets are known to differ: a project awaiting clarification is excluded from
+         * projectsReadyForBatching while its already-matched pieces are swept in anyway. Its owner is
+         * the one who most needs telling.
+         */
+        (new NotificationColleagueQuotedImplementation)->notifyAffectedProjectManagers($batch, $user);
 
         return back();
     }
