@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Casts\NestedState;
 use App\Formatters\SupplierFormatter;
+use App\Models\Concerns\BelongsToSandbox;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,11 +16,12 @@ use Illuminate\Support\Collection;
 /**
  * @property array<string, array<int, object>> $nested_state The saved nesting, keyed by nesting algo
  * @property array<int, string>|null $letters_project_array The project letters stamped on that nesting
+ * @property int|null $sandbox_user_id The user whose test mode nested this, or null for a real batch
  */
 class Batch extends Model
 {
     /** @use HasFactory<\Database\Factories\BatchFactory> */
-    use HasFactory;
+    use BelongsToSandbox, HasFactory;
 
     protected $guarded = [];
 

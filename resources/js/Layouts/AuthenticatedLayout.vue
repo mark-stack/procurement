@@ -7,6 +7,7 @@
     import AuthenticatedNav from "@/Components/Nav/AuthenticatedNav.vue";
     import ImpersonationBanner from "@/Components/ImpersonationBanner.vue";
     import BillingBanner from "@/Components/Billing/BillingBanner.vue";
+    import SandboxBanner from "@/Components/SandboxBanner.vue";
 
     //Shared data
     //What the master materials screen said about the last edit it saved or refused. A refusal is
@@ -46,6 +47,14 @@
         <ImpersonationBanner/>
 
         <BillingBanner/>
+
+        <!--
+            Test mode. Asked for on the board, and put here rather than on Dashboard.vue because
+            the sandbox follows the user onto the offcuts list, the price book and the quote
+            screens too - a bar that only appeared on one of them would leave the other pages
+            quietly lying about which data they are showing.
+        -->
+        <SandboxBanner/>
 
         <AuthenticatedNav/>
 

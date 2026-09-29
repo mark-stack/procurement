@@ -12,6 +12,12 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
+/**
+ * Declared for the same reason the Business billing columns are: casts() is a method, so static
+ * analysis cannot see through it to the boolean this really is.
+ *
+ * @property bool $sandbox_mode Whether this user is currently working in their own sandbox
+ */
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
@@ -33,6 +39,13 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            /*
+             * Cast for the same reason the Business flags are: without it the value reaching the
+             * front end is whatever the driver hands back - an int on mysql, the string "0" on
+             * sqlite - and "0" is truthy in JavaScript, so every page would claim to be in test
+             * mode under the test connection.
+             */
+            'sandbox_mode' => 'boolean',
         ];
     }
 

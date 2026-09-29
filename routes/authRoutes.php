@@ -29,6 +29,7 @@ use App\Http\Controllers\RawMaterialListBulkDeleteController;
 use App\Http\Controllers\RawMaterialListClarificationsController;
 use App\Http\Controllers\RawMaterialListCustomisationsController;
 use App\Http\Controllers\RawMaterialQuoteController;
+use App\Http\Controllers\SandboxController;
 use App\Http\Controllers\SuggestedNestingController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Middleware\BillingWriteAccessMiddleware;
@@ -67,6 +68,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('billing/checkout', BillingCheckoutController::class)->name('billing.checkout');
     Route::get('billing/manage', BillingPortalController::class)->name('billing.manage');
     Route::get('billing/invoice/{plan}', BillingInvoiceController::class)->name('billing.invoice');
+
+    /*
+     * Test mode
+     *
+     * Outside both gates below, deliberately. Leaving test mode has to work from wherever the user
+     * is, including an account that has gone read-only or never finished onboarding - being stuck
+     * looking at a sandbox with no way back to the real board would be far worse than anything
+     * these gates protect. Clearing is in the same position for the same reason, and it can only
+     * ever delete the caller's own test rows.
+     */
+    Route::post('sandbox', [SandboxController::class, 'enter'])->name('sandbox.enter');
+    Route::post('sandbox/leave', [SandboxController::class, 'leave'])->name('sandbox.leave');
+    Route::delete('sandbox', [SandboxController::class, 'clear'])->name('sandbox.clear');
 
     //Onboarding is finalised
     Route::middleware([BusinessReadyMiddleware::class, BillingWriteAccessMiddleware::class])->group(function () {

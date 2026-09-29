@@ -27,6 +27,9 @@
     //not stay red until the next full page load
     const hasSeedImport = computed(() => page.props.hasSeedImport);
 
+    //Whether this user is in their own sandbox. Decides which way the menu item switches them
+    const inSandbox = computed(() => page.props.sandbox?.active === true);
+
     //A lapsed account, a failed payment or a trial about to run out. Same condition the banner
     //uses, so the red nav item and the red bar can never disagree - see useBilling.js
     const {needsAttention: billingNeedsAttention} = useBilling();
@@ -247,6 +250,25 @@
                                     :route="route('profile.edit')"
                                     label="Profile"
                                     icon="fa-solid fa-gear"
+                                />
+                                <!--
+                                    Test mode. The way in and the way out - the banner on the board
+                                    carries the way out too, but this is where somebody looking for
+                                    a safe place to try something goes to find one.
+                                -->
+                                <NavButton
+                                    v-if="onboarded && !inSandbox"
+                                    :route="route('sandbox.enter')"
+                                    label="Test mode"
+                                    icon="fa-solid fa-flask"
+                                    method="post"
+                                />
+                                <NavButton
+                                    v-if="inSandbox"
+                                    :route="route('sandbox.leave')"
+                                    label="Leave test mode"
+                                    icon="fa-solid fa-flask"
+                                    method="post"
                                 />
                                 <!--
                                     Billing
