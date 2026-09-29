@@ -34,7 +34,15 @@ class AdminUserIndexController extends Controller
             //Relation, not Builder: an eager load closure is handed the relation itself
             ->with(['business' => fn (Relation $query) => $query
                 ->select(['id', 'domain', 'admin_setup_complete'])
-                ->withCount(['templates', 'suppliers']),
+                /*
+                 * The templates column answers "can these people import anything yet", which is
+                 * the reason an admin opens this page after a signup. So it counts the templates
+                 * an upload is actually matched against - see CsvService::eligibleTables() - and
+                 * not every row on the business: a deactivated template, or one recorded before
+                 * templates carried a heading row to find the table by, detects nothing, and
+                 * counting it says a business is ready to import when it is not.
+                 */
+                ->withCount(['detectableTemplates as templates_count', 'suppliers']),
             ])
             /*
              * Newest first: this page exists to find new signups. It had no order at all,

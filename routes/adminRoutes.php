@@ -12,7 +12,9 @@ use App\Http\Controllers\AdminNestingAlgorithmController;
 use App\Http\Controllers\AdminStopImpersonationController;
 use App\Http\Controllers\AdminSupplierIndexController;
 use App\Http\Controllers\AdminSupplierStoreController;
+use App\Http\Controllers\AdminTemplateProposalController;
 use App\Http\Controllers\AdminTemplateScreenshotController;
+use App\Http\Controllers\AdminTemplateTestController;
 use App\Http\Controllers\AdminUserIndexController;
 use App\Http\Controllers\TemplateController;
 use App\Http\Middleware\AdminMiddleware;
@@ -28,6 +30,18 @@ Route::prefix('admin')->name('admin.')->middleware([AdminMiddleware::class])->gr
     Route::resource('businesses.templates', TemplateController::class)
         ->scoped()
         ->only(['index', 'store', 'update', 'destroy']);
+
+    //Reads an uploaded sample spreadsheet and fills the template form in from it. POST because it
+    //takes a file and spends money at OpenAI, but it writes nothing - the form still has to be
+    //submitted by hand afterwards.
+    Route::post('businesses/{business}/templates/propose', AdminTemplateProposalController::class)
+        ->name('businesses.templates.propose');
+
+    //Runs the importer over an uploaded sample using the values in the form, and reports every row
+    //it would extract and what would become of each. POST because it takes a file; it writes
+    //nothing at all - no template, no project, no material row.
+    Route::post('businesses/{business}/templates/test', AdminTemplateTestController::class)
+        ->name('businesses.templates.test');
 
     //scopeBindings(): same reason as scoped() above - without it a mistyped business id
     //serves another business's screenshot

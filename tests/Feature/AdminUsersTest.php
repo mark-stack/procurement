@@ -38,6 +38,7 @@ it('would be a disaster if the users list shipped every template screenshot to t
 });
 
 it('counts the templates and suppliers of the business', function () {
+    //A business is created with no templates, so the count is the two recorded here
     $business = createBusiness('Business A', true);
     $admin = createUser(1, $business, true, true);
 
@@ -49,6 +50,28 @@ it('counts the templates and suppliers of the business', function () {
         ->assertInertia(fn ($page) => $page
             ->where('users.data.0.templates_count', 2)
             ->where('users.data.0.suppliers_count', 3)
+        );
+});
+
+it('counts only the templates the business can actually import with', function () {
+    /**
+     * The column exists to answer "can these people upload anything yet" - a new signup has no
+     * templates and cannot, until we build them one from the reports they email in. A row that
+     * detects nothing does not move them off zero: deactivated, or recorded before templates
+     * carried the heading row that finds the table, it is never matched against an upload, and
+     * counting it would show a business as ready while every upload of theirs is rejected.
+     */
+    $business = createBusiness('Business A', true);
+    $admin = createUser(1, $business, true, true);
+
+    Template::factory()->for($business)->create();
+    Template::factory()->for($business)->inactive()->create();
+    Template::factory()->for($business)->undetectable()->create();
+
+    $this->actingAs($admin)
+        ->get(route('admin.users.index'))
+        ->assertInertia(fn ($page) => $page
+            ->where('users.data.0.templates_count', 1)
         );
 });
 

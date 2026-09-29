@@ -8,6 +8,7 @@ use App\Enums\MeasurementUnitEnums;
 use App\Enums\NestingEnums;
 use App\Enums\ProductEnums;
 use App\Enums\SurfaceEnums;
+use App\Imports\ExcelImport;
 use App\Models\Batch;
 use App\Models\Business;
 use App\Models\Offcut;
@@ -15,13 +16,17 @@ use App\Models\Piece;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
 use App\Models\User;
-use App\Services\ProductService;
 use Maatwebsite\Excel\Facades\Excel;
-use App\Imports\ExcelImport;
 
 class TestingFormatter
 {
-    public function createBusiness(String $name, bool $adminSetupComplete): Business
+    /**
+     * A business with no import templates, which is what registration creates.
+     *
+     * A test that uploads a spreadsheet has to record the template that reads it first -
+     * recordExampleTemplates() in tests/Pest.php does that with the calibrated examples.
+     */
+    public function createBusiness(string $name, bool $adminSetupComplete): Business
     {
         return Business::create([
             'name' => $name,
@@ -112,7 +117,7 @@ class TestingFormatter
         ]);
     }
 
-    function createPieces(array $sampleBOM, Project $project, object $dataClassificationService): array
+    public function createPieces(array $sampleBOM, Project $project, object $dataClassificationService): array
     {
         $pieces = [];
 
@@ -127,7 +132,7 @@ class TestingFormatter
         return $pieces;
     }
 
-    function createPiece(Project $project, RawMaterialQuote $rawMaterialQuote, array $row): Piece
+    public function createPiece(Project $project, RawMaterialQuote $rawMaterialQuote, array $row): Piece
     {
         $lengthRequired = $row['length_required'];
         $widthRequired = $row['width_required'];
@@ -173,7 +178,7 @@ class TestingFormatter
         return Excel::toArray(new ExcelImport, $filePath)[0];
     }
 
-    function create_offcut_200PFC(int $length, int $batchFromId): Offcut
+    public function create_offcut_200PFC(int $length, int $batchFromId): Offcut
     {
         //A mark is unique per business, so the offcut has to know whose yard it is sitting in
         $businessId = Batch::find($batchFromId)?->user?->business_id;
