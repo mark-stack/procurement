@@ -7,6 +7,15 @@
     const props = defineProps({
         title: String,
         message: String,
+        /**
+         * Advice that sits under the message, for a choice that is not wrong but is often
+         * worth delaying. Set apart from the message so it does not read as another
+         * consequence of the button.
+         */
+        note: {
+            type: String,
+            default: "",
+        },
         confirmLabel: {
             type: String,
             default: "Confirm",
@@ -94,6 +103,13 @@
                 </h3>
                 <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
                     {{ message }}
+                </p>
+                <p
+                    v-if="note"
+                    class="mt-3 border-l-2 pl-3 text-sm text-gray-600 dark:text-gray-300"
+                    :class="isDanger ? 'border-red-300 dark:border-red-700' : 'border-blue-300 dark:border-blue-700'"
+                >
+                    {{ note }}
                 </p>
             </div>
         </div>

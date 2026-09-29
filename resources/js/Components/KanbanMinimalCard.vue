@@ -144,6 +144,16 @@
         askToConfirm({
             title: theirs.length > 0 ? "Nest your colleagues' projects too?" : "Start quoting?",
             message: message,
+            /*
+             * Steel is bought by the bar, so projects sharing a batch share the bars and the
+             * offcuts they leave, and every one of them pays less for material. Whatever is
+             * nested after this batch is cut cannot get any of that back, and nothing on the
+             * board said so - the button read as the routine next step, not the moment the
+             * batch closes. Its own paragraph because it is advice, not what the button does.
+             */
+            note: "Projects nested together share bars and offcuts, so each one costs less in material. "
+                + "If more projects are due in soon, it is worth waiting and nesting them all at once - "
+                + "the saving on a bigger batch is significant.",
             confirmLabel: "Start quoting",
             tone: "primary",
             onConfirmed: () => {
@@ -233,12 +243,12 @@
 <template>
     <!-- Simple card -->
     <div
-        class="group relative flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-shadow duration-200 hover:shadow-md"
+        class="group relative flex flex-col overflow-hidden rounded-xl border border-gray-300 bg-white shadow-sm transition-shadow duration-200 hover:shadow-md"
     >
         <!-- card header: batch identity on the left, efficiency on the right -->
         <div
             v-if="batchInfo || (usageStats && atLeastOneProjectIsYours)"
-            class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 bg-gray-50 px-3 py-2"
+            class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 bg-gray-50 px-3 py-2"
         >
             <span
                 v-if="batchInfo"
@@ -265,12 +275,16 @@
             </template>
         </div>
 
-        <!-- projects on this card -->
+        <!--
+            The projects on this card. Their edges do the work of saying where one project ends and
+            the next begins: two stacked in a batch were a gray-50 fill inside a gray-200 hairline,
+            on a white card, and read as one block with two headings in it.
+        -->
         <div class="space-y-2 p-3">
             <div
                 v-for="(project,index) in projects"
                 :key="project.id"
-                class="rounded-lg border border-gray-200 bg-gray-50 p-3 transition-colors duration-150 hover:border-gray-300"
+                class="rounded-lg border border-gray-300 bg-gray-50 p-3 transition-colors duration-150 hover:border-gray-400"
             >
                 <h4
                     class="truncate text-sm font-semibold text-gray-900"
@@ -344,7 +358,7 @@
 <!--                + add project-->
 <!--            </p>-->
 <!--        </div>-->
-        <div class="mt-auto grid w-full grid-cols-2 items-start gap-2 border-t border-gray-100 bg-gray-50 px-3 py-3">
+        <div class="mt-auto grid w-full grid-cols-2 items-start gap-2 border-t border-gray-200 bg-gray-50 px-3 py-3">
             <!-- Nesting -->
             <Link
                 v-if="kanbanColumn === 'NESTING'"
@@ -355,6 +369,7 @@
                 <CardButtonBlue
                     :label="loadingButton === 'NESTING_DETAILS' ? 'Calculating...' : 'Nesting'"
                     :highlight="false"
+                    :icon="true"
                 />
             </Link>
             <Link
@@ -366,6 +381,7 @@
                 <CardButtonBlue
                     :label="loadingButton === 'NESTING_DETAILS' ? 'Calculating...' : 'Nesting'"
                     :highlight="false"
+                    :icon="true"
                 />
             </Link>
 
@@ -421,6 +437,7 @@
                 v-if="batchInfo?.prerequisiteUndoStartQuoting !== undefined"
                 @click="confirmBreakBatch()"
                 :label="formBreakBatch.processing ? 'Re-nesting...' : 'Re-nest'"
+                :back="true"
                 :title="batchInfo.prerequisiteUndoStartQuoting
                     ? 'Unpick this batch and send its projects back to nesting'
                     : 'This batch can no longer be re-nested - an order has been sent, a project was archived, or a later batch has already used its offcuts'"
@@ -468,6 +485,7 @@
             v-if="confirmDialog"
             :title="confirmDialog.title"
             :message="confirmDialog.message"
+            :note="confirmDialog.note"
             :confirmLabel="confirmDialog.confirmLabel"
             :tone="confirmDialog.tone"
             @confirm="confirmDialogAccepted()"
