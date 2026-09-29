@@ -2,6 +2,7 @@
 
 use App\Models\Supplier;
 use App\Models\Template;
+use App\Models\User;
 use App\Notifications\WelcomeActivatedUserEmail;
 use Illuminate\Support\Facades\Notification;
 
@@ -264,6 +265,158 @@ it('would be a disaster if a business could be left active with nobody welcomed'
         ->toThrow(RuntimeException::class);
 
     expect($business->fresh()->admin_setup_complete)->toBeFalse();
+});
+
+it('resends the welcome to one user rather than the whole business', function () {
+    /**
+     * Activation can only happen once, so the thing needed afterwards is to put right the one
+     * person whose email bounced or was queued while the worker was down - not to mail
+     * everyone again, which is what any business-wide resend would amount to.
+     */
+    $business = createBusiness('Business A', true);
+    $admin = createUser(1, $business, true, true);
+    $user = createUser(2, $business, false, true);
+
+    Notification::fake();
+
+    $this->actingAs($admin)
+        ->from(route('admin.users.index'))
+        ->post(route('admin.resend.welcome', $user))
+        ->assertRedirect(route('admin.users.index'))
+        ->assertSessionHas('success');
+
+    Notification::assertSentTo($user, WelcomeActivatedUserEmail::class);
+    Notification::assertNotSentTo($admin, WelcomeActivatedUserEmail::class);
+});
+
+it('refuses to welcome a user to a business that is not active yet', function () {
+    /**
+     * The email says the setup configuration is complete and its link lands on projects, which
+     * BusinessReadyMiddleware guards - so sending it before activation is a lie followed by a
+     * redirect back to onboarding.
+     */
+    $business = createBusiness('Business A', false);
+    $admin = createUser(1, $business, true, true);
+    $user = createUser(2, $business, false, true);
+
+    Notification::fake();
+
+    $this->actingAs($admin)
+        ->post(route('admin.resend.welcome', $user))
+        ->assertSessionHas('warning', 'That business is not active yet. Activate it, which welcomes everyone in it.');
+
+    Notification::assertNothingSent();
+});
+
+it('says so rather than throwing when the user has no business to be welcomed to', function () {
+    /**
+     * users.business_id is nullable, and an orphaned user is exactly the kind of row an admin
+     * opens this page to look at - so the button next to one must not 500.
+     */
+    $business = createBusiness('Business A', true);
+    $admin = createUser(1, $business, true, true);
+    $orphan = User::factory()->create(['business_id' => null]);
+
+    Notification::fake();
+
+    $this->actingAs($admin)
+        ->post(route('admin.resend.welcome', $orphan))
+        ->assertSessionHas('warning', 'That user has no business, so there is nothing to welcome them to.');
+
+    Notification::assertNothingSent();
+});
+
+it('would be a disaster if resending a welcome were reachable by a link or a prefetch', function () {
+    $business = createBusiness('Business A', true);
+    $admin = createUser(1, $business, true, true);
+    $user = createUser(2, $business, false, true);
+
+    Notification::fake();
+
+    $this->actingAs($admin)
+        ->get('/admin/resend-welcome/'.$user->id)
+        ->assertMethodNotAllowed();
+
+    Notification::assertNothingSent();
+});
+
+it('deactivates a business without emailing anyone', function () {
+    /**
+     * Activation's counterpart, and deliberately not its mirror: there is no "your account has
+     * been switched off" message worth sending, and activating afterwards welcomes everyone
+     * again anyway.
+     */
+    $business = createBusiness('Business A', true);
+    $admin = createUser(1, $business, true, true);
+    createUser(2, $business, false, true);
+
+    Notification::fake();
+
+    $this->actingAs($admin)
+        ->from(route('admin.users.index'))
+        ->post(route('admin.deactivate.business', $business))
+        ->assertRedirect(route('admin.users.index'))
+        ->assertSessionHas('success');
+
+    expect($business->fresh()->admin_setup_complete)->toBeFalse();
+    Notification::assertNothingSent();
+});
+
+it('says so rather than pretending when a business is already inactive', function () {
+    $business = createBusiness('Business A', false);
+    $admin = createUser(1, $business, true, true);
+
+    $this->actingAs($admin)
+        ->post(route('admin.deactivate.business', $business))
+        ->assertSessionHas('warning', 'That business is not active.');
+});
+
+it('lets a deactivated business be activated again, welcoming everyone a second time', function () {
+    /**
+     * The welcome is what activation is for, so going round the loop sends it again - which is
+     * the reason deactivation is not offered as an undo for a misclick on Activate.
+     */
+    $business = createBusiness('Business A', false);
+    $admin = createUser(1, $business, true, true);
+    createUser(2, $business, false, true);
+
+    Notification::fake();
+
+    $this->actingAs($admin)->post(route('admin.activate.business', $business));
+    $this->actingAs($admin)->post(route('admin.deactivate.business', $business));
+    $this->actingAs($admin)->post(route('admin.activate.business', $business));
+
+    expect($business->fresh()->admin_setup_complete)->toBeTrue();
+    Notification::assertSentTimes(WelcomeActivatedUserEmail::class, 4);
+});
+
+it('would be a disaster if deactivating a business were reachable by a link or a prefetch', function () {
+    $business = createBusiness('Business A', true);
+    $admin = createUser(1, $business, true, true);
+
+    $this->actingAs($admin)
+        ->get('/admin/deactivate-business/'.$business->id)
+        ->assertMethodNotAllowed();
+
+    expect($business->fresh()->admin_setup_complete)->toBeTrue();
+});
+
+it('would be a disaster if a non-admin could deactivate a business or resend a welcome', function () {
+    $business = createBusiness('Business A', true);
+    $user = createUser(2, $business, false, true);
+
+    Notification::fake();
+
+    $this->actingAs($user)
+        ->post(route('admin.deactivate.business', $business))
+        ->assertRedirect('/');
+
+    $this->actingAs($user)
+        ->post(route('admin.resend.welcome', $user))
+        ->assertRedirect('/');
+
+    expect($business->fresh()->admin_setup_complete)->toBeTrue();
+    Notification::assertNothingSent();
 });
 
 it('says which users have not verified their email', function () {

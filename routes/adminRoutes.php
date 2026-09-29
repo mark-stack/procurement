@@ -16,6 +16,8 @@ use App\Http\Controllers\AdminTemplateProposalController;
 use App\Http\Controllers\AdminTemplateScreenshotController;
 use App\Http\Controllers\AdminTemplateTestController;
 use App\Http\Controllers\AdminUserIndexController;
+use App\Http\Controllers\DeactivateBusinessController;
+use App\Http\Controllers\ResendWelcomeEmailController;
 use App\Http\Controllers\TemplateController;
 use App\Http\Middleware\AdminMiddleware;
 use App\Http\Middleware\PlatformProductMiddleware;
@@ -79,10 +81,18 @@ Route::prefix('admin')->name('admin.')->middleware([AdminMiddleware::class])->gr
     //reachable by a link, a prefetch or a cross-site <img> pointed at a logged-in admin
     Route::post('impersonate/{user}', AdminImpersonationController::class)->name('impersonate');
 
+    //POST: this sends mail, so it must not be reachable by a link, a prefetch or the back
+    //button. Per user rather than per business - see the controller
+    Route::post('resend-welcome/{user}', ResendWelcomeEmailController::class)->name('resend.welcome');
+
     //Business
     //POST: activating emails every user in the business, so it must not be reachable by a
     //link, a prefetch, a crawler or the back button
     Route::post('activate-business/{business}', ActivateBusinessController::class)->name('activate.business');
+
+    //POST: it writes, and it puts every user in the business back on onboarding. It sends no
+    //mail, which is the one way it is not activation's mirror
+    Route::post('deactivate-business/{business}', DeactivateBusinessController::class)->name('deactivate.business');
 
     //Nesting algorithm
     //{business?}: the cost settings are per business, so an admin can inspect any of them, but the

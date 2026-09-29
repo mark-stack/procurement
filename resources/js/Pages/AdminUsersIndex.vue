@@ -47,6 +47,15 @@
     //Activating emails every user in the business, and that cannot be taken back
     const confirmActivate = () =>
         window.confirm('Activate this business? Every user in it is emailed a welcome message.');
+
+    //Another email to a real inbox, so it is worth a beat - but it is the recoverable one of
+    //the three, which is why it names the address rather than warning about anything
+    const confirmResend = (user) =>
+        window.confirm(`Email a fresh welcome and login link to ${user.email}?`);
+
+    //This one takes the app away from everyone in the business until it is activated again
+    const confirmDeactivate = () =>
+        window.confirm('Deactivate this business? Everyone in it goes back to onboarding and cannot use the app until it is activated again. Nobody is emailed.');
 </script>
 
 <template>
@@ -143,13 +152,44 @@
                                         <span v-else>&mdash;</span>
                                     </td>
                                     <td>
+                                        <!--
+                                            POST throughout: each of these writes, and two of them
+                                            send mail, so none must be reachable by a prefetch, a
+                                            crawler or the back button.
+                                        -->
                                         <template v-if="user.business">
-                                            <span v-if="user.business.admin_setup_complete">Active</span>
                                             <!--
-                                                POST: activating emails every user in the business,
-                                                so it must not be reachable by a prefetch, a
-                                                crawler or the back button
+                                                Active is not the end of the story: a welcome can
+                                                have been queued while the worker was down, and a
+                                                business can have been activated by mistake.
                                             -->
+                                            <div v-if="user.business.admin_setup_complete" class="flex flex-wrap items-baseline gap-x-3">
+                                                <span>Active</span>
+
+                                                <!-- This user's own welcome, not the whole business's -->
+                                                <Link
+                                                    :href="route('admin.resend.welcome',user.id)"
+                                                    method="post"
+                                                    as="button"
+                                                    type="button"
+                                                    class="text-xs underline text-blue-500"
+                                                    :on-before="() => confirmResend(user)"
+                                                >
+                                                    Resend welcome
+                                                </Link>
+
+                                                <Link
+                                                    :href="route('admin.deactivate.business',user.business.id)"
+                                                    method="post"
+                                                    as="button"
+                                                    type="button"
+                                                    class="text-xs underline text-red-500"
+                                                    :on-before="confirmDeactivate"
+                                                >
+                                                    Deactivate
+                                                </Link>
+                                            </div>
+
                                             <Link
                                                 v-else
                                                 :href="route('admin.activate.business',user.business.id)"
