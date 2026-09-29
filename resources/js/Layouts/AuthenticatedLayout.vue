@@ -8,14 +8,7 @@
     import ImpersonationBanner from "@/Components/ImpersonationBanner.vue";
     import BillingBanner from "@/Components/Billing/BillingBanner.vue";
 
-    //Shared Imports
-    import useBilling from "@/Shared/useBilling.js";
-
     //Shared data
-    const impersonating = computed(() => usePage().props.auth.impersonating);
-    //Only needed here to give its height back below, hence the whole condition living in one place
-    const {banner: billingBanner} = useBilling();
-
     //What the master materials screen said about the last edit it saved or refused. A refusal is
     //the interesting case: the catalogue is edited from a modal, and a spec locked by work already
     //recorded against it has to explain itself outside that modal too.
@@ -23,11 +16,13 @@
     const success = computed(() => usePage().props.flash?.success);
 
     //Variables
-    //The banners sit above the nav, so the fixed-height grid below has to give their height back
-    //or the page overflows by exactly however many of them are showing
-    const underNavScreenHeight = computed(() =>
-        window.innerHeight - 68 - (impersonating.value ? 52 : 0) - (billingBanner.value ? 52 : 0)
-    );
+    /*
+     * There is deliberately no height measured here any more. <main> used to be a scroll container
+     * of exactly window.innerHeight minus the nav and any banners, which gave every page two
+     * scrollbars: that height was read once at setup and never again, so a resize, a zoom or a
+     * banner appearing left the box taller than the viewport and the document scrolled too. The
+     * page scrolls, and nothing inside it does.
+     */
     const materialsDismissed = ref(false);
     const successDismissed = ref(false);
 
@@ -39,13 +34,21 @@
 </script>
 
 <template>
-    <ImpersonationBanner/>
+    <!--
+        One column the height of the viewport, with the banners and the nav in it, rather than a
+        five-column grid holding one item that spanned seven of them. The two implicit tracks that
+        spanning created were sized to content, which is where the horizontal scrollbar came from;
+        the banners are inside it now, so a banner appearing costs main its height instead of
+        pushing the whole page past the bottom of the screen. The sidebar the grid was for is
+        still commented out below.
+    -->
+    <div class="flex flex-col min-h-screen">
+        <ImpersonationBanner/>
 
-    <BillingBanner/>
+        <BillingBanner/>
 
-    <AuthenticatedNav/>
+        <AuthenticatedNav/>
 
-    <div class="grid grid-cols-5" :style="'height:'+underNavScreenHeight+'px'">
 <!--        &lt;!&ndash;sidebar &ndash;&gt;-->
 <!--        <aside class="col-span-1 h-screen px-2 py-8 overflow-y-auto bg-white border-r dark:bg-gray-900 dark:border-gray-700">-->
 <!--            <div class="flex justify-between">-->
@@ -139,8 +142,8 @@
 <!--            </div>-->
 <!--        </aside>-->
 
-        <!-- Main -->
-        <main class="col-span-7 overflow-y-auto pl-4 pr-4 bg-[#f9fafb]"><!--bg-gradient-to-tr from-blue-100 via-indigo-100 to-gray-100-->
+        <!-- Main. Grows to fill the screen so the background does, and scrolls with the page -->
+        <main class="flex flex-col flex-1 min-w-0 px-4 bg-[#f9fafb]"><!--bg-gradient-to-tr from-blue-100 via-indigo-100 to-gray-100-->
             <!-- What the master materials screen made of the last edit -->
             <div
                 v-if="materials && !materialsDismissed"
