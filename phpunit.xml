@@ -27,6 +27,13 @@
         -->
         <env name="BILLING_DRIVER" value="manual"/>
         <env name="BILLING_TRIAL_DAYS" value="30"/>
+        <!--
+            Empty, so the suite tests what production does. A developer who allows mailinator.com
+            in their own .env for a form filler would otherwise silently turn off the test that
+            says throwaway addresses cannot register. Tests that want the allowance set it
+            themselves with config().
+        -->
+        <env name="REGISTRATION_ALLOWED_EMAIL_DOMAINS" value=""/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="CACHE_STORE" value="array"/>

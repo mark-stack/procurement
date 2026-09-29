@@ -96,10 +96,34 @@ class BusinessEmailDomain implements ValidationRule
             return;
         }
 
+        if ($this->isAllowedAnyway($domain)) {
+            return;
+        }
+
         if (in_array($domain, self::blockedDomains(), true)) {
             $fail('Please use your work email address. :domain is a personal email provider, and an account here is shared by everyone at your company.')
                 ->translate(['domain' => $domain]);
         }
+    }
+
+    /**
+     * A domain let through regardless, for the sake of a development machine where the
+     * addresses being typed came out of a form filler. See config/registration.php.
+     *
+     * Never in production. The check the rest of this class performs is the only thing
+     * keeping two unrelated companies out of one business, and it is not something a
+     * stray line in a deployed .env should be able to switch off.
+     */
+    private function isAllowedAnyway(string $domain): bool
+    {
+        if (app()->environment('production')) {
+            return false;
+        }
+
+        /** @var list<string> $allowed */
+        $allowed = config('registration.allowed_email_domains', []);
+
+        return in_array($domain, $allowed, true);
     }
 
     /**

@@ -2,6 +2,8 @@
 
 use App\Models\Business;
 use App\Models\User;
+use App\Rules\BusinessEmailDomain;
+use Illuminate\Support\Facades\Validator;
 
 test('registration screen can be rendered', function () {
     $response = $this->get('/register');
@@ -105,6 +107,60 @@ test('the refusal names the provider it refused', function () {
     $response->assertSessionHasErrors([
         'email' => 'Please use your work email address. gmail.com is a personal email provider, and an account here is shared by everyone at your company.',
     ]);
+});
+
+/*
+ * A development machine is typing whatever a form filler invented, and there is nobody there to
+ * share a business with. See config/registration.php.
+ */
+test('an allowed domain gets through the check', function () {
+    config(['registration.allowed_email_domains' => ['mailinator.com']]);
+
+    $response = $this->post('/register', [
+        'name' => 'Test User',
+        'email' => 'sam@mailinator.com',
+        'password' => 'password',
+        'password_confirmation' => 'password',
+    ]);
+
+    $response->assertSessionHasNoErrors();
+    $this->assertAuthenticated();
+});
+
+test('allowing one domain does not allow the rest', function () {
+    config(['registration.allowed_email_domains' => ['mailinator.com']]);
+
+    $response = $this->post('/register', [
+        'name' => 'Test User',
+        'email' => 'sam@gmail.com',
+        'password' => 'password',
+        'password_confirmation' => 'password',
+    ]);
+
+    $response->assertSessionHasErrors('email');
+    $this->assertGuest();
+});
+
+/*
+ * The whole check is what keeps two unrelated companies out of one business, so a stray line in a
+ * deployed .env - a copied file, a reused deployment template - must not be able to switch it off.
+ *
+ * Against the rule rather than the route, because moving the app into production also switches CSRF
+ * verification back on and the post would be refused at the door for an unrelated reason.
+ */
+test('the allowance is ignored in production', function () {
+    config(['registration.allowed_email_domains' => ['mailinator.com']]);
+
+    $validate = fn () => Validator::make(
+        ['email' => 'sam@mailinator.com'],
+        ['email' => [new BusinessEmailDomain]],
+    )->fails();
+
+    expect($validate())->toBeFalse();
+
+    app()->detectEnvironment(fn () => 'production');
+
+    expect($validate())->toBeTrue();
 });
 
 /*
