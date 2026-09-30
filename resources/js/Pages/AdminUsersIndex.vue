@@ -44,9 +44,22 @@
     const confirmImpersonate = () =>
         window.confirm('Sign in as this user? You will see the site exactly as they do until you stop impersonating.');
 
-    //Activating emails every user in the business, and that cannot be taken back
-    const confirmActivate = () =>
-        window.confirm('Activate this business? Every user in it is emailed a welcome message.');
+    /*
+     * Activating emails every user in the business, and that cannot be taken back.
+     *
+     * It names the two counts sitting in the row rather than trusting them to be read. They are
+     * the whole of whether this business can do anything - the welcome says the setup is
+     * complete - and they are three columns to the left of the button. The controller refuses
+     * activation outright with no detectable template; suppliers are worth saying out loud
+     * because it does not refuse over those, and a business that cannot quote yet is a support
+     * email either way.
+     */
+    const confirmActivate = (user) =>
+        window.confirm(
+            `Activate this business? Every user in it is emailed a welcome message saying their setup is complete.\n\n`
+            + `Templates that can detect a table: ${user.templates_count}\n`
+            + `Suppliers: ${user.suppliers_count}`
+        );
 
     //Another email to a real inbox, so it is worth a beat - but it is the recoverable one of
     //the three, which is why it names the address rather than warning about anything
@@ -210,7 +223,7 @@
                                                 as="button"
                                                 type="button"
                                                 class="text-green-500 font-bold"
-                                                :on-before="confirmActivate"
+                                                :on-before="() => confirmActivate(user)"
                                             >
                                                 Activate
                                             </Link>

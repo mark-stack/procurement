@@ -30,9 +30,15 @@
         <div class="py-12">
             <div class="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
                 <div class="mb-3">
+                    <!--
+                        The label said "Onboarding" while the link went to projects, which
+                        BusinessReadyMiddleware then bounced back to onboarding - so it worked,
+                        by way of a redirect for the one user who most needs the app to feel
+                        like it knows where it is sending them.
+                    -->
                     <Link
                         class="font-semibold px-3 py-2 text-gray-800 transition-colors duration-300 transform rounded-lg hover:text-deep-purple-accent-400"
-                        :href="route('projects.index')"
+                        :href="onboarded ? route('projects.index') : route('onboarding')"
                     >
                         <i class="fa-regular fa-hand-point-left pr-2"></i> {{onboarded ? 'Current Projects' : 'Onboarding'}}
                     </Link>

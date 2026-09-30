@@ -20,13 +20,19 @@ class NewUserEmail extends Notification implements ShouldQueue
     ) {}
 
     /**
-     * Get the notification's delivery channels.
+     * Mail only.
+     *
+     * The database channel was here too, and the row it wrote was never rendered: the bell draws
+     * what NotificationService::implementations() claims, and no implementation claims this type.
+     * So every signup left an unread row in the admin's notifications table that no wording, no
+     * button and no count ever reached - it could not even be marked read. The signal an admin
+     * actually works from is this email and the users list it links to.
      *
      * @return array<int, string>
      */
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
+        return ['mail'];
     }
 
     /**
@@ -39,17 +45,8 @@ class NewUserEmail extends Notification implements ShouldQueue
             ->line($this->user->email);
     }
 
-    /**
-     * Get the array representation of the notification.
-     *
-     * @return array<string, mixed>
+    /*
+     * toArray() went with the database channel. It shaped a row nothing rendered, and with mail
+     * as the only channel nothing calls it.
      */
-    public function toArray(object $notifiable): array
-    {
-        return [
-            'user_id' => $this->user->id,
-            'user_email' => $this->user->email,
-            'user_name' => $this->user->name,
-        ];
-    }
 }

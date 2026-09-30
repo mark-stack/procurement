@@ -70,6 +70,7 @@ class SendTrialReminders extends Command
 
         //Cheap first pass in SQL; whether they are really still on trial is Billing's call below
         $candidates = Business::query()
+            ->activated()
             ->whereNotNull('trial_ends_at')
             ->whereBetween('trial_ends_at', [now(), now()->addDays($marks->max())])
             ->get();
@@ -120,6 +121,7 @@ class SendTrialReminders extends Command
         $sent = 0;
 
         $candidates = Business::query()
+            ->activated()
             ->whereNotNull('trial_ends_at')
             ->whereBetween('trial_ends_at', [now()->subDays(self::ENDED_WINDOW_DAYS), now()])
             ->get();

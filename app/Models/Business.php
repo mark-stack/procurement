@@ -280,7 +280,21 @@ class Business extends Model
     }
 
     //Local scopes
-
+    /**
+     * The businesses an admin has switched on, which is the only kind that can use the product.
+     *
+     * Everything a customer would do is behind BusinessReadyMiddleware, so a business without this
+     * column set has a trial running against a board it cannot reach. SendTrialReminders asks for
+     * this because warning somebody that their trial is ending, and then that it has ended, for a
+     * product they have never once been given access to reads as a demand for money for nothing.
+     *
+     * @param  Builder<Business>  $query
+     * @return Builder<Business>
+     */
+    public function scopeActivated(Builder $query): Builder
+    {
+        return $query->where('admin_setup_complete', true);
+    }
 
     //Boolean
     public function supplierGroupIsCurrentPlan($supplierGroup): bool

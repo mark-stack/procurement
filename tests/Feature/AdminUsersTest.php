@@ -215,6 +215,8 @@ it('would be a disaster if activating a business were reachable by a link or a p
 
 it('activates the business and welcomes its users', function () {
     $business = createBusiness('Business A', false);
+    //Activation refuses a business with no template that can detect a table - see below
+    recordExampleTemplates($business);
     $admin = createUser(1, $business, true, true);
     $user = createUser(2, $business, false, true);
 
@@ -236,6 +238,7 @@ it('would be a disaster if activating a business welcomed everyone in it twice',
      * a refresh or a double click re-sent the welcome email to every user in it.
      */
     $business = createBusiness('Business A', false);
+    recordExampleTemplates($business);
     $admin = createUser(1, $business, true, true);
     createUser(2, $business, false, true);
 
@@ -296,6 +299,7 @@ it('would be a disaster if a business could be left active with nobody welcomed'
      * turned away every attempt to put that right.
      */
     $business = createBusiness('Business A', false);
+    recordExampleTemplates($business);
     $admin = createUser(1, $business, true, true);
 
     Notification::shouldReceive('send')->andThrow(new RuntimeException('the queue is down'));
@@ -418,6 +422,7 @@ it('lets a deactivated business be activated again, welcoming everyone a second 
      * the reason deactivation is not offered as an undo for a misclick on Activate.
      */
     $business = createBusiness('Business A', false);
+    recordExampleTemplates($business);
     $admin = createUser(1, $business, true, true);
     createUser(2, $business, false, true);
 
