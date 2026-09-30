@@ -74,12 +74,21 @@ class Business extends Model
         'cap_12m_stock' => true,
         'labour_rate_per_hour' => 50.00,
         'material_cost_per_tonne' => 2000.00,
+        /*
+         * Zero on purpose, unlike the rest: material_cost_per_tonne used to mean the DELIVERED price, so
+         * any other default would charge freight twice for a business already carrying a figure there.
+         * See the migration that added these.
+         */
+        'delivery_cost_per_tonne' => 0.00,
+        'delivery_cost_per_order' => 0.00,
         'scrap_recovery_rate' => 0.13,
         'default_kg_per_m' => 10.0,
         'cut_base_minutes' => 1.5,
         'cut_minutes_per_kg_per_m' => 0.06,
         'offcut_draw_base_minutes' => 4.0,
         'bar_handling_base_minutes' => 3.0,
+        'receive_base_minutes' => 5.0,
+        'order_admin_minutes' => 15.0,
         'offcut_rack_base_minutes' => 6.0,
         'move_minutes_per_tonne' => 15.0,
         'offcut_retention_cap' => 0.6,

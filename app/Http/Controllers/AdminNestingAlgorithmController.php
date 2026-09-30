@@ -81,6 +81,12 @@ class AdminNestingAlgorithmController extends Controller
              */
             'sectionCurves' => $this->sectionCurves($business),
             'labourBySection' => $this->labourBySection($business),
+            /*
+             * What buying steel costs beyond the steel. Sits before the worked examples because it is what
+             * the examples are now weighing the rack against, and because the scrap floors above only make
+             * sense once you can see what re-acquiring a remnant would take.
+             */
+            'acquisition' => $this->acquisitionCosts($business),
             'workedExamples' => $this->workedExamples($business),
             /*
              * What the model CANNOT do, costed the same way as everything else - see
@@ -131,14 +137,28 @@ class AdminNestingAlgorithmController extends Controller
                 'label' => 'Steel price',
                 'value' => (float) $business->material_cost_per_tonne,
                 'unit' => '$/tonne',
-                'blurb' => 'Delivered price. Everything the nest does to a millimetre of steel is priced through this and the section\'s mass per metre.',
+                'blurb' => 'The merchant\'s price for the metal, BEFORE delivery. Freight is the setting below, and the two added together are what every millimetre of steel is priced at.',
+            ],
+            [
+                'key' => 'delivery_cost_per_tonne',
+                'label' => 'Freight',
+                'value' => (float) $business->delivery_cost_per_tonne,
+                'unit' => '$/tonne',
+                'blurb' => 'What it costs to get steel here, by weight. Added to the steel price, because steel already on your rack has had its freight paid - which is exactly why a remnant of it is worth keeping. Starts at zero: the steel price used to be described as a delivered figure, so anything else would charge freight twice.',
+            ],
+            [
+                'key' => 'delivery_cost_per_order',
+                'label' => 'Delivery fee',
+                'value' => (float) $business->delivery_cost_per_order,
+                'unit' => '$/order',
+                'blurb' => 'The flat part of a delivery - the truck turning up, whatever is on it. Charged once to a plan that buys anything at all, rather than per bar or per tonne.',
             ],
             [
                 'key' => 'scrap_recovery_rate',
                 'label' => 'Scrap recovery',
                 'value' => (float) $business->scrap_recovery_rate,
-                'unit' => 'of new price',
-                'blurb' => 'What the bin pays back on steel that is cut off and binned. Applies to solid offcuts only - saw kerf leaves as swarf mixed with coolant and whatever else was cut that day, which is not what a merchant weighs in, so kerf earns nothing.',
+                'unit' => 'of the steel price',
+                'blurb' => 'What the bin pays back on steel that is cut off and binned. A share of the bare steel price, not the delivered one - a merchant weighs in metal and pays for metal, and the freight you paid to get it here is not on the weighbridge. Applies to solid offcuts only: saw kerf leaves as swarf mixed with coolant and whatever else was cut that day, so kerf earns nothing.',
             ],
             [
                 'key' => 'default_kg_per_m',
@@ -174,6 +194,20 @@ class AdminNestingAlgorithmController extends Controller
                 'value' => (float) $business->bar_handling_base_minutes,
                 'unit' => 'min',
                 'blurb' => 'Taking one newly bought bar off the lift and getting it to the saw.',
+            ],
+            [
+                'key' => 'receive_base_minutes',
+                'label' => 'Receive a bar, base',
+                'value' => (float) $business->receive_base_minutes,
+                'unit' => 'min',
+                'blurb' => 'Taking one delivered bar off the truck, checking it against the docket and racking it. Per bar bought, and on top of fetching it to the saw later - those are two different jobs, and a piece already in the yard has only the second one left to pay.',
+            ],
+            [
+                'key' => 'order_admin_minutes',
+                'label' => 'Raise an order',
+                'value' => (float) $business->order_admin_minutes,
+                'unit' => 'min',
+                'blurb' => 'Getting a price, placing the order, and checking the invoice against what turned up. The only labour here that does not scale with the section - the paperwork for a tonne of beam is the paperwork for a length of angle. Charged once to a plan that buys anything.',
             ],
             [
                 'key' => 'offcut_rack_base_minutes',
@@ -239,6 +273,9 @@ class AdminNestingAlgorithmController extends Controller
                 'drawCost' => round($model->minutesToCost($model->offcutDrawMinutes(self::REFERENCE_LENGTH_MM)), 2),
                 'barMinutes' => round($model->barHandlingMinutes(self::REFERENCE_LENGTH_MM), 1),
                 'barHandlingCost' => round($model->minutesToCost($model->barHandlingMinutes(self::REFERENCE_LENGTH_MM)), 2),
+                //Receiving is paid once, on arrival, and only by steel that was bought
+                'receiveMinutes' => round($model->receiveMinutes(self::REFERENCE_LENGTH_MM), 1),
+                'receiveCost' => round($model->minutesToCost($model->receiveMinutes(self::REFERENCE_LENGTH_MM)), 2),
                 //Null means no offcut of this section ever pays for its own keep
                 'worthRackingFromMm' => $floor,
                 'worthRackingValue' => $floor === null ? null : round($model->mmToCost($floor), 2),
@@ -246,6 +283,71 @@ class AdminNestingAlgorithmController extends Controller
         }
 
         return $rows;
+    }
+
+    /**
+     * What it actually takes to get one bar of new steel into the yard, per section.
+     *
+     * The nest used to buy steel for the price of the metal and nothing else, so drawing on the rack was
+     * competing against an acquisition cost that stopped at the merchant's invoice line. This table is the
+     * rest of it: freight, the bar coming off the truck and onto the rack, and the order that had to be
+     * raised before any of it happened.
+     *
+     * It is also the answer to "why is the scrap floor where it is". A remnant is worth what it saves you
+     * from doing again, and this is what it saves you from doing again.
+     *
+     * @return array<string, mixed>
+     */
+    private function acquisitionCosts(Business $business): array
+    {
+        $bare = (float) $business->material_cost_per_tonne;
+        $freight = (float) $business->delivery_cost_per_tonne;
+
+        /*
+         * For the figures that do not depend on the section at all - raising an order is the same paperwork
+         * whatever is on it. Built explicitly rather than reusing whichever model the loop below finished
+         * with, so the section-independent numbers cannot start depending on the last row in SECTIONS.
+         */
+        $anySection = new NestingCostModel($business, self::LIGHT_KG_PER_M, self::REFERENCE_LENGTH_MM);
+
+        $rows = [];
+
+        foreach (self::SECTIONS as $label => $kgPerM) {
+            $model = new NestingCostModel($business, $kgPerM, self::REFERENCE_LENGTH_MM);
+
+            $steel = $model->mmToBareCost(self::REFERENCE_LENGTH_MM);
+            $landed = $model->mmToCost(self::REFERENCE_LENGTH_MM);
+            $receive = $model->minutesToCost($model->receiveMinutes(self::REFERENCE_LENGTH_MM));
+
+            $rows[] = [
+                'label' => $label,
+                'kgPerM' => $kgPerM,
+                'barKg' => round($model->mmToKg(self::REFERENCE_LENGTH_MM)),
+                'steelCost' => round($steel, 2),
+                'freightCost' => round($landed - $steel, 2),
+                'receiveMinutes' => round($model->receiveMinutes(self::REFERENCE_LENGTH_MM), 1),
+                'receiveCost' => round($receive, 2),
+                //Everything bar the order overhead, which is charged per plan rather than per bar
+                'landedAndRacked' => round($landed + $receive, 2),
+            ];
+        }
+
+        return [
+            'bareCostPerTonne' => round($bare, 2),
+            'freightPerTonne' => round($freight, 2),
+            'landedCostPerTonne' => round($bare + $freight, 2),
+            /*
+             * How much dearer freight makes a millimetre of steel. Guarded against a zero steel price,
+             * which would otherwise divide by nothing on a business that has not set one.
+             */
+            'landedUpliftPct' => $bare > 0 ? round(($freight / $bare) * 100, 1) : null,
+            'orderAdminMinutes' => round($anySection->orderAdminMinutes(), 1),
+            'orderAdminCost' => round($anySection->minutesToCost($anySection->orderAdminMinutes()), 2),
+            'deliveryFee' => round((float) $business->delivery_cost_per_order, 2),
+            'orderOverheadCost' => round($anySection->orderOverheadCost(), 2),
+            'freightIsSet' => $freight > 0 || (float) $business->delivery_cost_per_order > 0,
+            'rows' => $rows,
+        ];
     }
 
     /**
@@ -562,6 +664,10 @@ class AdminNestingAlgorithmController extends Controller
      * that marginal value reaches the purchase weight then buying one more millimetre of bar and racking
      * it pays for itself, and the nest starts buying steel in order to bank it. Surfaced here because the
      * two settings are individually reasonable and only wrong together.
+     *
+     * Freight is not a third party to this, which is worth saying because it looks as though it should be:
+     * retention is a SHARE, so both the value of a racked millimetre and the cost of a bought one are
+     * priced at the landed figure, and the delivery rate cancels. No freight rate can break this.
      *
      * @return array<string, mixed>
      */

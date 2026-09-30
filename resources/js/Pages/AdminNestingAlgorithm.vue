@@ -13,6 +13,8 @@
         referenceLengthMm: Number,
         sectionCurves: Array,
         labourBySection: Array,
+        /** What buying new steel costs beyond the steel itself - freight, receiving, raising the order. */
+        acquisition: Object,
         workedExamples: Array,
         /** Why the rack is cleared on a calendar rather than by the nest - see OffcutCleanout. */
         cleanout: Object,
@@ -293,10 +295,19 @@
                     <div class="flex gap-4 px-4 py-3">
                         <span class="mt-0.5 flex h-6 w-6 flex-none items-center justify-center rounded-full bg-gray-900 text-xs font-bold text-white">2</span>
                         <div class="text-sm leading-relaxed text-gray-700">
-                            <p class="font-semibold text-gray-900">Steel bought</p>
+                            <p class="font-semibold text-gray-900">Steel bought, and what it takes to get it here</p>
                             <p>
-                                The only line the business actually pays. This is what stops the nest buying its
-                                way out of cutting into inventory.
+                                The only line the business actually pays money out on, priced at the
+                                <strong class="font-semibold text-gray-900">landed</strong> figure &mdash; the
+                                merchant's price plus freight. This is what stops the nest buying its way out of
+                                cutting into inventory.
+                            </p>
+                            <p class="mt-1">
+                                Buying is not just the metal, so a plan that buys also carries the bars coming off
+                                the truck and onto the rack, and the fixed cost of raising an order at all. The
+                                order overhead is charged on <em>whether</em> a plan buys rather than how much, which
+                                is what separates going to the merchant from going to the rack &mdash; buying 300mm of
+                                angle to save a walk used to be free.
                             </p>
                         </div>
                     </div>
@@ -310,9 +321,11 @@
                                 had sat on the rack for years. But scrap is not a write-off: a solid offcut is weighed
                                 in and credited at
                                 <strong class="font-semibold text-gray-900">{{ scrapRecoveryPct }}%</strong> of the
-                                new price, which makes the bin a legitimately cheap way out of a remnant nobody
-                                wants. Saw kerf earns nothing &mdash; swarf mixed with coolant is not what a
-                                merchant pays for.
+                                bare steel price, which makes the bin a legitimately cheap way out of a remnant
+                                nobody wants. Not of the landed price: a merchant weighs in metal and pays for
+                                metal, and the freight you paid to get it here is not on the weighbridge &mdash; which
+                                is why freight makes destroying steel worse, not cheaper. Saw kerf earns nothing
+                                either &mdash; swarf mixed with coolant is not what a merchant pays for.
                             </p>
                         </div>
                     </div>
@@ -694,7 +707,7 @@
                     </p>
 
                     <div class="overflow-x-auto">
-                        <table class="w-full min-w-[42rem] text-left text-sm">
+                        <table class="w-full min-w-[48rem] text-left text-sm">
                             <caption class="sr-only">Labour and material cost by section</caption>
                             <thead>
                                 <tr class="border-b border-gray-200 text-xs uppercase tracking-wide text-gray-500">
@@ -703,6 +716,7 @@
                                     <th scope="col" class="py-2 pr-3 text-right font-semibold">One cut</th>
                                     <th scope="col" class="py-2 pr-3 text-right font-semibold">Fetch an offcut</th>
                                     <th scope="col" class="py-2 pr-3 text-right font-semibold">Fetch a bar</th>
+                                    <th scope="col" class="py-2 pr-3 text-right font-semibold">Receive a bar</th>
                                     <th scope="col" class="py-2 font-semibold">Worth racking from</th>
                                 </tr>
                             </thead>
@@ -733,6 +747,11 @@
                                         {{ formatMoney(row.barHandlingCost) }}
                                         <span class="block text-xs text-gray-500">{{ formatMinutes(row.barMinutes) }}</span>
                                     </td>
+                                    <!-- Paid once on arrival, and only by steel that was bought -->
+                                    <td class="py-2 pr-3 text-right tabular-nums text-gray-700">
+                                        {{ formatMoney(row.receiveCost) }}
+                                        <span class="block text-xs text-gray-500">{{ formatMinutes(row.receiveMinutes) }}</span>
+                                    </td>
                                     <td class="py-2">
                                         <template v-if="row.worthRackingFromMm !== null">
                                             <span class="font-semibold text-gray-900">{{ formatMm(row.worthRackingFromMm) }}</span>
@@ -755,6 +774,136 @@
                         floor governs is whether the nest should <em>arrange itself</em> to produce a remnant at all,
                         which is where it bites: engineering a stub gains almost nothing and costs a rack slot for
                         years.
+                    </p>
+                </div>
+            </section>
+
+            <!--
+                What acquiring steel costs. Placed after the floors and before the worked examples: it is
+                what the examples weigh the rack against, and the floors above only make sense once you can
+                see what re-acquiring a remnant would actually take.
+            -->
+            <section class="mb-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                <header class="border-b border-gray-200 bg-gray-50 px-4 py-3">
+                    <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700">
+                        What new steel costs beyond the steel
+                    </h2>
+                    <p class="mt-1 text-xs leading-relaxed text-gray-600">
+                        Freight, unloading and the order itself &mdash; per
+                        {{ formatMm(referenceLengthMm) }} bar. A remnant on the rack is worth what it saves you
+                        from doing again, and this is what it saves you from doing again.
+                    </p>
+                </header>
+
+                <div class="px-4 py-4">
+                    <p class="mb-3 max-w-3xl text-sm leading-relaxed text-gray-700">
+                        Steel does not arrive by itself. It is freighted, it comes off a truck and is checked
+                        against a docket, and somebody raised the order in the first place. None of that used to be
+                        counted, so the rack was competing against an acquisition cost that stopped at the
+                        merchant's invoice line &mdash; and a remnant looked more disposable than it is.
+                    </p>
+
+                    <!--
+                        Freight sits in the price of the metal rather than in a line of its own, because every
+                        question the model asks about a millimetre of steel wants the landed figure.
+                    -->
+                    <dl class="mb-4 grid gap-3 sm:grid-cols-3">
+                        <div class="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                            <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500">Steel, bare</dt>
+                            <dd class="mt-0.5 text-lg font-bold tabular-nums text-gray-900">
+                                {{ formatMoney(acquisition.bareCostPerTonne) }}<span class="text-xs font-normal text-gray-500">/t</span>
+                            </dd>
+                        </div>
+                        <div class="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                            <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500">Freight</dt>
+                            <dd class="mt-0.5 text-lg font-bold tabular-nums text-gray-900">
+                                {{ formatMoney(acquisition.freightPerTonne) }}<span class="text-xs font-normal text-gray-500">/t</span>
+                            </dd>
+                            <dd v-if="acquisition.landedUpliftPct !== null" class="text-xs text-gray-500">
+                                {{ acquisition.landedUpliftPct }}% on top of the metal
+                            </dd>
+                        </div>
+                        <div class="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                            <dt class="text-xs font-semibold uppercase tracking-wide text-blue-700">Landed</dt>
+                            <dd class="mt-0.5 text-lg font-bold tabular-nums text-blue-900">
+                                {{ formatMoney(acquisition.landedCostPerTonne) }}<span class="text-xs font-normal text-blue-700">/t</span>
+                            </dd>
+                            <dd class="text-xs text-blue-700">What every millimetre is priced at</dd>
+                        </div>
+                    </dl>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full min-w-[38rem] text-left text-sm">
+                            <caption class="sr-only">What it costs to land and rack one bar, by section</caption>
+                            <thead>
+                                <tr class="border-b border-gray-200 text-xs uppercase tracking-wide text-gray-500">
+                                    <th scope="col" class="py-2 pr-3 font-semibold">Section</th>
+                                    <th scope="col" class="py-2 pr-3 text-right font-semibold">Steel</th>
+                                    <th scope="col" class="py-2 pr-3 text-right font-semibold">Freight</th>
+                                    <th scope="col" class="py-2 pr-3 text-right font-semibold">Off the truck</th>
+                                    <th scope="col" class="py-2 text-right font-semibold">Landed and racked</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                <tr v-for="row in acquisition.rows" :key="row.label">
+                                    <td class="py-2 pr-3">
+                                        <span class="font-medium text-gray-900">{{ row.label }}</span>
+                                        <span class="ml-1 text-xs text-gray-500">
+                                            {{ row.barKg.toLocaleString() }}kg a bar
+                                        </span>
+                                    </td>
+                                    <td class="py-2 pr-3 text-right tabular-nums text-gray-700">
+                                        {{ formatMoney(row.steelCost) }}
+                                    </td>
+                                    <td class="py-2 pr-3 text-right tabular-nums text-gray-700">
+                                        {{ formatMoney(row.freightCost) }}
+                                    </td>
+                                    <td class="py-2 pr-3 text-right tabular-nums text-gray-700">
+                                        {{ formatMoney(row.receiveCost) }}
+                                        <span class="block text-xs text-gray-500">{{ formatMinutes(row.receiveMinutes) }}</span>
+                                    </td>
+                                    <td class="py-2 text-right font-semibold tabular-nums text-gray-900">
+                                        {{ formatMoney(row.landedAndRacked) }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <p class="mt-3 max-w-3xl rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm leading-relaxed text-gray-700">
+                        <strong class="font-semibold text-gray-900">On top of all of it, every order costs
+                        {{ formatMoney(acquisition.orderOverheadCost) }} to raise</strong> &mdash;
+                        {{ formatMinutes(acquisition.orderAdminMinutes) }} of paperwork at
+                        {{ formatMoney(acquisition.orderAdminCost) }}<template v-if="acquisition.deliveryFee > 0">, plus a
+                        {{ formatMoney(acquisition.deliveryFee) }} delivery fee</template>. Charged on
+                        <em>whether</em> a plan buys, not how much, so it cannot change which buying plan wins &mdash;
+                        what it separates is buying from not buying.
+                    </p>
+
+                    <!--
+                        The freight-to-floor link, which is the whole reason delivery is modelled rather than
+                        left to the deferred order-level pass. Shown as a prompt when it is switched off,
+                        because a business on zero freight sees none of this.
+                    -->
+                    <p
+                        v-if="acquisition.freightIsSet"
+                        class="mt-3 max-w-3xl rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm leading-relaxed text-emerald-900"
+                    >
+                        <strong class="font-semibold">Freight is why your scrap floors sit where they do.</strong>
+                        The steel side of that comparison is priced landed; the labour side is a worker's time,
+                        which does not get dearer because the truck did. So paying real freight makes every remnant
+                        worth more against an unchanged handling cost, the two lines cross sooner, and fewer pieces
+                        fall below the floor. It also makes binning worse, because you bought the delivery too.
+                    </p>
+                    <p
+                        v-else
+                        class="mt-3 max-w-3xl rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-900"
+                    >
+                        <strong class="font-semibold">Freight is set to nothing, so none of it is priced yet.</strong>
+                        The steel price used to be described as a delivered figure, so freight starts at zero rather
+                        than double-charging what you may already have folded into it. Split the two &mdash; bare metal
+                        in the steel price, delivery in the freight rate &mdash; and the floors above drop, because
+                        steel gets dearer while the labour of marking and shifting it does not.
                     </p>
                 </div>
             </section>

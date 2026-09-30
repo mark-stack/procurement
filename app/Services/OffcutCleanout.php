@@ -30,6 +30,12 @@ use Illuminate\Support\Collection;
  *     metre of beam is worth far more than the quarter hour it takes to deal with. An old 1.5m
  *     length of heavy beam is not a candidate, and a young one of light angle is not either.
  *
+ *     It also moves with what the business pays in FREIGHT, which is why this list is shorter for a
+ *     yard having its steel delivered than for one collecting it. Delivery raises what a remnant is
+ *     worth without raising the labour of keeping it, so fewer pieces fall below the floor - and the
+ *     money columns follow: 'worth' is the landed value, 'bin_recovers' is what a merchant pays for
+ *     the metal alone, and the gap between them widens the more the delivery cost.
+ *
  * Nothing here removes anything. It produces a list with the money written next to each row, and
  * the yard decides - see Http\Controllers\OffcutScrapController. Scrapping is reversible (the row
  * is flagged, never deleted) but the steel is not, and neither the length of a piece nor the date

@@ -36,9 +36,20 @@ use App\Models\Business;
  *  - MOVING scales with the mass of the piece actually being moved. A 6m angle is carried; a 12m 500UB at
  *    over a tonne is a crane, slings and a second person.
  *
- * Deliberately NOT modelled here, because a nest is built for one product spec at a time and these are
- * properties of the whole order: delivery fees, per-supplier minimum order values, and consolidating
- * products onto a shared stock length. Those need a pass over all the nests together.
+ * ACQUIRING steel is priced too, because it is neither free nor instant and a remnant on the rack is worth
+ * exactly what it saves you from doing again. A bought bar costs freight, it has to come off the truck and
+ * be checked and racked, and somebody had to raise the order. Charging none of that made buying look
+ * cheaper than it is and made a remnant look more disposable than it is.
+ *
+ * Freight is MATERIAL: landed cost is the bare steel price plus the per-tonne delivery rate, and that
+ * total is what valuation, purchase and destruction are all priced through. Receiving and ordering are
+ * LABOUR, on the purchase side only - and pointedly not part of what an offcut is valued at. See the
+ * invariant note on retention() for why that line has to be held.
+ *
+ * Still deliberately NOT modelled, because a nest is built for one product spec at a time and these are
+ * properties of the whole order: per-supplier minimum order values, and consolidating products onto a
+ * shared stock length. Those need a pass over all the nests together. The flat per-order charges here are
+ * the honest half of that compromise - see cost().
  */
 class NestingCostModel
 {
@@ -66,12 +77,22 @@ class NestingCostModel
     private const DEFAULTS = [
         'labour_rate_per_hour' => 50.00,
         'material_cost_per_tonne' => 2000.00,
+        /*
+         * Zero, unlike every other default here, and not an oversight. material_cost_per_tonne used to be
+         * documented as the DELIVERED price, so a non-zero default would charge freight twice on every
+         * business already carrying a figure there and silently revalue every offcut in the system. The
+         * column now means bare steel; a business opts into freight by setting its own rate.
+         */
+        'delivery_cost_per_tonne' => 0.00,
+        'delivery_cost_per_order' => 0.00,
         'scrap_recovery_rate' => 0.13,
         'default_kg_per_m' => 10.0,
         'cut_base_minutes' => 1.5,
         'cut_minutes_per_kg_per_m' => 0.06,
         'offcut_draw_base_minutes' => 4.0,
         'bar_handling_base_minutes' => 3.0,
+        'receive_base_minutes' => 5.0,
+        'order_admin_minutes' => 15.0,
         'offcut_rack_base_minutes' => 6.0,
         'move_minutes_per_tonne' => 15.0,
         'offcut_retention_cap' => 0.6,
@@ -139,9 +160,31 @@ class NestingCostModel
     }
 
     /**
-     * Millimetres of this section as dollars of steel.
+     * What a tonne of this steel costs to have in the yard: the merchant's price plus getting it here.
+     *
+     * Freight belongs in the price of the metal rather than in a line of its own, because every question
+     * the model asks about a millimetre of steel - what it is worth on the rack, what buying it costs,
+     * what destroying it loses - wants the LANDED figure. Steel you already own has had its freight paid.
+     */
+    public function landedCostPerTonne(): float
+    {
+        return $this->setting('material_cost_per_tonne') + $this->setting('delivery_cost_per_tonne');
+    }
+
+    /**
+     * Millimetres of this section as dollars of steel, landed.
      */
     public function mmToCost(float|int $mm): float
+    {
+        return $this->mmToKg($mm) * ($this->landedCostPerTonne() / 1000);
+    }
+
+    /**
+     * Millimetres of this section as dollars of BARE steel, freight excluded.
+     *
+     * Only the scrap bin uses this. Everything else wants the landed figure from mmToCost().
+     */
+    public function mmToBareCost(float|int $mm): float
     {
         return $this->mmToKg($mm) * ($this->setting('material_cost_per_tonne') / 1000);
     }
@@ -153,10 +196,16 @@ class NestingCostModel
      * price. Small next to the steel, but it is the difference between scrap being a write-off and scrap
      * being a cheap way out of a bad remnant - and it is real money on a heavy section, where 800mm binned
      * is $144 of steel and nearly $19 of it comes back.
+     *
+     * Priced off the BARE steel price, not the landed one. A merchant weighs in metal and pays for the
+     * metal; the freight you paid to get it here is not on the weighbridge. Taking a share of the landed
+     * figure would have the bin refunding part of your own delivery bill, which grows the better the
+     * recovery rate looks - so the more freight a business pays, the more scrapping would appear to pay it
+     * back. It is the opposite: freight makes destroying steel worse, because you bought the delivery too.
      */
     public function scrapIncome(float|int $mm): float
     {
-        return $this->mmToCost($mm) * $this->setting('scrap_recovery_rate');
+        return $this->mmToBareCost($mm) * $this->setting('scrap_recovery_rate');
     }
 
     /**
@@ -215,6 +264,41 @@ class NestingCostModel
     }
 
     /**
+     * Taking one delivered bar off the truck, checking it against the docket, and racking it.
+     *
+     * Happens before barHandlingMinutes(), not instead of it: a bought bar is received into the yard and
+     * then, separately, fetched to the saw. A bar drawn from stock only ever costs the second.
+     */
+    public function receiveMinutes(int $barLengthMm): float
+    {
+        return $this->moveMinutes($this->setting('receive_base_minutes'), $barLengthMm);
+    }
+
+    /**
+     * Raising one order: getting a price, placing it, and checking the invoice against what turned up.
+     *
+     * Flat, and the only labour here that does not scale with the section - the paperwork for a tonne of
+     * beam is the paperwork for a length of angle.
+     */
+    public function orderAdminMinutes(): float
+    {
+        return $this->setting('order_admin_minutes');
+    }
+
+    /**
+     * What it costs to raise an order at all, before a single millimetre of steel is priced.
+     *
+     * The fixed cost of buying: the paperwork, and the truck turning up with whatever is on it. Charged
+     * once to a nest that buys anything, however much or little that is - which is the whole point, since
+     * it is what makes buying a short bar to save a walk to the rack look as poor as it is.
+     */
+    public function orderOverheadCost(): float
+    {
+        return $this->minutesToCost($this->orderAdminMinutes())
+            + $this->setting('delivery_cost_per_order');
+    }
+
+    /**
      * The labour one more piece on the rack will cost over its life: marking it, recording it, and moving
      * it about before it is finally used or scrapped.
      */
@@ -243,6 +327,20 @@ class NestingCostModel
      * a 12,000mm bar to put a 2,500mm cut in and racked the other 8,000mm, over two 9,000mm bars that
      * covered the same cuts for 3,000mm less. Keep 1.5 x cap comfortably under purchase_cost_weight - 0.6
      * against 1.0 here.
+     *
+     * FREIGHT DOES NOT ENTER THAT CONSTRAINT, and acquisition labour must not. Retention is a share, so the
+     * comparison is really "a racked millimetre's marginal value" against "a bought millimetre's cost", and
+     * both are priced through mmToCost() at the landed figure - so the delivery rate scales both sides
+     * equally and cancels. Raise freight as far as you like and 1.5 x cap < purchase_cost_weight still
+     * holds.
+     *
+     * Receiving and ordering are a different matter, which is why they are charged as labour on the purchase
+     * side and are NOT folded into what an offcut is valued at. Valuing a remnant at full replacement cost
+     * is tempting - it is what the remnant genuinely saves you - but it lifts the left side of that
+     * inequality without touching the right: amortising the default receive and order labour over a 12m bar
+     * is roughly a 15% uplift, which takes 1.5 x 0.6 = 0.9 up past a purchase weight of 1.0 and hands the
+     * search back the exact pathology this cap exists to prevent. The labour of acquiring steel makes
+     * BUYING more expensive; it does not make a millimetre on the rack worth more per millimetre.
      */
     public function retention(int $dropLengthMm): float
     {
@@ -299,6 +397,13 @@ class NestingCostModel
      * piece costs more in marking, recording and shifting than the steel will ever return. On a heavy beam
      * almost anything over the scrap threshold is worth having, because a metre of it is worth far more
      * than the quarter hour it takes to deal with.
+     *
+     * FREIGHT LOWERS THIS FLOOR, which is the main reason delivery is modelled at all. The left side is
+     * steel, priced landed; the right side is a worker's time, which does not get dearer because the truck
+     * did. So paying to have steel delivered makes every remnant of it worth more against an unchanged
+     * handling cost, the two curves cross sooner, and fewer pieces fall below the line - a business paying
+     * real freight should be slower to write a remnant off than one collecting its own. A business that
+     * leaves the delivery rate at zero sees exactly the floors it saw before.
      *
      * Null when nothing up to a full stock length clears its own overhead, which means no offcut of this
      * section should ever be banked.
@@ -360,9 +465,9 @@ class NestingCostModel
      * @param  int  $purchasedMm  new stock bought
      * @param  int  $scrapMm  solid offcuts binned, from new bars and from the offcut inventory alike
      * @param  int  $kerfMm  saw kerf, which leaves as swarf and earns nothing back
-     * @param  array<int, array{source: int, offcut: int}>  $offcutDraws  each offcut taken off the rack,
-     *                                                                 with what was left of it
-     * @param  array<int, array{length: int, offcut: int}>  $barsOpened  each new bar bought, with its offcut
+     * @param  array<int, array{source: int, drop: int}>  $offcutDraws  each offcut taken off the rack, with
+     *                                                               what was left of it
+     * @param  array<int, array{length: int, drop: int}>  $barsOpened  each new bar bought, with its offcut
      * @param  int  $cuts  saw cuts made
      * @param  int  $unmadeCuts  cuts no bar or offcut could hold
      */
@@ -379,10 +484,30 @@ class NestingCostModel
         $cost = $unmadeCuts * self::UNMADE_CUT_PENALTY;
 
         /*
-         * 2) Steel bought. The only line the business actually pays money out on, and what keeps the nest
-         *    from buying its way out of cutting into inventory.
+         * 2) Steel bought, at its landed price - the merchant's figure plus the freight to get it here. The
+         *    only line the business actually pays money out on, and what keeps the nest from buying its way
+         *    out of cutting into inventory.
          */
         $cost += $this->setting('purchase_cost_weight') * $this->mmToCost($purchasedMm);
+
+        /*
+         * 2a) The fixed cost of buying at all: the paperwork for an order, and the truck turning up with
+         *     whatever is on it. Charged once, on whether this nest buys - not on how much.
+         *
+         *     A flat charge cannot change which of the buying candidates wins, since they all carry it. What
+         *     it separates is buying from NOT buying, and that is the comparison it exists for: a nest that
+         *     could have come off the rack entirely now has to beat an order's worth of overhead to justify
+         *     going to the merchant. Without it, buying 300mm of angle to save a walk to the rack was free.
+         *
+         *     Charged per NEST, which over-counts across a batch - one purchase order usually covers several
+         *     products, so five nests that each buy each carry a full order's overhead. Apportioning it
+         *     once per order needs the pass over all the nests together that supplier minimums and shared
+         *     stock lengths also need. Over-counting the fixed cost of buying errs towards using what is
+         *     already on the rack, which is the safe direction to be wrong in.
+         */
+        if ($purchasedMm > 0) {
+            $cost += $this->orderOverheadCost();
+        }
 
         /*
          * 3) Steel destroyed, wherever it came from, and never discounted by what the piece it came off was
@@ -449,12 +574,19 @@ class NestingCostModel
          * 6) The labour of the job itself: fetching each offcut out of the rack, taking each bar off the
          *    lift, and every cut on the saw. All three scale with the section - a 500UB takes a crane to
          *    move and the better part of seven minutes to cut through.
+         *
+         *    A bought bar is charged TWICE over, and the two are different jobs: receiving it off the truck
+         *    against the docket and onto the rack, and then fetching it to the saw like any other piece.
+         *    Receiving is what a piece already in the yard has had done to it and never pays again, and it
+         *    is per bar, so it is also what stops a nest reaching for a second short bar rather than one
+         *    longer one.
          */
         foreach ($offcutDraws as $draw) {
             $cost += $this->minutesToCost($this->offcutDrawMinutes((int) $draw['source']));
         }
 
         foreach ($barsOpened as $bar) {
+            $cost += $this->minutesToCost($this->receiveMinutes((int) $bar['length']));
             $cost += $this->minutesToCost($this->barHandlingMinutes((int) $bar['length']));
         }
 
