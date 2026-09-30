@@ -52,7 +52,7 @@ class QuoteController extends Controller
         abort_if(!$prerequisiteStartQuoting,403);
 
         try {
-            $batch = DB::transaction(function () use($business,$user,$projectsReadyForBatching,$piecesReadyForBatching){
+            $batch = DB::transaction(function () use($business,$user,$piecesReadyForBatching){
                 /*
                  * Create batch
                  */
@@ -63,8 +63,12 @@ class QuoteController extends Controller
                 //Attach pieces to batch
                 AttachPiecesToBatch::run($piecesReadyForBatching, $batch);
 
-                //Create pending order approvals
-                CreatePendingOrderApprovals::run($projectsReadyForBatching, $batch);
+                /*
+                 * Create pending order approvals - after the pieces, because the approvals are read off
+                 * them. See CreatePendingOrderApprovals for why they are not read off
+                 * $projectsReadyForBatching, which is a smaller set than what actually got nested.
+                 */
+                CreatePendingOrderApprovals::run($batch);
 
                 //Save the current nesting state (points offcuts to new batch)
                 SaveNesting::run($piecesReadyForBatching, $batch, $business);

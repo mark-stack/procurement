@@ -19,7 +19,16 @@ class DeleteQuotesWithoutPieces
             foreach ($quotes as $quote) {
                 if ($quote->pieces()->count() === 0) {
                     $quotesForDeleting[] = $quote->id;
-                    $ordersForDeleting[] = $quote->order->id;
+
+                    /*
+                     * order() is a hasOne and optional. QuoteFormatter creates the quote inside a
+                     * transaction and its order immediately after but OUTSIDE it, so a request that died
+                     * in between leaves a quote carrying none - and reading ->id off that was a fatal in
+                     * the middle of a bulk delete, after the pieces had already gone.
+                     */
+                    if ($quote->order) {
+                        $ordersForDeleting[] = $quote->order->id;
+                    }
                 }
             }
         }

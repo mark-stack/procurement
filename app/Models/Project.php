@@ -217,6 +217,45 @@ class Project extends Model
             : 0;
     }
 
+    /**
+     * Whether there is anything left on this project that quoting or ordering could still do.
+     *
+     * Not percentageOfMaterialsOrdered() === 100, which is what the two deadline reminders used to ask.
+     * That figure counts every material row in its denominator, including one that never matched a
+     * product and so has no piece to order - correct as a figure, because such a row genuinely is not
+     * ordered, but wrong as a stopping condition: the project sat at 99% or lower forever and the
+     * reminders chased its manager daily, telling them to "quote/order this batch today" when every
+     * orderable line had already been ordered and delivered. There was no way to silence it.
+     *
+     * An unmatched row is a real problem, and it is reported where it can actually be acted on - the
+     * board's Nesting column and Business::projectsWithUnfinishedImport() list it, and the fix is to
+     * clarify the line, not to order something. So it does not hold the chasing open.
+     *
+     * False for a project with nothing orderable at all, so a project whose BOM has not been matched
+     * yet is still chased.
+     */
+    public function everyOrderableRowOrdered(): bool
+    {
+        $orderable = 0;
+        $ordered = 0;
+
+        foreach ($this->rawMaterialQuotes as $rawMaterialQuote) {
+            $piece = $rawMaterialQuote->piece;
+
+            if (! $piece) {
+                continue;
+            }
+
+            $orderable++;
+
+            if ($piece->order && $piece->order->order_sent) {
+                $ordered++;
+            }
+        }
+
+        return $orderable > 0 && $ordered === $orderable;
+    }
+
     public function quotingDays(): int
     {
         return 2;
@@ -295,25 +334,29 @@ class Project extends Model
         $query->where('archive', false);
     }
 
-    public function scopeWithoutBatch(Builder $query): void
-    {
-        // batch > piece > project
-        $query->whereRelation("pieces.batch","done","=",false);
-    }
-
-    public function scopeWithBatch(Builder $query): void
-    {
-        // batch > piece > project
-        $query->whereRelation("pieces.batch","done","=",true);
-    }
+    /*
+     * scopeWithoutBatch() and scopeWithBatch() lived here and are gone with their only caller,
+     * Business::currentProjects(). withoutBatch() was whereRelation("pieces.batch", "done", false),
+     * which matches a project that HAS a batch - the opposite of its name, and a trap for the next
+     * person to reach for it. scopeUnBatchedPieces() below is the one that answers what it claimed to.
+     */
 
     public function scopeOverdueForQuotingAndOrdering(Builder $query): void
     {
         /**
          * Critical path = quoting time + delivery time
          * Less than [critical path] before planned project material received date
+         *
+         * Cut at the START of the day dueForQuotingAndOrdering() opens on, not the end of it. The two
+         * windows used to overlap across that whole day - a materials date exactly the critical path
+         * away satisfied both - so on that one day the project manager got "the materials are due to be
+         * quoted" and "the deadline has passed, quote today" about the same project in the same hourly
+         * run. Two reminders that contradict each other teach people to read neither.
+         *
+         * "<" against the same instant "due" opens on, so the boundary belongs to exactly one of them
+         * and there is no day in between that neither claims.
          */
-        $deadline = Carbon::now()->addDays($this->criticalPathDays())->endOfDay();
+        $deadline = Carbon::now()->addDays($this->criticalPathDays())->startOfDay();
 
         // Query the database
         $query->where('date_materials_required', '<', $deadline);

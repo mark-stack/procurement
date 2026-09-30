@@ -6,14 +6,15 @@ use App\Enums\MeasurementUnitEnums;
 use App\Enums\NestingEnums;
 use App\Enums\SurfaceEnums;
 use App\Models\Business;
-use App\Models\Piece;
 use App\Models\Product;
 use App\Models\RawMaterialQuote;
 use App\Services\CsvService;
 use App\Services\DataClassificationService;
+use App\Services\PieceService;
 use App\Services\ProductService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 
 class RawMaterialListCustomisationsController extends Controller
@@ -44,6 +45,7 @@ class RawMaterialListCustomisationsController extends Controller
         $productService = new ProductService;
         $csvService = new CsvService;
         $dataClassificationService = new DataClassificationService;
+        $pieceService = new PieceService;
 
         $rows = $request->all();
 
@@ -90,9 +92,30 @@ class RawMaterialListCustomisationsController extends Controller
                     //Prepare product variations (e.g lengths)
                     $productVariations = $this->productVariations($preparedFormData, $business);
 
-                    //Create product variations
+                    /*
+                     * Create product variations.
+                     *
+                     * firstOrCreate on what identifies a section, for the same reason the piece below
+                     * is written once: this form is re-postable, and a second post used to put another
+                     * copy of every variation into the price book the whole business shares. That is
+                     * not merely untidy - a description matching two identical rows is a PARTIAL match
+                     * (ProductService::getProductMatchOptions counts them), so saving a custom product
+                     * twice sent the row straight back to the clarification queue it had just left.
+                     */
                     foreach ($productVariations as $productVariation) {
-                        Product::create($productVariation);
+                        Product::firstOrCreate(
+                            Arr::only($productVariation, [
+                                'business_id',
+                                'product_category',
+                                'material',
+                                'grade',
+                                'surface',
+                                'nominal_length',
+                                'nominal_width',
+                                'nominal_height',
+                            ]),
+                            $productVariation,
+                        );
                     }
 
                     /**
@@ -110,6 +133,11 @@ class RawMaterialListCustomisationsController extends Controller
 
                     /**
                      * Create 'Pieces'
+                     *
+                     * Through PieceService, so this form is re-postable without minting a second cut
+                     * for the same material row - see PieceService::writePiece. This endpoint takes
+                     * its whole payload from the request body, and a double click used to have the
+                     * nest buy and cut the line twice.
                      */
                     //Take the project from the owned row, not from the request body
                     $project = $rawMaterialQuote->project;
@@ -117,9 +145,8 @@ class RawMaterialListCustomisationsController extends Controller
                     $widthRequired = $formData['data']['width_required'];
                     $algo = $preparedFormData['nesting_algo'];
 
-                    Piece::create([
+                    $pieceService->writePiece($rawMaterialQuote, [
                         'project_id' => $project->id,
-                        'raw_material_quote_id' => $rawMaterialQuote->id,
                         'product_category' => $preparedFormData['product_category'],
                         'material' => $preparedFormData['material'],
                         'grade' => $preparedFormData['grade'],

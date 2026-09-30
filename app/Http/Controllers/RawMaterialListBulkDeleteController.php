@@ -69,8 +69,9 @@ class RawMaterialListBulkDeleteController extends Controller
             ->whereIn('id', $ids)
             ->delete();
 
-        //Delete any left-over batches with no materials (and associated order approvals)
-        DeleteBatchesWithoutPieces::run();
+        //Delete any left-over batches with no materials (and associated order approvals). Scoped to
+        //this business - it used to walk every batch in the table
+        DeleteBatchesWithoutPieces::run($this->businessOf($request));
 
         return back();
     }

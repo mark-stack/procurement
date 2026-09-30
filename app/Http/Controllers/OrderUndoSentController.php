@@ -43,8 +43,19 @@ class OrderUndoSentController extends Controller
          * Sending the order set every approval on the batch to true (OrderSentController), so undoing it
          * has to put them back - otherwise re-sending skips the project manager approval that the
          * confirm dialog exists to collect.
+         *
+         * Only once NOTHING on this batch is still on order, though. An approval is a fact about the
+         * batch rather than about one supplier group - OrderApproval is keyed on (batch, project) - so
+         * clearing it while another group's order stands said that nobody had approved materials that
+         * were, at that moment, on their way. It also threw away approved_by_user_id and approved_at,
+         * which is the record of who committed their colleagues, and re-sending the undone group would
+         * put this user's name against an approval the first one had collected.
          */
-        UpdateOrderApprovalStatus::run($batch, false);
+        $stillOnOrder = $batch->orders()->where('order_sent', true)->exists();
+
+        if (! $stillOnOrder) {
+            UpdateOrderApprovalStatus::run($batch, false);
+        }
 
         return back();
     }

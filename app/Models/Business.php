@@ -337,59 +337,17 @@ class Business extends Model
             ->values();
     }
 
-    public function currentProjects(): Collection
-    {
-        /**
-         * Projects without batch (pre-nesting) + Active batches (not 'done')
-         */
-
-        //Projects without batch yet
-        $projectsWithoutBatchIds = $this->projects()
-            ->where("archive",false)
-            ->withoutBatch()
-            ->get()
-            ->pluck("id")
-            ->toArray();
-
-        //Projects in Active batches
-        $activeBatches = $this->batches()
-            ->active()
-            ->get();
-        $projectsInActiveBatchesIds = [];
-        foreach($activeBatches as $activeBatch){
-            foreach($activeBatch->projects() as $project){
-                $projectsInActiveBatchesIds[] = $project->id;
-            }
-        }
-
-        $combinedCurrentProjectIds = array_merge($projectsWithoutBatchIds,$projectsInActiveBatchesIds);
-        $combinedCurrentProjectIds = array_unique($combinedCurrentProjectIds);
-
-        return Project::query()
-            ->whereIn("id",$combinedCurrentProjectIds)
-            ->get();
-    }
-
-    public function pastProjects(): Collection
-    {
-        /**
-         * Projects which have batch, and batch = "done"
-         */
-        $inactiveBatches = $this->batches()
-            ->inactive()
-            ->get();
-
-        $pastProjects = [];
-        foreach($inactiveBatches as $inactiveBatch){
-            foreach($inactiveBatch->projects() as $project){
-                $pastProjects[] = $project->id;
-            }
-        }
-
-        return Project::query()
-            ->whereIn("id",$pastProjects)
-            ->get();
-    }
+    /*
+     * currentProjects() and pastProjects() lived here and are gone. Nothing called either of them -
+     * the board builds its columns from KanbanFormatter and the archive from PastProjectsController -
+     * and currentProjects() was quietly wrong in a way that would have bitten whoever reached for it
+     * next: its "projects without batch yet" half used Project::scopeWithoutBatch, which was
+     * whereRelation("pieces.batch", "done", false) and so matched projects that DO have a batch. It
+     * returned the projects in active batches twice over and left out every project that had not been
+     * nested yet. StoreProjectRequest had already had to work around exactly that.
+     *
+     * The two scopes went with them.
+     */
 
     /**
      * @return Builder<Offcut>

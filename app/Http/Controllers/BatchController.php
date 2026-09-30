@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Actions\Piece\DetachPiecesFromBatch;
 use App\Models\Batch;
 use App\Models\Offcut;
+use App\Models\Order;
 use App\PrerequisiteConditions\PrerequisiteConditions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -98,8 +99,18 @@ class BatchController extends Controller
             );
             abort_if(!$prerequisiteUndoStartQuoting,403);
 
-            //Delete orders (before the quotes - orders.quote_id is a restricting foreign key)
-            $batch->orders()->delete();
+            /*
+             * Delete orders, before the quotes - orders.quote_id is a restricting foreign key.
+             *
+             * Addressed by the batch's quotes as well as by batch_id. An order whose batch_id had been
+             * cleared still referenced one of these quotes, so deleting the quotes below hit that
+             * constraint on a row this could not see and the whole unwind threw - permanently, since
+             * nothing in the app can reach such a row to tidy it up.
+             */
+            Order::query()
+                ->where('batch_id', $batch->id)
+                ->orWhereIn('quote_id', $batch->quotes()->pluck('id'))
+                ->delete();
 
             /*
              * Detach pieces from quotes.

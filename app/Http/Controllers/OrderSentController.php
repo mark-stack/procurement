@@ -43,6 +43,25 @@ class OrderSentController extends Controller
         Gate::authorize('owned', $orderedOrder);
         abort_if($orderedOrder->batch_id !== $batch->id, 404);
 
+        /*
+         * Somebody else in this supplier group has already had their steel delivered.
+         *
+         * Sending this one would un-send theirs - that is what the action does to keep one sent order
+         * per group - and un-sending a delivered order is exactly what the undo route refuses
+         * (OrderUndoSentController). Refused here too, with the reason, rather than leaving a row that
+         * is delivered but not sent: the certificate trail reads order_sent and the offcut inventory
+         * reads is_delivered, so the two would disagree about the same steel.
+         */
+        $delivered = SetOrderSentForBatchSupplierGroup::make()->deliveredSibling($orderedOrder, $batch);
+
+        if ($delivered !== null) {
+            return back()->withErrors([
+                'order' => 'The order to '.($delivered->supplier->name ?? 'another supplier')
+                    .' for these materials has already been delivered, so this one cannot be marked as '
+                    .'placed as well. The delivery would have to be undone first.',
+            ]);
+        }
+
         //Only 1 order in the batch supplier group can be TRUE
         SetOrderSentForBatchSupplierGroup::run($orderedOrder, $batch);
 
