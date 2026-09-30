@@ -52,7 +52,15 @@ class Order extends Model
         return $this->belongsToMany(Piece::class);
     }
 
-    //Optional
+    /**
+     * optional
+     *
+     * Annotated because callers do more with it than read columns - OrderUndoSentController asks the
+     * batch for its orders and its approvals - and without the generic every one of those reads as a
+     * call to an undefined method on Model.
+     *
+     * @return BelongsTo<Batch, $this>
+     */
     public function batch(): BelongsTo
     {
         return $this->belongsTo(Batch::class);

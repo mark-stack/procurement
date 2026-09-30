@@ -25,10 +25,11 @@ class StoreProjectRequest extends FormRequest
         $user = auth()->user();
         $business = $user->business;
         /*
-         * currentProjects() only reaches projects that already have pieces in an
-         * active batch (its withoutBatch scope is whereRelation("pieces.batch",...)),
-         * and a project being created has none - so this guard never actually fired
-         * and duplicate names went straight through.
+         * Every live project of the business, read directly. This used to go through
+         * Business::currentProjects(), which only reached projects that already had
+         * pieces in an active batch - a project being created has none, so the guard
+         * never fired and duplicate names went straight through. That method and the
+         * inverted scope behind it have since been deleted.
          */
         $allCurrentProjectNames = $business->projects()
             ->where("projects.archive", false)

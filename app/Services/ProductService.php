@@ -226,8 +226,18 @@ class ProductService
         $precise_height = isset($productSpec['precise_height'])
             ? floatval($productSpec['precise_height'])
             : null;
-        $grade = $productSpec['grade'];
-        $surface = $productSpec['surface'];
+        /*
+         * Guarded like every other field here, which these two were not.
+         *
+         * getProductMatchOptions() calls this on each option decoded out of the
+         * general_product_matches / custom_product_matches columns, and decodeProductMatches()
+         * deliberately tolerates a value it cannot read on the grounds that one bad row "is not a reason
+         * to take down the whole Bill of Materials". Two lines later an option missing either of these
+         * keys did exactly that - and via Business::projectsRequiringClarification() it took down the
+         * board every colleague shares, not just the one BOM.
+         */
+        $grade = $productSpec['grade'] ?? null;
+        $surface = $productSpec['surface'] ?? null;
         $wall = $productSpec['wall'] ?? null;
         $kg_per_m = $productSpec['kg_per_m'] ?? null;
         $material = $productSpec['material'] ?? null;

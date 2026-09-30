@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\OrderApproval\CreatePendingOrderApprovals;
 use App\Models\Batch;
 use App\Models\Order;
-use App\Models\OrderApproval;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -45,7 +45,6 @@ class OrderController extends Controller
          * Prerequisite variables
          */
         $user = auth()->user();
-        $business = $user->business;
 
         //"nullable" means validated() has no key at all when the field is missing
         $batchId = $validated['batch_id'] ?? null;
@@ -80,20 +79,15 @@ class OrderController extends Controller
         }
 
         /*
-         * Create pending order approvals
+         * Create pending order approvals.
+         *
+         * This asked the business for projectsReadyForBatching() with no argument at all, against a
+         * required Collection parameter - so every request here died on an ArgumentCountError before it
+         * reached the loop. It was also asking the wrong question: "ready for batching" is the set of
+         * projects not yet nested, and an approval belongs to a project this batch actually carries.
+         * Both are settled by asking the batch, which is what CreatePendingOrderApprovals does.
          */
-        $projectsReadyForBatching = $business->projectsReadyForBatching();
-        foreach ($projectsReadyForBatching as $project) {
-            OrderApproval::firstOrCreate(
-                [
-                    'batch_id' => $batch->id,
-                    'project_id' => $project->id,
-                ],
-                [
-                    'project_manager_approved' => false,
-                ]
-            );
-        }
+        CreatePendingOrderApprovals::run($batch);
 
         return back();
     }
@@ -163,9 +157,21 @@ class OrderController extends Controller
              * quote with no supplier or category is not something detaching an order should mint anyway.
              */
 
-            //Detach order from batch
-            $order->batch_id = null;
-            $order->save();
+            /*
+             * Deleted rather than detached.
+             *
+             * Nulling batch_id left the row pointing at its quote, and orders.quote_id is a restricting
+             * foreign key - so BatchController::destroy, which deletes the batch's orders by batch_id
+             * and then its quotes, hit the constraint on a row it could not see. The unwind threw, and
+             * there is no repair path in the app: the batch could never be re-nested again.
+             *
+             * It was no use to anybody either way. The detached row stayed the one order for that quote
+             * (orders.quote_id is unique), so QuoteFormatter's firstOrCreate went on handing it back to
+             * the page while $batch->orders() could not see it - and OrderSentController refuses an
+             * order whose batch_id is not the batch, which made that supplier row permanently
+             * un-orderable. Deleting it lets the next render provision a fresh one against the batch.
+             */
+            $order->delete();
         }
 
         return back();

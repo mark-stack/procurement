@@ -203,6 +203,99 @@ it('would be a disaster if undoing a sent order left the approvals granted', fun
     expect($approval->fresh()->project_manager_approved)->toBeFalse();
 });
 
+it("would be a disaster if undoing one supplier group cleared another group's approval", function () {
+    /*
+     * OrderApproval is keyed on (batch, project), not on the supplier group, so undoing one group used
+     * to clear the approval every group shares. The steel was still on order and the batch then read as
+     * approved by nobody - and approved_by_user_id / approved_at, the record of who committed their
+     * colleagues, were thrown away with it.
+     */
+    $business = createBusiness('biz', true);
+    $user = createUser(1, $business, false, true);
+    $project = createProject($user);
+
+    $batch = Batch::factory()->forUser($user->id)->create();
+    pieceOnBatch($project, $batch);
+
+    [, $steel] = quoteAndOrder($user, $batch, Supplier::factory()->create(), 'STEEL_MERCHANT');
+    [, $fasteners] = quoteAndOrder($user, $batch, Supplier::factory()->create(), 'FASTENERS');
+
+    $approval = OrderApproval::create([
+        'batch_id' => $batch->id,
+        'project_id' => $project->id,
+        'project_manager_approved' => false,
+    ]);
+
+    $this->actingAs($user);
+
+    $this->post(route('order.sent', $batch), ['order_id' => $steel->id])->assertRedirect();
+    $this->post(route('order.sent', $batch), ['order_id' => $fasteners->id])->assertRedirect();
+
+    //Undo only the fasteners
+    $this->post(route('order.undo.sent', $fasteners))->assertRedirect();
+
+    expect($steel->fresh()->order_sent)->toBeTrue()
+        ->and($approval->fresh()->project_manager_approved)->toBeTrue()
+        ->and($approval->fresh()->approved_by_user_id)->toBe($user->id);
+
+    //Once nothing is on order, the approval does go back
+    $this->post(route('order.undo.sent', $steel))->assertRedirect();
+
+    expect($approval->fresh()->project_manager_approved)->toBeFalse()
+        ->and($approval->fresh()->approved_by_user_id)->toBeNull();
+});
+
+it("would be a disaster if sending one supplier's order un-sent a delivered one", function () {
+    /*
+     * Marking an order sent un-sends every other order in its supplier group. That used to include one
+     * the steel had already arrived against, leaving a row that is delivered but not sent - which the
+     * undo route refuses outright, and which the rest of the app cannot read: the certificate trail
+     * filters on order_sent while the offcut inventory keys on is_delivered.
+     */
+    $business = createBusiness('biz', true);
+    $user = createUser(1, $business, false, true);
+    $project = createProject($user);
+
+    $batch = Batch::factory()->forUser($user->id)->create();
+    pieceOnBatch($project, $batch);
+
+    [, $orderA] = quoteAndOrder($user, $batch, Supplier::factory()->create(), 'STEEL_MERCHANT');
+    [, $orderB] = quoteAndOrder($user, $batch, Supplier::factory()->create(), 'STEEL_MERCHANT');
+
+    $this->actingAs($user);
+
+    $this->post(route('order.sent', $batch), ['order_id' => $orderA->id])->assertRedirect();
+    $this->post(route('order.mark.delivered', $orderA))->assertRedirect();
+
+    //Refused, with the reason, rather than quietly un-sending delivered steel
+    $this->post(route('order.sent', $batch), ['order_id' => $orderB->id])
+        ->assertSessionHasErrors('order');
+
+    expect($orderA->fresh()->order_sent)->toBeTrue()
+        ->and($orderA->fresh()->is_delivered)->toBeTrue()
+        ->and($orderB->fresh()->order_sent)->toBeFalse();
+});
+
+it('would be a disaster if a second delivery post un-delivered the order', function () {
+    /*
+     * is_delivered was flipped rather than set, while the page disables the checkbox the moment an order
+     * is delivered - so the only thing a repeated post could do was take delivered steel back out of
+     * inventory, and no screen offered a way to do it deliberately.
+     */
+    $business = createBusiness('biz', true);
+    $user = createUser(1, $business, false, true);
+
+    $batch = Batch::factory()->forUser($user->id)->create();
+    [, $order] = quoteAndOrder($user, $batch, null, 'STEEL_MERCHANT', false, true);
+
+    $this->actingAs($user);
+
+    $this->post(route('order.mark.delivered', $order))->assertRedirect();
+    $this->post(route('order.mark.delivered', $order))->assertRedirect();
+
+    expect($order->fresh()->is_delivered)->toBeTrue();
+});
+
 it('would be a disaster if an order that was never sent could be undone', function () {
     $business = createBusiness('biz', true);
     $user = createUser(1, $business, false, true);
@@ -330,7 +423,7 @@ it('clears a purchase order number when the box is emptied', function () {
     expect($order->fresh()->purchase_order_number)->toBeNull();
 });
 
-it('would be a disaster if detaching an order from its batch threw', function () {
+it('would be a disaster if discarding an unsent order threw', function () {
     /*
      * orders.destroy also firstOrCreate'd a Quote with quote_requests / quote_responses - neither column
      * exists, so with $guarded = [] the route always died on "column not found".
@@ -345,7 +438,35 @@ it('would be a disaster if detaching an order from its batch threw', function ()
 
     $this->delete(route('orders.destroy', $order))->assertRedirect();
 
-    expect($order->fresh()->batch_id)->toBeNull();
+    /*
+     * The row goes, rather than being detached with its quote_id left in place. See
+     * OrderController::destroy - a detached order still referenced the quote, and orders.quote_id
+     * restricts, so it made the batch permanently impossible to unwind.
+     */
+    expect($order->fresh())->toBeNull();
+});
+
+it('would be a disaster if discarding an order left the batch impossible to unwind', function () {
+    /*
+     * The order used to keep its quote_id when it was detached, and orders.quote_id is a restricting
+     * foreign key - so BatchController::destroy deleted the batch's orders by batch_id, could not see
+     * this one, and then threw deleting the quote it pointed at. The batch could never be re-nested,
+     * and nothing in the app could reach the row to fix it.
+     */
+    $business = createBusiness('biz', true);
+    $user = createUser(1, $business, false, true);
+
+    $batch = Batch::factory()->forUser($user->id)->create();
+    $project = createProject($user);
+    pieceOnBatch($project, $batch);
+    [, $order] = quoteAndOrder($user, $batch);
+
+    $this->actingAs($user);
+
+    $this->delete(route('orders.destroy', $order))->assertRedirect();
+    $this->delete(route('batches.destroy', $batch))->assertRedirect();
+
+    expect(Batch::find($batch->id))->toBeNull();
 });
 
 it("would be a disaster if another business's quotes and orders could be downloaded", function () {

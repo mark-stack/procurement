@@ -2,9 +2,17 @@
 
 use App\Enums\GradeEnums;
 use App\Enums\MaterialEnums;
+use App\Enums\MeasurementUnitEnums;
 use App\Enums\NestingEnums;
+use App\Enums\ProductEnums;
+use App\Enums\SurfaceEnums;
+use App\Models\Batch;
+use App\Models\Piece;
+use App\Models\Product;
+use App\Models\RawMaterialQuote;
 use App\Services\CsvService;
 use App\Services\DataClassificationService;
+use App\Services\PieceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 
@@ -310,5 +318,113 @@ it('still lets a project manager clear rows from their own material list', funct
 });
 
 it('would be a disaster if importing misses tables and does not notify the user', function () {});
+
+it('would be a disaster if re-posting a clarification cut the material row twice', function () {
+    /*
+     * The clarification endpoint takes its whole payload from the request body and used to Piece::create
+     * unconditionally, so a double click, a stale tab or a retried request minted a SECOND piece for the
+     * same BOM line. The BOM could not show it - RawMaterialQuote::piece() is a hasOne and reads the
+     * first - while NestingFormatter::piecesReadyForBatching reads the pieces table directly, so the
+     * nest bought and cut both: a row asking for three lengths had six cut and paid for.
+     */
+    seedMasterMaterials();
+
+    $business = createBusiness('biz', true);
+    $user = createUser(1, $business, false, true);
+    $project = createProject($user);
+
+    $product = Product::query()->where('product_category', ProductEnums::PFC->value)->firstOrFail();
+
+    $row = RawMaterialQuote::create([
+        'csv_index' => 1,
+        'description' => 'PFC',
+        'product_category' => ProductEnums::PFC->value,
+        'material' => $product->material,
+        'grade' => $product->grade,
+        'surface' => $product->surface,
+        'nominal_units' => MeasurementUnitEnums::MILLIMETERS->value,
+        'length_required' => 6000,
+        'sub_qty' => 3,
+        'project_id' => $project->id,
+        'general_product_matches' => serialize(['allFields' => false, 'allFieldsIndividual' => [], 'results' => []]),
+        'assembly_mark' => '',
+    ]);
+
+    $payload = [
+        'deletedIds' => [],
+        '0' => [
+            'selected' => 0,
+            'custom' => false,
+            'data' => ['id' => $row->id, 'nesting_algo' => NestingEnums::METERAGE->value],
+            'options' => [[
+                'product_category' => $product->product_category,
+                'material' => $product->material,
+                'grade' => $product->grade,
+                'surface' => $product->surface,
+                'nominal_units' => $product->nominal_units,
+                'nominal_length' => $product->nominal_length,
+                'nominal_width' => $product->nominal_width,
+                'nominal_height' => $product->nominal_height,
+                'wall' => $product->wall,
+                'kg_per_m' => $product->kg_per_m,
+            ]],
+        ],
+    ];
+
+    $this->actingAs($user);
+
+    $this->post(route('raw.material.quote.clarifications'), $payload)->assertRedirect();
+    $this->post(route('raw.material.quote.clarifications'), $payload)->assertRedirect();
+
+    expect(Piece::where('raw_material_quote_id', $row->id)->count())->toBe(1)
+        //The quantity the line actually asked for, not twice it
+        ->and((int) Piece::where('raw_material_quote_id', $row->id)->sum('actual_qty'))->toBe(3);
+});
+
+it('leaves a piece that is already nested alone when the clarification is re-posted', function () {
+    /*
+     * The other half of the rule: a piece on a batch has been costed, quoted and possibly delivered
+     * around its spec, so a stale form must not rewrite it.
+     */
+    seedMasterMaterials();
+
+    $business = createBusiness('biz', true);
+    $user = createUser(1, $business, false, true);
+    $project = createProject($user);
+    $batch = Batch::factory()->forUser($user->id)->create();
+
+    $row = createRawMaterialQuote200Pfc(
+        $project,
+        MaterialEnums::PLAIN_CARBON_STEEL,
+        GradeEnums::GR300,
+        9000,
+    );
+
+    $piece = Piece::create([
+        'project_id' => $project->id,
+        'raw_material_quote_id' => $row->id,
+        'batch_id' => $batch->id,
+        'product_category' => ProductEnums::PFC->value,
+        'material' => MaterialEnums::PLAIN_CARBON_STEEL->value,
+        'grade' => GradeEnums::GR300->value,
+        'surface' => SurfaceEnums::NONE->value,
+        'actual_length' => 9000,
+        'actual_qty' => 2,
+    ]);
+
+    $written = (new PieceService)->writePiece($row, [
+        'project_id' => $project->id,
+        'product_category' => ProductEnums::PFC->value,
+        'material' => MaterialEnums::PLAIN_CARBON_STEEL->value,
+        'grade' => GradeEnums::GR300->value,
+        'surface' => SurfaceEnums::NONE->value,
+        'actual_length' => 1234,
+        'actual_qty' => 99,
+    ]);
+
+    expect($written->id)->toBe($piece->id)
+        ->and($piece->fresh()->actual_length)->toBe('9000')
+        ->and($piece->fresh()->actual_qty)->toBe('2');
+});
 
 //todo more

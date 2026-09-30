@@ -57,8 +57,9 @@ class NotificationQuotingOrderingOverDueImplementation implements NotificationIn
              * after it.
              */
 
-            //5) Order coverage < 100%
-            if ($project->percentageOfMaterialsOrdered() === 100) {
+            //5) Order coverage < 100% - see Project::everyOrderableRowOrdered for why it is not the
+            //percentage, which a single unmatched BOM row held below 100 forever
+            if ($project->everyOrderableRowOrdered()) {
                 continue;
             }
 
