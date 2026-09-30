@@ -197,12 +197,15 @@ class KanbanFormatter
              * no cert numbers at all, and a draft order exists for every supplier in the group from the
              * first time the quote screen is opened - so a business with two steel merchants always had
              * one, and the warning stuck on with the button hidden behind it for good.
+             *
+             * An attached certificate file settles this as well as a written reference does, which is
+             * what missingMaterialCerts() is for - see Order.
              */
             $steelMerchantDeliveredButNoCertsYet = $batch->orders()
                 ->where('order_sent', true)
                 ->where('is_delivered', true)
                 ->whereRelation("quote","supplier_category","=",SupplierGroupEnums::STEEL_MERCHANT->value)
-                ->where("material_cert_numbers",null)
+                ->missingMaterialCerts()
                 ->exists();
 
             $delivered[$batch->id] = [

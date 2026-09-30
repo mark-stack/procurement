@@ -10,6 +10,7 @@ use App\Models\Quote;
 use App\Models\User;
 use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\BatchService;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\DB;
 
 class QuoteFormatter
@@ -122,6 +123,11 @@ class QuoteFormatter
                     $quote->setRelation('batch', $batch);
                     $quote->setRelation('order', $order);
 
+                    //An order created a moment ago has nothing attached, so don't go and ask
+                    if ($order->wasRecentlyCreated) {
+                        $order->setRelation('materialCertificates', new EloquentCollection);
+                    }
+
                     $rows[] = [
                         'info' => [
                             'supplier' => $supplier,
@@ -156,6 +162,19 @@ class QuoteFormatter
                             'purchase_order_number' => $order->purchase_order_number,
                             "material_cert_numbers" => $order->material_cert_numbers,
                         ],
+                        /*
+                         * The other half of the certs cell. These are rows of their own rather than a
+                         * column on the order, so they are not form state - the modal uploads and
+                         * deletes them one at a time and re-reads this list.
+                         */
+                        'materialCertificateFiles' => $order->materialCertificates
+                            ->map(fn ($certificate) => [
+                                'id' => $certificate->id,
+                                'filename' => $certificate->original_filename,
+                                'size_bytes' => $certificate->size_bytes,
+                            ])
+                            ->values()
+                            ->all(),
                         'formUndoOrderSent' => [
                             'order_id' => $order->id,
                         ],

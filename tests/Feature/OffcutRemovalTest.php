@@ -106,7 +106,7 @@ it('leaves the offcuts cut from a removed one exactly where they are', function 
             ->where('offcuts.data.0.id', $deepest->id)
             ->where('offcuts.data.0.generation', 3)
             ->where('offcuts.data.0.offcutOrdersWithCertificates.certificates', [
-                ['supplier_name' => 'Root Steel', 'material_cert_numbers' => 'CERT-ROOT'],
+                ['supplier_name' => 'Root Steel', 'material_cert_numbers' => 'CERT-ROOT', 'material_cert_files' => []],
             ])
         );
 });

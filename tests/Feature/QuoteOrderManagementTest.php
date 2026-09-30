@@ -278,6 +278,58 @@ it('would be a disaster if saving material certs overwrote the purchase order nu
     expect($order->fresh()->material_cert_numbers)->toBe('CERT-9');
 });
 
+it('leaves a field alone when the request does not carry it', function () {
+    /*
+     * What keeps the two editors off each other now. The PO number is edited inline on the row and
+     * the certificate reference in its own panel, and each form sends only its own field - so
+     * neither can write back a value it read off the row before somebody else changed it. The test
+     * above pins the older, weaker guarantee: that sending both keeps both.
+     */
+    $business = createBusiness('biz', true);
+    $user = createUser(1, $business, false, true);
+
+    $batch = Batch::factory()->forUser($user->id)->create();
+    [, $order] = quoteAndOrder($user, $batch);
+
+    $order->update(['purchase_order_number' => 'PO-123', 'material_cert_numbers' => 'CERT-9']);
+
+    $this->actingAs($user);
+
+    //The certificates panel, saving a reference and nothing else
+    $this->put(route('orders.update', $order), ['material_cert_numbers' => 'CERT-NEW'])
+        ->assertRedirect();
+
+    expect($order->fresh()->purchase_order_number)->toBe('PO-123');
+
+    //The row's inline PO editor, saving a number and nothing else
+    $this->put(route('orders.update', $order), ['purchase_order_number' => 'PO-456'])
+        ->assertRedirect();
+
+    expect($order->fresh()->material_cert_numbers)->toBe('CERT-NEW')
+        ->and($order->fresh()->purchase_order_number)->toBe('PO-456');
+});
+
+it('clears a purchase order number when the box is emptied', function () {
+    /*
+     * There was no way to take one off. The inline editor carried "required" and "minlength" on an
+     * input with no form around it, so neither did anything and an emptied box saved "" - a PO
+     * number that is not there, but does not read as absent to anything asking.
+     */
+    $business = createBusiness('biz', true);
+    $user = createUser(1, $business, false, true);
+
+    $batch = Batch::factory()->forUser($user->id)->create();
+    [, $order] = quoteAndOrder($user, $batch);
+
+    $order->update(['purchase_order_number' => 'PO-123']);
+
+    $this->actingAs($user)
+        ->put(route('orders.update', $order), ['purchase_order_number' => '  '])
+        ->assertRedirect();
+
+    expect($order->fresh()->purchase_order_number)->toBeNull();
+});
+
 it('would be a disaster if detaching an order from its batch threw', function () {
     /*
      * orders.destroy also firstOrCreate'd a Quote with quote_requests / quote_responses - neither column

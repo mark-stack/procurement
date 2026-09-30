@@ -30,7 +30,7 @@ class Batch extends Model
      * one source batch, and eager loading hands every one of those rows the same Batch instance - so
      * caching here turns "once per row" into "once per batch".
      */
-    private ?Collection $newStockCertificatesMemo = null;
+    private ?array $newStockCertificatesMemo = null;
 
     private ?array $offcutCertificatesMemo = null;
 
@@ -75,7 +75,11 @@ class Batch extends Model
         return $this->hasmany(Quote::class);
     }
 
-    //optional
+    /**
+     * optional
+     *
+     * @return HasMany<Order, $this>
+     */
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
@@ -153,13 +157,37 @@ class Batch extends Model
         return collect([]);
     }
 
-    public function newStockOrdersWithCertificates(): Collection
+    /**
+     * The certificates behind the new steel this batch bought.
+     *
+     * Shape matches offcutOrdersWithCertificates() below: {supplier_name, material_cert_numbers,
+     * material_cert_files}. It used to hand back Order models, so the two trails - which are printed
+     * side by side on the same spec sheet - read their supplier off different keys, and the Order
+     * rows carried the whole orders table out to the page to have two fields read off them.
+     *
+     * @return array<int, array{supplier_name: string, material_cert_numbers: ?string, material_cert_files: array<int, array{id: int, filename: string}>}>
+     */
+    public function newStockOrdersWithCertificates(): array
     {
         return $this->newStockCertificatesMemo ??= $this->orders()
             ->where("order_sent",true)
-            ->whereNotNull("material_cert_numbers")
-            ->with("supplier")
-            ->get();
+            ->hasMaterialCerts()
+            ->with(["supplier:id,name","materialCertificates"])
+            ->get()
+            ->map(fn (Order $order) => [
+                //supplier_id is nullable, and ?? short-circuits the whole chain rather than fatal
+                'supplier_name' => $order->supplier->name ?? 'Unknown supplier',
+                'material_cert_numbers' => $order->material_cert_numbers,
+                'material_cert_files' => $order->materialCertificates
+                    ->map(fn (MaterialCertificate $certificate) => [
+                        'id' => $certificate->id,
+                        'filename' => $certificate->original_filename,
+                    ])
+                    ->values()
+                    ->all(),
+            ])
+            ->values()
+            ->all();
     }
 
     public function offcutOrdersWithCertificates(Business $business): array
@@ -238,8 +266,8 @@ class Batch extends Model
         $ordersWithCertificates = Order::query()
             ->whereIn("batch_id",$originalBatchIds)
             ->where("order_sent",true)
-            ->whereNotNull("material_cert_numbers")
-            ->with(["supplier:id,name","quote:id,supplier_category"])
+            ->hasMaterialCerts()
+            ->with(["supplier:id,name","quote:id,supplier_category","materialCertificates"])
             ->get();
 
         $certificates = [];
@@ -253,10 +281,26 @@ class Batch extends Model
                  * Keyed on the supplier/certificate PAIR. Keying on the supplier name alone meant one
                  * merchant supplying two of the source batches kept only the last certificate read -
                  * silently dropping the others from the traceability trail.
+                 *
+                 * The attached files are part of that identity now. An order certified only by a PDF
+                 * has no cert numbers at all, so two of them under one merchant would collide on the
+                 * same "name\0null" key and the trail would report one of the two.
                  */
-                $certificates[$supplierName."\0".$order->material_cert_numbers] = [
+                $files = $order->materialCertificates
+                    ->map(fn (MaterialCertificate $certificate) => [
+                        'id' => $certificate->id,
+                        'filename' => $certificate->original_filename,
+                    ])
+                    ->values()
+                    ->all();
+
+                $fingerprint = $supplierName."\0".$order->material_cert_numbers
+                    ."\0".implode(",",array_column($files,'id'));
+
+                $certificates[$fingerprint] = [
                     'supplier_name' => $supplierName,
                     'material_cert_numbers' => $order->material_cert_numbers,
+                    'material_cert_files' => $files,
                 ];
             }
         }
