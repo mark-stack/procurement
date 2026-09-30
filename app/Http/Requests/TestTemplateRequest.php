@@ -14,14 +14,26 @@ namespace App\Http\Requests;
  * unique within the business, and a test is not a record), the screenshot, whether it is live, and
  * where the format is documented. Requiring a screenshot before an admin may press Test would be
  * asking for a photograph to check some arithmetic.
+ *
+ * So is the proof of a passing test, for the obvious reason: this is the request that issues one.
  */
 class TestTemplateRequest extends StoreTemplateRequest
 {
+    /**
+     * Everything the record has to satisfy, and not the test gate - see the class note above.
+     *
+     * @return array<int, callable>
+     */
+    public function after(): array
+    {
+        return [$this->recordChecks()];
+    }
+
     public function rules(): array
     {
         return [
             ...collect(parent::rules())
-                ->except(['name', 'screenshot', 'active', 'web_source'])
+                ->except(['name', 'screenshot', 'active', 'web_source', 'template_test_token'])
                 ->all(),
 
             /*
@@ -29,6 +41,16 @@ class TestTemplateRequest extends StoreTemplateRequest
              * sheet saved out by hand to show us the shape of a report.
              */
             'sample' => ['required', 'file', 'mimes:xls,xlsx,csv', 'max:1024'],
+
+            /*
+             * Which recorded template the form is open on, when it is open on one. Only used to keep
+             * a template from being reported as a duplicate of itself: editing one and testing it
+             * against the file it already reads is the ordinary thing to do, not a clash.
+             *
+             * Unvalidated against the business on purpose - it can only ever remove a row from a
+             * check, so the worst a wrong one does is quieten a warning for whoever sent it.
+             */
+            'editing_template_id' => ['nullable', 'integer'],
         ];
     }
 
@@ -50,6 +72,6 @@ class TestTemplateRequest extends StoreTemplateRequest
      */
     public function templateAttributes(): array
     {
-        return collect($this->validated())->except('sample')->all();
+        return collect($this->validated())->except(['sample', 'editing_template_id'])->all();
     }
 }

@@ -37,6 +37,7 @@ class TemplateProposalService
     public function __construct(
         private readonly OpenAiService $openAi = new OpenAiService,
         private readonly TemplateChecks $checks = new TemplateChecks,
+        private readonly SpreadsheetImage $image = new SpreadsheetImage,
     ) {}
 
     /**
@@ -61,6 +62,17 @@ class TemplateProposalService
         $suggestion = $this->ask($grid, $business);
 
         $prefill = $this->merge($detection, $suggestion['answer'], $business, $file);
+
+        /*
+         * The screenshot, drawn from the sheet that was just parsed rather than asked for as a base64
+         * data URL with a link to a converter. Done after the merge because it draws the columns the
+         * prefill placed - see SpreadsheetImage.
+         */
+        $prefill['values']['screenshot'] = $this->image->render(
+            $grid,
+            $prefill['values'],
+            $detection['heading_row'] ?? null,
+        );
 
         $findings = [
             ...$this->checks->againstSample($prefill['values'], $grid),
@@ -195,7 +207,12 @@ class TemplateProposalService
             'compound_description_cells' => [],
             'assembly_mark_rule' => 'NONE',
             'assembly_mark_cell' => null,
-            //Not "active" and not "screenshot": neither is something a spreadsheet can be read for
+            /*
+             * Not "active", which is a decision about how a template is used rather than a reading of
+             * a file. The screenshot is not read from the sheet either - it is drawn from it, by
+             * propose() once these values are settled, because it draws the columns they placed.
+             */
+            'screenshot' => null,
             'length_width_units' => 'm',
         ];
         $provenance = [];

@@ -40,6 +40,16 @@
          <env name="DB_CONNECTION" value="sqlite"/>
          <env name="DB_DATABASE" value=":memory:"/>
         <env name="MAIL_MAILER" value="array"/>
+        <!--
+            No key, so nothing in the suite can reach OpenAI - and until the template test started
+            asking it to read the extracted rows, something could: a developer with a real key in
+            their own .env was billed for a real call every time one of those tests ran, and the
+            assertions turned on whatever a model happened to say that afternoon.
+
+            An absent key is a supported state everywhere it is read, so this is also the state
+            worth testing. Tests that want an answer set the key and fake the HTTP response.
+        -->
+        <env name="OPENAI_API_KEY" value=""/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

@@ -130,13 +130,26 @@
                                         <span v-else class="text-red-500 font-bold">No business</span>
                                     </td>
                                     <td>
+                                        <!--
+                                            Two numbers when they disagree: templates that are matched
+                                            against uploads, of templates recorded. A bare red "0"
+                                            beside a business with three templates recorded reads as
+                                            "nobody has recorded one", and it means "none of the three
+                                            is active" - a different problem, on a different screen.
+                                        -->
                                         <Link
                                             v-if="user.business"
                                             class="underline"
                                             :class="user.templates_count > 0 ? 'text-blue-500' : 'text-red-500 font-bold'"
                                             :href="route('admin.businesses.templates.index',user.business.id)"
+                                            :title="user.templates_total > user.templates_count
+                                                ? user.templates_count + ' of ' + user.templates_total + ' recorded templates are active and able to find a table. The rest match no upload.'
+                                                : 'Templates this business\'s uploads are matched against'"
                                         >
-                                            {{user.templates_count}}
+                                            {{user.templates_count}}<span
+                                                v-if="user.templates_total > user.templates_count"
+                                                class="font-normal text-gray-500 dark:text-gray-400"
+                                            > of {{user.templates_total}}</span>
                                         </Link>
                                         <span v-else>&mdash;</span>
                                     </td>

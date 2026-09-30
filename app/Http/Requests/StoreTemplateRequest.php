@@ -4,8 +4,10 @@ namespace App\Http\Requests;
 
 use App\Enums\TemplateEnums;
 use App\Enums\TemplateSourceEnums;
+use App\Models\Business;
 use App\Models\Template;
 use App\Services\TemplateChecks;
+use App\Services\TemplateTestCertificate;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
@@ -152,6 +154,17 @@ class StoreTemplateRequest extends FormRequest
             'length_width_units' => ['required', Rule::in(['m', 'mm'])],
             'web_source' => ['nullable', 'url', 'max:2048'],
             'active' => ['required', 'boolean'],
+
+            /*
+             * Proof that this template was run over a real spreadsheet and imported something. Not a
+             * field an admin fills in: the test hands it back, the form posts it here, and after()
+             * checks it was issued for the values being saved.
+             *
+             * Nothing is stored from it - see TemplateTestCertificate. It is dropped by
+             * TestTemplateRequest, which is the request that issues it, and by UpdateTemplateRequest,
+             * where requiring one would mean re-uploading a sample to correct a template's name.
+             */
+            'template_test_token' => ['required', 'string'],
         ];
     }
 
@@ -170,33 +183,99 @@ class StoreTemplateRequest extends FormRequest
     public function after(): array
     {
         return [
-            function (Validator $validator) {
-                //A payload that already failed its field rules has nothing coherent to check
-                if ($validator->errors()->isNotEmpty()) {
-                    return;
-                }
-
-                foreach (TemplateChecks::blocking((new TemplateChecks)->record($this->all())) as $field => $message) {
-                    $validator->errors()->add($field, $message);
-                }
-            },
+            $this->recordChecks(),
+            $this->passingTest(),
         ];
     }
 
     /**
-     * Overridden when updating, where an unchanged screenshot is not sent back at all.
+     * The whole-record checks, shared with testing and updating. Both do exactly this and neither
+     * wants the test gate below - the test is what issues the token, and an update is allowed to be
+     * a correction to a name.
+     */
+    protected function recordChecks(): callable
+    {
+        return function (Validator $validator) {
+            /*
+             * A payload that already failed its field rules has nothing coherent to check - except for
+             * the test token, which is not part of the record at all. A record with no proof of a test
+             * still has to be told what is wrong with it, or the only thing an admin can learn from
+             * pressing Create is that they have not pressed Test.
+             */
+            if (array_diff($validator->errors()->keys(), ['template_test_token']) !== []) {
+                return;
+            }
+
+            foreach (TemplateChecks::blocking((new TemplateChecks)->record($this->all())) as $field => $message) {
+                $validator->errors()->add($field, $message);
+            }
+        };
+    }
+
+    /**
+     * That a passing test was run over these exact values, for this business.
+     *
+     * The browser disables Create until there is one, which is a courtesy; this is the gate. A token
+     * for a different set of cell references, for another business, or from before the form was edited
+     * is not a test of what is being saved, and each of those is what a stale token is.
+     */
+    private function passingTest(): callable
+    {
+        return function (Validator $validator) {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            $business = $this->route('business');
+
+            if (! $business instanceof Business) {
+                return;
+            }
+
+            if ((new TemplateTestCertificate)->matches($this->input('template_test_token'), $business, $this->all())) {
+                return;
+            }
+
+            $validator->errors()->add(
+                'template_test_token',
+                'These values have not passed a test. Choose a sample spreadsheet, press Test, and create the template once every check has passed - the form has changed since the last test that did.',
+            );
+        };
+    }
+
+    /**
+     * What a screenshot has to look like, whoever is sending one. The presence rule is the subclass's
+     * business: nullable here, "sometimes" when updating, where an unchanged screenshot is not sent
+     * back at all.
      *
      * @return array<int, mixed>
      */
-    protected function screenshotRules(): array
+    protected function screenshotShape(): array
     {
         return [
-            'required',
             'string',
             'max:'.self::SCREENSHOT_MAX_CHARACTERS,
             //"min:50" was a length check that any 50 characters passed
             'regex:/^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+\/]+=*$/',
         ];
+    }
+
+    /**
+     * Nullable, and it used to be required.
+     *
+     * It was required when it was a base64 string an admin pasted in by hand, and requiring it was the
+     * only thing that made anybody do it. It is now drawn from the sample the template is tested
+     * against - see SpreadsheetImage - so the field is no longer a question anybody is being asked,
+     * and "required" would have stopped meaning "the admin must supply one" and started meaning "our
+     * renderer must have worked". A template with no thumbnail is a template that is listed with a
+     * placeholder, which every seeded row already is; a template that cannot be recorded because GD is
+     * missing is a dead end with nothing on the form to fix.
+     *
+     * @return array<int, mixed>
+     */
+    protected function screenshotRules(): array
+    {
+        return ['nullable', ...$this->screenshotShape()];
     }
 
     /**
@@ -257,12 +336,16 @@ class StoreTemplateRequest extends FormRequest
             'skip_or_finish_check_cell.regex' => 'Use a cell reference like B7.',
             'assembly_mark_cell.regex' => 'Use a cell reference like B7.',
             'compound_description_cells.*.regex' => 'Use a cell reference like B7.',
-            'screenshot.required' => 'Screenshot is required.',
-            'screenshot.regex' => 'Screenshot must be a base64 data URL, e.g. data:image/png;base64,...',
-            'screenshot.max' => 'Screenshot is too large. Resize it to around 800x500px first.',
+            /*
+             * Nobody types a screenshot in any more - it is drawn from the sample - so these are
+             * about what arrives rather than about what an admin should have done differently.
+             */
+            'screenshot.regex' => 'That screenshot is not an image. It should be a data URL, e.g. data:image/png;base64,...',
+            'screenshot.max' => 'That screenshot is too large to store.',
             'length_width_units.required' => 'Units for length and width are required.',
             'length_width_units.in' => 'Units must be either m or mm.',
             'active.required' => 'Active status is required.',
+            'template_test_token.required' => 'Test this template against a sample spreadsheet first. A template can only be created once its test has passed.',
         ];
     }
 }

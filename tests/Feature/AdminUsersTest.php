@@ -73,6 +73,47 @@ it('counts only the templates the business can actually import with', function (
         ->get(route('admin.users.index'))
         ->assertInertia(fn ($page) => $page
             ->where('users.data.0.templates_count', 1)
+            //And how many were recorded, so the first number is readable - see below
+            ->where('users.data.0.templates_total', 3)
+        );
+});
+
+it('says how many templates were recorded as well as how many are live', function () {
+    /**
+     * Three templates were recorded for a business, every one of them tested, and none of them
+     * ticked active. This column said "0" in red, which is what it says for a business nobody has
+     * recorded anything for - so the screen that exists to answer "can these people import yet"
+     * gave the right answer to that question and the wrong impression about why.
+     *
+     * "0 of 3" is a different sentence: the templates exist, and switching one on is a tick on
+     * another screen rather than an afternoon of recording them.
+     */
+    $business = createBusiness('Business A', true);
+    $admin = createUser(1, $business, true, true);
+
+    Template::factory()->count(3)->for($business)->inactive()->create();
+
+    $this->actingAs($admin)
+        ->get(route('admin.users.index'))
+        ->assertInertia(fn ($page) => $page
+            ->where('users.data.0.templates_count', 0)
+            ->where('users.data.0.templates_total', 3)
+        );
+});
+
+it('would be a disaster if a user with no business broke the templates column', function () {
+    //business_id is nullable, and both counts are read off a business that may not be there
+    $admin = createUser(1, createBusiness('Business A', true), true, true);
+
+    User::factory()->create(['business_id' => null, 'name' => 'Orphan']);
+
+    $this->actingAs($admin)
+        ->get(route('admin.users.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('users.data.0.business', null)
+            ->where('users.data.0.templates_count', 0)
+            ->where('users.data.0.templates_total', 0)
         );
 });
 

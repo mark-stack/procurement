@@ -41,8 +41,17 @@ class AdminUserIndexController extends Controller
                  * not every row on the business: a deactivated template, or one recorded before
                  * templates carried a heading row to find the table by, detects nothing, and
                  * counting it says a business is ready to import when it is not.
+                 *
+                 * Both numbers, though. On its own the first one is a red 0 beside a business with
+                 * three templates recorded against it, which reads as "nobody has done the work"
+                 * when what it means is "the work is done and none of it is switched on" - and the
+                 * two are fixed on different screens by different people.
                  */
-                ->withCount(['detectableTemplates as templates_count', 'suppliers']),
+                ->withCount([
+                    'detectableTemplates as templates_count',
+                    'templates as templates_total',
+                    'suppliers',
+                ]),
             ])
             /*
              * Newest first: this page exists to find new signups. It had no order at all,

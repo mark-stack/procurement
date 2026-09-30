@@ -58,7 +58,17 @@
         screenshot: null,
         length_width_units: "m",
         web_source: null,
-        active: false,
+        /*
+         * Live on create.
+         *
+         * This was false, and that was right when a template could be recorded without anybody
+         * having watched it read a spreadsheet: you wrote the record, then checked it against a real
+         * file, then flipped it on. Passing a test is now the only way to create one at all, so the
+         * check has already happened by the time this field is read - and leaving it off meant every
+         * template was recorded, verified, and dead, with the only sign a red 0 on the admin users
+         * list. Untick it to record one without switching it on.
+         */
+        active: true,
     };
     const formTemplate = useForm({ ...blankTemplate });
     const formTemplateDelete = useForm({});
@@ -79,7 +89,37 @@
         { field: "first_surface_cell", label: "Surface", hint: "Finish or treatment" },
     ];
 
-    //Every field the parser has an opinion about, which is everything a spreadsheet can be read for
+    /*
+     * The fields a test's verdict turns on - everything that changes which cells are read and what
+     * comes out of them, and nothing else.
+     *
+     * This list, and the tidying below it, mirror TemplateTestCertificate on the server: it signs a
+     * passing test over exactly these values, so these are the ones whose editing makes a passing test
+     * stop describing the form. The name, the screenshot, whether it is live and the documentation link
+     * are all deliberately outside it - typing a name after a test has passed must not send an admin
+     * back to upload the sample again.
+     */
+    const testedCellFields = [
+        "heading_cell",
+        ...columnFields.map((column) => column.field),
+        "skip_or_finish_check_cell",
+        "assembly_mark_cell",
+    ];
+    const testedTextFields = [
+        "should_skip_row",
+        "is_last_data_row",
+        "compound_description_prefix",
+        "compound_description_suffix",
+        "assembly_mark_rule",
+        "length_width_units",
+    ];
+    //Whether each repeater's rows are cell references, which are compared without regard to case
+    const testedListFields = {
+        expected_heading_labels: false,
+        compound_description_cells: true,
+    };
+
+    //Every field the parser has an opinion about: everything a spreadsheet can be read for, plus its picture
     const prefillFields = [
         "name",
         "source",
@@ -96,6 +136,8 @@
         "assembly_mark_rule",
         "assembly_mark_cell",
         "length_width_units",
+        //Drawn from the sheet rather than read out of it - see SpreadsheetImage
+        "screenshot",
     ];
 
     //Variables
@@ -119,6 +161,15 @@
     const testing = ref(false);
     //The form as it was when Test ran, so the result can say when it no longer describes the form
     const testedSnapshot = ref(null);
+    /*
+     * The last test result, kept here rather than read straight off the flash prop.
+     *
+     * A template cannot be created until its test has passed, and a refused create - a name already
+     * taken, a screenshot that is not an image - is a round trip that consumes the flash. Read from
+     * the flash alone, the result and with it the unlocked Create button would vanish every time the
+     * form was refused for a reason that has nothing to do with the test.
+     */
+    const lastTest = ref(null);
 
     //Shared Methods
     const {confirmDialog, askToConfirm, confirmDialogAccepted, confirmDialogCancelled} = useConfirm();
@@ -143,17 +194,67 @@
      */
     const testResult = computed(() => usePage().props.flash?.templateTest ?? null);
 
-    const testFindings = computed(() => testResult.value?.findings ?? []);
+    const testFindings = computed(() => lastTest.value?.findings ?? []);
     const testErrors = computed(() => testFindings.value.filter((finding) => finding.level === "error"));
     const testWarnings = computed(() => testFindings.value.filter((finding) => finding.level === "warning"));
     const testChecksPassed = computed(() => testFindings.value.filter((finding) => finding.level === "ok"));
 
+    //The named checks, and how many of them are ticks. Shown as the panel's headline.
+    const testChecks = computed(() => lastTest.value?.checks ?? []);
+    const testChecksPassedCount = computed(() => testChecks.value.filter((check) => check.status === "pass").length);
+    const testChecksFailed = computed(() => testChecks.value.filter((check) => check.status === "fail"));
+
     /*
      * The result describes the values that were tested. Editing a cell after reading it does not
-     * make the result wrong, it makes it about something else, and that has to be visible.
+     * make the result wrong, it makes it about something else, and that has to be visible - and now
+     * also unlocks nothing, because the server signs a pass over the values it was given.
      */
     const testIsStale = computed(() => testedSnapshot.value !== null
-        && testedSnapshot.value !== JSON.stringify(formTemplate.data()));
+        && testedSnapshot.value !== extractionSnapshot());
+
+    /*
+     * Whether this form may be saved. Editing a recorded template is not gated - the gate is on
+     * recording one - so in edit mode this is always true.
+     *
+     * Only ever a courtesy: the store request refuses a template whose test did not pass whatever the
+     * button is doing, because a disabled button is not a gate. See StoreTemplateRequest.
+     */
+    const testPassed = computed(() => Boolean(lastTest.value?.ok && lastTest.value?.passed && lastTest.value?.token));
+    const canSubmit = computed(() => Boolean(editId.value) || (testPassed.value && !testIsStale.value));
+
+    //Why Create is not available yet, in the order the admin runs into them
+    const blockedReason = computed(() => {
+        if(editId.value || canSubmit.value){
+            return null;
+        }
+
+        if(!lastTest.value){
+            return formSample.sample
+                ? "Press Test. A template can only be created once its test has passed - every check has to be a tick or a warning."
+                : "Choose a sample spreadsheet above and press Test. A template can only be created once its test has passed - every check has to be a tick or a warning.";
+        }
+
+        if(!testPassed.value){
+            return "This test did not pass. Fix the checks marked with a cross and test again - a template that would import nothing cannot be created.";
+        }
+
+        return "The form has changed since the test that passed, so that test is about different values. Test again to create it.";
+    });
+
+    /*
+     * Whether reading the chosen file would throw away work.
+     *
+     * Reading one replaces every field of the form with what the parser makes of it. On an empty form
+     * that is the whole point and the fastest way to start, which is why choosing a file now reads it
+     * without being asked twice. It is not something to do behind the back of an admin who has just
+     * typed a column of cell references by hand, or who is editing a recorded template and has picked
+     * a sample only to test it against - both of those would lose their work to a file chooser.
+     *
+     * Values that came from a previous read do not count: they are the parser's, and replacing them
+     * with the parser's reading of a different file is exactly what choosing that file meant.
+     */
+    const readingWouldDiscardWork = computed(() => Boolean(editId.value)
+        || (formTemplate.isDirty && Object.keys(provenance.value).length === 0));
 
     //How many of them this business's uploads are actually matched against
     const liveCount = computed(() => props.templates
@@ -182,7 +283,78 @@
         );
     }, { immediate: true });
 
+    /*
+     * A test result arrives as a flash prop on the response to pressing Test, and is kept from then on
+     * - see lastTest. "immediate" for the same reason the proposal's watcher has it: the page re-renders
+     * with the flash, and a watcher without it misses the only value it will ever see.
+     */
+    watch(testResult, (result) => {
+        if(!result){
+            return;
+        }
+
+        lastTest.value = result;
+
+        /*
+         * The screenshot drawn from the sample this test ran over. Applied rather than offered: it is a
+         * picture of the file the template was just verified against, which is the whole of what the
+         * thumbnail is for. When editing, the stored one is shown beside it with a button to keep it.
+         */
+        if(result.screenshot){
+            formTemplate.screenshot = result.screenshot;
+        }
+    }, { immediate: true });
+
     //Methods
+    /*
+     * The form reduced to the values a test's verdict turns on, tidied the way the server tidies them
+     * before it signs them: trimmed, cells upper cased, blank repeater rows dropped. So "b7" becoming
+     * "B7" is not a change, and neither is a row an admin added to the labels and left empty.
+     */
+    function extractionSnapshot(){
+        const snapshot = {};
+
+        testedCellFields.forEach((field) => {
+            snapshot[field] = canonicalValue(formTemplate[field], true);
+        });
+        testedTextFields.forEach((field) => {
+            snapshot[field] = canonicalValue(formTemplate[field], false);
+        });
+        Object.entries(testedListFields).forEach(([field, upper]) => {
+            snapshot[field] = (formTemplate[field] ?? [])
+                .map((value) => canonicalValue(value, upper))
+                .filter((value) => value !== null);
+        });
+
+        return JSON.stringify(snapshot);
+    }
+    function canonicalValue(value, upper){
+        if(typeof value !== "string" && typeof value !== "number"){
+            return null;
+        }
+
+        const text = String(value).trim();
+
+        if(!text){
+            return null;
+        }
+
+        return upper ? text.toUpperCase() : text;
+    }
+    /*
+     * Picking a file in the chooser is the whole of asking for it to be read - see the markup, and
+     * readingWouldDiscardWork for the one case where it is offered rather than done.
+     *
+     * The file is kept either way: it is also the sample Test runs the importer over, which is the
+     * reason an admin editing a template picks one at all.
+     */
+    function chooseSample(file){
+        formSample.sample = file ?? null;
+
+        if(file && !readingWouldDiscardWork.value){
+            readSample();
+        }
+    }
     function readSample(){
         formSample.post(route("admin.businesses.templates.propose",props.business.id),{
             preserveScroll: true,
@@ -199,12 +371,13 @@
      */
     function runTest(){
         const sample = formSample.sample;
-        const tested = JSON.stringify(formTemplate.data());
+        const tested = extractionSnapshot();
 
         testing.value = true;
 
         formTemplate
-            .transform((data) => ({ ...data, sample }))
+            //editing_template_id: so a template being edited is not reported as a duplicate of itself
+            .transform((data) => ({ ...data, sample, editing_template_id: editId.value }))
             .post(route("admin.businesses.templates.test",props.business.id),{
                 preserveScroll: true,
                 forceFormData: true,
@@ -224,10 +397,30 @@
         }[tone] ?? "";
     }
     /*
-     * Everything the parser has an opinion about.
+     * A check's mark. Only the tick means "asked and answered"; a dash is a check that could not be
+     * asked at all, which is a different thing from one that passed and must not look like one.
+     */
+    function checkMark(status){
+        return {
+            pass: "✓",
+            warning: "⚠",
+            fail: "✗",
+            skipped: "–",
+        }[status] ?? "•";
+    }
+    function checkClasses(status){
+        return {
+            pass: "text-emerald-600 dark:text-emerald-400",
+            warning: "text-amber-700 dark:text-amber-300",
+            fail: "text-red-700 dark:text-red-400",
+            skipped: "text-gray-400 dark:text-gray-500",
+        }[status] ?? "text-gray-600 dark:text-gray-300";
+    }
+    /*
+     * Everything the parser has an opinion about, the screenshot included - it no longer has to look
+     * at a spreadsheet to produce one, it draws the sheet it just read.
      *
-     * Not "screenshot" - it is reading a spreadsheet, not looking at one - and not "active" or
-     * "active", which is a decision about how it is used rather than a reading of a file.
+     * Not "active", which is a decision about how a template is used rather than a reading of a file.
      */
     function applyPrefill(prefill){
         prefillFields.forEach((field) => {
@@ -286,8 +479,12 @@
     }
     function submitStore(){
         let url = route("admin.businesses.templates.store",props.business.id);
-        //Not the test's payload: runTest() leaves a transform behind that adds the sample file
-        formTemplate.transform((data) => data).post(url, {
+        /*
+         * Not the test's payload - runTest() leaves a transform behind that adds the sample file - but
+         * it does carry the token that test handed back, which is what the store request checks the
+         * values being saved against. Nothing is stored from it.
+         */
+        formTemplate.transform((data) => ({ ...data, template_test_token: lastTest.value?.token ?? null })).post(url, {
             preserveScroll: true,
             onSuccess: () => {
                 resetForm();
@@ -354,6 +551,7 @@
         provenance.value = {};
         //Any test result on screen was run against the values this has just replaced
         testedSnapshot.value = null;
+        lastTest.value = null;
         advancedOpen.value = Boolean(
             template.should_skip_row
             || template.is_last_data_row
@@ -375,6 +573,8 @@
         advancedOpen.value = false;
         editHasScreenshot.value = false;
         testedSnapshot.value = null;
+        //The next template is its own template, and has to pass its own test
+        lastTest.value = null;
     }
 </script>
 
@@ -441,8 +641,25 @@
                         <p class="px-4 py-3 mt-6 text-sm border rounded-md text-emerald-800 bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800">
                             <strong>This is live.</strong>
                             Uploads are matched against every active template below &mdash; this
-                            business. Marking a template active is what makes its spreadsheet
-                            import; no code change is needed.
+                            business. A template you create here is active from the moment it is
+                            saved, because it cannot be saved until its test has passed; untick
+                            &ldquo;Active&rdquo; to record one without switching it on. No code
+                            change is needed either way.
+                        </p>
+
+                        <!--
+                            Recorded, tested, and switched off - which looks like nothing is wrong
+                            from this screen, because every row is a row somebody finished. The only
+                            place it showed was a red 0 in the Templates column of the admin users
+                            list, which reads as "no templates recorded" and is a different problem.
+                        -->
+                        <p
+                            v-if="templates.length && !liveCount"
+                            class="px-4 py-3 mt-3 text-sm border rounded-md text-amber-800 bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800"
+                        >
+                            &#9888; <strong>None of these {{templates.length}} templates is active</strong>, so uploads
+                            from this business still import nothing. Edit one, tick
+                            &ldquo;Active&rdquo; and save it to switch it on.
                         </p>
 
                         <!--
@@ -454,31 +671,60 @@
                             <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                                 <h2 class="font-medium text-gray-800 dark:text-gray-100">Fill this in from a sample</h2>
                                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                    Upload one of this business's spreadsheets. If a template already
-                                    matches it, its columns are placed exactly; anything else is read
-                                    by AI and marked as a suggestion. The file's contents are sent to OpenAI.
+                                    Choose one of this business's spreadsheets and it is read straight
+                                    away. If a template already matches it, its columns are placed
+                                    exactly; anything else is read by AI and marked as a suggestion.
+                                    The file's contents are sent to OpenAI.
                                 </p>
                             </div>
 
                             <div class="flex flex-wrap items-center gap-3 px-4 py-3">
+                                <!--
+                                    Choosing the file is the whole gesture. There was a "Read
+                                    spreadsheet" button next to this, and nobody ever chose a sample
+                                    and then decided against reading it - it was a second click to
+                                    confirm the first one.
+                                -->
                                 <input
                                     type="file"
                                     accept=".xls,.xlsx,.csv"
                                     class="text-sm text-gray-600 dark:text-gray-300"
-                                    @input="formSample.sample = $event.target.files[0]"
+                                    :disabled="formSample.processing"
+                                    @input="chooseSample($event.target.files[0])"
                                 />
-                                <button
-                                    type="button"
-                                    :disabled="formSample.processing || !formSample.sample"
-                                    class="px-4 py-2 text-sm font-medium tracking-wide text-white transition-colors duration-300 transform bg-emerald-700 rounded-md hover:bg-emerald-600 focus:outline-none disabled:opacity-50"
-                                    @click="readSample()"
-                                >
-                                    {{formSample.processing ? 'Reading…' : 'Read spreadsheet'}}
-                                </button>
+
+                                <span v-if="formSample.processing" class="text-sm text-emerald-700 dark:text-emerald-400">
+                                    Reading&hellip;
+                                </span>
+
+                                <!--
+                                    Reading by hand, which is now the exception rather than the
+                                    button. Two of them:
+
+                                    - it was not read automatically, because reading replaces every
+                                      field and there is something here worth keeping. Said out loud
+                                      and offered, rather than done quietly or not mentioned;
+                                    - it was, and this is the way back - a read that failed at OpenAI
+                                      would otherwise need a different file chosen before this one
+                                      could be tried again, because choosing the same file twice is
+                                      not something a file chooser reports.
+                                -->
+                                <span v-else-if="formSample.sample" class="flex flex-wrap items-center text-sm gap-x-2">
+                                    <span v-if="readingWouldDiscardWork" class="text-gray-500 dark:text-gray-400">
+                                        Not read &mdash; it would replace
+                                        {{editId ? 'the template you are editing' : 'the values already in the form'}}.
+                                    </span>
+                                    <button type="button" class="text-blue-500 underline" @click="readSample()">
+                                        {{readingWouldDiscardWork ? 'Read it anyway' : 'Read again'}}
+                                    </button>
+                                </span>
+
                                 <InputError :message="formSample.errors.sample"/>
                                 <!-- The same file both buttons use: read the form out of it, then test the form against it -->
                                 <small class="w-full text-xs text-gray-500 dark:text-gray-400">
-                                    The file chosen here is also what <strong>Test</strong> below runs the importer over.
+                                    The file chosen here is also what <strong>Test</strong> below runs the
+                                    importer over, and a passing test is what lets a template be created.
+                                    The rows it extracts are sent to OpenAI to be read as a materials list.
                                 </small>
                             </div>
 
@@ -824,29 +1070,64 @@
                                 </details>
 
                                 <div class="grid grid-cols-3 gap-3 mt-4">
-                                    <!-- screenshot -->
-                                    <div class="col-span-2">
-                                        <InputLabel :value="editId ? 'Screenshot (leave blank to keep the current one)' : 'Screenshot (paste base64 string in 800x500px)*'"/>
-                                        <input
-                                            v-model="formTemplate.screenshot"
-                                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                            type="text"
-                                            :placeholder="editId ? 'Paste a new data URL to replace it' : 'data:image/png;base64,...'"
-                                        />
-                                        <InputError :message="formTemplate.errors.screenshot"/>
-                                        <small>
-                                            Use this link to convert: <a target="_blank" class="underline text-blue-500" href="https://codepen.io/GapRay/pen/MGjWqY">Codepen</a>
-                                        </small>
+                                    <!--
+                                        screenshot
 
-                                        <!-- What is stored today, so "leave blank to keep" means something -->
-                                        <div v-if="editId && editHasScreenshot" class="mt-2 flex items-center gap-x-2">
-                                            <img
-                                                class="object-cover object-left-top w-32 h-20 rounded border border-gray-200 dark:border-gray-700"
-                                                :src="screenshotUrl(editId)"
-                                                alt="Current screenshot"
-                                            />
-                                            <small class="text-gray-500 dark:text-gray-400">Currently stored</small>
+                                        Drawn, not pasted. This used to be a single-line input asking
+                                        for 750KB of base64 and a link to somebody's CodePen for
+                                        converting a screenshot into one, per template. Reading or
+                                        testing a sample now draws the picture from the sheet itself,
+                                        so there is nothing here to fill in - only something to look at.
+                                    -->
+                                    <div class="col-span-2">
+                                        <InputLabel value="Screenshot"/>
+                                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                            Drawn from the sample spreadsheet, with the heading row and the
+                                            first row of data marked and every recorded column tagged.
+                                        </p>
+
+                                        <div class="flex flex-wrap items-start mt-2 gap-x-6 gap-y-3">
+                                            <!-- The one this save would store -->
+                                            <figure v-if="formTemplate.screenshot" class="flex items-center gap-x-2">
+                                                <img
+                                                    class="object-contain w-32 h-20 border rounded bg-gray-50 border-emerald-300 dark:border-emerald-700 dark:bg-gray-800"
+                                                    :src="formTemplate.screenshot"
+                                                    alt="Screenshot drawn from the sample spreadsheet"
+                                                />
+                                                <figcaption class="text-xs text-gray-500 dark:text-gray-400">
+                                                    <span class="block">{{editId ? 'New, from the sample just read' : 'Stored with this template'}}</span>
+                                                    <!-- Replacing a curated screenshot is a decision, so it stays undoable -->
+                                                    <button
+                                                        v-if="editId && editHasScreenshot"
+                                                        type="button"
+                                                        class="mt-1 text-blue-500 underline"
+                                                        @click="formTemplate.screenshot = null"
+                                                    >
+                                                        Keep the stored one instead
+                                                    </button>
+                                                </figcaption>
+                                            </figure>
+
+                                            <!-- What is stored today, so "keep the stored one" means something -->
+                                            <figure v-if="editId && editHasScreenshot" class="flex items-center gap-x-2">
+                                                <img
+                                                    class="object-contain w-32 h-20 border border-gray-200 rounded bg-gray-50 dark:border-gray-700 dark:bg-gray-800"
+                                                    :src="screenshotUrl(editId)"
+                                                    alt="Current screenshot"
+                                                />
+                                                <figcaption class="text-xs text-gray-500 dark:text-gray-400">Currently stored</figcaption>
+                                            </figure>
+
+                                            <p
+                                                v-if="!formTemplate.screenshot && !(editId && editHasScreenshot)"
+                                                class="text-xs text-gray-500 dark:text-gray-400"
+                                            >
+                                                None yet &mdash; read or test a sample spreadsheet above and one is drawn from it.
+                                                A template with no screenshot is listed without a thumbnail, and nothing else changes.
+                                            </p>
                                         </div>
+
+                                        <InputError :message="formTemplate.errors.screenshot"/>
                                     </div>
 
                                     <!-- length_width_units -->
@@ -905,10 +1186,12 @@
                                 </div>
 
                                 <!--
-                                    Test before Create, in that order on purpose: it extracts the
-                                    materials this record would import from the sample above and
-                                    says what becomes of each row, and it saves nothing. A record
-                                    can pass every check on this page and still import no steel.
+                                    Test before Create, and now Test *or no* Create: a record can pass
+                                    every check on this page and still import no steel, so the only
+                                    thing that says it works is running the importer over a real
+                                    spreadsheet and seeing materials come out. It saves nothing either
+                                    way. Editing a recorded template is not gated - the gate is on
+                                    recording one - so Update is always available.
                                 -->
                                 <div class="flex flex-wrap items-center gap-3 mt-4">
                                     <button
@@ -917,23 +1200,37 @@
                                         class="px-4 py-2 text-sm font-medium tracking-wide transition-colors duration-300 transform border rounded-md text-emerald-800 border-emerald-700 hover:bg-emerald-50 focus:outline-none disabled:opacity-50 dark:text-emerald-300 dark:hover:bg-emerald-900/20"
                                         @click="runTest()"
                                     >
-                                        {{testing ? 'Testing…' : 'Test'}}
+                                        {{testing ? 'Testing…' : (editId ? 'Test' : 'Test (required)')}}
                                     </button>
 
                                     <button
                                         type="submit"
-                                        :disabled="formTemplate.processing"
-                                        class="flex-1 px-4 py-2 text-sm font-medium tracking-wide text-white capitalize transition-colors duration-300 transform bg-blue-700 rounded-md hover:bg-blue-600 focus:outline-none focus:bg-blue-600 disabled:opacity-50"
+                                        :disabled="formTemplate.processing || !canSubmit"
+                                        class="flex-1 px-4 py-2 text-sm font-medium tracking-wide text-white capitalize transition-colors duration-300 transform bg-blue-700 rounded-md hover:bg-blue-600 focus:outline-none focus:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         <span v-if="editId">Updat{{formTemplate.processing && !testing ? 'ing...' : 'e'}}</span>
                                         <span v-else>Creat{{formTemplate.processing && !testing ? 'ing...' : 'e'}}</span>
                                     </button>
                                 </div>
 
-                                <p v-if="!formSample.sample" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                <!-- Why Create is not available, which is the whole of what the gate owes an admin -->
+                                <p v-if="blockedReason" class="mt-2 text-xs text-amber-700 dark:text-amber-300">
+                                    &#9888; {{blockedReason}}
+                                </p>
+                                <p v-else-if="!formSample.sample" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
                                     Choose a sample spreadsheet above to test this template against one.
                                 </p>
+                                <p v-else-if="!editId" class="mt-2 text-xs text-emerald-700 dark:text-emerald-400">
+                                    &#10003; Every check passed for these values, so this template can be created.
+                                    <template v-if="formTemplate.active">
+                                        It goes live on save &mdash; uploads of this spreadsheet start importing.
+                                    </template>
+                                    <template v-else>
+                                        &ldquo;Active&rdquo; is unticked, so it is recorded without being matched against uploads.
+                                    </template>
+                                </p>
                                 <InputError :message="formTemplate.errors.sample"/>
+                                <InputError :message="formTemplate.errors.template_test_token"/>
                             </form>
 
                             <!--
@@ -941,20 +1238,30 @@
                                 rows below came out of CsvService itself, and the verdict on each one
                                 is the gate it would fall at in a real import.
                             -->
-                            <div v-if="testResult" class="mt-6 border border-gray-200 rounded-lg dark:border-gray-700">
+                            <div v-if="lastTest" class="mt-6 border border-gray-200 rounded-lg dark:border-gray-700">
                                 <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-                                    <h2 class="font-medium text-gray-800 dark:text-gray-100">
-                                        What this template imports
-                                    </h2>
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <h2 class="font-medium text-gray-800 dark:text-gray-100">
+                                            What this template imports
+                                        </h2>
 
-                                    <p v-if="!testResult.ok" class="mt-1 text-sm text-red-600 dark:text-red-400">
-                                        {{testResult.message}}
+                                        <!-- The verdict, in one word, because it is what Create turns on -->
+                                        <span
+                                            :class="testPassed && !testIsStale ? toneClasses('ok') : toneClasses('error')"
+                                            class="px-3 py-1 text-xs font-semibold rounded-full"
+                                        >
+                                            {{testPassed && !testIsStale ? 'Test passed' : 'Test not passed'}}
+                                        </span>
+                                    </div>
+
+                                    <p v-if="!lastTest.ok" class="mt-1 text-sm text-red-600 dark:text-red-400">
+                                        {{lastTest.message}}
                                     </p>
 
                                     <template v-else>
                                         <p class="mt-1 text-sm text-gray-700 dark:text-gray-300">
-                                            <strong>{{testResult.headline}}</strong>
-                                            Read from {{testResult.file}}, saving nothing.
+                                            <strong>{{lastTest.headline}}</strong>
+                                            Read from {{lastTest.file}}, saving nothing.
                                         </p>
 
                                         <!--
@@ -965,9 +1272,9 @@
                                             &#9888; The form has changed since this test ran. Test again to see what the current values extract.
                                         </p>
 
-                                        <div v-if="testResult.summary.counts.length" class="flex flex-wrap gap-2 mt-3">
+                                        <div v-if="lastTest.summary.counts.length" class="flex flex-wrap gap-2 mt-3">
                                             <span
-                                                v-for="count in testResult.summary.counts"
+                                                v-for="count in lastTest.summary.counts"
                                                 :key="count.status"
                                                 :class="toneClasses(count.tone)"
                                                 class="px-3 py-1 text-xs rounded-full"
@@ -978,12 +1285,73 @@
                                     </template>
                                 </div>
 
-                                <template v-if="testResult.ok">
-                                    <!-- The same three lists the parser shows, answered by a real extraction -->
+                                <!--
+                                    The checks, every one named and answered. This is the gate made
+                                    visible: a cross is a template that cannot be created, a warning is
+                                    something odd that is allowed to be odd, and a dash is a check that
+                                    could not be asked at all - which is not the same as one that passed.
+                                -->
+                                <div v-if="testChecks.length" class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Checks performed</h3>
+                                        <span class="text-xs text-gray-500 dark:text-gray-400">
+                                            {{testChecksPassedCount}} of {{testChecks.length}} passed<span v-if="testChecksFailed.length">, {{testChecksFailed.length}} blocking</span>
+                                        </span>
+                                    </div>
+
+                                    <ul class="mt-3 space-y-2">
+                                        <li v-for="check in testChecks" :key="check.key" class="flex text-sm gap-x-2">
+                                            <span :class="checkClasses(check.status)" class="w-4 font-semibold text-center shrink-0">
+                                                {{checkMark(check.status)}}
+                                            </span>
+                                            <span class="min-w-0">
+                                                <span :class="checkClasses(check.status)">{{check.label}}</span>
+                                                <small class="block text-xs text-gray-500 dark:text-gray-400">{{check.detail}}</small>
+                                            </span>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <!--
+                                    What a reader who knows steel made of the rows themselves. The
+                                    checks above carry its answers; this is its own words, and the
+                                    specific rows it objected to.
+                                -->
+                                <div v-if="lastTest.review" class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">What AI made of the extracted rows</h3>
+
+                                    <template v-if="lastTest.review.used">
+                                        <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                                            <span class="inline-flex px-2 py-0.5 text-xs rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                                                {{lastTest.review.model}} &middot; {{lastTest.review.verdict}} &middot; {{lastTest.review.confidence}} confidence
+                                            </span>
+                                            <span class="block mt-1">{{lastTest.review.summary}}</span>
+                                        </p>
+
+                                        <ul v-if="lastTest.review.issues.length" class="mt-2 space-y-1 text-sm text-amber-700 dark:text-amber-300">
+                                            <li v-for="(issue,index) in lastTest.review.issues" :key="'review-issue-'+index">&#9888; {{issue}}</li>
+                                        </ul>
+                                    </template>
+
+                                    <!-- Unreachable, which is not evidence against a template and blocks nothing -->
+                                    <p v-else class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                        {{lastTest.review.error}}
+                                    </p>
+                                </div>
+
+                                <template v-if="lastTest.ok">
+                                    <!--
+                                        The same three lists the parser shows, answered by a real
+                                        extraction. Cell by cell rather than check by check: the list
+                                        above says whether the lengths came off every row, and this one
+                                        says that D7 holds 9000.
+                                    -->
                                     <div
                                         v-if="testFindings.length"
                                         class="px-4 py-3 border-b border-gray-200 dark:border-gray-700"
                                     >
+                                        <h3 class="mb-2 text-sm font-semibold text-gray-800 dark:text-gray-100">Cell by cell</h3>
+
                                         <ul v-if="testErrors.length" class="space-y-1 text-sm text-red-700 dark:text-red-400">
                                             <li v-for="(finding,index) in testErrors" :key="'test-error-'+index">&#10007; {{finding.message}}</li>
                                         </ul>
@@ -998,7 +1366,7 @@
                                     </div>
 
                                     <!-- The materials themselves, row by row, as the importer read them -->
-                                    <div v-if="testResult.rows.length" class="overflow-auto max-h-96">
+                                    <div v-if="lastTest.rows.length" class="overflow-auto max-h-96">
                                         <table class="min-w-full text-sm divide-y divide-gray-200 dark:divide-gray-700">
                                             <thead class="bg-gray-50 dark:bg-gray-800">
                                                 <tr>
@@ -1013,11 +1381,11 @@
                                                 </tr>
                                             </thead>
                                             <tbody class="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-gray-900">
-                                                <tr v-for="(row,index) in testResult.rows" :key="'test-row-'+index">
+                                                <tr v-for="(row,index) in lastTest.rows" :key="'test-row-'+index">
                                                     <td class="px-3 py-2 text-gray-500 align-top whitespace-nowrap dark:text-gray-400">
                                                         {{row.sheet_row}}
                                                         <!-- Which of the tables in the file this row came out of -->
-                                                        <small v-if="testResult.tables.length > 1" class="block text-xs">table {{row.table}}</small>
+                                                        <small v-if="lastTest.tables.length > 1" class="block text-xs">table {{row.table}}</small>
                                                     </td>
                                                     <td class="px-3 py-2 align-top">
                                                         <span class="font-medium text-gray-800 dark:text-gray-100">{{row.description}}</span>
@@ -1070,10 +1438,10 @@
                                     </div>
 
                                     <p
-                                        v-if="testResult.summary.extracted > testResult.summary.checked"
+                                        v-if="lastTest.summary.extracted > lastTest.summary.checked"
                                         class="px-4 py-3 text-xs text-gray-500 border-t border-gray-200 dark:border-gray-700 dark:text-gray-400"
                                     >
-                                        Showing the first {{testResult.summary.checked}} of {{testResult.summary.extracted}} extracted rows.
+                                        Showing the first {{lastTest.summary.checked}} of {{lastTest.summary.extracted}} extracted rows.
                                     </p>
                                 </template>
                             </div>
@@ -1123,12 +1491,20 @@
                                                                 The screenshot is how an admin recognises a template, so show it at a
                                                                 readable size. It comes from its own cacheable endpoint rather than
                                                                 inline in the props - 750KB of base64 per template, on every visit.
+
+                                                                "contain", and a link to the full size: a drawn screenshot is as wide as
+                                                                the sheet it draws, and a Tekla report reaching column S is six times
+                                                                wider than it is tall. Cropped to a 128x80 box it showed column A.
                                                             -->
-                                                            <img v-if="template.has_screenshot"
-                                                                 class="object-cover object-left-top w-32 h-20 rounded border border-gray-200 dark:border-gray-700"
-                                                                 :src="screenshotUrl(template.id)"
-                                                                 loading="lazy"
-                                                                 :alt="template.name">
+                                                            <a v-if="template.has_screenshot"
+                                                               :href="screenshotUrl(template.id)"
+                                                               target="_blank"
+                                                               title="Open the full size screenshot">
+                                                                <img class="object-contain w-32 h-20 border border-gray-200 rounded bg-gray-50 dark:border-gray-700 dark:bg-gray-800"
+                                                                     :src="screenshotUrl(template.id)"
+                                                                     loading="lazy"
+                                                                     :alt="template.name">
+                                                            </a>
                                                             <!--
                                                                 No screenshot to ask for. The seeded templates have none -
                                                                 they are ours, not photographs of a customer's file - and
