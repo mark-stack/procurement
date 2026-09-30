@@ -101,6 +101,72 @@ it('would be a disaster if the five file limit was only enforced in the browser'
     expect(Project::count())->toBe(0);
 });
 
+it('would be a disaster if a new project could be named anything at all', function () {
+    /**
+     * The name inputs carry no maxlength and the rules carried no max, on a TEXT column - so the
+     * only limit on a name drawn across every colleague's board was what the poster chose to send.
+     * A blank-but-"required" name of spaces is the same hole from the other side: the modal trims it
+     * on the way out and nothing else did.
+     *
+     * Both refusals have to land before the upload is read, or the answer arrives after the
+     * spreadsheet has been parsed and a project created under the name being refused.
+     */
+    $business = createBusiness('gmail', true);
+    $user = createUser(1, $business, false, true);
+
+    $file = fn () => UploadedFile::fake()->create(
+        'list.xlsx',
+        10,
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+
+    $this->actingAs($user)->from('/dashboard')->post(route('projects.store'), [
+        'name' => str_repeat('A', Project::MAX_NAME_CHARACTERS + 1),
+        'tentative' => false,
+        'excel' => [$file()],
+    ])->assertInvalid('name');
+
+    $this->actingAs($user)->from('/dashboard')->post(route('projects.store'), [
+        'name' => '     ',
+        'tentative' => false,
+        'excel' => [$file()],
+    ])->assertInvalid('name');
+
+    $this->actingAs($user)->from('/dashboard')->post(route('projects.store'), [
+        'name' => 'Fine name',
+        'reference' => ['an', 'array'],
+        'tentative' => false,
+        'excel' => [$file()],
+    ])->assertInvalid('reference');
+
+    expect(Project::count())->toBe(0);
+});
+
+it('would be a disaster if a padded name slipped past the duplicate check', function () {
+    /*
+     * The uniqueness rule compares what was posted, so without trimming first, "Tower A " is a
+     * different name to "Tower A" as far as the check is concerned and the same name everywhere it
+     * is read.
+     */
+    $business = createBusiness('gmail', true);
+    $user = createUser(1, $business, false, true);
+
+    $existing = createProject($user);
+    $existing->update(['name' => 'Tower A']);
+
+    $this->actingAs($user)->from('/dashboard')->post(route('projects.store'), [
+        'name' => '  Tower A  ',
+        'tentative' => false,
+        'excel' => [UploadedFile::fake()->create(
+            'list.xlsx',
+            10,
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )],
+    ])->assertInvalid('name');
+
+    expect(Project::count())->toBe(1);
+});
+
 it('would be a disaster if uploading a material list extracted nothing', function () {
     $business = createBusiness('gmail', true);
     recordExampleTemplates($business);

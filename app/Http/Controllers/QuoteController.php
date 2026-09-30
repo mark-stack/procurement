@@ -9,6 +9,7 @@ use App\Formatters\NestingFormatter;
 use App\Http\Requests\UpdateQuoteRequest;
 use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Models\Batch;
+use App\Models\Piece;
 use App\Models\Quote;
 use App\Services\NotificationImplementations\NotificationColleagueQuotedImplementation;
 use Illuminate\Http\RedirectResponse;
@@ -16,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use RuntimeException;
 use Throwable;
 
 class QuoteController extends Controller
@@ -54,14 +56,56 @@ class QuoteController extends Controller
         try {
             $batch = DB::transaction(function () use($business,$user,$piecesReadyForBatching){
                 /*
+                 * Claim the steel before anything is created.
+                 *
+                 * Everything above this line is a read, and it happened outside the transaction, so
+                 * two people pressing "Start quoting" seconds apart - or one person double clicking,
+                 * or a second tab, or a retried request - both got here holding the same list of
+                 * unbatched pieces. Nothing then stopped the second one: the batch was created first
+                 * and the pieces were moved onto it by id, off whichever batch already had them.
+                 *
+                 * What that left is not recoverable by anything in the application. The first batch
+                 * kept its order approvals, its saved nesting and the offcuts SaveNesting had already
+                 * consumed against it, while the pieces those offcuts were cut for now belonged to the
+                 * second batch - two batches in the Quoting column for one set of projects, one of
+                 * them empty, and the same steel quoted and ordered twice.
+                 *
+                 * FOR UPDATE makes the second caller wait here until the first commits, and it then
+                 * reads the batch_id the first one wrote. A short count means somebody got there
+                 * first, and this returns before a single row is written.
+                 */
+                $stillUnbatched = Piece::query()
+                    ->whereIn('id', $piecesReadyForBatching->pluck('id'))
+                    ->whereNull('batch_id')
+                    ->lockForUpdate()
+                    ->count();
+
+                if ($stillUnbatched !== $piecesReadyForBatching->count()) {
+                    return null;
+                }
+
+                /*
                  * Create batch
                  */
                 $batch = Batch::create([
                     'user_id' => $user->id,
                 ]);
 
-                //Attach pieces to batch
-                AttachPiecesToBatch::run($piecesReadyForBatching, $batch);
+                /*
+                 * Attach pieces to batch.
+                 *
+                 * The count is checked rather than assumed. The lock above is what actually prevents
+                 * the race; this is the same question asked once more by the write itself, so a
+                 * database or driver that does not honour the lock still cannot get past it. Throwing
+                 * rolls the batch back.
+                 */
+                $claimed = AttachPiecesToBatch::run($piecesReadyForBatching, $batch);
+
+                if ($claimed !== $piecesReadyForBatching->count()) {
+                    throw new RuntimeException(
+                        'Claimed '.$claimed.' of '.$piecesReadyForBatching->count().' pieces for batch '.$batch->id
+                    );
+                }
 
                 /*
                  * Create pending order approvals - after the pieces, because the approvals are read off
@@ -87,6 +131,19 @@ class QuoteController extends Controller
 
             return back()->withErrors([
                 'batch' => 'Could not start quoting. The nesting was not saved, so nothing has changed.',
+            ]);
+        }
+
+        /*
+         * Somebody else got the steel. Not an error - their batch is a perfectly good batch, and the
+         * board behind this redirect already shows it - so it reads as news, and it says where the
+         * projects went rather than leaving the presser to work out why the column emptied itself.
+         */
+        if ($batch === null) {
+            return back()->withErrors([
+                'batch' => 'These projects were taken into a batch a moment ago, either by a colleague'
+                    .' or by a second press of this button. Nothing was quoted twice - look in Quoting'
+                    .' for the batch that has them.',
             ]);
         }
 

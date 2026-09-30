@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Project;
 use App\PrerequisiteConditions\PrerequisiteConditions;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Carbon;
@@ -31,6 +32,21 @@ class UpdateProjectRequest extends FormRequest
             && (new PrerequisiteConditions())->editProject($user, $project);
     }
 
+    /**
+     * Same reason as StoreProjectRequest::prepareForValidation - renaming is the other way to give a
+     * project a name that is blank, or padded, everywhere the business reads it.
+     */
+    protected function prepareForValidation(): void
+    {
+        if (is_string($this->input('name'))) {
+            $this->merge(['name' => trim($this->input('name'))]);
+        }
+
+        if (is_string($this->input('reference'))) {
+            $this->merge(['reference' => trim($this->input('reference')) ?: null]);
+        }
+    }
+
     public function rules(): array
     {
         $project = $this->route('project');
@@ -51,12 +67,14 @@ class UpdateProjectRequest extends FormRequest
             ->toArray();
 
         return [
+            //Bounded here as well as on create - see the constants on the Project model
             'name' => [
                 'required',
                 'string',
+                'max:'.Project::MAX_NAME_CHARACTERS,
                 Rule::notIn($allActiveProjectNames),
             ],
-            'reference' => 'nullable',
+            'reference' => ['nullable', 'string', 'max:'.Project::MAX_REFERENCE_CHARACTERS],
             /*
              * The modal posts the whole project back, so a project whose materials
              * date has already passed would resubmit that past date and fail

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Project;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -18,6 +19,26 @@ class StoreProjectRequest extends FormRequest
     public function authorize(): bool
     {
         return true;
+    }
+
+    /**
+     * Trim before validating, not after.
+     *
+     * The modal trims the name on its way out because a project saved as "   " is blank everywhere
+     * it is displayed. Anything posting straight at the route skipped that, and "required" is happy
+     * with a string of spaces - so the guard lived only in the browser. Doing it here also means the
+     * duplicate-name check compares what will actually be stored.
+     */
+    protected function prepareForValidation(): void
+    {
+        if (is_string($this->input('name'))) {
+            $this->merge(['name' => trim($this->input('name'))]);
+        }
+
+        //A reference of nothing but spaces is no reference, and the card only draws it when it is set
+        if (is_string($this->input('reference'))) {
+            $this->merge(['reference' => trim($this->input('reference')) ?: null]);
+        }
     }
 
     public function rules(): array
@@ -37,12 +58,19 @@ class StoreProjectRequest extends FormRequest
             ->toArray();
 
         return [
+            /*
+             * "max" and a typed reference, both of which were missing. The modal puts no maxlength on
+             * either input and never renders the reference field at all, so the only limit on what
+             * reached the database was whatever the poster felt like sending - see the constants on
+             * the Project model for what each one costs.
+             */
             'name' => [
                 'required',
                 'string',
+                'max:'.Project::MAX_NAME_CHARACTERS,
                 Rule::notIn($allCurrentProjectNames),
             ],
-            'reference' => 'nullable',
+            'reference' => ['nullable', 'string', 'max:'.Project::MAX_REFERENCE_CHARACTERS],
             'date_materials_required' => 'nullable|date|after:today',
             'tentative' => 'required|boolean',
             'excel' => ['required', 'array', 'min:1', 'max:'.self::MAX_FILES],

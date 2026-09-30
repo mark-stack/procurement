@@ -295,6 +295,156 @@ it('would be a disaster if a project archived while nested could not be restored
     expect($project->fresh()->archive)->toBeFalsy();
 });
 
+it('would be a disaster if restoring a project put two of the same name on the board', function () {
+    /**
+     * Both project forms deliberately exclude archived names from their uniqueness check, and say
+     * so: "archived ones are free to reuse". Nothing then looked at the name on the way back in, so
+     * the whole sequence is legal - archive "Tower A", give the freed name to a new project, restore
+     * the old one - and it ends with two live projects called "Tower A" in the shared Nesting column
+     * for two different jobs.
+     *
+     * Nothing downstream can tell them apart for a person: two identical cards, the name twice in
+     * Past Projects, and a colleague pressing "Start quoting" nests both into one batch whose spec
+     * sheet, BOM download and notifications all name "Tower A". Steel gets cut for the wrong one.
+     */
+    $business = createBusiness('gmail', true);
+    $user = createUser(1, $business, false, true);
+
+    $archived = createProject($user);
+    $archived->update(['name' => 'Tower A', 'archive' => true]);
+
+    //Allowed, and meant to be - the name is free while the other project is archived
+    $live = createProject($user);
+    $live->update(['name' => 'Tower A']);
+
+    $response = $this->actingAs($user)
+        ->from('/dashboard')
+        ->delete(route('projects.destroy', $archived->id));
+
+    //A reason rather than a 403: the owner can rename the archived project and try again
+    $response->assertInvalid('archive');
+    expect($archived->fresh()->archive)->toBeTruthy()
+        ->and(Project::query()->where('archive', false)->where('name', 'Tower A')->count())->toBe(1);
+});
+
+it('lets a renamed project be restored once its old name is taken', function () {
+    //The other half of the rule above - refusing has to leave a way through, not a dead end
+    $business = createBusiness('gmail', true);
+    $user = createUser(1, $business, false, true);
+
+    $archived = createProject($user);
+    $archived->update(['name' => 'Tower A', 'archive' => true]);
+
+    $live = createProject($user);
+    $live->update(['name' => 'Tower A']);
+
+    //Renaming an archived project is allowed - editProject does not ask whether it is archived
+    $this->actingAs($user)
+        ->from('/dashboard')
+        ->put(route('projects.update', $archived->id), [
+            'name' => 'Tower A (2024)',
+            'reference' => $archived->reference,
+            'date_materials_required' => $archived->date_materials_required,
+        ])
+        ->assertValid();
+
+    $this->actingAs($user)
+        ->from('/dashboard')
+        ->delete(route('projects.destroy', $archived->id))
+        ->assertRedirect();
+
+    expect($archived->fresh()->archive)->toBeFalsy();
+});
+
+it('would be a disaster if a colleague’s project blocked a restore invisibly', function () {
+    /*
+     * The clash is measured across the whole business, because the board is - so a colleague
+     * holding the name blocks the restore too. What matters is that it is refused with the reason
+     * rather than silently, since renaming the colleague's project is not something this user can do.
+     */
+    $business = createBusiness('gmail', true);
+    $user = createUser(1, $business, false, true);
+    $colleague = createUser(2, $business, false, true);
+
+    $archived = createProject($user);
+    $archived->update(['name' => 'Shared name', 'archive' => true]);
+
+    $theirs = createProject($colleague);
+    $theirs->update(['name' => 'Shared name']);
+
+    $this->actingAs($user)
+        ->from('/dashboard')
+        ->delete(route('projects.destroy', $archived->id))
+        ->assertInvalid('archive');
+
+    expect($archived->fresh()->archive)->toBeTruthy();
+});
+
+it('would be a disaster if a project name had no length at all', function () {
+    /**
+     * projects.name is a TEXT column and the rules were "required|string" with no max, so anything
+     * posting straight at the route could put an essay on every colleague's board. The card
+     * truncates it, but the confirm dialogs do not - they build their message by joining the names
+     * of every project involved, which is how "Start quoting" names whose work is being taken - so
+     * one pasted wall of text makes a dialog nobody can read or reach the button of.
+     */
+    $business = createBusiness('gmail', true);
+    $user = createUser(1, $business, false, true);
+
+    $this->actingAs($user)
+        ->from('/dashboard')
+        ->put(route('projects.update', createProject($user)->id), [
+            'name' => str_repeat('A', Project::MAX_NAME_CHARACTERS + 1),
+        ])
+        ->assertInvalid('name');
+});
+
+it('would be a disaster if a project could be named nothing but spaces', function () {
+    /**
+     * "required" counts a string of spaces as filled. The modal trims the name on its way out for
+     * exactly this reason, and that was the only place it happened - so a project posted straight at
+     * the route was saved under a name that is blank everywhere it is displayed, on a board where
+     * the name is the only thing identifying it.
+     */
+    $business = createBusiness('gmail', true);
+    $user = createUser(1, $business, false, true);
+
+    $this->actingAs($user)
+        ->from('/dashboard')
+        ->put(route('projects.update', createProject($user)->id), [
+            'name' => '     ',
+        ])
+        ->assertInvalid('name');
+});
+
+it('would be a disaster if a project reference could be anything at all', function () {
+    /**
+     * "reference" was validated as "nullable" and nothing else, while the column is a varchar(255) -
+     * so an array reached Project::create and answered with a 500, and 300 characters would have
+     * been a database error on MySQL. The modal never renders the field, so the route is the only
+     * way in and there was nothing on it.
+     */
+    $business = createBusiness('gmail', true);
+    $user = createUser(1, $business, false, true);
+    $project = createProject($user);
+
+    $this->actingAs($user)
+        ->from('/dashboard')
+        ->put(route('projects.update', $project->id), [
+            'name' => $project->name,
+            'reference' => ['an', 'array'],
+        ])
+        ->assertInvalid('reference');
+
+    $this->actingAs($user)
+        ->from('/dashboard')
+        ->put(route('projects.update', $project->id), [
+            'name' => $project->name,
+            'reference' => str_repeat('R', Project::MAX_REFERENCE_CHARACTERS + 1),
+        ])
+        ->assertInvalid('reference');
+});
+
 it('would be a disaster if archiving left the project’s reminders in the bell', function () {
     /**
      * Each notification clears itself when the question it asks is answered, and none of them

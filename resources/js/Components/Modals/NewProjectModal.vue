@@ -30,6 +30,9 @@
     const MAX_FILES = 5;
     const MAX_FILE_BYTES = 1024 * 1024;
 
+    //Matches Project::MAX_NAME_CHARACTERS, which is where it is actually enforced
+    const MAX_NAME_CHARACTERS = 120;
+
     //Forms
     const formProjectCreate = useForm({
         name: "",
@@ -488,6 +491,7 @@
                                         id="edit-project-name"
                                         v-model="formProjectCreate.name"
                                         type="text"
+                                        :maxlength="MAX_NAME_CHARACTERS"
                                         class="w-full px-4 py-2 text-gray-700 bg-white border rounded-md dark:bg-gray-900 dark:text-gray-300 dark:border-gray-600 focus:border-blue-400 dark:focus:border-blue-300 focus:outline-none focus:ring focus:ring-blue-300 focus:ring-opacity-40"
                                         placeholder="Name"
                                         required
@@ -552,6 +556,7 @@
                                         id="new-project-name"
                                         v-model="formProjectCreate.name"
                                         type="text"
+                                        :maxlength="MAX_NAME_CHARACTERS"
                                         class="w-full px-4 py-2 text-gray-700 bg-white border rounded-md dark:bg-gray-900 dark:text-gray-300 dark:border-gray-600 focus:border-blue-400 dark:focus:border-blue-300 focus:outline-none focus:ring focus:ring-blue-300 focus:ring-opacity-40"
                                         placeholder="Name"
                                         required
