@@ -39,13 +39,16 @@ class Billing
     /**
      * The plans this installation can actually take money for, in config order.
      *
+     * An invoice plan is always one of them: there is no price object that has to exist first and
+     * no provider involved, so the annual plan survives Stripe being off, half-configured or down.
+     *
      * @return array<int, Plan>
      */
     public function sellablePlans(): array
     {
         return array_values(array_filter(
             $this->plans->published(),
-            fn (Plan $plan): bool => $this->provider->canSell($plan),
+            fn (Plan $plan): bool => $plan->invoiceOnly() || $this->provider->canSell($plan),
         ));
     }
 

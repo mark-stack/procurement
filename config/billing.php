@@ -94,7 +94,20 @@ return [
     | ("weekly"), and only the driver ever sees a price id. A plan with no id for the live driver
     | is not offered for sale, so a half-configured provider cannot take money for nothing.
     |
-    | "public" is whether it appears on the billing page. The figures mirror Welcome.vue.
+    | "public" is whether it appears on the billing page.
+    |
+    | "checkout" is how this plan is paid for, and it is per plan rather than per driver because
+    | the two we sell are bought in different ways: the weekly one by card, and the annual one on
+    | an invoice with a purchase order against it, which is how a fabricator's office pays for a
+    | year of anything. An invoice plan needs no price id in any provider and is offered for sale
+    | whichever driver is live - see App\Billing\Plan::CHECKOUT_INVOICE.
+    |
+    |   provider: a checkout at the live provider, if it has a price id for the plan
+    |   invoice:  App\Http\Controllers\BillingInvoiceController, always
+    |
+    | Two plans, and the annual one is priced at a 16% discount to fifty-two weeks of the weekly
+    | one ($2,028). The billing page derives that percentage rather than quoting it, so the two
+    | figures below cannot drift apart from the badge that sells them.
     |
     */
 
@@ -105,28 +118,20 @@ return [
             'interval' => 'week',
             'amount' => 3900,
             'public' => true,
+            'checkout' => 'provider',
             'prices' => [
                 'stripe' => env('STRIPE_PRICE_WEEKLY'),
-            ],
-        ],
-
-        'monthly' => [
-            'name' => 'Unlimited, monthly',
-            'interval' => 'month',
-            'amount' => 20000,
-            'public' => true,
-            'prices' => [
-                'stripe' => env('STRIPE_PRICE_MONTHLY'),
             ],
         ],
 
         'annual' => [
             'name' => 'Unlimited, annual',
             'interval' => 'year',
-            'amount' => 290000,
+            'amount' => 170000,
             'public' => true,
+            'checkout' => 'invoice',
             'prices' => [
-                'stripe' => env('STRIPE_PRICE_ANNUAL'),
+                //Intentionally none: this plan is invoiced, so no provider ever prices it
             ],
         ],
 
