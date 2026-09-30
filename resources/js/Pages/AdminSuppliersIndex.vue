@@ -7,6 +7,7 @@
     import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
     import ConfirmModal from "@/Components/Modals/ConfirmModal.vue";
     import useConfirm from "@/Shared/useConfirm.js";
+    import shared from "@/Shared/shared.js";
 
     //Props
     const props = defineProps({
@@ -121,7 +122,9 @@
         formSupplierCreate.name = supplier.name;
         formSupplierCreate.supplier_categories = supplier.categoriesForm;
 
-        focusName();
+        //The form is further up the page than the row you pressed Edit on, so send the cursor to
+        //it - otherwise the panel quietly switches to edit mode somewhere off screen
+        nextTick(() => nameInput.value?.focus());
     }
 
     function cancelEdit(){
@@ -130,12 +133,6 @@
 
         autoSuggestions.value = [];
         autoSuggestionsExactMatch.value = false;
-    }
-
-    //The header action has nowhere to navigate to - the form is on this page,
-    //so it puts the cursor in it rather than opening anything
-    function focusName(){
-        nextTick(() => nameInput.value?.focus());
     }
 
     function autoComplete(){
@@ -198,24 +195,20 @@
             </div>
 
             <!-- page header -->
-            <header class="flex flex-wrap items-end justify-between gap-4 py-5">
-                <div>
-                    <h1 class="text-2xl font-bold tracking-tight text-gray-900">
-                        Suppliers
-                    </h1>
-                    <p class="mt-1 text-sm text-gray-500">
-                        <span v-if="isAdmin">Suppliers for {{business.domain}}. </span>
-                        Every category needs at least one supplier before it can be quoted.
-                    </p>
-                </div>
-                <button
-                    type="button"
-                    @click="cancelEdit(); focusName();"
-                    class="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors duration-150 hover:bg-blue-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                >
-                    <i class="fa-solid fa-plus text-xs"></i>
-                    Add supplier
-                </button>
+            <!--
+                No "Add supplier" action here. The form it would send you to is already on this
+                page, a few hundred pixels below, so the button had nothing to open - all it could
+                do was put the cursor in the name field, which is not what a primary blue button
+                promises.
+            -->
+            <header class="py-5">
+                <h1 class="text-2xl font-bold tracking-tight text-gray-900">
+                    Suppliers
+                </h1>
+                <p class="mt-1 text-sm text-gray-500">
+                    <span v-if="isAdmin">Suppliers for {{business.domain}}. </span>
+                    Every category needs at least one supplier before it can be quoted.
+                </p>
             </header>
 
             <!-- uncovered categories warning -->
@@ -300,7 +293,7 @@
                                         class="mt-0.5 h-4 w-4 flex-none rounded border-gray-300 text-blue-700 focus:ring-2 focus:ring-blue-500/30"
                                     />
                                     <label :for="label" class="text-sm leading-tight text-gray-700">
-                                        {{label}}
+                                        {{ shared.supplierGroupLabel(label) }}
                                     </label>
                                 </div>
                             </div>
@@ -379,7 +372,7 @@
                             :key="label"
                             class="rounded-xl border border-gray-200 bg-white p-3 transition-colors duration-150 hover:border-gray-300"
                         >
-                            <h3 class="text-sm font-semibold text-gray-900">{{label}}</h3>
+                            <h3 class="text-sm font-semibold text-gray-900">{{ shared.supplierGroupLabel(label) }}</h3>
                             <p class="mt-0.5 text-xs leading-relaxed text-gray-500">
                                 {{data.includedProductsString}}
                             </p>
@@ -440,7 +433,7 @@
                                         :key="category"
                                         class="rounded-md bg-gray-100 px-2 py-1 text-[11px] font-medium text-gray-600 ring-1 ring-inset ring-gray-200"
                                     >
-                                        {{category}}
+                                        {{ shared.supplierGroupLabel(category) }}
                                     </li>
                                 </ul>
                                 <p v-else class="mt-1 text-xs text-gray-400">

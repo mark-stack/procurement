@@ -427,6 +427,7 @@
                 <KanbanColumn
                     step="1"
                     title="Nesting"
+                    tooltip="Projects waiting to be bought for. Starting quoting nests everything in this column into one batch, so the longer you hold off, the more the nest has to work with."
                     :count="nestingProjects.length + unfinishedImports.length"
                     :flowsOn="true"
                 >
@@ -542,6 +543,7 @@
                 <KanbanColumn
                     step="2"
                     title="Quoting"
+                    tooltip="Nested batches out with your suppliers for pricing. Open Quotes to send the batch out and record what comes back."
                     :count="quotedBatches.length"
                     :flowsOn="true"
                 >
@@ -573,6 +575,7 @@
                 <KanbanColumn
                     step="3"
                     title="Ordering"
+                    tooltip="Batches where at least one order has gone in. Open Orders to place the rest and see which suppliers are still outstanding."
                     :count="orderedBatches.length"
                     :flowsOn="true"
                 >
@@ -603,6 +606,7 @@
                 <KanbanColumn
                     step="4"
                     title="Delivering"
+                    tooltip="Every order placed, now waiting on the yard. Once it has all arrived — with material certs for steel — move the batch to done."
                     :count="deliveredBatches.length"
                 >
                     <!-- card -->

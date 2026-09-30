@@ -48,6 +48,20 @@ export default {
     capitalizeWords(input) {
         return input.replace(/\b\w/g, char => char.toUpperCase());
     },
+    supplierGroupLabel(supplierGroup) {
+        /**
+         * A supplier group reaches the front end as its enum name - STEEL_MERCHANT - which is the
+         * key everything else is stored and posted under, so it stays as it is. This is purely how
+         * it gets read: "Steel merchant", in the sentence case the rest of the app labels in.
+         */
+        if(!supplierGroup){
+            return "";
+        }
+
+        let words = supplierGroup.replace(/_/g, " ").trim().toLowerCase();
+
+        return words.charAt(0).toUpperCase() + words.slice(1);
+    },
     cropText(text, maxLength = 25) {
         if (text.length > maxLength) {
             return text.substring(0, maxLength) + "..";
