@@ -208,13 +208,88 @@ it('would be a disaster if a user could not edit their own project', function ()
     expect($project->fresh()->reference)->toBe('my own reference');
 });
 
-it('would be a disaster if user could see other business’s projects', function () {});
+it('would be a disaster if user could see other business’s projects', function () {
+    /**
+     * Declared as a placeholder since the file was written, and the coverage audit found nothing
+     * standing behind it: every cross-business test here asks whether a write is refused, and none
+     * asks what the board draws. The board is the one screen that shows the whole business's work
+     * rather than the caller's own, so a scoping mistake in any of its four columns puts another
+     * company's projects, batches and suppliers in front of you rather than merely letting you
+     * write to them.
+     */
+    $business = createBusiness('gmail', true);
+    $user = createUser(1, $business, false, true);
+
+    $otherBusiness = createBusiness('outlook', true);
+    $otherUser = createUser(2, $otherBusiness, false, true);
+
+    $mine = createProject($user);
+    pieceReadyForBatching($mine);
+
+    $theirs = createProject($otherUser);
+    pieceReadyForBatching($theirs);
+
+    //And one of theirs already nested, so the batch columns are asked the same question
+    $theirBatch = Batch::factory()->forUser($otherUser->id)->create(['done' => false]);
+    pieceOnBatch(createProject($otherUser), $theirBatch);
+
+    $this->actingAs($user)
+        ->get(route('projects.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('projects.READY_FOR_NESTING.projects.data', 1)
+            ->where('projects.READY_FOR_NESTING.projects.data.0.id', $mine->id)
+            //The batch columns are plain arrays, not resource collections
+            ->has('batches.QUOTED', 0)
+            ->has('batches.ORDERED', 0)
+            ->has('batches.DELIVERED', 0)
+            ->etc()
+        );
+});
 
 it('would be a disaster if user cannot see other staff materials', function () {});
 
-it('would be a disaster if user could create projects before email verification', function () {});
+it('would be a disaster if user could create projects before email verification', function () {
+    /*
+     * The other placeholder the audit found nothing behind. Everything downstream of a project
+     * assumes a confirmed address - the deadline reminders, the welcome mail, the magic link in the
+     * "was it awarded?" notification - and the route group's own 'verified' is the only thing
+     * holding it.
+     */
+    $business = createBusiness('gmail', true);
+    $unverified = createUser(1, $business, false, false);
 
-it('would be a disaster if user could create projects before admin confirmation', function () {});
+    $this->actingAs($unverified)
+        ->from('/dashboard')
+        ->post(route('projects.store'), [
+            'name' => 'Too early',
+            'tentative' => false,
+            'excel' => [],
+        ])
+        ->assertRedirect(route('verification.notice'));
+
+    expect(Project::count())->toBe(0);
+});
+
+it('would be a disaster if user could create projects before admin confirmation', function () {
+    /*
+     * A business is only ready once an admin has recorded its templates - without them a BOM
+     * auto-detects nothing, so the project would be created and then handed back empty. That is
+     * what BusinessReadyMiddleware is for, and nothing asserted it over project creation.
+     */
+    $business = createBusiness('gmail', false);
+    $user = createUser(1, $business, false, true);
+
+    $this->actingAs($user)
+        ->from('/dashboard')
+        ->post(route('projects.store'), [
+            'name' => 'Too early',
+            'tentative' => false,
+            'excel' => [],
+        ])
+        ->assertRedirect(route('onboarding'));
+
+    expect(Project::count())->toBe(0);
+});
 
 it('would be a disaster if user could archive other staff projects', function () {
     /**

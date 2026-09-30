@@ -11,21 +11,10 @@ use Illuminate\Support\Facades\Gate;
 
 class OrderController extends Controller
 {
-    /**
-     * Display a listing of the resource.
+    /*
+     * index, create, show and edit are gone with the route registrations that reached them - all
+     * four had no body, and an unimplemented action answers with a blank 200 rather than a 404.
      */
-    public function index()
-    {
-        //
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
 
     /**
      * Store a newly created resource in storage.
@@ -90,22 +79,6 @@ class OrderController extends Controller
         CreatePendingOrderApprovals::run($batch);
 
         return back();
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Order $order)
-    {
-        Gate::authorize('owned', $order);
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Order $order)
-    {
-        Gate::authorize('owned', $order);
     }
 
     /**

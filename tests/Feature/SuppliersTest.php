@@ -156,3 +156,101 @@ it('lets an admin rename a supplier for a business that is not theirs', function
 
     expect($supplier->fresh()->name)->toBe('After');
 });
+
+it('would be a disaster if removing a supplier took the orders placed with it', function () {
+    /**
+     * Found by the route audit - suppliers.destroy had no test at all, and it is the one supplier
+     * route that can destroy something. A user's press detaches the supplier from their business;
+     * an admin's deletes the row outright, but only when nothing uses it.
+     *
+     * The row surviving is what keeps the certificate trail readable: Batch::newStockOrdersWithCertificates
+     * and the offcut ancestry both read $order->supplier->name, and orders.supplier_id is nullable,
+     * so a deleted supplier would leave steel already installed reporting "Unknown supplier".
+     */
+    $business = createBusiness('gmail', true);
+    $user = createUser(1, $business, false, true);
+
+    $supplier = Supplier::create(['name' => 'Merchant', 'supplier_categories' => serialize([])]);
+    $business->suppliers()->attach($supplier->id);
+
+    $batch = App\Models\Batch::factory()->forUser($user->id)->create();
+    $order = App\Models\Order::create([
+        'user_id' => $user->id,
+        'batch_id' => $batch->id,
+        'supplier_id' => $supplier->id,
+        'order_sent' => true,
+    ]);
+
+    $this->actingAs($user)
+        ->from(route('suppliers.index'))
+        ->delete(route('suppliers.destroy', $supplier->id))
+        ->assertRedirect();
+
+    //Off this business's list, but still the supplier the order was placed with
+    expect($business->suppliers()->count())->toBe(0)
+        ->and(Supplier::find($supplier->id))->not->toBeNull()
+        ->and($order->fresh()->supplier_id)->toBe($supplier->id);
+});
+
+it('would be a disaster if an admin could delete a supplier that is in use', function () {
+    //The admin branch is the only one that deletes the row rather than detaching it
+    $business = createBusiness('gmail', true);
+    $user = createUser(1, $business, false, true);
+
+    $adminBusiness = createBusiness('Admin Business', true);
+    $admin = createUser(2, $adminBusiness, true, true);
+
+    $supplier = Supplier::create(['name' => 'Merchant', 'supplier_categories' => serialize([])]);
+    $business->suppliers()->attach($supplier->id);
+    $adminBusiness->suppliers()->attach($supplier->id);
+
+    $batch = App\Models\Batch::factory()->forUser($user->id)->create();
+    App\Models\Order::create([
+        'user_id' => $user->id,
+        'batch_id' => $batch->id,
+        'supplier_id' => $supplier->id,
+        'order_sent' => true,
+    ]);
+
+    $this->actingAs($admin)
+        ->from(route('suppliers.index'))
+        ->delete(route('suppliers.destroy', $supplier->id))
+        ->assertRedirect();
+
+    expect(Supplier::find($supplier->id))->not->toBeNull();
+});
+
+it('would be a disaster if the admin supplier page showed the wrong business', function () {
+    //Found by the route audit - admin.suppliers.index had no test, and it takes the business by id
+    $theirBusiness = createBusiness('Their Business', true);
+    $otherBusiness = createBusiness('Other Business', true);
+
+    $adminBusiness = createBusiness('Admin Business', true);
+    $admin = createUser(1, $adminBusiness, true, true);
+
+    $theirs = Supplier::create(['name' => 'Theirs', 'supplier_categories' => serialize([])]);
+    $others = Supplier::create(['name' => 'Others', 'supplier_categories' => serialize([])]);
+    $theirBusiness->suppliers()->attach($theirs->id);
+    $otherBusiness->suppliers()->attach($others->id);
+
+    $this->actingAs($admin)
+        ->get(route('admin.suppliers.index', $theirBusiness->id))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('suppliers.data', 1)
+            ->where('suppliers.data.0.name', 'Theirs')
+            ->where('business.id', $theirBusiness->id)
+            ->where('adminView', true)
+            ->etc()
+        );
+});
+
+it('would be a disaster if a non-admin could read another business’s supplier page', function () {
+    $theirBusiness = createBusiness('Their Business', true);
+    $business = createBusiness('gmail', true);
+    $user = createUser(1, $business, false, true);
+
+    $this->actingAs($user)
+        ->get(route('admin.suppliers.index', $theirBusiness->id))
+        ->assertRedirect();
+});

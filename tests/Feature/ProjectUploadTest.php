@@ -351,3 +351,78 @@ it('would be a disaster if a short row raised warnings instead of being skipped'
 
     expect($raised)->toBeNull();
 });
+
+it('would be a disaster if a BOM upload could be posted onto a colleague’s project', function () {
+    /**
+     * Found by the route audit - projects.products.store had no test at all, and it is the second
+     * way a material list gets into the application. It is owner-only for the same reason editing
+     * is: the BOM is what the nest cuts from.
+     */
+    $business = createBusiness('gmail', true);
+    recordExampleTemplates($business);
+    $user = createUser(1, $business, false, true);
+    $colleague = createUser(2, $business, false, true);
+    seedMasterMaterials();
+
+    $theirs = createProject($colleague);
+
+    $this->actingAs($user)
+        ->from('/dashboard')
+        ->post(route('projects.products.store', $theirs->id), [
+            'excel' => new UploadedFile(
+                base_path('public/examples/material_list.xlsx'),
+                'material_list.xlsx',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                null,
+                true
+            ),
+        ])
+        ->assertForbidden();
+
+    expect($theirs->rawMaterialQuotes()->count())->toBe(0);
+});
+
+it('would be a disaster if a BOM upload took a file that is not a spreadsheet', function () {
+    /*
+     * The other route into the extractor. projects.store already refuses this per file; this one
+     * validates on its own and nothing covered it.
+     */
+    $business = createBusiness('gmail', true);
+    recordExampleTemplates($business);
+    $user = createUser(1, $business, false, true);
+
+    $project = createProject($user);
+
+    $this->actingAs($user)
+        ->from('/dashboard')
+        ->post(route('projects.products.store', $project->id), [
+            'excel' => UploadedFile::fake()->create('payload.exe', 10, 'application/x-msdownload'),
+        ])
+        ->assertInvalid('excel');
+
+    expect($project->rawMaterialQuotes()->count())->toBe(0);
+});
+
+it('adds the material rows when the owner uploads to their own project', function () {
+    //The other half - the route audit found no test proving this path works at all
+    $business = createBusiness('gmail', true);
+    recordExampleTemplates($business);
+    $user = createUser(1, $business, false, true);
+    seedMasterMaterials();
+
+    $project = createProject($user);
+
+    $this->actingAs($user)
+        ->from('/dashboard')
+        ->post(route('projects.products.store', $project->id), [
+            'excel' => new UploadedFile(
+                base_path('public/examples/material_list.xlsx'),
+                'material_list.xlsx',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                null,
+                true
+            ),
+        ]);
+
+    expect($project->rawMaterialQuotes()->count())->toBeGreaterThan(0);
+});

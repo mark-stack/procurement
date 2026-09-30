@@ -22,18 +22,12 @@ use Throwable;
 
 class QuoteController extends Controller
 {
-    /**
-     * @deprecated
+    /*
+     * index, create, show, edit and destroy are gone with the route registrations that reached them.
+     * The first four had no body at all; destroy had a Gate call and nothing else, so a DELETE on a
+     * quote authorised the caller, deleted nothing and answered 200 - a success as far as anything
+     * calling it could tell. A batch's quotes are unwound by BatchController::destroy.
      */
-    public function index() {
-
-    }
-
-    public function create()
-    {
-        //
-    }
-
     public function store(Request $request): RedirectResponse
     {
         //Prerequisite variables
@@ -164,16 +158,6 @@ class QuoteController extends Controller
         return back();
     }
 
-    public function show(Quote $quote)
-    {
-        Gate::authorize('owned', $quote);
-    }
-
-    public function edit(Quote $quote)
-    {
-        Gate::authorize('owned', $quote);
-    }
-
     public function update(UpdateQuoteRequest $request, Quote $quote): RedirectResponse
     {
         Gate::authorize('owned', $quote);
@@ -203,10 +187,5 @@ class QuoteController extends Controller
         $quote->update($validated);
 
         return back();
-    }
-
-    public function destroy(Quote $quote)
-    {
-        Gate::authorize('owned', $quote);
     }
 }
