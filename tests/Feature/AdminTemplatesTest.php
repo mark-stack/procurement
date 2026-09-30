@@ -4,6 +4,7 @@ use App\Models\Business;
 use App\Models\Template;
 use App\Models\User;
 use App\Services\CsvService;
+use App\Services\TemplateTestCertificate;
 
 /**
  * The templates this business has. A business is created with none, so every row here is one the
@@ -16,9 +17,20 @@ function recordedTemplates(Business $business)
     return $business->templates()->get();
 }
 
-function templatePayload(array $overrides = []): array
+/**
+ * The template form, as the screen posts it.
+ *
+ * Given a business, it also carries proof that these values passed a test, which creating a template
+ * is gated on. Signed here rather than earned by running a test, because these tests are about what
+ * the store request does with a field: what a test has to do to pass, and what happens to a payload
+ * with no proof at all, are AdminTemplateTestRunTest's and AdminTemplateGateTest's subjects.
+ *
+ * Without a business the payload is the one nobody tested - which is exactly what an update takes,
+ * since editing a recorded template is deliberately not gated.
+ */
+function templatePayload(array $overrides = [], ?Business $business = null): array
 {
-    return array_merge([
+    $payload = array_merge([
         'name' => 'Tekla Assembly List',
         'source' => 'TEKLA',
         'type' => 'CAD_BILL_OF_MATERIALS',
@@ -49,6 +61,12 @@ function templatePayload(array $overrides = []): array
         'web_source' => null,
         'active' => true,
     ], $overrides);
+
+    if ($business !== null) {
+        $payload['template_test_token'] = (new TemplateTestCertificate)->issue($business, $payload);
+    }
+
+    return $payload;
 }
 
 it('would be a disaster if editing a template silently deactivated it', function () {
@@ -138,7 +156,7 @@ it('stores a template against the business in the url', function () {
 
     $this->actingAs($admin)->post(
         route('admin.businesses.templates.store', $business->id),
-        templatePayload(),
+        templatePayload([], $business),
     )->assertRedirect();
 
     expect(recordedTemplates($business)->count())->toBe(1)
@@ -156,7 +174,7 @@ it('stores a template that is not active', function () {
 
     $this->actingAs($admin)->post(
         route('admin.businesses.templates.store', $business->id),
-        templatePayload(['active' => false]),
+        templatePayload(['active' => false], $business),
     )->assertSessionHasNoErrors();
 
     expect(recordedTemplates($business)->first()->active)->toBeFalse();
@@ -203,7 +221,7 @@ it('stores a lower case cell reference in upper case', function () {
 
     $this->actingAs($admin)->post(
         route('admin.businesses.templates.store', $business->id),
-        templatePayload(['first_description_cell' => 'b7', 'first_sub_qty_cell' => 'f7']),
+        templatePayload(['first_description_cell' => 'b7', 'first_sub_qty_cell' => 'f7'], $business),
     )->assertSessionHasNoErrors();
 
     $template = recordedTemplates($business)->first();
@@ -224,7 +242,7 @@ it('stores a blank optional cell as null', function () {
 
     $this->actingAs($admin)->post(
         route('admin.businesses.templates.store', $business->id),
-        templatePayload(['first_material_cell' => '']),
+        templatePayload(['first_material_cell' => ''], $business),
     )->assertSessionHasNoErrors();
 
     expect(recordedTemplates($business)->first()->first_material_cell)->toBeNull();
@@ -270,8 +288,8 @@ it('rejects a second template with the same name in one business', function () {
     $business = createBusiness('Business A', true);
     $admin = createUser(1, $business, true, true);
 
-    $this->actingAs($admin)->post(route('admin.businesses.templates.store', $business->id), templatePayload());
-    $this->actingAs($admin)->post(route('admin.businesses.templates.store', $business->id), templatePayload())
+    $this->actingAs($admin)->post(route('admin.businesses.templates.store', $business->id), templatePayload([], $business));
+    $this->actingAs($admin)->post(route('admin.businesses.templates.store', $business->id), templatePayload([], $business))
         ->assertSessionHasErrors('name');
 
     expect(recordedTemplates($business)->count())->toBe(1);
@@ -284,8 +302,8 @@ it('lets two businesses record a template under the same name', function () {
     $businessB = createBusiness('Business B', true);
     $admin = createUser(1, $businessA, true, true);
 
-    $this->actingAs($admin)->post(route('admin.businesses.templates.store', $businessA->id), templatePayload());
-    $this->actingAs($admin)->post(route('admin.businesses.templates.store', $businessB->id), templatePayload())
+    $this->actingAs($admin)->post(route('admin.businesses.templates.store', $businessA->id), templatePayload([], $businessA));
+    $this->actingAs($admin)->post(route('admin.businesses.templates.store', $businessB->id), templatePayload([], $businessB))
         ->assertSessionHasNoErrors();
 
     expect(recordedTemplates($businessA)->count())->toBe(1)
@@ -377,7 +395,7 @@ it('accepts a compound description in place of a description column', function (
             'compound_description_prefix' => 'M',
             'compound_description_suffix' => 'mm',
             'compound_description_cells' => ['B7', 'C7'],
-        ]),
+        ], $business),
     )->assertSessionHasNoErrors();
 
     expect(recordedTemplates($business)->first()->compound_description_cells)->toBe(['B7', 'C7']);
@@ -757,7 +775,7 @@ it('saves a record that reads oddly, and says how', function () {
 
     $this->actingAs($admin)->post(
         route('admin.businesses.templates.store', $business->id),
-        templatePayload(['first_material_cell' => 'B7']),
+        templatePayload(['first_material_cell' => 'B7'], $business),
     )->assertSessionHasNoErrors();
 
     expect(recordedTemplates($business)->count())->toBe(1)
@@ -772,7 +790,7 @@ it('says when the heading cell is too far above the data to be the heading', fun
 
     $this->actingAs($admin)->post(
         route('admin.businesses.templates.store', $business->id),
-        templatePayload(['heading_cell' => 'A1']),
+        templatePayload(['heading_cell' => 'A1'], $business),
     )->assertSessionHasNoErrors();
 
     expect(firstTemplateWarnings($business, $admin))
@@ -785,7 +803,7 @@ it('says when an assembly mark rule has no cell to read', function () {
 
     $this->actingAs($admin)->post(
         route('admin.businesses.templates.store', $business->id),
-        templatePayload(['assembly_mark_rule' => 'COLUMN', 'assembly_mark_cell' => null]),
+        templatePayload(['assembly_mark_rule' => 'COLUMN', 'assembly_mark_cell' => null], $business),
     )->assertSessionHasNoErrors();
 
     expect(firstTemplateWarnings($business, $admin))

@@ -242,6 +242,8 @@ it('records what it proposed for a file nothing matched, and that file then impo
      */
     $business = createBusiness('Business A', true);
     $admin = createUser(1, $business, true, true);
+    //There has to be a catalogue to match the descriptions against for the test below to pass
+    seedMasterMaterials();
 
     fakeOpenAiAnswer([
         'name' => 'Acme Cut List',
@@ -257,16 +259,37 @@ it('records what it proposed for a file nothing matched, and that file then impo
         ['sample' => unknownTemplateUpload()],
     );
 
+    $prefill = session('templateProposal')['prefill'];
+
     /*
-     * The proposal, submitted as the form would submit it. Only the three things a spreadsheet
-     * cannot be read for are added: whether it is live, and the screenshot.
+     * The form the proposal filled in, tried against the file it was read from. Creating a template
+     * is gated on that passing, so the path from "read a spreadsheet" to "that spreadsheet imports"
+     * now runs through here - which is the half of this test that used to be a matter of trust.
+     *
+     * The key is dropped first: the fake above answers with a proposal and not a review of extracted
+     * rows, and what a model makes of those is AdminTemplateGateTest's subject. Unasked, that check
+     * is skipped, and a skip blocks nothing.
+     */
+    config(['openai.key' => null]);
+
+    $this->actingAs($admin)->post(
+        route('admin.businesses.templates.test', $business->id),
+        [...$prefill, 'sample' => unknownTemplateUpload()],
+    )->assertSessionHasNoErrors();
+
+    expect(session('templateTest')['passed'])->toBeTrue();
+
+    /*
+     * The proposal, submitted as the form would submit it. Only the things a spreadsheet cannot be
+     * read for are added: whether it is live, the screenshot, and the proof that it was tested.
      */
     $this->actingAs($admin)->post(
         route('admin.businesses.templates.store', $business->id),
         [
-            ...session('templateProposal')['prefill'],
+            ...$prefill,
             'active' => true,
             'screenshot' => 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+            'template_test_token' => session('templateTest')['token'],
         ],
     )->assertSessionHasNoErrors();
 

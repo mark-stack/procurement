@@ -46,8 +46,17 @@ class UserResource extends JsonResource
                 'domain' => $business->domain,
                 'admin_setup_complete' => $business->admin_setup_complete,
             ] : null,
-            'templates_count' => $business?->templates_count ?? 0,
-            'suppliers_count' => $business?->suppliers_count ?? 0,
+            /*
+             * How many templates are matched against uploads, how many exist at all, and the
+             * suppliers - see the controller for why the first two are both here.
+             *
+             * Guarded the same way the business above is, rather than with "?->": the relation is
+             * declared as returning a Business, so static analysis reads a null-safe access here as
+             * a check that cannot fire and says so. It can fire - business_id is nullable.
+             */
+            'templates_count' => $business ? (int) $business->templates_count : 0,
+            'templates_total' => $business ? (int) $business->templates_total : 0,
+            'suppliers_count' => $business ? (int) $business->suppliers_count : 0,
         ];
     }
 }

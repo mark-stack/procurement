@@ -80,7 +80,14 @@ class TemplateController extends Controller
      */
     public function store(StoreTemplateRequest $request, Business $business): RedirectResponse
     {
-        $business->templates()->create($request->validated());
+        /*
+         * Without the token, which is proof that this template was tested and not a column of the
+         * table - the model is $guarded = [], so anything left in here is handed straight to the
+         * insert. See TemplateTestCertificate.
+         */
+        $business->templates()->create(
+            collect($request->validated())->except('template_test_token')->all(),
+        );
 
         return back();
     }

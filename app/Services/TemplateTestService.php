@@ -28,6 +28,14 @@ use Illuminate\Http\UploadedFile;
  *     table rule, compound descriptions, assembly marks and all.
  *  3. DataClassificationService then answers, for every row, the question the import answers: is
  *     this a material we recognise, and is there anything in the catalogue that matches it.
+ *  4. ExtractedMaterialsReview reads the extracted rows the way a person would, because a template
+ *     can be reading the wrong table entirely and still get through every step above: a column of
+ *     assembly marks is a column of plausible strings, and a "Total" row is a material with an
+ *     unusual name until something that knows steel says otherwise.
+ *
+ * What comes out of all four is a named checklist rather than a heap of prose, because creating a
+ * template is now gated on it - see TemplateTestChecklist for what passes, what merely warns, and
+ * TemplateTestCertificate for how a pass reaches the save.
  *
  * Nothing is written. No project, no RawMaterialQuote, no piece - saveRawMaterialQuoteData() is
  * deliberately not called, and the gates it applies are re-asked here instead, in its order, so the
@@ -62,13 +70,17 @@ class TemplateTestService
         private readonly DataClassificationService $classifier = new DataClassificationService,
         private readonly CsvService $csv = new CsvService,
         private readonly NestingFormatter $nesting = new NestingFormatter,
+        private readonly ExtractedMaterialsReview $review = new ExtractedMaterialsReview,
+        private readonly TemplateTestChecklist $checklist = new TemplateTestChecklist,
+        private readonly SpreadsheetImage $image = new SpreadsheetImage,
     ) {}
 
     /**
      * @param  array<string, mixed>  $attributes  The template form's fields, as it posts them
+     * @param  int|null  $editingTemplateId  The row being edited, which is not its own duplicate
      * @return array<string, mixed>
      */
-    public function run(UploadedFile $file, Business $business, array $attributes): array
+    public function run(UploadedFile $file, Business $business, array $attributes, ?int $editingTemplateId = null): array
     {
         $grid = SpreadsheetGrid::fromUpload($file);
 
@@ -94,15 +106,41 @@ class TemplateTestService
         $extracted = array_sum(array_map(fn (array $table) => count($table['rows']), $tables));
         $rows = $this->assessed($tables, $business);
 
+        $sampleFindings = $this->checks->againstSample($attributes, $grid);
+        $catalogueEmpty = ! Product::query()->availableForBusiness($business)->exists();
+
+        //Only asked when there are rows to read - see ExtractedMaterialsReview::review()
+        $review = $this->review->review($rows, $attributes);
+
+        $tables = array_map(fn (array $table) => [
+            'heading_row' => $table['heading_row'],
+            'heading_column' => $table['heading_column'],
+            'extracted' => count($table['rows']),
+        ], $tables);
+
+        $checks = $this->checklist->build([
+            'file' => $file->getClientOriginalName(),
+            'tables' => $tables,
+            'extracted' => $extracted,
+            'checked' => count($rows),
+            'counts' => array_count_values(array_column($rows, 'status')),
+            'catalogue_empty' => $catalogueEmpty,
+            'length_column' => filled($attributes['first_length_required_cell'] ?? null),
+            'sub_qty_column' => filled($attributes['first_sub_qty_cell'] ?? null),
+            'sample_warnings' => array_map(
+                fn (array $finding) => $finding['message'],
+                TemplateChecks::warnings($sampleFindings),
+            ),
+            'review' => $review,
+            //Templates of this business that already read this file, and whether off the same rows
+            'also_read_by' => $this->alsoReadBy($grid, $business, $tables, $editingTemplateId),
+        ]);
+
         return [
             'ok' => true,
             'file' => $file->getClientOriginalName(),
             'headline' => $this->headline($extracted, $rows),
-            'tables' => array_map(fn (array $table) => [
-                'heading_row' => $table['heading_row'],
-                'heading_column' => $table['heading_column'],
-                'extracted' => count($table['rows']),
-            ], $tables),
+            'tables' => $tables,
             'rows' => $rows,
             'summary' => [
                 'extracted' => $extracted,
@@ -110,15 +148,41 @@ class TemplateTestService
                 'counts' => $this->counts($rows),
             ],
             /*
+             * The named checks, and whether all the ones that stop a save got through. This is what
+             * the screen leads with and what the certificate is issued against - everything below it
+             * is the detail behind one of these lines.
+             */
+            'checks' => $checks,
+            'passed' => TemplateTestChecklist::passed($checks),
+            /*
+             * The template's screenshot, drawn rather than pasted in - and drawn here because this is
+             * the one place that knows which row the heading was found on, so the picture can band the
+             * table it found instead of being a picture of the top-left corner of a file.
+             */
+            'screenshot' => $this->image->render($grid, $attributes, $tables[0]['heading_row'] ?? null),
+            //The model's own words, for the checks above that are its answers
+            'review' => [
+                'used' => $review['used'],
+                'model' => $review['model'],
+                'verdict' => $review['answer']['verdict'] ?? null,
+                'confidence' => $review['answer']['confidence'] ?? null,
+                'summary' => $review['answer']['summary'] ?? null,
+                'issues' => array_values(array_filter(
+                    is_array($review['answer']['issues'] ?? null) ? $review['answer']['issues'] : [],
+                    fn ($issue) => is_string($issue) && trim($issue) !== '',
+                )),
+                'error' => $review['error'],
+            ],
+            /*
              * The record's own checks against this file, then the three things only an extraction
              * can answer: whether the table was found, whether a column every row depends on is
              * missing, and whether there is a catalogue to match against at all.
              */
             'findings' => [
-                ...$this->checks->againstSample($attributes, $grid),
+                ...$sampleFindings,
                 ...$this->extractionFindings($tables, $extracted),
                 ...$this->criticalFieldFindings($attributes),
-                ...$this->catalogueFindings($business),
+                ...$this->catalogueFindings($catalogueEmpty),
             ],
         ];
     }
@@ -132,6 +196,13 @@ class TemplateTestService
             'ok' => false,
             'file' => $file->getClientOriginalName(),
             'message' => $message,
+            /*
+             * A refusal is a failed checklist of one. "passed" has to be present and false on every
+             * shape this returns: it is what the screen enables Create on, and a missing key there
+             * would read as a template nobody has to test.
+             */
+            'checks' => $this->checklist->refused($message),
+            'passed' => false,
         ];
     }
 
@@ -373,10 +444,64 @@ class TemplateTestService
     }
 
     /**
+     * Which of this business's live templates already read this file, and whether off the same rows.
+     *
+     * A template is matched against an upload alongside every other active one, so two templates that
+     * find the same heading row read the same table twice and import it twice - a customer ordering
+     * double the steel, from a screen where both records look correct. It became worth asking here
+     * when creating a template started switching it on: before that there was a deliberate step
+     * between recording one and it meeting an upload, and this is what that step was for.
+     *
+     * Reading the same file off a different row is a different thing entirely and not a fault: one
+     * Tekla report holds four bands and a bolt summary, and each is its own template.
+     *
+     * @param  list<array{heading_row: int, heading_column: string, extracted: int}>  $tables
+     * @return list<array{name: string, same_rows: bool}>
+     */
+    private function alsoReadBy(SpreadsheetGrid $grid, Business $business, array $tables, ?int $editingTemplateId): array
+    {
+        $ours = array_column($tables, 'heading_row');
+
+        $others = $business->detectableTemplates()
+            ->when($editingTemplateId !== null, fn ($query) => $query->whereKeyNot($editingTemplateId))
+            ->orderBy('id')
+            ->get();
+
+        $found = [];
+
+        foreach ($others as $template) {
+            $spec = $template->detectionSpec();
+
+            if ($spec === []) {
+                continue;
+            }
+
+            $rows = [];
+
+            for ($rowNumber = 1; $rowNumber <= $grid->rowCount(); $rowNumber++) {
+                if ($this->csv->headerStartIndex($grid->row($rowNumber), $spec) !== null) {
+                    $rows[] = $rowNumber;
+                }
+            }
+
+            if ($rows === []) {
+                continue;
+            }
+
+            $found[] = [
+                'name' => (string) $template->name,
+                'same_rows' => array_intersect($rows, $ours) !== [],
+            ];
+        }
+
+        return $found;
+    }
+
+    /**
      * Whether the table was found at all, and whether anything came out of it. Both are questions
      * only a real extraction can answer, which is why they are here rather than in TemplateChecks.
      *
-     * @param  list<array{heading_row: int, heading_column: string, rows: array<int, array<string, mixed>>}>  $tables
+     * @param  list<array{heading_row: int, heading_column: string, extracted: int}>  $tables
      * @return list<array{level: string, field: string|null, message: string}>
      */
     private function extractionFindings(array $tables, int $extracted): array
@@ -457,9 +582,9 @@ class TemplateTestService
      *
      * @return list<array{level: string, field: string|null, message: string}>
      */
-    private function catalogueFindings(Business $business): array
+    private function catalogueFindings(bool $catalogueEmpty): array
     {
-        if (Product::query()->availableForBusiness($business)->exists()) {
+        if (! $catalogueEmpty) {
             return [];
         }
 

@@ -10,6 +10,29 @@ namespace App\Http\Requests;
 class UpdateTemplateRequest extends StoreTemplateRequest
 {
     /**
+     * Creating a template is gated on a passing test; editing one is not.
+     *
+     * The gate exists so that no template is recorded without somebody having watched it import steel,
+     * and that is a thing to insist on once. Insisting on it again for every edit would mean uploading
+     * a sample spreadsheet to fix a spelling mistake in a name, and an admin who cannot correct a name
+     * without a sample to hand is an admin who leaves it wrong.
+     *
+     * @return array<string, mixed>
+     */
+    public function rules(): array
+    {
+        return collect(parent::rules())->except('template_test_token')->all();
+    }
+
+    /**
+     * @return array<int, callable>
+     */
+    public function after(): array
+    {
+        return [$this->recordChecks()];
+    }
+
+    /**
      * An unchanged screenshot is not sent back, so renaming a template no longer re-uploads
      * up to 750KB of base64 to change one word. "sometimes" leaves the stored screenshot
      * alone when the field is absent, and validated() then has no screenshot key for
@@ -21,10 +44,7 @@ class UpdateTemplateRequest extends StoreTemplateRequest
      */
     protected function screenshotRules(): array
     {
-        return array_merge(['sometimes'], array_filter(
-            parent::screenshotRules(),
-            fn ($rule) => $rule !== 'required',
-        ));
+        return ['sometimes', ...$this->screenshotShape()];
     }
 
     /**
