@@ -25,6 +25,24 @@ class Project extends Model
     /** @use HasFactory<\Database\Factories\ProjectFactory> */
     use BelongsToSandbox, HasFactory;
 
+    /**
+     * How long a name and a reference are allowed to be.
+     *
+     * Here rather than in one of the two form requests, because both of them need the same answer
+     * and the reason is the project's, not the form's: a project name is read by the whole business,
+     * not just its owner. The column is a TEXT, so nothing in the database was stopping a name of any
+     * length at all, and the board is only half the cost of one - the confirm dialogs on the board
+     * build their message by joining the names of every project involved ("Start quoting" names whose
+     * work is being taken), so one pasted essay makes a dialog nobody can read or reach the button
+     * of. 120 is longer than any real job name and short enough to stay a line.
+     *
+     * The reference is a varchar(255) with only "nullable" in front of it, so anything over 255
+     * characters was a database error on MySQL - a 500 where a validation message belonged.
+     */
+    public const MAX_NAME_CHARACTERS = 120;
+
+    public const MAX_REFERENCE_CHARACTERS = 255;
+
     protected $guarded = [];
 
     protected function casts(): array

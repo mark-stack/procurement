@@ -145,7 +145,13 @@ class SupplierController extends Controller
 
         //Admin
         if ($user->isAdmin()) {
-            if (! $supplier->isUsed()) {
+            /*
+             * Their own business is excluded from the "held by somebody" half of the question, so an
+             * admin can still clear a supplier only they hold - see Supplier::isUsed for why that
+             * method answered false for every supplier in the table until now, and what the database
+             * was doing about it.
+             */
+            if (! $supplier->isUsed($business)) {
                 $supplier->businesses()->detach();
                 $supplier->delete();
             }

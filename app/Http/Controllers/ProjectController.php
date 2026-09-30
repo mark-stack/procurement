@@ -220,6 +220,20 @@ class ProjectController extends Controller
 
         abort_unless($allowed, 403);
 
+        /*
+         * A restore can land on a name that has been given away in the meantime - see
+         * PrerequisiteConditions::restoreProjectNameIsFree for why that is worse than untidy, and why
+         * this is a sentence rather than another abort_unless. The owner can rename the archived
+         * project and try again.
+         */
+        if ($project->archive && ! $prerequisiteConditions->restoreProjectNameIsFree($project)) {
+            return back()->withErrors([
+                'archive' => 'Another live project is already called "'.$project->name.'". Rename this'
+                    .' one before restoring it, or the board will show two projects under the same'
+                    .' name and nothing downstream can tell them apart.',
+            ]);
+        }
+
         $project->archive = ! $project->archive;
         $project->save();
 

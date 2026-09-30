@@ -14,35 +14,16 @@ use Illuminate\Support\Facades\Gate;
 
 class BatchController extends Controller
 {
-    public function index()
-    {
-        //
-    }
-
-    public function create()
-    {
-        //
-    }
-
+    /*
+     * index, create, show and edit are gone with the route registrations that reached them - they
+     * had no body, and an unimplemented action answers with a blank 200 rather than a 404. update
+     * went the same way and was the one worth noticing: it authorised the caller and then wrote
+     * nothing, so a PUT on a batch read as a save that had happened.
+     */
     public function store(Request $request)
     {
         //Batches are created by QuoteController::store when a user starts quoting
         abort(404);
-    }
-
-    public function show(Batch $batch)
-    {
-        Gate::authorize('owned', $batch);
-    }
-
-    public function edit(Batch $batch)
-    {
-        Gate::authorize('owned', $batch);
-    }
-
-    public function update(Request $request, Batch $batch)
-    {
-        Gate::authorize('owned', $batch);
     }
 
     public function destroy(Batch $batch): RedirectResponse

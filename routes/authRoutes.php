@@ -33,7 +33,6 @@ use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\RawMaterialListBulkDeleteController;
 use App\Http\Controllers\RawMaterialListClarificationsController;
 use App\Http\Controllers\RawMaterialListCustomisationsController;
-use App\Http\Controllers\RawMaterialQuoteController;
 use App\Http\Controllers\SandboxController;
 use App\Http\Controllers\SuggestedNestingController;
 use App\Http\Controllers\SupplierController;
@@ -122,9 +121,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('raw-material-quote-clarifications', RawMaterialListClarificationsController::class)->name('clarifications');
             Route::post('raw-material-quote-customisations', RawMaterialListCustomisationsController::class)->name('customisations');
         });
-        Route::controller(RawMaterialQuoteController::class)->group(function () {
-            Route::delete('/raw-material-quote/{rawMaterialQuote}', 'destroy')->name('raw.material.quote.destroy'); //DELETE /photos/{photo}	destroy	photos.destroy
-        });
+        /*
+         * The single-row DELETE that sat here is gone, along with RawMaterialQuoteController and its
+         * policy. Nothing called it - the BOM modal and the product index both post the bulk route
+         * above - and it was a bare $rawMaterialQuote->delete(), so any row that had reached a piece
+         * answered with a 500 off the restricting pieces.raw_material_quote_id. Deleting a material
+         * row is not a one-liner: see the bulk controller, which refuses a row already quoted or
+         * ordered, detaches the piece from its quotes, and clears up the quotes and batches that are
+         * left with nothing in them.
+         */
 
         //Pricebook
         Route::get('pricebook', PricebookController::class)->name('pricebook');
@@ -137,8 +142,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::delete('/suppliers/{supplier}', 'destroy')->name('suppliers.destroy');
         });
 
-        //Quotes
-        Route::resource('quotes', QuoteController::class);
+        /*
+         * Quotes
+         *
+         * only(): index, create, show and edit had no handler at all, and destroy had nothing but a
+         * Gate call - so a DELETE on a quote authorised the caller, deleted nothing, and answered
+         * 200. That is worse than a 404: it reads as a success to anything that wires itself up to
+         * it. Nothing in resources/js ever did, which is the only reason it never bit.
+         */
+        Route::resource('quotes', QuoteController::class)->only(['store', 'update']);
 
         //Offcuts
         //Index only - the other resource verbs were unimplemented, and an implicitly bound {offcut}
@@ -172,8 +184,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
          */
         Route::post('offcuts/scrap', OffcutScrapController::class)->name('offcuts.scrap');
 
-        //Orders
-        Route::resource('orders', OrderController::class);
+        /*
+         * Orders
+         *
+         * only(): index, create, show and edit are unimplemented, and an unimplemented GET answers
+         * with a blank 200 rather than a 404 - see the quotes resource above.
+         */
+        Route::resource('orders', OrderController::class)->only(['store', 'update', 'destroy']);
         Route::post('order-sent/{batch}', OrderSentController::class)->name('order.sent');
 
         Route::post('order-undo-sent/{order}', OrderUndoSentController::class)->name('order.undo.sent');
@@ -209,6 +226,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
      * batch is the single most expensive write in the application, so it is the last thing that
      * should stay open on a lapsed account.
      */
+    /*
+     * only(): destroy is the unwind; store exists to answer 404 to anything that tries to create a
+     * batch directly, since batches are created by QuoteController::store. index, create, show, edit
+     * and update were unimplemented - update authorised the caller and then wrote nothing at all.
+     */
     Route::resource('batches', BatchController::class)
+        ->only(['store', 'destroy'])
         ->middleware([BillingWriteAccessMiddleware::class]);
 });

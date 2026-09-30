@@ -277,6 +277,10 @@ class PrerequisiteConditions
          * archived while it was on a batch has to be restorable, or the batch it is holding up
          * stays held up forever.
          *
+         * The name clash is deliberately not one of these conditions - it is answered separately by
+         * restoreProjectNameIsFree() below, because it is the one obstacle the owner can clear
+         * themselves and so is worth a sentence rather than a 403.
+         *
          * 1) BUSINESS: Your business
          * 2) PROJECT: Your project
          * 3) PROJECT: Archived
@@ -295,6 +299,33 @@ class PrerequisiteConditions
             $condition_1 &&
             $condition_2 &&
             $condition_3;
+    }
+
+    /**
+     * Is this archived project's name still free on the board it wants to come back to?
+     *
+     * Both project forms exclude archived names from their uniqueness check, and say so out loud:
+     * "archived ones are free to reuse". That is the intended behaviour and it is what opens this -
+     * archive "Tower A", give a new project the freed-up name, restore the old one, and the shared
+     * Nesting column has two live projects called "Tower A" belonging to different jobs.
+     *
+     * Nothing downstream can tell them apart for a person. The board draws two identical cards, Past
+     * Projects lists the name twice, and a colleague pressing "Start quoting" nests both into one
+     * batch - where the cut drawings label their pieces by letter but the spec sheet, the BOM
+     * download and every notification name the project. Steel gets cut for the wrong Tower A.
+     *
+     * Refusing the restore is safe in a way that refusing the archive would not be: the owner can
+     * rename an archived project (editProject does not ask whether it is archived), so there is
+     * always a way through, and a batch held up by an archived project can never reach this - a
+     * project on a batch cannot be archived through archiveProject in the first place.
+     */
+    public function restoreProjectNameIsFree(Project $project): bool
+    {
+        return ! $project->user->business->projects()
+            ->where('projects.archive', false)
+            ->where('projects.id', '!=', $project->id)
+            ->where('projects.name', $project->name)
+            ->exists();
     }
 
     public function markQuoteAsSent(User $user, Quote $quote): bool

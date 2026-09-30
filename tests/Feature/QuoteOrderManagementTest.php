@@ -501,3 +501,67 @@ it('serves the quotes and orders for your own batch', function () {
         ->assertOk()
         ->assertJsonStructure(['quotesData' => ['info', 'supplierGroupCards']]);
 });
+
+it('would be a disaster if orders.store could raise orders on another business’s batch', function () {
+    /**
+     * Found by the route audit - orders.store had no test at all, which is how it came to die on an
+     * ArgumentCountError before doing anything and nobody noticed. Nothing in resources/js posts to
+     * it, but it is registered, and it takes batch_id straight out of the request body.
+     */
+    $business = createBusiness('gmail', true);
+    $user = createUser(1, $business, false, true);
+
+    $otherBusiness = createBusiness('outlook', true);
+    $otherUser = createUser(2, $otherBusiness, false, true);
+    $theirBatch = Batch::factory()->forUser($otherUser->id)->create();
+    pieceOnBatch(createProject($otherUser), $theirBatch);
+
+    $this->actingAs($user)
+        ->from('/dashboard')
+        ->post(route('orders.store'), ['batch_id' => $theirBatch->id])
+        ->assertForbidden();
+
+    expect(Order::count())->toBe(0)
+        ->and(OrderApproval::count())->toBe(0);
+});
+
+it('raises one order per quote on your own batch, and does not double up', function () {
+    /*
+     * The other half. firstOrCreate is keyed on (batch, quote), so posting twice - a double click on
+     * whatever ends up wired to this - has to leave one order per quote rather than two.
+     */
+    $business = createBusiness('gmail', true);
+    $user = createUser(1, $business, false, true);
+
+    $batch = Batch::factory()->forUser($user->id)->create();
+    $project = createProject($user);
+    pieceOnBatch($project, $batch);
+
+    $supplier = Supplier::factory()->create();
+    Quote::create([
+        'batch_id' => $batch->id,
+        'user_id' => $user->id,
+        'supplier_id' => $supplier->id,
+        'supplier_category' => 'STEEL_MERCHANT',
+        'quote_sent' => false,
+    ]);
+
+    $this->actingAs($user)->from('/dashboard')->post(route('orders.store'), ['batch_id' => $batch->id]);
+    $this->actingAs($user)->from('/dashboard')->post(route('orders.store'), ['batch_id' => $batch->id]);
+
+    expect(Order::where('batch_id', $batch->id)->count())->toBe(1)
+        ->and(OrderApproval::where('batch_id', $batch->id)->where('project_id', $project->id)->count())->toBe(1);
+});
+
+it('would be a disaster if orders.store accepted no batch at all', function () {
+    //"nullable" means validated() has no key when the field is missing, which used to be an undefined index
+    $business = createBusiness('gmail', true);
+    $user = createUser(1, $business, false, true);
+
+    $this->actingAs($user)
+        ->from('/dashboard')
+        ->post(route('orders.store'), [])
+        ->assertStatus(401);
+
+    expect(Order::count())->toBe(0);
+});

@@ -94,21 +94,43 @@ class Supplier extends Model
     }
 
     //Boolean
-    public function isUsed(): bool
+    /**
+     * Is anything still pointing at this supplier?
+     *
+     * The only caller is the admin branch of SupplierController::destroy, where a false answer
+     * deletes the row - so this has to ask the question the foreign keys ask, and it asked neither
+     * half of it. It read "attached to a non-admin business AND attached to quotes", joined by &&,
+     * which is the wrong join for a question about whether anything would break: a supplier on three
+     * businesses' lists with no quotes yet answered "unused" and was deleted out from under all
+     * three. And the first half compared a user's email address to config('env.admin_business'),
+     * which is set nowhere - not in .env.example, not in phpunit.xml - so it compared against null,
+     * matched no rows, and made the whole method return false for every supplier that has ever
+     * existed. Every admin delete went through to the DELETE.
+     *
+     * What stopped it was the database: orders.supplier_id, quotes.supplier_id and product_supplier
+     * all restrict, so deleting a supplier with an order against it answered with a 500 instead. A
+     * supplier with none of those was deleted for real, having first been detached from every
+     * business holding it.
+     *
+     * Orders are asked about here for that reason - they were not before, and they are the reference
+     * that matters most: Batch::newStockOrdersWithCertificates and the offcut ancestry both read
+     * $order->supplier->name for the certificate trail behind steel already cut and installed.
+     *
+     * $exceptBusiness keeps what the first condition was reaching for - an admin can still delete a
+     * supplier that only their own business holds - without depending on a config nobody sets.
+     */
+    public function isUsed(?Business $exceptBusiness = null): bool
     {
-        /**
-         * 1) Attached to non-admin business
-         * 2) Attached to quotes
-         */
+        $heldByAnotherBusiness = $this->businesses()
+            ->when(
+                $exceptBusiness !== null,
+                fn ($query) => $query->whereKeyNot($exceptBusiness->getKey()),
+            )
+            ->exists();
 
-        // 1) Attached to non-admin business
-        $cond1 = $this->businesses()
-            ->whereRelation('users', 'email', '!=', config('env.admin_business'))
-            ->count() > 0;
-
-        // 2) Attached to quotes
-        $cond2 = $this->quotes()->count() > 0;
-
-        return $cond1 && $cond2;
+        return $heldByAnotherBusiness
+            || $this->quotes()->exists()
+            || $this->orders()->exists()
+            || $this->products()->exists();
     }
 }

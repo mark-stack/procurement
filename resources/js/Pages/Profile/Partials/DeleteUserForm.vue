@@ -25,7 +25,16 @@ const deleteUser = () => {
     form.delete(route('profile.destroy'), {
         preserveScroll: true,
         onSuccess: () => closeModal(),
-        onError: () => passwordInput.value.focus(),
+        /*
+         * Only a wrong password is worth sending them back to the field. A refusal because the
+         * account still owns projects is not something retyping fixes, and stealing the focus
+         * away from the reason is how it goes unread.
+         */
+        onError: errors => {
+            if (!errors.account) {
+                passwordInput.value.focus();
+            }
+        },
         onFinish: () => form.reset(),
     });
 };
@@ -49,6 +58,17 @@ const closeModal = () => {
                 Once your account is deleted, all of its resources and data will
                 be permanently deleted. Before deleting your account, please
                 download any data or information that you wish to retain.
+            </p>
+
+            <!--
+                Said up front rather than only on refusal. The promise above is the whole reason the
+                server will not do it for an account that still owns projects, batches or orders -
+                that work belongs to the business's board and its certificate trail, not just to
+                this account.
+            -->
+            <p class="mt-1 text-sm text-gray-600">
+                Accounts that still own projects, batches or orders cannot be
+                deleted - that work belongs to your business's records.
             </p>
         </header>
 
@@ -86,6 +106,14 @@ const closeModal = () => {
                     />
 
                     <InputError :message="form.errors.password" class="mt-2" />
+
+                    <!--
+                        The server refuses the delete outright when the account still owns work the
+                        business depends on. Rendered on its own line rather than on the password
+                        error, which is the only message this modal used to have a slot for - so the
+                        refusal had nowhere to appear at all.
+                    -->
+                    <InputError :message="form.errors.account" class="mt-2" />
                 </div>
 
                 <div class="mt-6 flex justify-end">

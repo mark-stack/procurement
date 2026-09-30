@@ -105,8 +105,22 @@
                     showArchivedProjects.value = false;
                 }
             },
+            /*
+             * A restore can be refused - the name it wants back may have been given to another
+             * project while it was archived. This used to console.log it and nothing else, so the
+             * loader cleared, the project stayed in the archived list, and no reason was given.
+             */
             onError: errors => {
                 console.log('errors',errors);
+
+                askToConfirm({
+                    title: "Could not do that",
+                    message: errors.archive ?? "Something went wrong and nothing has changed. Please try again.",
+                    confirmLabel: "OK",
+                    tone: "danger",
+                    acknowledgeOnly: true,
+                    onConfirmed: () => {},
+                });
             },
             /*
              * onFinish, not onSuccess/onError. The prerequisite gate aborts 403 and Inertia
