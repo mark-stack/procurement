@@ -14,6 +14,8 @@
         sectionCurves: Array,
         labourBySection: Array,
         workedExamples: Array,
+        /** Why the rack is cleared on a calendar rather than by the nest - see OffcutCleanout. */
+        cleanout: Object,
         invariant: Object,
         sections: Object,
     });
@@ -841,6 +843,111 @@
                         <p class="mt-1 text-xs leading-relaxed text-gray-600 sm:mt-0">{{ setting.blurb }}</p>
                     </li>
                 </ul>
+            </section>
+
+            <!--
+                Clearing the rack. Deliberately placed after the floors and before the limits: it is
+                the question the floors provoke, and the answer is that they are not a rule the nest
+                may act on.
+            -->
+            <section class="mb-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                <header class="border-b border-gray-200 bg-gray-50 px-4 py-3">
+                    <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-700">
+                        Clearing the rack, and why the nest cannot do it
+                    </h2>
+                    <p class="mt-1 text-xs leading-relaxed text-gray-600">
+                        The floors above say which remnants do not pay for their keep. The obvious next
+                        move &mdash; have the nest bin anything under one &mdash; is the wrong move, and
+                        the same arithmetic is what says so.
+                    </p>
+                </header>
+
+                <div class="px-4 py-4">
+                    <p class="text-sm leading-relaxed text-gray-700">
+                        Once a drop has cleared the {{ formatMm(cleanout.thresholdMm) }} scrap threshold,
+                        <strong class="font-semibold">keeping it is cheaper than binning it at every
+                        length</strong>. The bin pays back
+                        {{ Math.round(cleanout.scrapRecoveryRate * 100) }}% and destroys the rest, so
+                        binning a short stub writes off most of its steel to avoid a few dollars of
+                        handling. Costed below at
+                        {{ formatMm(cleanout.thresholdMm + 1) }} &mdash; the shortest length that is
+                        banked at all, and so the best case binning ever gets.
+                    </p>
+
+                    <div class="mt-4 overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                                <tr class="border-b border-gray-200 text-left text-xs uppercase tracking-wide text-gray-500">
+                                    <th scope="col" class="py-2 pr-4 font-medium">Section</th>
+                                    <th scope="col" class="py-2 pr-4 text-right font-medium">Pays its way from</th>
+                                    <th scope="col" class="py-2 pr-4 text-right font-medium">Keep it</th>
+                                    <th scope="col" class="py-2 pr-4 text-right font-medium">Bin it</th>
+                                    <th scope="col" class="py-2 text-right font-medium">Cheaper</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                <tr v-for="row in cleanout.rows" :key="row.label">
+                                    <td class="py-2 pr-4 font-medium text-gray-900">
+                                        {{ row.label }}
+                                        <span class="ml-1 text-xs font-normal text-gray-500">{{ row.kgPerM }} kg/m</span>
+                                    </td>
+                                    <td class="py-2 pr-4 text-right tabular-nums text-gray-700">
+                                        <template v-if="row.worthRackingFromMm !== null">
+                                            {{ formatMm(row.worthRackingFromMm) }}
+                                        </template>
+                                        <span v-else class="text-gray-400">never</span>
+                                    </td>
+                                    <td class="py-2 pr-4 text-right tabular-nums text-gray-700">{{ formatMoney(row.bankCost) }}</td>
+                                    <td class="py-2 pr-4 text-right tabular-nums text-gray-700">{{ formatMoney(row.binCost) }}</td>
+                                    <td class="py-2 text-right font-semibold" :class="row.bankIsCheaper ? 'text-emerald-700' : 'text-orange-700'">
+                                        {{ row.bankIsCheaper ? 'Keep it' : 'Bin it' }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!--
+                        Checked rather than asserted. Dial the recovery rate up far enough and the
+                        conclusion flips, at which point the page has to stop claiming otherwise.
+                    -->
+                    <p
+                        v-if="!cleanout.bankAlwaysCheaper"
+                        class="mt-3 rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-900"
+                    >
+                        At these settings binning beats keeping for at least one section, which is not
+                        what the strategy below assumes. Check the scrap recovery rate against the
+                        labour coefficients before relying on the quarterly cleanout.
+                    </p>
+
+                    <p class="mt-4 text-sm leading-relaxed text-gray-700">
+                        So what actually goes wrong with a stub is not that it is short &mdash; it is
+                        that it never gets used, which is a fact about <strong class="font-semibold">time</strong>.
+                        The floor therefore does two different jobs:
+                    </p>
+
+                    <ul class="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-gray-700">
+                        <li>
+                            <strong class="font-semibold">In the nest, it is &ldquo;do not produce this&rdquo;</strong>
+                            &mdash; already acted on through the retention curve, which pays a plan
+                            nothing for a drop that lands just past the threshold.
+                        </li>
+                        <li>
+                            <strong class="font-semibold">On the rack, it is half of &ldquo;this one is dead&rdquo;</strong>
+                            &mdash; the other half being age. A piece is only proposed for scrapping
+                            once it has sat unused for
+                            {{ Math.round(cleanout.shelfLifeDays / 30) }} months
+                            <em>and</em> is under the floor for its own section.
+                        </li>
+                    </ul>
+
+                    <p class="mt-3 text-sm leading-relaxed text-gray-700">
+                        That review runs quarterly and proposes only &mdash; it raises a notice, and
+                        the list is on the Offcuts page under <strong class="font-semibold">Cleanout</strong>,
+                        with the money against each row. Nothing is weighed in until somebody who knows
+                        what is being quoted next month says so, and a scrapped offcut can be put back.
+                    </p>
+                </div>
             </section>
 
             <!-- Limits -->

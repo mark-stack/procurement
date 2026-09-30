@@ -8,6 +8,7 @@ use App\Services\NotificationImplementations\NotificationColleagueOrderedImpleme
 use App\Services\NotificationImplementations\NotificationColleagueQuotedImplementation;
 use App\Services\NotificationImplementations\NotificationMaterialsDateImplementation;
 use App\Services\NotificationImplementations\NotificationNewColleagueImplementation;
+use App\Services\NotificationImplementations\NotificationOffcutCleanoutImplementation;
 use App\Services\NotificationImplementations\NotificationProjectAwardedImplementation;
 use App\Services\NotificationImplementations\NotificationQuotingOrderingDueImplementation;
 use App\Services\NotificationImplementations\NotificationQuotingOrderingOverDueImplementation;
@@ -50,6 +51,13 @@ class NotificationService
             new NotificationColleagueOrderedImplementation,
 
             /*
+             * Quarterly, and driven by its own scheduled command rather than by the hourly sweep -
+             * see hourlyImplementations(). Listed here because this list is what the bell can
+             * render, which is a separate question from what can send.
+             */
+            new NotificationOffcutCleanoutImplementation,
+
+            /*
              * Deprecated, and listed on purpose. It sends nothing any more - see
              * hourlyImplementations() and its own hourlyCheck() - but rows it sent before that are
              * still sitting unread in people's bells, and its "Lost it" button archives the project
@@ -67,13 +75,19 @@ class NotificationService
      * Sending and rendering used to be the same list, so the only way to stop a notification type
      * being created was to delete the class that could also still read it.
      *
+     * Two are left out. The awarded reminder is deprecated and sends nothing. The offcut cleanout
+     * runs four times a year off its own command - costing every aged offcut in every yard against
+     * the floor for its section, hourly, to decide to do nothing would be the most expensive no-op
+     * here - and its hourlyCheck() is empty in any case.
+     *
      * @return array<int, NotificationInterface>
      */
     public function hourlyImplementations(): array
     {
         return array_values(array_filter(
             $this->implementations(),
-            fn (NotificationInterface $implementation) => ! $implementation instanceof NotificationProjectAwardedImplementation,
+            fn (NotificationInterface $implementation) => ! $implementation instanceof NotificationProjectAwardedImplementation
+                && ! $implementation instanceof NotificationOffcutCleanoutImplementation,
         ));
     }
 

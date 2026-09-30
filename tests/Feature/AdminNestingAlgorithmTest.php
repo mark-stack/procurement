@@ -220,3 +220,38 @@ it('costs each worked example on a light and a heavy section', function () {
     //Heavy steel: the same 800mm is real money, so the long length is the one to cut
     expect($takeLongLength['costs']['heavy'])->toBeLessThan($takeStub['costs']['heavy']);
 });
+
+it('explains why the rack is cleared on a calendar rather than by the nest', function () {
+    /*
+     * The page hands an admin a per-section floor and then has to say what may be done with it. The
+     * dangerous reading is "bin anything under the floor", and the numbers that refute it have to be
+     * the real model's, not prose: keeping a fresh stub is cheaper than binning it for every section,
+     * because the bin destroys most of the steel to save a few dollars of handling.
+     */
+    $business = createBusiness('Business A', true);
+    $admin = createUser(1, $business, true, true);
+
+    $response = $this->actingAs($admin)->get(route('admin.nesting.algorithm', $business->id));
+
+    $cleanout = $response->viewData('page')['props']['cleanout'];
+
+    expect($cleanout['bankAlwaysCheaper'])->toBeTrue()
+        ->and($cleanout['thresholdMm'])->toBe((int) $business->scrap_threshold_mm)
+        ->and($cleanout['shelfLifeDays'])->toBe((new App\Services\OffcutCleanout)->shelfLifeDays());
+
+    $rows = collect($cleanout['rows'])->keyBy('label');
+
+    foreach ($rows as $row) {
+        $model = new NestingCostModel($business, $row['kgPerM'], 12000);
+        $length = (int) $business->scrap_threshold_mm + 1;
+
+        $bank = $model->minutesToCost($model->offcutRackMinutes($length))
+            - $model->mmToCost($model->inventoryValueMm($length));
+
+        expect($row['bankCost'])->toBe(round($bank, 2))
+            ->and($row['binCost'])->toBe(round($model->netScrapCost($length), 2))
+            ->and($row['bankIsCheaper'])->toBeTrue()
+            //The same floor the labour table quotes, so the two halves of the page cannot disagree
+            ->and($row['worthRackingFromMm'])->toBe($model->worthRackingFromMm());
+    }
+});

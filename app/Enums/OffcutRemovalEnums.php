@@ -14,6 +14,12 @@ namespace App\Enums;
  * The reason is recorded rather than inferred because these are not the same event. "Taken" means
  * the steel exists and somebody else has it; "missing" means nobody knows; "damaged" means it is
  * gone for good. Which of them keeps happening is the thing worth knowing.
+ *
+ * SCRAPPED is the odd one out, and deliberately so. The other four describe something that happened
+ * TO a piece of steel and was discovered afterwards; this one is a decision the business made about
+ * steel that is exactly where it should be. It is what the quarterly cleanout proposes - see
+ * Services\OffcutCleanout - and the only reason that says the material was weighed in on purpose
+ * rather than lost.
  */
 enum OffcutRemovalEnums: string
 {
@@ -21,6 +27,7 @@ enum OffcutRemovalEnums: string
     case CUT_WITHOUT_NESTING = 'CUT_WITHOUT_NESTING';
     case DAMAGED = 'DAMAGED';
     case MISSING = 'MISSING';
+    case SCRAPPED = 'SCRAPPED';
     case OTHER = 'OTHER';
 
     public function label(): string
@@ -30,6 +37,7 @@ enum OffcutRemovalEnums: string
             self::CUT_WITHOUT_NESTING => 'Cut up without a nest',
             self::DAMAGED => 'Damaged beyond use',
             self::MISSING => 'Cannot be found',
+            self::SCRAPPED => 'Scrapped - weighed in',
             self::OTHER => 'Other',
         };
     }
@@ -45,6 +53,7 @@ enum OffcutRemovalEnums: string
             self::CUT_WITHOUT_NESTING => 'Used on a job that never went through a nest.',
             self::DAMAGED => 'Bent, cropped or otherwise no longer usable.',
             self::MISSING => 'Nobody can find it, and nobody is saying where it went.',
+            self::SCRAPPED => 'Sat too long to be worth keeping, and gone in the scrap bin.',
             self::OTHER => 'Anything else - say what happened.',
         };
     }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Business;
 use App\Services\NestingCostModel;
+use App\Services\OffcutCleanout;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -81,6 +82,13 @@ class AdminNestingAlgorithmController extends Controller
             'sectionCurves' => $this->sectionCurves($business),
             'labourBySection' => $this->labourBySection($business),
             'workedExamples' => $this->workedExamples($business),
+            /*
+             * What the model CANNOT do, costed the same way as everything else - see
+             * cleanoutStrategy(). It sits on this page because it is the same arithmetic reaching an
+             * opposite conclusion, and reading the floors above without it invites somebody to wire
+             * them into the nest as a rule to bin steel.
+             */
+            'cleanout' => $this->cleanoutStrategy($business),
             'invariant' => $this->invariant($business),
             'sections' => [
                 'light' => self::LIGHT_KG_PER_M,
@@ -477,6 +485,73 @@ class AdminNestingAlgorithmController extends Controller
             'label' => $label,
             'blurb' => $blurb,
             'costs' => $costs,
+        ];
+    }
+
+    /**
+     * Why the rack is cleared on a calendar rather than by the nest, with the arithmetic that forces it.
+     *
+     * The floors above (worthRackingFromMm) say which remnants do not pay for their keep, and the
+     * obvious next move is to have the nest bin anything under one. It is the wrong move, and the
+     * model says so: once a drop has cleared the scrap threshold, banking it is cheaper than binning
+     * it at EVERY length, because the bin pays back only the recovery rate and destroys the rest.
+     * Keeping a 1.2m angle stub costs about four dollars over its life; binning it writes off twelve.
+     * You do not destroy an asset to save handling.
+     *
+     * What actually goes wrong with a stub is that it never gets used, and that is a fact about time,
+     * not about length. So the floor is a "do not produce this" signal for the nest - which it
+     * already acts on, through the retention curve - and a "this one is genuinely dead" signal for a
+     * quarterly review by somebody who knows what is being quoted. See Services\OffcutCleanout.
+     *
+     * Every figure is the real model, so this cannot drift from the curves above it.
+     *
+     * @return array<string, mixed>
+     */
+    private function cleanoutStrategy(Business $business): array
+    {
+        $threshold = (int) $business->scrap_threshold_mm;
+        $rows = [];
+
+        foreach (self::SECTIONS as $label => $kgPerM) {
+            $model = new NestingCostModel($business, $kgPerM, self::REFERENCE_LENGTH_MM);
+            $floor = $model->worthRackingFromMm();
+
+            /*
+             * Costed at the shortest length that is actually banked. That is the worst case for
+             * keeping a remnant and the best case for binning one, so if banking still wins here it
+             * wins everywhere above it too.
+             */
+            $length = $threshold + 1;
+
+            $bank = $model->minutesToCost($model->offcutRackMinutes($length))
+                - $model->mmToCost($model->inventoryValueMm($length));
+            $bin = $model->netScrapCost($length);
+
+            $rows[] = [
+                'label' => $label,
+                'kgPerM' => $kgPerM,
+                'lengthMm' => $length,
+                //Null when no offcut of this section ever pays for its keep
+                'worthRackingFromMm' => $floor,
+                //What keeping it nets out at: the labour over its life, less what it retains
+                'bankCost' => round($bank, 2),
+                //What binning it nets out at: the steel destroyed, less what the merchant pays back
+                'binCost' => round($bin, 2),
+                'bankIsCheaper' => $bank < $bin,
+            ];
+        }
+
+        return [
+            'shelfLifeDays' => (new OffcutCleanout)->shelfLifeDays(),
+            'thresholdMm' => $threshold,
+            'scrapRecoveryRate' => round((float) $business->scrap_recovery_rate, 3),
+            'rows' => $rows,
+            /*
+             * The claim the section is making, checked rather than asserted. If a business dials the
+             * recovery rate up far enough that binning a fresh stub beats banking it, the page has to
+             * stop saying the opposite.
+             */
+            'bankAlwaysCheaper' => collect($rows)->every(fn (array $row): bool => $row['bankIsCheaper']),
         ];
     }
 
