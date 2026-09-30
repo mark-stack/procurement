@@ -101,6 +101,205 @@ it('would be a disaster if saw kerf earned the same recycling credit as a solid 
 });
 
 /**
+ * Acquiring steel
+ */
+it('would be a disaster if freight was priced as a line of its own rather than into the steel', function () {
+    /**
+     * Every question the model asks about a millimetre of steel - what it is worth on the rack, what buying
+     * it costs, what destroying it loses - wants the LANDED figure, because steel already in the yard has had
+     * its freight paid. That is the entire reason a remnant is worth keeping.
+     *
+     * So freight is added to the steel price rather than charged separately, and the bare price survives for
+     * the one consumer that genuinely needs it: the scrap bin.
+     */
+    $freighted = costModelBusiness();
+    $freighted->delivery_cost_per_tonne = 200.00;
+
+    $model = new NestingCostModel($freighted, 5.7, 12000);
+
+    expect($model->landedCostPerTonne())->toBe(2200.0)
+        //A 12m bar of 65x65x6 is 68.4kg: $136.80 of metal, $150.48 landed
+        ->and($model->mmToBareCost(12000))->toBeGreaterThan(136.0)->toBeLessThan(137.0)
+        ->and($model->mmToCost(12000))->toBeGreaterThan(150.0)->toBeLessThan(151.0);
+
+    //And a business that has not set a freight rate is priced exactly as it was before freight existed
+    $collected = new NestingCostModel(costModelBusiness(), 5.7, 12000);
+
+    expect($collected->landedCostPerTonne())->toBe(2000.0)
+        ->and($collected->mmToCost(12000))->toBe($collected->mmToBareCost(12000));
+});
+
+it('would be a disaster if the scrap bin paid back part of your own delivery bill', function () {
+    /**
+     * A merchant weighs in metal and pays for metal. The freight paid to get it here is not on the
+     * weighbridge, so recovery is a share of the BARE price.
+     *
+     * Taking a share of the landed price instead would have the bin refunding part of the delivery - and the
+     * more a business paid in freight, the more scrapping would appear to pay it back. It is the exact
+     * opposite: freight makes destroying steel worse, because the delivery was bought too and none of it
+     * comes back.
+     */
+    /*
+     * Two businesses rather than one mutated between the two models. The model reads its coefficients off
+     * the Business lazily, by design - see its DEFAULTS note - so raising the freight on a shared instance
+     * would raise it for the model built before the change as well, and the comparison would be against
+     * itself.
+     */
+    $bare = new NestingCostModel(costModelBusiness(), 22.9, 12000);
+
+    $freightedBusiness = costModelBusiness();
+    $freightedBusiness->delivery_cost_per_tonne = 300.00;
+    $freighted = new NestingCostModel($freightedBusiness, 22.9, 12000);
+
+    //The bin pays the same either way - it is the same weight of the same steel
+    expect($freighted->scrapIncome(1000))->toBe($bare->scrapIncome(1000));
+
+    //But binning it costs more, because the freight went in the skip with it
+    expect($freighted->netScrapCost(1000))->toBeGreaterThan($bare->netScrapCost(1000));
+
+    //Never a way to make money, at any freight rate
+    expect($freighted->netScrapCost(1000))->toBeLessThan($freighted->mmToCost(1000))
+        ->and($freighted->netScrapCost(1000))->toBeGreaterThan(0.0);
+});
+
+it('would be a disaster if a bought bar was fetched to the saw without ever being received', function () {
+    /**
+     * Receiving and fetching are two different jobs, and a bought bar pays both: off the truck, checked
+     * against the docket and racked, and then - separately, possibly weeks later - carried to the saw. A
+     * piece already in the yard has only the second one left to pay, which is a large part of why drawing on
+     * the rack beats buying.
+     *
+     * Receiving scales with the mass of the bar like every other move, so two short bars cost more to take
+     * in than one long one covering the same steel.
+     */
+    $business = costModelBusiness();
+    $model = new NestingCostModel($business, 22.9, 12000);
+
+    expect($model->receiveMinutes(12000))->toBeGreaterThan($model->barHandlingMinutes(12000));
+
+    //Two 6m bars are two trips off the truck; one 12m bar is one
+    expect($model->receiveMinutes(6000) * 2)->toBeGreaterThan($model->receiveMinutes(12000));
+
+    //A nest that buys carries both, so the same cut is dearer from a new bar than from an offcut of it
+    $fromNewBar = $model->cost(
+        purchasedMm: 12000, scrapMm: 0, kerfMm: 0,
+        offcutDraws: [], barsOpened: [['length' => 12000, 'drop' => 9000]], cuts: 1, unmadeCuts: 0,
+    );
+    $fromTheRack = $model->cost(
+        purchasedMm: 0, scrapMm: 0, kerfMm: 0,
+        offcutDraws: [['source' => 12000, 'drop' => 9000]], barsOpened: [], cuts: 1, unmadeCuts: 0,
+    );
+
+    expect($fromTheRack)->toBeLessThan($fromNewBar);
+});
+
+it('would be a disaster if buying three hundred millimetres of steel cost nothing to order', function () {
+    /**
+     * Raising an order has a fixed cost - getting a price, placing it, checking the invoice against what
+     * turned up, and a truck turning up with whatever is on it. Without it, a nest could buy a short bar to
+     * save a walk to the rack and pay only for the metal.
+     *
+     * Charged on WHETHER a plan buys rather than how much, which is the comparison it exists for. It cannot
+     * re-rank the plans that buy, because they all carry exactly the same charge.
+     */
+    $business = costModelBusiness();
+    $business->delivery_cost_per_order = 85.00;
+
+    $model = new NestingCostModel($business, 5.7, 12000);
+
+    //15 minutes at $50/hr is $12.50, plus the drop fee
+    expect($model->orderOverheadCost())->toBeGreaterThan(97.0)->toBeLessThan(98.0);
+
+    $buysNothing = $model->cost(
+        purchasedMm: 0, scrapMm: 0, kerfMm: 0,
+        offcutDraws: [['source' => 3000, 'drop' => 2000]], barsOpened: [], cuts: 1, unmadeCuts: 0,
+    );
+    $buysOneShortBar = $model->cost(
+        purchasedMm: 1000, scrapMm: 0, kerfMm: 0,
+        offcutDraws: [], barsOpened: [['length' => 1000, 'drop' => 0]], cuts: 1, unmadeCuts: 0,
+    );
+
+    expect($buysOneShortBar)->toBeGreaterThan($buysNothing + $model->orderOverheadCost());
+
+    /*
+     * Flat, not per bar and not per tonne: buying twenty times the steel raises the bill by the steel and the
+     * handling, never by a second order's worth of overhead.
+     */
+    $overhead = fn (int $bars): float => $model->cost(
+        purchasedMm: 12000 * $bars, scrapMm: 0, kerfMm: 0,
+        offcutDraws: [],
+        barsOpened: array_fill(0, $bars, ['length' => 12000, 'drop' => 0]),
+        cuts: $bars,
+        unmadeCuts: 0,
+    );
+
+    $perBarCost = $overhead(2) - $overhead(1);
+
+    expect($overhead(3) - $overhead(2))->toBeGreaterThan($perBarCost - 0.01)
+        ->and($overhead(3) - $overhead(2))->toBeLessThan($perBarCost + 0.01);
+});
+
+it('would be a disaster if freight did not make the yard slower to write a remnant off', function () {
+    /**
+     * The point of pricing delivery at all. The scrap floor weighs steel against a worker's time, and a
+     * worker's time does not get dearer because the truck did - so paying real freight makes every remnant
+     * worth more against an unchanged handling cost, and the floor comes down.
+     *
+     * A business collecting its own steel should be quicker to bin a stub than one paying to have it
+     * delivered, and that difference is now in the model rather than in somebody's judgement.
+     */
+    //Separate instances: coefficients are read off the Business lazily, so one mutated in place would
+    //change the model built before the change as well
+    $collected = new NestingCostModel(costModelBusiness(), 5.7, 12000);
+
+    $deliveredBusiness = costModelBusiness();
+    $deliveredBusiness->delivery_cost_per_tonne = 300.00;
+    $delivered = new NestingCostModel($deliveredBusiness, 5.7, 12000);
+
+    expect($delivered->worthRackingFromMm())->toBeLessThan($collected->worthRackingFromMm());
+
+    //The labour of keeping it is untouched - that is the asymmetry doing the work
+    expect($delivered->minutesToCost($delivered->offcutRackMinutes(2000)))
+        ->toBe($collected->minutesToCost($collected->offcutRackMinutes(2000)));
+
+    //And a business on no freight sees the floors it always saw
+    expect($collected->worthRackingFromMm())->toBeGreaterThan(2000);
+});
+
+it('would be a disaster if the cost of acquiring steel inflated what an offcut was valued at', function () {
+    /**
+     * The tempting mistake. A remnant genuinely saves you the freight, the unloading and a share of the
+     * order, so valuing it at full replacement cost looks more honest than valuing it at the steel alone.
+     *
+     * It breaks the model. Retained value must never reach what a millimetre of bar costs to buy, or buying
+     * one more millimetre and racking it pays for itself and the nest buys steel in order to bank it. Freight
+     * is safe because retention is a SHARE - it scales the racked millimetre and the bought millimetre
+     * equally and cancels. Amortised acquisition LABOUR does not cancel: it lifts the value of a racked
+     * millimetre against an unchanged purchase cost, and the default receive and order labour over a 12m bar
+     * is roughly a 15% uplift, which is more than the 1.5 x cap = 0.9 against 1.0 here has to give.
+     *
+     * Measured as a finite difference so it holds whatever the valuation is made of, rather than by
+     * re-deriving the formula the model already uses.
+     */
+    $business = costModelBusiness();
+    $business->delivery_cost_per_tonne = 400.00;
+    $business->delivery_cost_per_order = 120.00;
+
+    foreach ([5.7, 22.9, 90.0] as $kgPerM) {
+        $model = new NestingCostModel($business, $kgPerM, 12000);
+
+        //Marginal value of one more racked millimetre, at its steepest - a full stock length
+        $marginalRacked = ($model->mmToCost($model->inventoryValueMm(12000))
+            - $model->mmToCost($model->inventoryValueMm(11990))) / 10;
+
+        //What one more millimetre of bar costs to buy
+        $marginalBought = (float) $business->purchase_cost_weight * $model->mmToCost(1);
+
+        expect($marginalRacked)->toBeLessThan($marginalBought);
+    }
+});
+
+/**
  * Labour scales with the section
  */
 it('would be a disaster if a 500UB was costed as quick to cut as a light angle', function () {

@@ -37,6 +37,72 @@ it('explains the algorithm with the settings of the business being viewed', func
         ->and((float) $settings['scrap_recovery_rate']['value'])->toBe(0.13);
 });
 
+it('shows what acquiring new steel costs beyond the steel', function () {
+    /**
+     * The page's whole claim is that nothing on it is written alongside the model. Freight, receiving and the
+     * order overhead are the newest part of the model and the easiest to let drift, because they are the part
+     * a reader is most likely to want spelled out in prose.
+     */
+    $business = createBusiness('Business A', true);
+    $admin = createUser(1, $business, true, true);
+
+    $business->material_cost_per_tonne = 1800.00;
+    $business->delivery_cost_per_tonne = 220.00;
+    $business->delivery_cost_per_order = 90.00;
+    $business->save();
+
+    $response = $this->actingAs($admin)->get(route('admin.nesting.algorithm', $business->id));
+    $props = $response->viewData('page')['props'];
+
+    $acquisition = $props['acquisition'];
+
+    //Freight is shown split out, and as the landed total everything is actually priced at
+    expect($acquisition['bareCostPerTonne'])->toBe(1800.0)
+        ->and($acquisition['freightPerTonne'])->toBe(220.0)
+        ->and($acquisition['landedCostPerTonne'])->toBe(2020.0)
+        ->and($acquisition['landedUpliftPct'])->toBeGreaterThan(12.0)->toBeLessThan(12.3)
+        ->and($acquisition['freightIsSet'])->toBeTrue();
+
+    //The order overhead is the paperwork plus the drop fee, and does not depend on the section
+    expect($acquisition['orderOverheadCost'])
+        ->toBe(round($acquisition['orderAdminCost'] + 90.0, 2));
+
+    //Every per-section row adds up, and is the real model rather than a restatement of it
+    $model = new NestingCostModel($business, 5.7, $props['referenceLengthMm']);
+    $angle = collect($acquisition['rows'])->firstWhere('label', '65x65x6 EA');
+
+    expect($angle['steelCost'])->toBe(round($model->mmToBareCost($props['referenceLengthMm']), 2))
+        ->and($angle['freightCost'])->toBeGreaterThan(0.0)
+        ->and(round($angle['steelCost'] + $angle['freightCost'], 2))
+            ->toBe(round($model->mmToCost($props['referenceLengthMm']), 2))
+        ->and($angle['landedAndRacked'])->toBeGreaterThan($angle['steelCost'] + $angle['freightCost']);
+
+    //Heavier steel costs more to take in, because it is a crane rather than a pair of hands
+    $rows = collect($acquisition['rows'])->keyBy('label');
+    expect($rows['500UB']['receiveCost'])->toBeGreaterThan($rows['65x65x6 EA']['receiveCost']);
+});
+
+it('tells a business on no freight that none of it is priced yet', function () {
+    /**
+     * Freight defaults to zero because material_cost_per_tonne used to be described as a delivered figure, so
+     * the page has to say so rather than quietly showing a $0 line. A reader who takes the zero at face value
+     * concludes delivery is free, which is the opposite of what the model now believes.
+     */
+    $business = createBusiness('Business A', true);
+    $admin = createUser(1, $business, true, true);
+
+    $response = $this->actingAs($admin)->get(route('admin.nesting.algorithm', $business->id));
+    $acquisition = $response->viewData('page')['props']['acquisition'];
+
+    expect($acquisition['freightIsSet'])->toBeFalse()
+        ->and($acquisition['freightPerTonne'])->toBe(0.0)
+        //Landed and bare agree, so the page is not claiming an uplift it does not have
+        ->and($acquisition['landedCostPerTonne'])->toBe($acquisition['bareCostPerTonne']);
+
+    //The order overhead is still real - that one does not default to nothing
+    expect($acquisition['orderOverheadCost'])->toBeGreaterThan(0.0);
+});
+
 it('shows what the scrap bin pays back', function () {
     /**
      * Binning steel is a loss of most of it, not all of it. The page has to show both halves, because
