@@ -27,4 +27,25 @@ return [
         explode(',', (string) env('REGISTRATION_ALLOWED_EMAIL_DOMAINS', '')),
     ))),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Whether anyone can sign themselves up, or sign in
+    |--------------------------------------------------------------------------
+    |
+    | False sends the landing page's "free trial" buttons to guest onboarding - the page that
+    | asks people to email us - instead of /register, and takes "Sign in" out of the landing
+    | nav. It is the switch for selling the product before it is self-serve.
+    |
+    | Here rather than read with env() in HandleInertiaRequests, which is where it was. env()
+    | returns null once the config is cached, and caching the config is a deploy step, so
+    | production got the whole kill switch by accident: no way to register, and no sign-in link
+    | for the customers who already had accounts. config() reads the cache, so this survives it.
+    |
+    | Note that it only decides what the landing page offers. /register and /login are routes
+    | either way - this is not an access control, and was never used as one.
+    |
+    */
+
+    'login_available' => (bool) env('LOGIN_AVAILABLE', false),
+
 ];

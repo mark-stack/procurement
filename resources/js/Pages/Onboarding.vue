@@ -28,7 +28,7 @@
 </script>
 
 <template>
-    <Head title="Dashboard" />
+    <Head title="Onboarding" />
 
     <AuthenticatedLayout>
         <OnboardingInstructions class="mt-12"/>

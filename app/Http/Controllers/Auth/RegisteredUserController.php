@@ -110,11 +110,17 @@ class RegisteredUserController extends Controller
          * Admin notify. By the flag rather than by the configured address: the address stopped
          * deciding who the admin is in the 2026_09_30 migration, and a lookup that still asked the
          * old question would mail whoever currently holds that email instead of the admin.
+         *
+         * Every admin, not first(). A signup is the start of work only we can do - the templates
+         * that let this business import anything - so the notice has to reach whoever is going to
+         * do it. With one admin these are the same query; the day a second one exists, first()
+         * silently picks by id and the other never hears about a customer at all.
          */
-        $adminUser = User::query()->where('is_admin', true)->first();
-        if ($adminUser) {
+        $admins = User::query()->where('is_admin', true)->get();
+
+        if ($admins->isNotEmpty()) {
             $message = 'A new user signed up:';
-            Notification::send($adminUser, new NewUserEmail($user, $message));
+            Notification::send($admins, new NewUserEmail($user, $message));
         }
 
         /*

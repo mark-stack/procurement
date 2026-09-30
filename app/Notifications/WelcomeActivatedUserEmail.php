@@ -23,13 +23,18 @@ class WelcomeActivatedUserEmail extends Notification implements ShouldQueue
     use Queueable, SignsInByLink;
 
     /**
-     * Get the notification's delivery channels.
+     * Mail only, for the reason given on NewUserEmail::via().
+     *
+     * The bell renders only the types NotificationService::implementations() lists, and this is
+     * not one of them, so the database row went to a brand-new user's bell as an unread
+     * notification that drew nothing and could not be cleared - their first impression of it.
+     * The email is the whole point of this notification anyway: it carries the sign-in link.
      *
      * @return array<int, string>
      */
     public function via(User $notifiable): array
     {
-        return ['mail', 'database'];
+        return ['mail'];
     }
 
     /**
@@ -55,7 +60,8 @@ class WelcomeActivatedUserEmail extends Notification implements ShouldQueue
             return redirect()->route('projects.index');
         });
 
-        $magicLink = $this->loginLinkFor($action);
+        //"welcome", not the reminders' numbers: sent once, and a customer's first way in
+        $magicLink = $this->loginLinkFor($action, 'welcome');
 
         return (new MailMessage)
             ->line('Your setup configuration is complete')
@@ -63,16 +69,7 @@ class WelcomeActivatedUserEmail extends Notification implements ShouldQueue
             ->line('Thanks!');
     }
 
-    /**
-     * Get the array representation of the notification.
-     *
-     * @return array<string, mixed>
+    /*
+     * toArray() went with the database channel, for the reason given on via().
      */
-    public function toArray(User $notifiable): array
-    {
-        return [
-            'new_user_email' => $notifiable->email,
-            'new_user_name' => $notifiable->name,
-        ];
-    }
 }

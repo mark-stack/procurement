@@ -89,7 +89,13 @@ class HandleInertiaRequests extends Middleware
                 'templateTest' => fn () => $request->session()->get('templateTest'),
             ],
             'adminEmail' => config('env.admin_email'),
-            "loginAvailable" => env("LOGIN_AVAILABLE"),
+            /*
+             * Whether the landing page offers registration and a sign-in link. config(), not
+             * env(): env() returns null once the config is cached, and config:cache is a deploy
+             * step, so production hid the register button and the sign-in link from everybody
+             * while .env said LOGIN_AVAILABLE=true. See config/registration.php.
+             */
+            'loginAvailable' => config('registration.login_available'),
         ];
     }
 

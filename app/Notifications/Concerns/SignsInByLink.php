@@ -21,13 +21,17 @@ trait SignsInByLink
     /**
      * @param  LoginAction  $action  Already carrying its ->response(), which decides where the
      *                               recipient lands once the link has logged them in.
+     * @param  string  $profile  Which set of numbers in config/magiclink.php to mint under.
+     *                           "login" is the schedule-chased reminders, which are replaced if
+     *                           they go unread. The activation welcome is sent once and is a
+     *                           customer's first way in, so it has its own - see the config.
      */
-    protected function loginLinkFor(LoginAction $action): string
+    protected function loginLinkFor(LoginAction $action, string $profile = 'login'): string
     {
         return MagicLink::create(
             $action,
-            (int) config('magiclink.login.lifetime_minutes'),
-            (int) config('magiclink.login.max_visits'),
+            (int) config("magiclink.{$profile}.lifetime_minutes"),
+            (int) config("magiclink.{$profile}.max_visits"),
         )->url;
     }
 }

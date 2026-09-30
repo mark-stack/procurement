@@ -54,4 +54,33 @@ return [
         'max_visits' => (int) env('MAGICLINK_LOGIN_MAX_VISITS', 3),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | The activation welcome
+    |--------------------------------------------------------------------------
+    |
+    | One link is not like the other five, and it was taking their numbers.
+    |
+    | The reminders above are chased by the schedule: a quote reminder unread by tomorrow is
+    | replaced by tomorrow's, so twelve hours costs nothing and it is the forwarding risk that
+    | decides the figure. The welcome is sent once, by hand, the moment an admin activates a
+    | business. It is the customer's first contact with the product, and its link is also what
+    | verifies their email address - the verification link they were sent at registration having
+    | expired long before, since activation takes up to two business days.
+    |
+    | So a business activated on Friday afternoon had a dead link by Saturday morning, and the
+    | customer's first act was to fail to get in. Seven days, which covers a week off. It is the
+    | same forwarding risk in principle, but this email says "your setup is complete" rather than
+    | naming a job and a supplier, so it is not the one that gets forwarded to a merchant.
+    |
+    | Still capped at a few visits for the mail-scanner reason given above, and a password login
+    | is always available - ResendWelcomeEmailController mints a fresh one when somebody asks.
+    |
+    */
+
+    'welcome' => [
+        'lifetime_minutes' => (int) env('MAGICLINK_WELCOME_LIFETIME_MINUTES', 10080),
+        'max_visits' => (int) env('MAGICLINK_WELCOME_MAX_VISITS', 3),
+    ],
+
 ];
