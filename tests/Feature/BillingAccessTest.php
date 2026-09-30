@@ -103,10 +103,57 @@ it('would be a disaster if checkout sent the customer anywhere but the provider'
     $user = createUser(1, $business, false, true);
 
     $this->actingAs($user)
-        ->post(route('billing.checkout'), ['plan' => 'monthly'])
+        ->post(route('billing.checkout'), ['plan' => 'weekly'])
         ->assertRedirect('https://checkout.test/session');
 
-    expect($fake->checkoutsStarted)->toBe(['monthly']);
+    expect($fake->checkoutsStarted)->toBe(['weekly']);
+});
+
+it('would be a disaster if the annual plan stopped being sold on an invoice', function () {
+    /*
+     * The two plans are bought differently: the weekly one by card, the annual one on an invoice
+     * with a purchase order against it. So a live, working provider must not swallow the annual
+     * plan - no price id exists for it anywhere, and a checkout session for it would be a session
+     * nobody can pay.
+     */
+    $fake = fakeBillingProvider();
+
+    $business = createBusiness('Invoiced yearly', true);
+    $user = createUser(1, $business, false, true);
+
+    $this->actingAs($user)
+        ->get(route('billing.index'))
+        ->assertStatus(200)
+        ->assertInertia(fn ($page) => $page
+            //Two plans, and the page is told which of them ends in a card form
+            ->has('plans', 2)
+            ->where('plans.0.key', 'weekly')
+            ->where('plans.0.checkout', 'provider')
+            ->where('plans.1.key', 'annual')
+            ->where('plans.1.checkout', 'invoice')
+            ->where('hostedCheckout', true)
+        );
+
+    $this->actingAs($user)
+        ->post(route('billing.checkout'), ['plan' => 'annual'])
+        ->assertRedirect(route('billing.invoice', ['plan' => 'annual']));
+
+    expect($fake->checkoutsStarted)->toBe([]);
+});
+
+it('would be a disaster if the annual plan were not the discount it is sold as', function () {
+    /*
+     * The billing page badges the annual plan against fifty-two weeks of the weekly one. Priced
+     * wrong, that badge either undersells the plan or claims a discount that is not there.
+     */
+    $plans = app(App\Billing\Plans::class);
+
+    $weekly = $plans->findOrFail('weekly');
+    $annual = $plans->findOrFail('annual');
+
+    expect($weekly->amount)->toBe(3900);
+    expect($annual->amount)->toBe(170000);
+    expect((int) round((1 - $annual->amount / ($weekly->amount * 52)) * 100))->toBe(16);
 });
 
 it('would be a disaster if a made-up plan reached the payment provider', function () {
@@ -126,6 +173,9 @@ it('would be a disaster if a plan the provider cannot sell were offered for sale
     /*
      * A half-configured provider - Stripe keys in place but no price id for a plan - must not put a
      * Subscribe button in front of anyone, because the checkout behind it cannot be built.
+     *
+     * The invoice plan is the exception, and deliberately so: nothing about it goes through the
+     * provider, so a provider that cannot sell anything still leaves a way to buy.
      */
     $fake = fakeBillingProvider();
     $fake->sells = false;
@@ -136,7 +186,10 @@ it('would be a disaster if a plan the provider cannot sell were offered for sale
     $this->actingAs($user)
         ->get(route('billing.index'))
         ->assertStatus(200)
-        ->assertInertia(fn ($page) => $page->has('plans', 0));
+        ->assertInertia(fn ($page) => $page
+            ->has('plans', 1)
+            ->where('plans.0.key', 'annual')
+        );
 
     $this->actingAs($user)
         ->post(route('billing.checkout'), ['plan' => 'weekly'])

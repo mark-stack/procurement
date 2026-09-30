@@ -39,6 +39,15 @@ class BillingCheckoutController extends Controller
         //404 on an unknown key rather than a 500 further down
         $plan = $this->plans->findOrFail($validated['plan']);
 
+        /*
+         * An invoice plan never reaches a provider, even one that is live and working. Asked first,
+         * so no price id has to exist for the annual plan and no checkout session is opened for a
+         * plan nobody is paying for by card.
+         */
+        if ($plan->invoiceOnly()) {
+            return redirect()->route('billing.invoice', ['plan' => $plan->key]);
+        }
+
         if (! $this->billing->provider()->canSell($plan)) {
             return redirect()
                 ->route('billing.index')

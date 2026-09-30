@@ -111,6 +111,39 @@
         }
     };
 
+    /*
+     * Whether this plan ends in a card form or in an invoice request, which is the difference
+     * between what its button can honestly say. Two things make it an invoice: the plan is sold
+     * that way on purpose (the annual one), or this installation has no provider taking cards at
+     * all. Per plan rather than per page, because the two plans on sale differ.
+     */
+    const paysByCard = (plan) => plan.checkout === 'provider' && props.hostedCheckout;
+
+    /*
+     * A yearly plan is sold against fifty-two weeks of the weekly one, so the discount is worked
+     * out from the two prices on the page rather than written into the copy - change either figure
+     * in config/billing.php and this follows it instead of quoting last quarter's percentage.
+     */
+    const weeksPerYear = 52;
+
+    const savingsPct = (plan) => {
+        if (plan.interval !== 'year') {
+            return null;
+        }
+
+        const weekly = props.plans.find((p) => p.interval === 'week');
+
+        if (!weekly) {
+            return null;
+        }
+
+        const fullPrice = weekly.amount * weeksPerYear;
+        const saving = Math.round((1 - plan.amount / fullPrice) * 100);
+
+        //Nothing to boast about if it is not actually cheaper
+        return saving >= 1 ? saving : null;
+    };
+
     const subscribe = (plan) => {
         form.plan = plan.key;
         form.post(route('billing.checkout'), {preserveScroll: true});
@@ -161,18 +194,28 @@
                     {{ billing.status === 'ACTIVE' || billing.status === 'PAST_DUE' ? 'Change plan' : 'Plans' }}
                 </h2>
 
-                <div class="grid gap-5 mt-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div class="grid max-w-3xl gap-5 mt-4 sm:grid-cols-2">
                     <div
                         v-for="plan in plans"
                         :key="plan.key"
                         class="flex flex-col justify-between p-5 bg-white border rounded shadow-sm"
                     >
                         <div>
-                            <p class="text-sm font-bold tracking-wider uppercase">{{ plan.name }}</p>
+                            <div class="flex items-start justify-between gap-2">
+                                <p class="text-sm font-bold tracking-wider uppercase">{{ plan.name }}</p>
+                                <span
+                                    v-if="savingsPct(plan)"
+                                    class="px-2 py-1 text-xs font-bold text-green-800 bg-green-100 rounded shrink-0"
+                                >
+                                    Save {{ savingsPct(plan) }}%
+                                </span>
+                            </div>
                             <p class="mt-2 text-4xl font-extrabold text-gray-900">
                                 {{ formatPlanAmount(plan) }}<span class="text-lg font-bold">{{ intervalLabel(plan) }}</span>
                             </p>
-                            <p class="text-sm font-light text-gray-500">ex GST</p>
+                            <p class="text-sm font-light text-gray-500">
+                                ex GST &middot; {{ paysByCard(plan) ? 'paid by card' : 'paid on invoice' }}
+                            </p>
 
                             <ul class="mt-4 space-y-2">
                                 <li v-for="feature in includedFeatures" :key="feature" class="flex items-center gap-2">
@@ -184,9 +227,9 @@
 
                         <div class="mt-6">
                             <!--
-                                Wording follows what the live provider actually does. Promising a
-                                card form and then showing an invoice request, or the other way
-                                round, is a small lie the page does not need to tell.
+                                Wording follows where the button actually goes. Promising a card
+                                form and then showing an invoice request, or the other way round, is
+                                a small lie the page does not need to tell.
                             -->
                             <button
                                 type="button"
@@ -195,12 +238,12 @@
                                 class="inline-flex items-center justify-center w-full h-11 px-6 font-medium tracking-wide text-white transition duration-200 bg-green-600 rounded shadow-md hover:bg-green-700 disabled:opacity-50"
                             >
                                 <template v-if="form.processing && form.plan === plan.key">Just a moment...</template>
-                                <template v-else>{{ hostedCheckout ? 'Subscribe' : 'Request an invoice' }}</template>
+                                <template v-else>{{ paysByCard(plan) ? 'Subscribe' : 'Request an invoice' }}</template>
                             </button>
 
                             <!-- Redundant where the button above already goes here -->
                             <Link
-                                v-if="hostedCheckout"
+                                v-if="paysByCard(plan)"
                                 :href="route('billing.invoice', {plan: plan.key})"
                                 class="block mt-2 text-xs text-center text-gray-500 underline hover:text-gray-700"
                             >

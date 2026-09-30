@@ -14,9 +14,25 @@ use InvalidArgumentException;
 final class Plan
 {
     /**
+     * Bought with a card at whichever provider is live, if it has a price for this plan.
+     */
+    public const CHECKOUT_PROVIDER = 'provider';
+
+    /**
+     * Bought on an invoice, raised by hand and paid by bank transfer.
+     *
+     * Not a fallback for a provider that is missing or half-configured - that is what
+     * ManualBillingProvider is. This is a plan that is sold this way on purpose, so it is on the
+     * billing page and purchasable even with Stripe live and working, and no price id exists for
+     * it anywhere.
+     */
+    public const CHECKOUT_INVOICE = 'invoice';
+
+    /**
      * @param  string  $key  how the app and its URLs refer to this plan, e.g. "weekly"
      * @param  string  $interval  week|month|year
      * @param  int  $amount  minor units (cents), excluding GST
+     * @param  string  $checkout  self::CHECKOUT_PROVIDER|self::CHECKOUT_INVOICE
      * @param  array<string, string|null>  $prices  driver name => that provider's price identifier
      */
     public function __construct(
@@ -26,6 +42,7 @@ final class Plan
         public readonly int $amount,
         public readonly string $currency,
         public readonly bool $public,
+        public readonly string $checkout,
         public readonly array $prices,
     ) {}
 
@@ -40,6 +57,16 @@ final class Plan
             }
         }
 
+        $checkout = (string) ($config['checkout'] ?? self::CHECKOUT_PROVIDER);
+
+        /*
+         * A typo here would otherwise read as "pay by card" and send someone to a checkout that
+         * cannot be built, so it is refused when the catalogue is parsed rather than on a click.
+         */
+        if (! in_array($checkout, [self::CHECKOUT_PROVIDER, self::CHECKOUT_INVOICE], true)) {
+            throw new InvalidArgumentException("Billing plan [{$key}] has an unknown checkout [{$checkout}].");
+        }
+
         return new self(
             key: $key,
             name: (string) $config['name'],
@@ -47,8 +74,17 @@ final class Plan
             amount: (int) $config['amount'],
             currency: (string) ($config['currency'] ?? config('billing.currency')),
             public: (bool) ($config['public'] ?? true),
+            checkout: $checkout,
             prices: $config['prices'] ?? [],
         );
+    }
+
+    /**
+     * Whether this plan is settled over email rather than at a provider, whichever driver is live.
+     */
+    public function invoiceOnly(): bool
+    {
+        return $this->checkout === self::CHECKOUT_INVOICE;
     }
 
     /**
@@ -98,6 +134,8 @@ final class Plan
             'amount' => $this->amount,
             'currency' => $this->currency,
             'formatted' => $this->amountFormatted(),
+            //So the button on each card can say what that plan actually does, card or invoice
+            'checkout' => $this->checkout,
         ];
     }
 }
