@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Enums\OffcutRemovalEnums;
 use App\Http\Resources\OffcutResource;
 use App\Models\Offcut;
+use App\Services\OffcutCleanout;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -25,7 +27,7 @@ class OffcutController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request): Response
+    public function index(Request $request, OffcutCleanout $cleanout): Response
     {
         $business = $this->businessOf($request);
 
@@ -61,6 +63,58 @@ class OffcutController extends Controller
             'removedTotal' => $business->removedOffcuts()->count(),
             //The picker's options, worded in the one place the wording lives
             'removalReasons' => OffcutRemovalEnums::options(),
+
+            /*
+             * The dead stock: steel past its shelf life that is also too short to pay for its own
+             * keep. Computed on every render rather than cached against the quarterly notice, so the
+             * list somebody acts on is the rack as it stands - a nest run this morning may have
+             * eaten half of it.
+             */
+            'cleanout' => $this->cleanoutRows($cleanout->candidates($business)),
+            'cleanoutShelfLifeDays' => $cleanout->shelfLifeDays(),
+
+            //Which tab the notification's "Review the rack" button lands on
+            'tab' => $request->query('tab') === 'cleanout' ? 'cleanout' : null,
         ]);
+    }
+
+    /**
+     * The cleanout candidates as the page needs them: each offcut in the same shape as every other
+     * list on this page, with the money that makes it a candidate beside it.
+     *
+     * @param  Collection<int, array<string, mixed>>  $candidates
+     * @return array<int, array<string, mixed>>
+     */
+    private function cleanoutRows(Collection $candidates): array
+    {
+        if ($candidates->isEmpty()) {
+            return [];
+        }
+
+        /*
+         * The ancestry for the whole tab at once. OffcutResource reads generation() and the source
+         * marks off each row, and left to walk per row that is a query per offcut per generation -
+         * the same reason the two lists above do it.
+         */
+        Offcut::loadAncestry($candidates->pluck('offcut'));
+
+        return $candidates->map(fn (array $candidate): array => [
+            /*
+             * resolve() rather than the resource itself. A JsonResource nested inside a prop
+             * serialises under its own "data" wrapper, so the page would be reading
+             * cleanout[].offcut.data.unique_mark while the two lists above read offcut.unique_mark.
+             */
+            'offcut' => (new OffcutResource($candidate['offcut']))->resolve(),
+            'age_days' => $candidate['age_days'],
+            'length_mm' => $candidate['length_mm'],
+            //Null when no offcut of this section ever pays for its keep, whatever its length
+            'floor_mm' => $candidate['floor_mm'],
+            'kg_per_m' => $candidate['kg_per_m'],
+            'kg_per_m_resolved' => $candidate['kg_per_m_resolved'],
+            'worth' => $candidate['worth'],
+            'keep_cost' => $candidate['keep_cost'],
+            'bin_recovers' => $candidate['bin_recovers'],
+            'net_drain' => $candidate['net_drain'],
+        ])->all();
     }
 }

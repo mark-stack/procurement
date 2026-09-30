@@ -31,3 +31,15 @@ Schedule::job(new HourlyNotificationsJob)->$frequency();
  * duplicated. Hourly in test mode for the same reason the notifications job is.
  */
 Schedule::command('billing:trial-reminders')->$frequency();
+
+/*
+ * The offcut rack's dead stock, four times a year.
+ *
+ * Its own schedule rather than a line in the hourly job: it costs every aged offcut in every yard
+ * against the floor for its own section, and the answer does not change between Tuesdays.
+ *
+ * Idempotent per business per quarter, recorded in notification_logs, so a re-run after a failed
+ * night sends nothing twice. It only ever raises a notice - nothing is scrapped until somebody
+ * opens the rack and says so. See App\Services\OffcutCleanout.
+ */
+Schedule::command('offcuts:cleanout')->{$testMode ? 'everyMinute' : 'quarterly'}();

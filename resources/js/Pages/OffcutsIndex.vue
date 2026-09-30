@@ -7,6 +7,7 @@
     import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
     import OffcutsDatatable from "@/Components/Tables/OffcutsDatatable.vue";
     import RemovedOffcutsTable from "@/Components/Tables/RemovedOffcutsTable.vue";
+    import CleanoutOffcutsTable from "@/Components/Tables/CleanoutOffcutsTable.vue";
     import RemoveOffcutModal from "@/Components/Modals/RemoveOffcutModal.vue";
 
     //Props
@@ -15,6 +16,21 @@
         removedOffcuts: Object,
         removedTotal: Number,
         removalReasons: Array,
+        /** The dead stock the quarterly cleanout put up - see App\Services\OffcutCleanout. */
+        cleanout: {
+            type: Array,
+            default: () => [],
+        },
+        /** How long a piece may sit before age counts against it. */
+        cleanoutShelfLifeDays: {
+            type: Number,
+            default: 365,
+        },
+        /** "cleanout" when the bell's "Review the rack" sent them here, otherwise null. */
+        tab: {
+            type: String,
+            default: null,
+        },
     });
 
     //Form
@@ -24,9 +40,10 @@
     //...
 
     //Variables
-    //"inventory" or "removed". Two tabs rather than two pages: the removed list is only ever
-    //reached from here, and it is short enough that a page of its own would be mostly chrome.
-    const tab = ref('inventory');
+    //"inventory", "cleanout" or "removed". Tabs rather than pages: both of the other two lists are
+    //only ever reached from here, and each is short enough that a page of its own would be mostly
+    //chrome. Opens on whichever the server named, which is how the bell lands on the cleanout.
+    const tab = ref(props.tab ?? 'inventory');
 
     //The row the removal modal is asking about, or null when it is closed
     const removing = ref(null);
@@ -34,6 +51,7 @@
     //Computed
     const inventory = computed(() => props.offcuts?.data ?? []);
     const removed = computed(() => props.removedOffcuts?.data ?? []);
+    const cleanoutRows = computed(() => props.cleanout ?? []);
 
     //Methods
     //...
@@ -87,6 +105,25 @@
                             <span class="ml-1 text-xs text-gray-400 dark:text-gray-500">{{ inventory.length }}</span>
                         </button>
 
+                        <!--
+                            Only shown when there is something on it. A permanent tab reading zero
+                            invites somebody to go looking for steel to scrap, which is the opposite
+                            of what the list is for.
+                        -->
+                        <button
+                            v-if="cleanoutRows.length > 0"
+                            type="button"
+                            :aria-pressed="tab === 'cleanout'"
+                            class="border-b-2 px-1 pb-3 text-sm font-medium transition-colors duration-200"
+                            :class="tab === 'cleanout'
+                                ? 'border-amber-500 text-amber-700 dark:text-amber-400'
+                                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
+                            @click="tab = 'cleanout'"
+                        >
+                            Cleanout
+                            <span class="ml-1 text-xs text-gray-400 dark:text-gray-500">{{ cleanoutRows.length }}</span>
+                        </button>
+
                         <button
                             type="button"
                             :aria-pressed="tab === 'removed'"
@@ -107,6 +144,12 @@
                         v-if="tab === 'inventory'"
                         :data="inventory"
                         @remove="removing = $event"
+                    />
+
+                    <CleanoutOffcutsTable
+                        v-else-if="tab === 'cleanout'"
+                        :data="cleanoutRows"
+                        :shelf-life-days="cleanoutShelfLifeDays"
                     />
 
                     <RemovedOffcutsTable

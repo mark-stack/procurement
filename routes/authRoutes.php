@@ -16,6 +16,7 @@ use App\Http\Controllers\MarkNotificationStatusController;
 use App\Http\Controllers\OffcutController;
 use App\Http\Controllers\OffcutRemoveController;
 use App\Http\Controllers\OffcutRestoreController;
+use App\Http\Controllers\OffcutScrapController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderMarkDeliveredController;
@@ -157,6 +158,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('offcuts/{offcut}/restore', OffcutRestoreController::class)
             ->whereNumber('offcut')
             ->name('offcuts.restore');
+
+        /*
+         * Weighing in the dead stock the quarterly cleanout put up. Takes the ids in the body rather
+         * than one at a time: clearing a rack is one decision about a list, and a row-at-a-time
+         * endpoint would have the list shifting under each press as earlier ones left it.
+         *
+         * Not offcuts.remove with a reason of SCRAPPED, even though that is what it records. This one
+         * will only touch steel that is on the business's own cleanout list today - see
+         * OffcutScrapController.
+         */
+        Route::post('offcuts/scrap', OffcutScrapController::class)->name('offcuts.scrap');
 
         //Orders
         Route::resource('orders', OrderController::class);
