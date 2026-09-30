@@ -23,7 +23,16 @@ use App\Http\Middleware\AdminMiddleware;
 use App\Http\Middleware\PlatformProductMiddleware;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('admin')->name('admin.')->middleware([AdminMiddleware::class])->group(function () {
+/*
+ * 'verified' after AdminMiddleware, not before: AdminMiddleware is the one that knows how to answer
+ * a signed-out visitor (login, with the url it stored) and a non-admin (home, with a reason), and
+ * putting the verification check in front of it would answer both with the verification prompt.
+ *
+ * It is here at all because the admin panel is the only group in this application that was gated on
+ * identity alone. Nothing in it was reachable without the is_admin column now, but an admin account
+ * whose address has never been confirmed should not be editing every business's templates either.
+ */
+Route::prefix('admin')->name('admin.')->middleware([AdminMiddleware::class, 'verified'])->group(function () {
     //Templates
     //scoped(): {template} must belong to {business}, or a mistyped URL edits/deletes
     //another business's row while the page you are on shows nothing changed

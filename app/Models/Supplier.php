@@ -16,6 +16,37 @@ class Supplier extends Model
 
     protected $guarded = [];
 
+    /**
+     * The category flags on this supplier, as a label => bool map.
+     *
+     * supplier_categories is a PHP-serialized array in a string column, and five places read it:
+     * this screen, the admin one, the resource, the formatter and a seeder. Every one of them called
+     * a bare unserialize() on it, which will build objects out of whatever the string describes.
+     *
+     * Nothing writes an object there - AttachSupplierToBusiness and SupplierController both
+     * serialize() a validated array of booleans, so the column cannot hold a crafted payload today.
+     * The reason to route them all through here anyway is that "today" is doing the work in that
+     * sentence: allowed_classes false means the column is data whatever is in it, and one decoder
+     * means the next reader of it inherits that rather than copying the old line.
+     *
+     * A malformed or empty value reads as no categories rather than throwing: the supplier list
+     * should not be a 500 because one row was written by an older version of this app.
+     *
+     * @return array<string, bool>
+     */
+    public function categories(): array
+    {
+        $stored = $this->supplier_categories;
+
+        if (! is_string($stored) || $stored === '') {
+            return [];
+        }
+
+        $decoded = @unserialize($stored, ['allowed_classes' => false]);
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
     //Relationships
     public function products(): BelongsToMany
     {

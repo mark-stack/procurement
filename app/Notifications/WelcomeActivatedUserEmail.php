@@ -3,13 +3,13 @@
 namespace App\Notifications;
 
 use App\Models\User;
+use App\Notifications\Concerns\SignsInByLink;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use MagicLink\Actions\LoginAction;
-use MagicLink\MagicLink;
 
 /*
  * Carries a magic link that signs its recipient in, so every method here reads that recipient
@@ -20,7 +20,7 @@ use MagicLink\MagicLink;
  */
 class WelcomeActivatedUserEmail extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, SignsInByLink;
 
     /**
      * Get the notification's delivery channels.
@@ -55,7 +55,7 @@ class WelcomeActivatedUserEmail extends Notification implements ShouldQueue
             return redirect()->route('projects.index');
         });
 
-        $magicLink = MagicLink::create($action)->url;
+        $magicLink = $this->loginLinkFor($action);
 
         return (new MailMessage)
             ->line('Your setup configuration is complete')

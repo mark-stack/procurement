@@ -28,13 +28,21 @@ Route::middleware('guest')->group(function () {
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');
 
+    /*
+     * Throttled per ip. The password broker already refuses a second link for the same address
+     * inside a minute, which is a limit on what one mailbox receives; it is not a limit on what one
+     * caller can do, so a single client could walk a list of addresses and both learn which of them
+     * exist here and post the mail. The other end of this flow is throttled the same way.
+     */
     Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
+        ->middleware('throttle:6,1')
         ->name('password.email');
 
     Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
         ->name('password.reset');
 
     Route::post('reset-password', [NewPasswordController::class, 'store'])
+        ->middleware('throttle:6,1')
         ->name('password.store');
 });
 

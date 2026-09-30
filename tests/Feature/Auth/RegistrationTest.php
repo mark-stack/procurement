@@ -213,3 +213,83 @@ test('the domain is read from the last at sign, and lower-cased', function (?str
     ['', null],
     [null, null],
 ]);
+
+it('would be a disaster if an unverified registrant were handed the business they joined', function () {
+    /**
+     * Registration finds the Business by email domain and logs the user straight in - that is the
+     * feature, a second estimator signs up and is already in the right place. It also means anyone
+     * who types name@somefabricator.com.au is inside that tenant before proving they can read the
+     * mailbox, and the shared Inertia prop used to hand them the whole business row on the very next
+     * response: among its columns, what the company pays its people and its steel merchant.
+     *
+     * Nothing about the business until the address is confirmed, and named fields after that.
+     */
+    $victim = Business::query()->create([
+        'name' => 'Acme Steel',
+        'domain' => 'acmesteel.test',
+        'admin_setup_complete' => true,
+        'labour_rate_per_hour' => 137.50,
+        'material_cost_per_tonne' => 2450.00,
+    ]);
+
+    $this->post('/register', [
+        'name' => 'Outsider',
+        'email' => 'outsider@acmesteel.test',
+        'password' => 'password',
+        'password_confirmation' => 'password',
+    ]);
+
+    $outsider = User::query()->where('email', 'outsider@acmesteel.test')->firstOrFail();
+
+    expect($outsider->business_id)->toBe($victim->id)
+        ->and($outsider->hasVerifiedEmail())->toBeFalse();
+
+    $this->actingAs($outsider)
+        ->get(route('verification.notice'))
+        ->assertStatus(200)
+        ->assertInertia(fn ($page) => $page->where('auth.business', null));
+});
+
+it('shares only the named business fields once the address is verified', function () {
+    $business = createBusiness('acmesteel', true);
+    $business->labour_rate_per_hour = 137.50;
+    $business->material_cost_per_tonne = 2450.00;
+    $business->stripe_id = 'cus_secret';
+    $business->save();
+
+    $user = createUser(1, $business, false, true);
+
+    //projects.index, not dashboard - the dashboard is only ever a redirect to it
+    $this->actingAs($user)
+        ->get(route('projects.index'))
+        ->assertStatus(200)
+        ->assertInertia(fn ($page) => $page
+            //What the modals branch on, and enough to identify the company
+            ->where('auth.business.allow_custom_products', false)
+            ->where('auth.business.domain', 'acmesteel.com')
+            //What the browser has no use for: the cost model and the payment provider's ids
+            ->missing('auth.business.labour_rate_per_hour')
+            ->missing('auth.business.material_cost_per_tonne')
+            ->missing('auth.business.stripe_id')
+            ->missing('auth.business.pm_last_four')
+        );
+});
+
+it('would be a disaster if a colleague were announced before they verified', function () {
+    /**
+     * The announcement named a stranger as a colleague in every real employee's bell, on the
+     * strength of an address nobody had checked. See App\Listeners\AnnounceVerifiedColleague - and
+     * NotificationBellTest, which pins down that verifying still announces them.
+     */
+    $business = createBusiness('acmesteel', true);
+    $existing = createUser(1, $business, false, true);
+
+    $this->post('/register', [
+        'name' => 'Outsider',
+        'email' => 'outsider@'.$business->domain,
+        'password' => 'password',
+        'password_confirmation' => 'password',
+    ]);
+
+    expect($existing->notifications()->count())->toBe(0);
+});

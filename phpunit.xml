@@ -34,6 +34,12 @@
             themselves with config().
         -->
         <env name="REGISTRATION_ALLOWED_EMAIL_DOMAINS" value=""/>
+        <!--
+            The notification suite was written against test mode's minute-wide windows, and pins it
+            here now that config/env.php defaults it off - a default that used to be true, so a
+            production deploy that forgot the line mailed every customer once a minute.
+        -->
+        <env name="TEST_MODE" value="true"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="CACHE_STORE" value="array"/>

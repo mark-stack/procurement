@@ -86,3 +86,73 @@ it('would be a disaster if a user without a business hit a 500 on the suppliers 
         ->get(route('suppliers.index'))
         ->assertRedirect(route('onboarding'));
 });
+
+it('would be a disaster if a user could rewrite another business\'s supplier', function () {
+    /**
+     * update() took an implicitly bound {supplier} and wrote to it with nothing narrowing which
+     * supplier that could be, so PUT /suppliers/{id} renamed any row in the table. A supplier row
+     * is shared - several businesses attach the same merchant, and the pivot is the only record of
+     * who has - so "yours" means attached to your business, which is what SupplierPolicy asks.
+     *
+     * Not a cosmetic write: the name goes out on quote requests and purchase orders.
+     */
+    $mine = createBusiness('Mine', true);
+    $theirs = createBusiness('Theirs', true);
+
+    $me = createUser(1, $mine, false, true);
+
+    $theirSupplier = Supplier::create([
+        'name' => 'Their Merchant',
+        'supplier_categories' => serialize(['STEEL_MERCHANT' => true]),
+    ]);
+    $theirs->suppliers()->attach($theirSupplier->id);
+
+    $this->actingAs($me)->put(route('suppliers.update', $theirSupplier->id), [
+        'name' => 'RENAMED BY OUTSIDER',
+        'supplier_categories' => ['STEEL_MERCHANT' => true],
+    ])->assertForbidden();
+
+    expect($theirSupplier->fresh()->name)->toBe('Their Merchant');
+});
+
+it('lets a user rename a supplier their own business has attached', function () {
+    //The other half of the rule above: scoping it must not have taken the feature away
+    $mine = createBusiness('Mine', true);
+    $me = createUser(1, $mine, false, true);
+
+    $supplier = Supplier::create([
+        'name' => 'Before',
+        'supplier_categories' => serialize(['STEEL_MERCHANT' => true]),
+    ]);
+    $mine->suppliers()->attach($supplier->id);
+
+    $this->actingAs($me)->put(route('suppliers.update', $supplier->id), [
+        'name' => 'After',
+        'supplier_categories' => ['STEEL_MERCHANT' => true],
+    ])->assertRedirect();
+
+    expect($supplier->fresh()->name)->toBe('After');
+});
+
+it('lets an admin rename a supplier for a business that is not theirs', function () {
+    /**
+     * Deliberate, and the reason SupplierPolicy passes admins: the admin supplier screen edits
+     * another business's list, and its form posts to this same route.
+     */
+    $adminBusiness = createBusiness('admin', true);
+    $admin = createUser(1, $adminBusiness, true, true);
+
+    $theirs = createBusiness('Theirs', true);
+    $supplier = Supplier::create([
+        'name' => 'Before',
+        'supplier_categories' => serialize(['STEEL_MERCHANT' => true]),
+    ]);
+    $theirs->suppliers()->attach($supplier->id);
+
+    $this->actingAs($admin)->put(route('suppliers.update', $supplier->id), [
+        'name' => 'After',
+        'supplier_categories' => ['STEEL_MERCHANT' => true],
+    ])->assertRedirect();
+
+    expect($supplier->fresh()->name)->toBe('After');
+});

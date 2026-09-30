@@ -14,6 +14,7 @@ use App\Services\NotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 
 uses(RefreshDatabase::class);
@@ -163,6 +164,20 @@ it('would be a disaster if a colleague could join the business and nobody be tol
     $response->assertRedirect();
 
     $newUser = User::query()->where('email', 'new.starter@'.$business->domain)->firstOrFail();
+
+    /*
+     * Nothing yet: the domain matched, but nobody has shown they can read that mailbox. Announcing
+     * here let anyone who knew a fabricator's domain put a stranger in every employee's bell as
+     * their colleague.
+     */
+    expect($existing->notifications()->where('type', ColleagueJoined::class)->exists())->toBeFalse();
+
+    //Verification is what establishes they are who the domain says - see AnnounceVerifiedColleague
+    $this->actingAs($newUser)->get(URL::temporarySignedRoute(
+        'verification.verify',
+        now()->addMinutes(60),
+        ['id' => $newUser->id, 'hash' => sha1($newUser->email)],
+    ));
 
     $notification = $existing->notifications()->where('type', ColleagueJoined::class)->first();
 

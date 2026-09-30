@@ -169,7 +169,20 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    /*
+     * Secure by default in production, and only there.
+     *
+     * The stock line is env('SESSION_SECURE_COOKIE') with no default, which is null - so the
+     * session cookie went out without the Secure flag unless somebody remembered to add the line,
+     * and .env.example does not carry it. A plain default of true is not the answer either: local
+     * development is served over http on 127.0.0.1, and a Secure cookie is never sent there, so
+     * the login form would silently refuse to log anybody in.
+     *
+     * Deriving it from the environment gets both right and needs nothing in .env. SESSION_SECURE_COOKIE
+     * still wins where it is set, for a local machine running https or a staging box that is not
+     * APP_ENV=production.
+     */
+    'secure' => env('SESSION_SECURE_COOKIE', env('APP_ENV') === 'production'),
 
     /*
     |--------------------------------------------------------------------------

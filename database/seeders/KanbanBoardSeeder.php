@@ -284,7 +284,7 @@ class KanbanBoardSeeder extends Seeder
     private function steelMerchant(Business $business): Supplier
     {
         $isSteel = fn (Supplier $supplier) => (bool) (
-            unserialize($supplier->supplier_categories ?? 'a:0:{}')[SupplierGroupEnums::STEEL_MERCHANT->value] ?? false
+            $supplier->categories()[SupplierGroupEnums::STEEL_MERCHANT->value] ?? false
         );
 
         $supplier = $business->suppliers->first($isSteel)
