@@ -29,6 +29,28 @@ class BillingServiceProvider extends ServiceProvider
                 throw new InvalidArgumentException("Billing driver [{$driver}] is not configured.");
             }
 
+            /*
+             * Fail closed rather than sell on an unauthenticated webhook.
+             *
+             * POST /stripe/webhook is registered by Cashier with no middleware, and Cashier attaches
+             * VerifyWebhookSignature only when cashier.webhook.secret is set - see its
+             * WebhookController constructor. With the secret empty, that endpoint takes anyone's
+             * JSON: handleCustomerSubscriptionCreated does updateOrCreate on an active subscription
+             * and then nulls trial_ends_at, for whichever business's stripe_id the payload names.
+             *
+             * Nothing reaches it while the manual driver is live, because no business has a
+             * stripe_id for the payload to match. Selecting the stripe driver is the moment that
+             * changes, and the customer ids it starts minting are not secrets - they reach the
+             * business's own users. So the check belongs on the switch, not in a runbook.
+             */
+            if ($driver === 'stripe' && ! config('cashier.webhook.secret')) {
+                throw new InvalidArgumentException(
+                    'BILLING_DRIVER=stripe requires STRIPE_WEBHOOK_SECRET. Without it Cashier leaves '
+                    .'POST /stripe/webhook unsigned, and anyone who knows a business\'s Stripe '
+                    .'customer id can grant it a subscription.'
+                );
+            }
+
             return $app->make($drivers[$driver]);
         });
 

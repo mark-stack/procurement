@@ -17,6 +17,7 @@ use Illuminate\Support\Str;
  * analysis cannot see through it to the boolean this really is.
  *
  * @property bool $sandbox_mode Whether this user is currently working in their own sandbox
+ * @property bool $is_admin Whether this user is the platform admin - see isAdmin()
  */
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -46,6 +47,8 @@ class User extends Authenticatable implements MustVerifyEmail
              * mode under the test connection.
              */
             'sandbox_mode' => 'boolean',
+            //Same reason again, and it decides whether the admin panel opens
+            'is_admin' => 'boolean',
         ];
     }
 
@@ -108,9 +111,19 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     //Boolean
+    /**
+     * The platform admin, who can read and write every business's data.
+     *
+     * A column, not a comparison against config('env.admin_email'). This read the user's own email
+     * until the 2026_09_30 migration, and a user may change that on /profile: typing the configured
+     * address into your own profile made you the platform admin, with the master catalogue, every
+     * business's templates and admin.impersonate - which logs in as any user of any business. Only a
+     * migration or a console command sets the column, and $fillable does not carry it, so no request
+     * can.
+     */
     public function isAdmin(): bool
     {
-        return $this->email === config('env.admin_email');
+        return $this->is_admin === true;
     }
 
     //Strings

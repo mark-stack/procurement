@@ -3,12 +3,12 @@
 namespace App\Notifications;
 
 use App\Models\Business;
+use App\Notifications\Concerns\SignsInByLink;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use MagicLink\Actions\LoginAction;
-use MagicLink\MagicLink;
 
 /**
  * The free trial is nearly up, or is up.
@@ -19,7 +19,7 @@ use MagicLink\MagicLink;
  */
 class TrialEndingEmail extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, SignsInByLink;
 
     /**
      * @param  int|null  $daysRemaining  null once the trial has actually run out
@@ -46,7 +46,7 @@ class TrialEndingEmail extends Notification implements ShouldQueue
          */
         $action = new LoginAction($notifiable);
         $action->response(redirect()->route('billing.index'));
-        $magicLink = MagicLink::create($action)->url;
+        $magicLink = $this->loginLinkFor($action);
 
         if ($this->daysRemaining === null) {
             return (new MailMessage)

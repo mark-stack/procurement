@@ -26,7 +26,7 @@ class AdminSupplierIndexController extends Controller
         foreach ($categories as $categoryLabel => $includedProducts) {
             $suppliersWithThisCategory = [];
             foreach ($suppliers as $supplier) {
-                $supplierCategories = unserialize($supplier->supplier_categories);
+                $supplierCategories = $supplier->categories();
                 foreach ($supplierCategories as $thisCategoryLabel => $value) {
                     //Is set
                     if ($value && $thisCategoryLabel === $categoryLabel) {

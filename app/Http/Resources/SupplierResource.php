@@ -23,17 +23,16 @@ class SupplierResource extends JsonResource
             'category' => $supplier->category,
             'created_at' => $supplier->created_at,
             'isUsed' => $supplier->isUsed(),
-            'categoriesAsCommaString' => $this->categoriesAsCommaString($this->supplier_categories),
-            'categoriesForm' => unserialize($supplier->supplier_categories),
+            'categoriesAsCommaString' => $this->categoriesAsCommaString($supplier),
+            'categoriesForm' => $supplier->categories(),
         ];
     }
 
-    private function categoriesAsCommaString($supplier_categories): string
+    private function categoriesAsCommaString(Supplier $supplier): string
     {
         $resultArray = [];
 
-        $categories = unserialize($supplier_categories);
-        foreach ($categories as $categoryLabel => $value) {
+        foreach ($supplier->categories() as $categoryLabel => $value) {
             //Is set TRUE
             if ($value) {
                 $resultArray[] = $categoryLabel;

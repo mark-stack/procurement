@@ -37,11 +37,17 @@ class TestingFormatter
 
     public function createUser(bool $isAdmin, int $id, Business $business, bool $emailVerified): User
     {
+        /*
+         * is_admin is the flag the application reads - see User::isAdmin(). The address is kept in
+         * step with it because a few tests still assert on who mail was addressed to, but it is no
+         * longer what makes this user an admin.
+         */
         return User::factory()->create([
             'name' => 'Mark',
             'email' => $isAdmin
                 ? config('env.admin_email')
                 : ($id.'@'.$business->domain),
+            'is_admin' => $isAdmin,
             'business_id' => $business->id,
             'email_verified_at' => $emailVerified ? now() : null,
         ]);

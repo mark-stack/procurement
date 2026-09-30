@@ -16,7 +16,19 @@ return [
     |
     */
 
-    'enabled' => env('TELESCOPE_ENABLED', true),
+    /*
+     * Off in production unless asked for.
+     *
+     * Telescope records entries into the application's own database, and in production the filter
+     * in App\Providers\TelescopeServiceProvider keeps every reportable exception, failed request
+     * and failed job - which is to say the requests most likely to be carrying something worth
+     * keeping out of a second table. It defaulted to true and .env.example does not mention it, so
+     * a deployment got a request recorder nobody asked for.
+     *
+     * TELESCOPE_ENABLED=true still turns it on in production, deliberately, for an afternoon of
+     * chasing something down.
+     */
+    'enabled' => env('TELESCOPE_ENABLED', env('APP_ENV') !== 'production'),
 
     /*
     |--------------------------------------------------------------------------

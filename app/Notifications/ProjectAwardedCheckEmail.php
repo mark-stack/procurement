@@ -4,16 +4,16 @@
  */
 namespace App\Notifications;
 
+use App\Notifications\Concerns\SignsInByLink;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use MagicLink\Actions\LoginAction;
-use MagicLink\MagicLink;
 
 class ProjectAwardedCheckEmail extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, SignsInByLink;
 
     /**
      * Create a new notification instance.
@@ -42,13 +42,7 @@ class ProjectAwardedCheckEmail extends Notification implements ShouldQueue
         //Go to projects page which has notifications for actioning
         $action = new LoginAction($this->recipient);
         $action->response(redirect()->route('projects.index'));
-        $magicLink = MagicLink::create($action);
-
-        //MagicLink is being weird making default "localhost" instead of "http://127.0.0.1:8000"
-        //$testMode = config("env.test_mode");
-        //$baseUrl = $testMode ? 'http://127.0.0.1:8000' : redirect()->route("projects.index");
-        //$magicLinkUrl = $magicLink->baseUrl($baseUrl)->url;
-        $magicLinkUrl = $magicLink->url;
+        $magicLinkUrl = $this->loginLinkFor($action);
 
         return (new MailMessage)
             ->line($this->message)

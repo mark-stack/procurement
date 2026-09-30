@@ -10,6 +10,7 @@ use App\Http\Resources\SupplierResource;
 use App\Models\Supplier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -32,7 +33,7 @@ class SupplierController extends Controller
         foreach ($categories as $categoryLabel => $includedProducts) {
             $suppliersWithThisCategory = [];
             foreach ($suppliers as $supplier) {
-                $supplierCategories = unserialize($supplier->supplier_categories);
+                $supplierCategories = $supplier->categories();
                 foreach ($supplierCategories as $thisCategoryLabel => $value) {
                     //Is set
                     if ($value && $thisCategoryLabel === $categoryLabel) {
@@ -105,6 +106,14 @@ class SupplierController extends Controller
      */
     public function update(UpdateSupplierRequest $request, Supplier $supplier): RedirectResponse
     {
+        /*
+         * {supplier} is bound by id alone and nothing else here narrowed it, so this route rewrote
+         * any supplier in the table - a verified user of one business could rename a merchant
+         * attached only to another, and that name goes out on their quote requests and purchase
+         * orders. See SupplierPolicy.
+         */
+        Gate::authorize('owned', $supplier);
+
         $validated = $request->validated();
 
         $supplier->update([
@@ -124,6 +133,13 @@ class SupplierController extends Controller
          ADMIN: delete if unused
          USER: detach supplier from business
          */
+        /*
+         * The user branch below was already harmless - detaching a supplier you never had is a
+         * no-op - but it answered "done" to a request for somebody else's row. Refusing says what
+         * happened, and it means this route cannot grow a write that assumes the caller's ownership.
+         */
+        Gate::authorize('owned', $supplier);
+
         $user = auth()->user();
         $business = $user->business;
 

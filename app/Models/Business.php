@@ -39,7 +39,43 @@ class Business extends Model
      */
     use Billable;
 
-    protected $guarded = [];
+    /**
+     * Everything is mass assignable except what decides whether this business has paid.
+     *
+     * No route mass assigns a business today - there is no businesses.update - so this is a fence
+     * rather than a fix. It is worth having because the fence is what makes the next one safe: one
+     * `$business->update($request->validated())` on a settings screen, with manual_plan or
+     * manual_access_until anywhere in the payload, is a business granting itself the product.
+     *
+     * trial_ends_at is deliberately NOT here. booted() only fills it where one was not asked for,
+     * so seeders and fixtures dictate their own dates, and there is a test that says so.
+     * stripe_id, pm_type and pm_last_four are Stripe's to write - Cashier sets them by attribute
+     * and by forceFill(), so guarding them costs nothing.
+     */
+    protected $guarded = [
+        'id',
+        'stripe_id',
+        'pm_type',
+        'pm_last_four',
+        'manual_plan',
+        'manual_access_until',
+    ];
+
+    /**
+     * Kept out of json everywhere a business is serialised.
+     *
+     * The shared Inertia prop used to carry the whole row to the browser on every response, which
+     * is how a customer id and the last four digits of their card ended up somewhere neither was
+     * needed. HandleInertiaRequests now sends named fields instead; this is the belt to that
+     * braces, for the admin screens that still hand a whole business to a page.
+     *
+     * @var list<string>
+     */
+    protected $hidden = [
+        'stripe_id',
+        'pm_type',
+        'pm_last_four',
+    ];
 
     /**
      * Resolved once per instance: the billing banner, the read-only gate and the nav all ask, and
@@ -191,6 +227,13 @@ class Business extends Model
         return $this->hasMany(Product::class);
     }
 
+    /**
+     * Annotated for the same reason User::business() and templates() are: without it every caller
+     * iterating $business->suppliers gets a plain Model, so Supplier's own methods - categories(),
+     * isUsed() - are invisible to static analysis at each of the places that read them.
+     *
+     * @return BelongsToMany<Supplier, $this>
+     */
     public function suppliers(): BelongsToMany
     {
         return $this->belongsToMany(Supplier::class);

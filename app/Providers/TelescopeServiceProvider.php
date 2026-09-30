@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\User;
 use Illuminate\Support\Facades\Gate;
 use Laravel\Telescope\IncomingEntry;
 use Laravel\Telescope\Telescope;
@@ -39,7 +40,18 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
             return;
         }
 
-        Telescope::hideRequestParameters(['_token']);
+        /*
+         * _token was the whole list, which is Telescope's own default and not enough here. A 500 in
+         * the login, registration, password-reset or confirm-password path is exactly the kind of
+         * entry the filter below keeps, and it carried the submitted credentials into the
+         * telescope_entries table in plain text.
+         */
+        Telescope::hideRequestParameters([
+            '_token',
+            'password',
+            'password_confirmation',
+            'current_password',
+        ]);
 
         Telescope::hideRequestHeaders([
             'cookie',
@@ -55,8 +67,16 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
      */
     protected function gate(): void
     {
-        Gate::define('viewTelescope', function ($user) {
-            return $user->email == config('env.admin_email');
+        /*
+         * isAdmin(), not a comparison against config('env.admin_email'). That comparison was a
+         * second way to become the platform admin by editing your own profile email - see
+         * User::isAdmin() and the 2026_09_30 migration - and it would have survived the fix to the
+         * first one.
+         *
+         * Nullable, so a guest is answered rather than fatal.
+         */
+        Gate::define('viewTelescope', function (?User $user) {
+            return $user?->isAdmin() === true;
         });
     }
 }

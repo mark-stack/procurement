@@ -88,7 +88,7 @@ class SupplierFormatter
         //This business's suppliers
         foreach ($business->suppliers as $supplier) {
             //For each supplier, identify what category of products they offer. e,g "steel merchant"
-            $supplierCategories = unserialize($supplier->supplier_categories);
+            $supplierCategories = $supplier->categories();
             foreach ($supplierCategories as $supplierGroup => $activeForSupplier) {
                 //Supplier group belongs to current plan
                 if ($business->supplierGroupIsCurrentPlan($supplierGroup)) {
@@ -109,7 +109,7 @@ class SupplierFormatter
         //This business's suppliers
         foreach ($business->suppliers as $supplier) {
             //For each supplier, identify what category of products they offer. e,g "steel merchant"
-            $supplierGroups = unserialize($supplier->supplier_categories);
+            $supplierGroups = $supplier->categories();
             foreach ($supplierGroups as $thisSupplierGroup => $activeForSupplier) {
                 if ($activeForSupplier && $thisSupplierGroup === $supplierGroup) {
                     $suppliersForSupplierGroup[] = $supplier;

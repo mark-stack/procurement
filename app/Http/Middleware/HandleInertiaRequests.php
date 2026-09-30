@@ -37,7 +37,7 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user(),
-                'business' => $request->user() ? $request->user()->business : null,
+                'business' => $this->businessProp($request),
                 'isAdmin' => $request->user() && $request->user()->isAdmin(),
                 //While impersonating, isAdmin() reads the impersonated user, so nothing else
                 //on the page can tell that the session is not really theirs
@@ -90,6 +90,54 @@ class HandleInertiaRequests extends Middleware
             ],
             'adminEmail' => config('env.admin_email'),
             "loginAvailable" => env("LOGIN_AVAILABLE"),
+        ];
+    }
+
+    /**
+     * The business, for the handful of fields the front end actually reads off it.
+     *
+     * This was the whole model, on every Inertia response, which made it a data leak with two
+     * halves.
+     *
+     * The first is who got it. Registration joins a Business by email domain and logs the user
+     * straight in, before any verification - that is the feature, a colleague signs up and is
+     * already in the right place - so anyone who typed name@somefabricator.com.au was handed that
+     * company's row on the verification-notice page without ever proving they could read the
+     * mailbox. Among the 33 columns were labour_rate_per_hour and material_cost_per_tonne: what a
+     * fabricator pays its people and its steel merchant, which is most of what a competitor would
+     * want to know.
+     *
+     * The second is what was in it regardless of who asked: stripe_id and pm_last_four, which
+     * belong to the payment provider and to nothing on the page. Business::$hidden now keeps those
+     * out of json wherever a business is serialised, admin screens included.
+     *
+     * So: nothing until the address is confirmed, and then only these fields. allow_custom_products
+     * is the one the modals branch on; the rest are identity, and admin_setup_complete is already
+     * shared as 'onboarded' beside this.
+     *
+     * @return array{id: int, name: string|null, domain: string, allow_custom_products: bool, meterage_only: bool, admin_setup_complete: bool}|null
+     */
+    private function businessProp(Request $request): ?array
+    {
+        $user = $request->user();
+
+        if ($user === null || ! $user->hasVerifiedEmail()) {
+            return null;
+        }
+
+        $business = $user->business;
+
+        if ($business === null) {
+            return null;
+        }
+
+        return [
+            'id' => $business->id,
+            'name' => $business->name,
+            'domain' => $business->domain,
+            'allow_custom_products' => (bool) $business->allow_custom_products,
+            'meterage_only' => (bool) $business->meterage_only,
+            'admin_setup_complete' => (bool) $business->admin_setup_complete,
         ];
     }
 

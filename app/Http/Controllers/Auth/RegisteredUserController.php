@@ -7,7 +7,6 @@ use App\Models\Business;
 use App\Models\User;
 use App\Notifications\NewUserEmail;
 use App\Rules\BusinessEmailDomain;
-use App\Services\NotificationImplementations\NotificationNewColleagueImplementation;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -107,19 +106,23 @@ class RegisteredUserController extends Controller
             return $user;
         });
 
-        //Admin notify
-        $adminUser = User::query()->where('email', config('env.admin_email'))->first();
+        /*
+         * Admin notify. By the flag rather than by the configured address: the address stopped
+         * deciding who the admin is in the 2026_09_30 migration, and a lookup that still asked the
+         * old question would mail whoever currently holds that email instead of the admin.
+         */
+        $adminUser = User::query()->where('is_admin', true)->first();
         if ($adminUser) {
             $message = 'A new user signed up:';
             Notification::send($adminUser, new NewUserEmail($user, $message));
         }
 
         /*
-         * Colleague notify. A business is every user whose email domain matched, so nobody approved
-         * this person joining and nobody was told - the only previous attempt at this was an hourly
-         * sweep whose dedupe never matched. See NotificationNewColleagueImplementation.
+         * Colleague notify happens on verification, not here. A business is every user whose email
+         * domain matched, so this line put a stranger in every real employee's bell as their
+         * colleague on the strength of an address nobody had checked. See
+         * App\Listeners\AnnounceVerifiedColleague.
          */
-        (new NotificationNewColleagueImplementation)->notifyColleaguesOf($user);
 
         //Login
         event(new Registered($user));

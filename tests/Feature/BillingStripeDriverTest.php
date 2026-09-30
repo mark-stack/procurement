@@ -34,6 +34,13 @@ function useStripeDriver(): void
 {
     config(['billing.driver' => 'stripe']);
 
+    /*
+     * Production cannot select this driver without one - BillingServiceProvider refuses, because
+     * Cashier leaves POST /stripe/webhook unsigned when the secret is empty - so a test that means
+     * "the way production would" has to carry one too.
+     */
+    config(['cashier.webhook.secret' => 'whsec_test']);
+
     app()->forgetInstance(BillingProvider::class);
     app()->forgetInstance(App\Billing\Billing::class);
 }
