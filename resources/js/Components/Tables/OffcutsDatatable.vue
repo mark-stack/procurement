@@ -5,6 +5,9 @@
     //Component Imports
     //...
 
+    //Shared Methods
+    import shared from "@/Shared/shared.js";
+
     //Props
     const props = defineProps({
         data: Array,
@@ -49,14 +52,18 @@
     function getCerts(row){
         let certs = [];
 
-        // A list of orders
-        (row.newStockOrdersWithCertificates ?? []).forEach(order => {
-            certs.push(order.material_cert_numbers);
+        /*
+         * Both arrive as [{supplier_name, material_cert_numbers, material_cert_files}]. An order can
+         * be certified by an attached file with no written reference at all, so reading only the
+         * numbers off these left steel that is fully traceable showing a blank certs column.
+         */
+        (row.newStockOrdersWithCertificates ?? []).forEach(certificate => {
+            certs.push(shared.certificateDetail(certificate));
         });
 
-        // {used_offcuts, certificates: [{supplier_name, material_cert_numbers}]}
+        // {used_offcuts, certificates: [...]}
         (row.offcutOrdersWithCertificates?.certificates ?? []).forEach(certificate => {
-            certs.push(certificate.material_cert_numbers);
+            certs.push(shared.certificateDetail(certificate));
         });
 
         return certs.filter(Boolean).join(", ");

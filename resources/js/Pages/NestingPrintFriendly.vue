@@ -10,6 +10,9 @@
     import PrintingSpec from "@/Components/Nesting/PrintingSpec.vue";
     import PrintingHeader from "@/Components/Nesting/PrintingHeader.vue";
 
+    //Shared Methods
+    import shared from "@/Shared/shared.js";
+
     //Props
     const props = defineProps({
         pieces: Object,
@@ -276,7 +279,7 @@
                         <h2 class="font-bold">Material Certificates from new stock:</h2>
                         <ul v-if="newStockOrdersWithCertificates.length > 0">
                             <li v-for="certificate in newStockOrdersWithCertificates">
-                                {{certificate.supplier?.name ?? 'Unknown supplier'}}: {{certificate.material_cert_numbers}}
+                                {{certificate.supplier_name}}: {{shared.certificateDetail(certificate)}}
                             </li>
                         </ul>
                         <p v-else>
@@ -291,7 +294,7 @@
                         <template v-else>
                             <ul v-if="offcutOrdersWithCertificates.certificates.length > 0">
                                 <li v-for="certificate in offcutOrdersWithCertificates.certificates">
-                                    {{certificate.supplier_name}}: {{certificate.material_cert_numbers}}
+                                    {{certificate.supplier_name}}: {{shared.certificateDetail(certificate)}}
                                 </li>
                             </ul>
                             <p v-else class="text-orange-700">

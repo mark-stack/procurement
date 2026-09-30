@@ -98,7 +98,7 @@ class OffcutResource extends JsonResource
              */
             'newStockOrdersWithCertificates' => $this->offcut_from_id === null
                 ? $batchFrom->newStockOrdersWithCertificates()
-                : collect([]),
+                : [],
             'offcutOrdersWithCertificates' => $batchFrom->offcutOrdersWithCertificates($business),
             'batch_projects' => $batchFrom->projectSummaries(),
         ];

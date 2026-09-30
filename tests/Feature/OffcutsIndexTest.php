@@ -116,7 +116,7 @@ it('reports offcut certificates as a list, and says when no offcuts were used', 
             ->has('offcuts.data', 1)
             ->where('offcuts.data.0.offcutOrdersWithCertificates.used_offcuts', true)
             ->where('offcuts.data.0.offcutOrdersWithCertificates.certificates', [
-                ['supplier_name' => 'Old Steel', 'material_cert_numbers' => 'CERT-OLD'],
+                ['supplier_name' => 'Old Steel', 'material_cert_numbers' => 'CERT-OLD', 'material_cert_files' => []],
             ])
         );
 });
@@ -197,8 +197,8 @@ it('keeps every certificate when one supplier certificated several source batche
         ->assertInertia(fn (Assert $page) => $page
             ->has('offcuts.data', 1)
             ->where('offcuts.data.0.offcutOrdersWithCertificates.certificates', [
-                ['supplier_name' => 'One Steel', 'material_cert_numbers' => 'CERT-1'],
-                ['supplier_name' => 'One Steel', 'material_cert_numbers' => 'CERT-2'],
+                ['supplier_name' => 'One Steel', 'material_cert_numbers' => 'CERT-1', 'material_cert_files' => []],
+                ['supplier_name' => 'One Steel', 'material_cert_numbers' => 'CERT-2', 'material_cert_files' => []],
             ])
         );
 });
@@ -338,7 +338,7 @@ it('keeps the certificate trail on an offcut of an offcut of an offcut', functio
             ->where('offcuts.data.0.id', $deepest->id)
             ->where('offcuts.data.0.offcutOrdersWithCertificates.used_offcuts', true)
             ->where('offcuts.data.0.offcutOrdersWithCertificates.certificates', [
-                ['supplier_name' => 'Root Steel', 'material_cert_numbers' => 'CERT-ROOT'],
+                ['supplier_name' => 'Root Steel', 'material_cert_numbers' => 'CERT-ROOT', 'material_cert_files' => []],
             ])
         );
 });
@@ -414,7 +414,7 @@ it('does not stamp an offcut of an offcut with its cutting batch\'s own new stoc
             ->where('offcuts.data.0.id', $produced->id)
             ->where('offcuts.data.0.newStockOrdersWithCertificates', [])
             ->where('offcuts.data.0.offcutOrdersWithCertificates.certificates', [
-                ['supplier_name' => 'Root Steel', 'material_cert_numbers' => 'CERT-ROOT'],
+                ['supplier_name' => 'Root Steel', 'material_cert_numbers' => 'CERT-ROOT', 'material_cert_files' => []],
             ])
         );
 });

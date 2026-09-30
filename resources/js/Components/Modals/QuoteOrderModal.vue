@@ -1,11 +1,12 @@
 <script setup>
     //General Imports
-    import {ref, watch} from "vue";
+    import {computed, nextTick, ref, watch} from "vue";
     import {Link, useForm} from "@inertiajs/vue3";
 
     //Component Imports
     import Modal from "@/Layouts/Modal.vue";
     import ConfirmModal from "@/Components/Modals/ConfirmModal.vue";
+    import MaterialCertificatesModal from "@/Components/Modals/MaterialCertificatesModal.vue";
 
     //Shared Methods
     import shared from '@/Shared/shared';
@@ -31,10 +32,15 @@
         quote_sent: null,
     });
 
+    /*
+     * The PO number and nothing else. material_cert_numbers used to ride along here so that saving a
+     * PO would not blank it - the two shared one inline editor. They no longer do, and a field left
+     * out of the request is a field orders.update does not touch, so leaving it out is the stronger
+     * guarantee: this form cannot reach the certificates at all.
+     */
     const formOrderUpdate = useForm({
         order_id: null,
         purchase_order_number: null,
-        material_cert_numbers: null,
     });
 
     const formUndoOrderSent = useForm({});
@@ -42,82 +48,213 @@
 
     //Variables
     const emit = defineEmits(['closeModal','refresh']);
-    const showInputs = ref({});
-    const currentInputEditRow = ref(null);
+
+    /*
+     * Which row's PO number is open, and what has been typed into it.
+     *
+     * The draft is held here rather than in row.formOrderUpdate. Typing straight onto the row
+     * mutated the board's own copy of the data, so a cancelled edit stayed on screen looking saved -
+     * the cell flipped from "Add PO number" to the number you had just abandoned.
+     */
+    const editingPurchaseOrderId = ref(null);
+    const purchaseOrderDraft = ref('');
+    //Which row is actually in flight - formOrderUpdate.processing is shared by every row on the board
+    const savingPurchaseOrderId = ref(null);
+    //The open input itself. Not reactive: nothing renders off it, it is only focused
+    let purchaseOrderInput = null;
+
+    /*
+     * Held by order id, not as the row object. Every save in the certificates panel re-fetches the
+     * batch, which replaces every row object in quotesData - a captured row would go on showing the
+     * files as they were when the panel opened.
+     */
+    const certsOrderId = ref(null);
+    const showCertsModal = ref(false);
 
     const {confirmDialog, askToConfirm, confirmDialogAccepted, confirmDialogCancelled} = useConfirm();
 
+    //Computed
+    const certsRow = computed(() => rowForOrderId(certsOrderId.value));
+
+    const editingPurchaseOrderRow = computed(() => rowForOrderId(editingPurchaseOrderId.value));
+
+    //Nothing to save when the box still holds what is already on the order
+    const purchaseOrderChanged = computed(() => {
+        const saved = editingPurchaseOrderRow.value?.formOrderUpdate?.purchase_order_number ?? '';
+
+        return purchaseOrderDraft.value.trim() !== saved;
+    });
+
+    const certsSupplierName = computed(() => certsRow.value?.info?.supplier?.name ?? '');
+
     //Methods
-    function setupShowInputs(){
-        /*
-         * Keyed by order id, not supplier id. A supplier can sit in more than one supplier group, and
-         * those rows were sharing one open/closed state - opening an input on one opened it on the other.
-         */
-        const result = {};
-
-        Object.values(props.quotesData?.supplierGroupCards ?? {}).forEach(data => {
-            if(data.rows !== undefined){
-                Object.values(data.rows).forEach(row => {
-                    result[row.formOrderUpdate.order_id] = {
-                        add_purchase_order: false,
-                        material_cert_numbers: false,
-                    };
-                });
-            }
-        });
-
-        return result;
-    }
-
-    function showCertNumbers(orderId){
-        return showInputs.value[orderId]?.material_cert_numbers ?? false;
-    }
-
-    function showAddPurchaseOrder(orderId){
-        return showInputs.value[orderId]?.add_purchase_order ?? false;
-    }
-
-    function toggleShowInput(row,type){
-        /*
-         * Save whatever is already open. Both editable fields belong to the order, so this saves the
-         * order - it used to save the quote, and the quote save forced quote_sent to true on that row.
-         */
-        if(currentInputEditRow.value){
-            updateOrder(currentInputEditRow.value);
+    /*
+     * Rows are addressed by order id, not by supplier. A supplier can sit in more than one supplier
+     * group, and those rows were sharing one open/closed state - opening an input on one opened it
+     * on the other.
+     */
+    function rowForOrderId(orderId){
+        if(!orderId){
+            return null;
         }
 
-        //Set current row
-        currentInputEditRow.value = row;
+        let found = null;
 
-        //hide any currently open
-        showInputs.value = setupShowInputs();
+        Object.values(props.quotesData?.supplierGroupCards ?? {}).forEach(data => {
+            Object.values(data.rows ?? {}).forEach(row => {
+                if(row.formOrderUpdate.order_id === orderId){
+                    found = row;
+                }
+            });
+        });
 
-        showInputs.value[row.formOrderUpdate.order_id][type] = true;
+        return found;
     }
 
-    function hideInput(){
-        //hide any currently open
-        showInputs.value = setupShowInputs();
-
-        //Clear current input selection
-        currentInputEditRow.value = null;
+    /*
+     * What the certs cell says, in a seventh of a row.
+     *
+     * Two ways for an order to be certified and the cell has to name which one is in play, because
+     * the whole reason the panel exists is that "Material Certs" over a text box read as though it
+     * held the certificate itself.
+     */
+    function certFileCount(row){
+        return (row.materialCertificateFiles ?? []).length;
     }
 
-    function updateOrder(row){
-        let url = route("orders.update",row.formOrderUpdate.order_id);
+    function certReference(row){
+        return row.formOrderUpdate.material_cert_numbers ?? null;
+    }
 
-        formOrderUpdate.order_id = row.formOrderUpdate.order_id;
-        formOrderUpdate.purchase_order_number = row.formOrderUpdate.purchase_order_number;
-        formOrderUpdate.material_cert_numbers = row.formOrderUpdate.material_cert_numbers;
+    function hasCerts(row){
+        return certFileCount(row) > 0 || !!certReference(row);
+    }
 
-        formOrderUpdate.put(url, {
+    function certsSummary(row){
+        const files = certFileCount(row);
+        const reference = certReference(row);
+
+        //A reference is the more specific thing to show; the paperclip beside it says files too
+        if(reference){
+            return shared.cropText(reference,14);
+        }
+
+        if(files > 0){
+            return files + (files === 1 ? ' file' : ' files');
+        }
+
+        return 'Add certs';
+    }
+
+    function certsTitle(row){
+        const files = certFileCount(row);
+        const reference = certReference(row);
+
+        if(!files && !reference){
+            return 'No material certificates recorded - attach the certificate or note where it is filed';
+        }
+
+        const parts = [];
+
+        if(files){
+            parts.push(files + (files === 1 ? ' certificate attached' : ' certificates attached'));
+        }
+        if(reference){
+            parts.push('Reference: ' + reference);
+        }
+
+        return parts.join(' - ');
+    }
+
+    function openCerts(row){
+        /*
+         * Save a PO number left open in the cell alongside. Both write to the same order, and the
+         * panel's own save would otherwise post the stale number back over the one being typed.
+         */
+        if(purchaseOrderChanged.value && editingPurchaseOrderRow.value){
+            savePurchaseOrder(editingPurchaseOrderRow.value);
+        }
+
+        certsOrderId.value = row.formOrderUpdate.order_id;
+        showCertsModal.value = true;
+    }
+
+    function closeCerts(){
+        showCertsModal.value = false;
+        certsOrderId.value = null;
+    }
+
+    function editingPurchaseOrder(orderId){
+        return editingPurchaseOrderId.value === orderId;
+    }
+
+    function openPurchaseOrder(row){
+        const orderId = row.formOrderUpdate.order_id;
+
+        if(editingPurchaseOrderId.value === orderId){
+            return;
+        }
+
+        /*
+         * Save an edit left open on another row rather than dropping it. People work down the column
+         * filling these in and move on without pressing Save; what they typed has to survive that.
+         */
+        if(purchaseOrderChanged.value && editingPurchaseOrderRow.value){
+            savePurchaseOrder(editingPurchaseOrderRow.value);
+        }
+
+        editingPurchaseOrderId.value = orderId;
+        purchaseOrderDraft.value = row.formOrderUpdate.purchase_order_number ?? '';
+
+        //Open ready to type in, with any existing number selected - editing one is nearly always
+        //replacing it. Once, here, rather than on every render of the box
+        nextTick(() => {
+            purchaseOrderInput?.focus();
+            purchaseOrderInput?.select();
+        });
+    }
+
+    function closePurchaseOrder(){
+        editingPurchaseOrderId.value = null;
+        purchaseOrderDraft.value = '';
+    }
+
+    /**
+     * Keeps hold of the open input. Storing it is all this does.
+     *
+     * Vue re-invokes a function ref on every patch, not only on mount - and v-model re-renders on
+     * every keystroke. Focusing from in here therefore re-ran select() after each letter, so the
+     * next one replaced what was highlighted and the box never held more than one character.
+     * Whatever the box should do when it opens is driven by opening it, below.
+     */
+    function bindPurchaseOrderInput(element){
+        purchaseOrderInput = element;
+    }
+
+    function savePurchaseOrder(row){
+        const orderId = row.formOrderUpdate.order_id;
+        //An emptied box clears the number rather than storing a blank one
+        const value = purchaseOrderDraft.value.trim() || null;
+
+        formOrderUpdate.order_id = orderId;
+        formOrderUpdate.purchase_order_number = value;
+        savingPurchaseOrderId.value = orderId;
+
+        formOrderUpdate.put(route("orders.update",orderId), {
             preserveScroll: true,
+            onFinish: () => {
+                if(savingPurchaseOrderId.value === orderId){
+                    savingPurchaseOrderId.value = null;
+                }
+            },
             onSuccess: () => {
-                //Close all inputs
-                showInputs.value = setupShowInputs();
-
-                //Clear current input selection
-                currentInputEditRow.value = null;
+                /*
+                 * Only close the editor if it is still this row's. Opening another row saves this one
+                 * on the way past, and that response must not close the box just opened.
+                 */
+                if(editingPurchaseOrderId.value === orderId){
+                    closePurchaseOrder();
+                }
 
                 emit('refresh');
             },
@@ -215,10 +352,15 @@
     }
 
     //Watchers
-    //Each fetch brings a fresh set of rows, so the open/closed map has to be rebuilt against them
+    /*
+     * Each fetch brings a fresh set of rows. The open editor is addressed by order id and the rows
+     * are looked up through that, so it survives a refresh - but an order that has gone from the
+     * batch takes its editor with it rather than leaving a box attached to nothing.
+     */
     watch(() => props.quotesData, () => {
-        showInputs.value = setupShowInputs();
-        currentInputEditRow.value = null;
+        if(editingPurchaseOrderId.value && !rowForOrderId(editingPurchaseOrderId.value)){
+            closePurchaseOrder();
+        }
     }, {immediate: true});
 </script>
 
@@ -343,7 +485,7 @@
                                 Delivered
                             </div>
                             <div>
-                                Material Certs
+                                Material certs
                             </div>
                         </div>
                         <!-- rows -->
@@ -380,53 +522,103 @@
                             </div>
                             <!-- Sent order -->
                             <div class="pt-1">
-                                <!-- formOrderUpdate -->
-                                <template v-if="!showAddPurchaseOrder(row.formOrderUpdate.order_id)">
-                                    <input
-                                        v-if="row.info.order_sent"
-                                        @click="undoOrderSent(row)"
-                                        :disabled="row.info.is_delivered"
-                                        :title="row.info.is_delivered
-                                            ? 'This order has been delivered - it cannot be un-sent'
-                                            : 'Undo - this order has not been placed after all'"
-                                        :class="row.info.is_delivered ? 'cursor-not-allowed text-gray-500' : ''"
-                                        type="checkbox"
-                                        checked
-                                    />
-                                    <input
-                                        v-else
-                                        @click.prevent="projectManagersApprovalBeforeOrderSent(row)"
-                                        title="Mark this supplier's order as placed, for every project on this batch"
-                                        type="checkbox"
-                                    />
+                                <!--
+                                    The checkbox is outside the editor, not swapped out for it. It
+                                    used to vanish the moment you opened the PO box, so the one thing
+                                    the column is there to report - whether this order has been
+                                    placed - was unreadable exactly while you were working on the row.
+                                -->
+                                <input
+                                    v-if="row.info.order_sent"
+                                    @click="undoOrderSent(row)"
+                                    :disabled="row.info.is_delivered"
+                                    :title="row.info.is_delivered
+                                        ? 'This order has been delivered - it cannot be un-sent'
+                                        : 'Undo - this order has not been placed after all'"
+                                    :class="row.info.is_delivered ? 'cursor-not-allowed text-gray-500' : ''"
+                                    type="checkbox"
+                                    checked
+                                />
+                                <input
+                                    v-else
+                                    @click.prevent="projectManagersApprovalBeforeOrderSent(row)"
+                                    title="Mark this supplier's order as placed, for every project on this batch"
+                                    type="checkbox"
+                                />
 
+                                <!-- PO number -->
+                                <div v-if="row.info.order_sent" class="mt-1">
+                                    <template v-if="editingPurchaseOrder(row.formOrderUpdate.order_id)">
+                                        <label :for="'po-' + row.formOrderUpdate.order_id" class="sr-only">
+                                            Purchase order number
+                                        </label>
+                                        <input
+                                            :id="'po-' + row.formOrderUpdate.order_id"
+                                            :ref="bindPurchaseOrderInput"
+                                            v-model="purchaseOrderDraft"
+                                            type="text"
+                                            maxlength="60"
+                                            placeholder="PO number"
+                                            class="w-full rounded border-gray-300 px-1.5 py-1 text-xs placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
+                                            @keyup.enter="purchaseOrderChanged && savePurchaseOrder(row)"
+                                            @keyup.esc="closePurchaseOrder()"
+                                        />
+                                        <div class="mt-1 flex justify-center gap-x-2">
+                                            <span
+                                                v-if="savingPurchaseOrderId === row.formOrderUpdate.order_id"
+                                                class="text-xs font-bold text-green-600"
+                                            >
+                                                Saving...
+                                            </span>
+                                            <template v-else>
+                                                <button
+                                                    type="button"
+                                                    @click="savePurchaseOrder(row)"
+                                                    :disabled="!purchaseOrderChanged"
+                                                    class="text-xs font-bold underline text-green-600 disabled:cursor-not-allowed disabled:text-gray-400 disabled:no-underline"
+                                                    :title="purchaseOrderChanged
+                                                        ? 'Save this PO number'
+                                                        : 'Nothing to save - the number has not changed'"
+                                                >
+                                                    Save
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    @click="closePurchaseOrder()"
+                                                    class="text-xs underline text-gray-500 hover:text-gray-700"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </template>
+
+                                    <!--
+                                        The number itself, not just an invitation to go and look at
+                                        it. "Edit PO number" said one had been recorded but never
+                                        which, so checking a PO against a supplier's invoice meant
+                                        opening the editor on every row in turn.
+                                    -->
                                     <button
-                                        v-if="row.info.order_sent"
-                                        @click="toggleShowInput(row,'add_purchase_order')"
-                                        class="text-xs underline text-blue-500"
+                                        v-else
+                                        type="button"
+                                        @click="openPurchaseOrder(row)"
+                                        :title="row.formOrderUpdate.purchase_order_number
+                                            ? 'PO ' + row.formOrderUpdate.purchase_order_number + ' - click to edit'
+                                            : 'Record the purchase order number for this supplier'"
+                                        class="mx-auto flex max-w-full items-center gap-1 rounded px-1.5 py-0.5 text-xs hover:bg-gray-100"
+                                        :class="row.formOrderUpdate.purchase_order_number ? 'text-gray-700' : 'text-blue-600 underline'"
                                     >
-                                        {{row.formOrderUpdate.purchase_order_number ? 'Edit PO number' :'Add PO number'}}
-                                    </button>
-                                </template>
-
-                                <div v-if="showAddPurchaseOrder(row.formOrderUpdate.order_id)">
-                                    <input
-                                        v-model="row.formOrderUpdate.purchase_order_number"
-                                        required
-                                        type="text"
-                                        class="w-full text-sm rounded"
-                                        style="width:90px"
-                                        minlength="1"
-                                    />
-                                    <div class="flex gap-x-1 justify-center">
-                                        <template v-if="formOrderUpdate.processing">
-                                            <span class="text-xs text-green-500 font-bold">Saving...</span>
+                                        <template v-if="row.formOrderUpdate.purchase_order_number">
+                                            <span class="flex-none text-[10px] uppercase tracking-wide text-gray-400">PO</span>
+                                            <span class="truncate">
+                                                {{ row.formOrderUpdate.purchase_order_number }}
+                                            </span>
                                         </template>
                                         <template v-else>
-                                            <button @click="updateOrder(row)" class="text-xs underline text-green-500 font-bold">Save</button>
-                                            <button @click="hideInput()" class="text-xs underline">Cancel</button>
+                                            Add PO number
                                         </template>
-                                    </div>
+                                    </button>
                                 </div>
                             </div>
                             <!-- delivered -->
@@ -443,37 +635,26 @@
                                     :class="row.info.is_delivered ? 'cursor-not-allowed text-gray-500' : ''"
                                 />
                             </div>
-                            <!-- Certs -->
-                            <div class="col-span-1 pt-2">
-                                <div v-if="row.info.is_delivered" class="italic text-sm">
-                                    <div v-if="showCertNumbers(row.formOrderUpdate.order_id)">
-                                        <input
-                                            v-model="row.formOrderUpdate.material_cert_numbers"
-                                            required
-                                            type="text"
-                                            class="w-full text-sm rounded"
-                                            style="width:90px"
-                                            minlength="1"
-                                        />
-                                        <div class="flex gap-x-1 justify-center">
-                                            <template v-if="formOrderUpdate.processing">
-                                                <span class="text-xs text-green-500 font-bold">Saving...</span>
-                                            </template>
-                                            <template v-else>
-                                                <button @click="updateOrder(row)" class="text-xs underline text-green-500 font-bold">Save</button>
-                                                <button @click="hideInput()" class="text-xs underline">Cancel</button>
-                                            </template>
-                                        </div>
-                                    </div>
-                                    <div v-else>
-                                        <p
-                                            class="text-blue-500 underline text-xs"
-                                            @click="toggleShowInput(row,'material_cert_numbers')"
-                                        >
-                                            {{row.formOrderUpdate.material_cert_numbers ?? 'Add certs'}}
-                                        </p>
-                                    </div>
-                                </div>
+                            <!--
+                                Certs. A summary that opens the panel where the work happens - this
+                                cell is a seventh of an 850px modal, which was room for one text box
+                                and no room at all to say what belongs in it.
+                            -->
+                            <div class="col-span-1 pt-1">
+                                <button
+                                    v-if="row.info.is_delivered"
+                                    type="button"
+                                    @click="openCerts(row)"
+                                    :title="certsTitle(row)"
+                                    class="mx-auto flex max-w-full items-center gap-1 rounded px-1.5 py-1 text-xs hover:bg-gray-100"
+                                    :class="hasCerts(row) ? 'text-gray-700' : 'text-blue-600 underline'"
+                                >
+                                    <i
+                                        v-if="certFileCount(row) > 0"
+                                        class="fa-solid fa-paperclip flex-none text-[10px] text-gray-400"
+                                    ></i>
+                                    <span class="truncate">{{ certsSummary(row) }}</span>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -499,6 +680,18 @@
             </div>
         </div>
     </Modal>
+
+    <!--
+        Opens on top of this modal rather than replacing the cell's contents. Modal.vue stacks and
+        makes whatever is underneath inert, so the row behind stays readable without being clickable.
+    -->
+    <MaterialCertificatesModal
+        :show="showCertsModal && !!certsRow"
+        :row="certsRow"
+        :supplierName="certsSupplierName"
+        @closeModal="closeCerts()"
+        @refresh="$emit('refresh')"
+    />
 
     <ConfirmModal
         v-if="confirmDialog"

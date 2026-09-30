@@ -48,6 +48,39 @@ export default {
     capitalizeWords(input) {
         return input.replace(/\b\w/g, char => char.toUpperCase());
     },
+    supplierGroupLabel(supplierGroup) {
+        /**
+         * A supplier group reaches the front end as its enum name - STEEL_MERCHANT - which is the
+         * key everything else is stored and posted under, so it stays as it is. This is purely how
+         * it gets read: "Steel merchant", in the sentence case the rest of the app labels in.
+         */
+        if(!supplierGroup){
+            return "";
+        }
+
+        let words = supplierGroup.replace(/_/g, " ").trim().toLowerCase();
+
+        return words.charAt(0).toUpperCase() + words.slice(1);
+    },
+    certificateDetail(certificate) {
+        /**
+         * One entry of a certificate trail as a line of text.
+         *
+         * Both trails - the new stock a batch bought, and the ancestry behind a reused offcut -
+         * arrive in the same shape from Batch: a written reference, attached certificate files, or
+         * both. Either on its own is a complete answer, so an order certified only by an attached
+         * PDF has to read as certified here rather than as a supplier name against nothing.
+         */
+        const parts = [];
+
+        if(certificate?.material_cert_numbers){
+            parts.push(certificate.material_cert_numbers);
+        }
+
+        (certificate?.material_cert_files ?? []).forEach(file => parts.push(file.filename));
+
+        return parts.join(", ");
+    },
     cropText(text, maxLength = 25) {
         if (text.length > maxLength) {
             return text.substring(0, maxLength) + "..";

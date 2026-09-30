@@ -126,6 +126,21 @@ class OrderController extends Controller
             "material_cert_numbers" => ['nullable'],
         ]);
 
+        /*
+         * An emptied box means there is nothing recorded, not that a blank has been recorded.
+         *
+         * It matters most for the certs: Order::scopeHasMaterialCerts asks whether that column is
+         * null, so a "" saved here would have read as certified - the board would drop its
+         * missing-certs warning and the print spec would list a supplier against nothing. The PO
+         * number gets the same treatment so that clearing one is possible at all, and so that no
+         * screen has to tell a blank apart from an absence.
+         */
+        foreach (['material_cert_numbers', 'purchase_order_number'] as $field) {
+            if (array_key_exists($field, $validated)) {
+                $validated[$field] = trim((string) $validated[$field]) ?: null;
+            }
+        }
+
         $order->update($validated);
 
         return back();

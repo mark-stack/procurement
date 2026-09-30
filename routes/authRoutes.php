@@ -8,11 +8,13 @@ use App\Http\Controllers\BillingInvoiceController;
 use App\Http\Controllers\BillingPortalController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DownloadBomController;
+use App\Http\Controllers\DownloadMaterialCertificateController;
 use App\Http\Controllers\DownloadNesting;
 use App\Http\Controllers\DownloadQuotesDataController;
 use App\Http\Controllers\DownloadUsageController;
 use App\Http\Controllers\MarkAsPastProjectController;
 use App\Http\Controllers\MarkNotificationStatusController;
+use App\Http\Controllers\MaterialCertificateController;
 use App\Http\Controllers\OffcutController;
 use App\Http\Controllers\OffcutRemoveController;
 use App\Http\Controllers\OffcutRestoreController;
@@ -177,6 +179,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('order-undo-sent/{order}', OrderUndoSentController::class)->name('order.undo.sent');
 
         Route::post("order-mark-delivered/{order}", OrderMarkDeliveredController::class)->name("order.mark.delivered");
+
+        /*
+         * Material certificates - the file half of them. The written reference is a column on the
+         * order and is saved through orders.update with everything else.
+         */
+        Route::post('orders/{order}/material-certificates', [MaterialCertificateController::class, 'store'])
+            ->name('material.certificates.store');
+        Route::delete('material-certificates/{materialCertificate}', [MaterialCertificateController::class, 'destroy'])
+            ->name('material.certificates.destroy');
+        Route::get('material-certificates/{materialCertificate}/download', DownloadMaterialCertificateController::class)
+            ->name('material.certificates.download');
 
         //Suggested Nesting
         Route::get('suggested-nesting', SuggestedNestingController::class)->name('suggested.nesting');
