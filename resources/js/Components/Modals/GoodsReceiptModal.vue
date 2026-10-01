@@ -134,7 +134,7 @@
         <!-- header -->
         <div class="px-5 pb-3 pt-2">
             <h3 id="goods-receipt-title" class="text-xl font-medium leading-6 text-gray-900">
-                {{ receipt.received ? 'Goods receipt' : 'Book this delivery in' }}
+                {{ receipt.received ? 'Goods receipt' : 'Record of delivery' }}
             </h3>
             <p class="mt-1 text-sm text-gray-500">
                 {{ supplierName }}
@@ -403,7 +403,7 @@
                 :disabled="form.processing || contradicts"
                 class="mt-3 inline-flex w-full justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-300 sm:ml-3 sm:mt-0 sm:w-auto sm:text-sm"
             >
-                {{ form.processing ? 'Booking in...' : 'Book in' }}
+                {{ form.processing ? 'Saving...' : 'Save' }}
             </button>
             <button
                 type="button"
