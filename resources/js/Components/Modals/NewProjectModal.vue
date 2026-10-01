@@ -48,6 +48,12 @@
         name: "",
         reference: null,
         date_materials_required: null,
+        /*
+         * When the shop starts fabricating. Required on the way in - see StoreProjectRequest, which
+         * is where it is actually enforced - because it is the fixed point the materials have to beat,
+         * and the one date the project manager knows on the day the BOM arrives.
+         */
+        date_fabrication_begins: null,
         tentative: false,
         excel: [],
         /*
@@ -121,7 +127,8 @@
      * stops the grid reserving a gap-6 row for each error it then hides.
      */
     const otherEditErrors = computed(() => Object.entries(formProjectCreate.errors)
-        .filter(([key]) => key !== 'name')
+        //The fields the edit form draws report under their own inputs, so they are not "other"
+        .filter(([key]) => key !== 'name' && key !== 'date_fabrication_begins')
         .map(([, message]) => message));
 
     const editSaveDisabled = computed(() =>
@@ -157,6 +164,7 @@
         || freezeView.value
         || formProjectCreate.excel.length === 0
         || projectName.value === ""
+        || !formProjectCreate.date_fabrication_begins
         || tooManyFiles.value
         || oversizedFiles.value.length > 0
     );
@@ -170,6 +178,9 @@
         }
         if(projectName.value === ""){
             return "Enter a project name to continue.";
+        }
+        if(!formProjectCreate.date_fabrication_begins){
+            return "Tell us when fabrication begins to continue.";
         }
         if(formProjectCreate.excel.length === 0){
             return "Attach at least one Excel material list to continue.";
@@ -292,6 +303,8 @@
         //Populate form
         formProjectCreate.name = props.editProject.name;
         formProjectCreate.date_materials_required = props.editProject.date_materials_required;
+        //Already trimmed to Y-m-d by ProjectResource - a date input shows nothing for anything else
+        formProjectCreate.date_fabrication_begins = props.editProject.date_fabrication_begins;
         formProjectCreate.reference = props.editProject.reference;
         formProjectCreate.tentative = props.editProject.tentative;
     }
@@ -536,6 +549,29 @@
                                     </p>
                                 </div>
 
+                                <!--
+                                    When fabrication begins.
+
+                                    Shown here as well as on the way in, because a date that is
+                                    required and then unchangeable is a typo nobody can fix. Not
+                                    "required" on this form: projects created before the question was
+                                    asked carry no date, and the owner must still be able to rename one
+                                    without being made to invent a fabrication date for it.
+                                -->
+                                <div>
+                                    <label for="edit-project-fabrication-date" class="text-gray-700 dark:text-gray-200 ml-1">When does fabrication begin?</label>
+                                    <input
+                                        id="edit-project-fabrication-date"
+                                        v-model="formProjectCreate.date_fabrication_begins"
+                                        type="date"
+                                        class="w-full px-4 py-2 text-gray-700 bg-white border rounded-md dark:bg-gray-900 dark:text-gray-300 dark:border-gray-600 focus:border-blue-400 dark:focus:border-blue-300 focus:outline-none focus:ring focus:ring-blue-300 focus:ring-opacity-40"
+                                        :disabled="formProjectCreate.processing || freezeView"
+                                    >
+                                    <div v-if="formProjectCreate.errors.date_fabrication_begins" class="text-sm text-red-500">
+                                        {{ formProjectCreate.errors.date_fabrication_begins }}
+                                    </div>
+                                </div>
+
                                 <!-- submit button -->
                                 <div>
                                     <button
@@ -628,6 +664,34 @@
                                     </p>
                                     <div v-if="formProjectCreate.errors.project_manager_id" class="text-sm text-red-500">
                                         {{ formProjectCreate.errors.project_manager_id }}
+                                    </div>
+                                </div>
+
+                                <!--
+                                    When fabrication begins.
+
+                                    Required, unlike every other date this app has ever asked for. The
+                                    materials have to be quoted, ordered and delivered before the first
+                                    cut, so this is what the whole critical path is measured back from -
+                                    and it is the one date the project manager can answer on the day
+                                    the material list arrives.
+                                -->
+                                <div>
+                                    <label for="new-project-fabrication-date" class="text-gray-700 dark:text-gray-200 ml-1">When does fabrication begin? *</label>
+                                    <input
+                                        id="new-project-fabrication-date"
+                                        v-model="formProjectCreate.date_fabrication_begins"
+                                        type="date"
+                                        class="w-full px-4 py-2 text-gray-700 bg-white border rounded-md dark:bg-gray-900 dark:text-gray-300 dark:border-gray-600 focus:border-blue-400 dark:focus:border-blue-300 focus:outline-none focus:ring focus:ring-blue-300 focus:ring-opacity-40"
+                                        required
+                                        :disabled="formProjectCreate.processing || freezeView"
+                                    >
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        The day the job hits the shop floor. Quoting and delivery are
+                                        planned backwards from it.
+                                    </p>
+                                    <div v-if="formProjectCreate.errors.date_fabrication_begins" class="text-sm text-red-500">
+                                        {{ formProjectCreate.errors.date_fabrication_begins }}
                                     </div>
                                 </div>
 

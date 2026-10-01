@@ -49,6 +49,12 @@
         name: '',
         reference: null,
         date_materials_required: null,
+        /*
+         * When the shop starts fabricating. The one required date - see StoreProjectRequest, which is
+         * where it is enforced - because the materials have to be quoted, ordered and delivered before
+         * the first cut, and it is the one date the manager knows when the material list arrives.
+         */
+        date_fabrication_begins: null,
         tentative: false,
         excel: [],
         /*
@@ -164,6 +170,7 @@
 
         if (mode.value === 'new') {
             return projectName.value === ''
+                || !formNewProject.date_fabrication_begins
                 || formNewProject.excel.length === 0
                 || tooManyFiles.value
                 || oversizedNewFiles.value.length > 0;
@@ -189,6 +196,9 @@
         if (mode.value === 'new') {
             if (projectName.value === '') {
                 return 'Enter a project name to continue.';
+            }
+            if (!formNewProject.date_fabrication_begins) {
+                return 'Tell us when fabrication begins to continue.';
             }
             if (formNewProject.excel.length === 0) {
                 return 'Attach at least one Excel material list to continue.';
@@ -551,6 +561,36 @@
                             </p>
                             <div v-if="formNewProject.errors.project_manager_id" class="text-sm text-red-500">
                                 {{ formNewProject.errors.project_manager_id }}
+                            </div>
+                        </div>
+
+                        <!--
+                            When fabrication begins.
+
+                            The one date this form asks for, and the only required one. The materials
+                            have to be quoted, ordered and delivered before the first cut, so this is
+                            what the critical path is measured back from - and unlike the materials
+                            date, it is something the project manager actually knows on the day the
+                            material list arrives.
+                        -->
+                        <div>
+                            <label for="new-project-fabrication-date" class="ml-1 text-gray-700 dark:text-gray-200">
+                                When does fabrication begin? *
+                            </label>
+                            <input
+                                id="new-project-fabrication-date"
+                                v-model="formNewProject.date_fabrication_begins"
+                                type="date"
+                                class="w-full px-4 py-2 text-gray-700 bg-white border rounded-md dark:bg-gray-900 dark:text-gray-300 dark:border-gray-600 focus:border-blue-400 dark:focus:border-blue-300 focus:outline-none focus:ring focus:ring-blue-300 focus:ring-opacity-40"
+                                required
+                                :disabled="formNewProject.processing"
+                            >
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                The day the job hits the shop floor. Quoting and delivery are planned
+                                backwards from it.
+                            </p>
+                            <div v-if="formNewProject.errors.date_fabrication_begins" class="text-sm text-red-500">
+                                {{ formNewProject.errors.date_fabrication_begins }}
                             </div>
                         </div>
 

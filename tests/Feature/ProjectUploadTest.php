@@ -8,6 +8,7 @@ use App\Services\CsvService;
 use App\Services\DataClassificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -35,6 +36,7 @@ function uploadExampleMaterialList($test, $user, string $projectName = 'Example 
             'name' => $projectName,
             'reference' => null,
             'date_materials_required' => null,
+            'date_fabrication_begins' => now()->addMonth()->toDateString(),
             'tentative' => false,
             'project_manager_id' => $projectManagerId,
             'excel' => [$file],
@@ -52,6 +54,7 @@ function postMaterialLists($test, $user, array $files)
             'name' => 'Example project',
             'reference' => null,
             'date_materials_required' => null,
+            'date_fabrication_begins' => now()->addMonth()->toDateString(),
             'tentative' => false,
             'excel' => $files,
         ]);
@@ -129,12 +132,14 @@ it('would be a disaster if a new project could be named anything at all', functi
 
     $this->actingAs($user)->from('/dashboard')->post(route('projects.store'), [
         'name' => str_repeat('A', Project::MAX_NAME_CHARACTERS + 1),
+        'date_fabrication_begins' => now()->addMonth()->toDateString(),
         'tentative' => false,
         'excel' => [$file()],
     ])->assertInvalid('name');
 
     $this->actingAs($user)->from('/dashboard')->post(route('projects.store'), [
         'name' => '     ',
+        'date_fabrication_begins' => now()->addMonth()->toDateString(),
         'tentative' => false,
         'excel' => [$file()],
     ])->assertInvalid('name');
@@ -142,6 +147,7 @@ it('would be a disaster if a new project could be named anything at all', functi
     $this->actingAs($user)->from('/dashboard')->post(route('projects.store'), [
         'name' => 'Fine name',
         'reference' => ['an', 'array'],
+        'date_fabrication_begins' => now()->addMonth()->toDateString(),
         'tentative' => false,
         'excel' => [$file()],
     ])->assertInvalid('reference');
@@ -163,6 +169,7 @@ it('would be a disaster if a padded name slipped past the duplicate check', func
 
     $this->actingAs($user)->from('/dashboard')->post(route('projects.store'), [
         'name' => '  Tower A  ',
+        'date_fabrication_begins' => now()->addMonth()->toDateString(),
         'tentative' => false,
         'excel' => [UploadedFile::fake()->create(
             'list.xlsx',
@@ -172,6 +179,112 @@ it('would be a disaster if a padded name slipped past the duplicate check', func
     ])->assertInvalid('name');
 
     expect(Project::count())->toBe(1);
+});
+
+it('would be a disaster if a project were created without saying when fabrication begins', function () {
+    /*
+     * The one date a project may not be created without. Everything the app then does for the job -
+     * quoting, ordering, delivery - has to finish before the first cut, and the date it is all
+     * measured back from used to be date_materials_required: nullable, never asked for by either
+     * upload form, and flagged "tentative" because nobody knows it when the material list arrives.
+     *
+     * Required in the request rather than in the browser only, because both upload forms post at this
+     * one route and a missing date has to be refused before a project is created and a spreadsheet
+     * parsed into it.
+     */
+    $business = createBusiness('gmail');
+    $user = createUser(1, $business, false, true);
+
+    $file = fn () => UploadedFile::fake()->create(
+        'list.xlsx',
+        10,
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+
+    //Missing altogether
+    $this->actingAs($user)->from('/dashboard')->post(route('projects.store'), [
+        'name' => 'No fabrication date',
+        'tentative' => false,
+        'excel' => [$file()],
+    ])->assertInvalid('date_fabrication_begins');
+
+    //Present and not a date
+    $this->actingAs($user)->from('/dashboard')->post(route('projects.store'), [
+        'name' => 'No fabrication date',
+        'date_fabrication_begins' => 'next thursday-ish',
+        'tentative' => false,
+        'excel' => [$file()],
+    ])->assertInvalid('date_fabrication_begins');
+
+    expect(Project::count())->toBe(0);
+});
+
+it('would be a disaster if the fabrication date were asked for and then not kept', function () {
+    /*
+     * A required field whose answer is thrown away is worse than no field at all - the project
+     * manager is made to answer, the board shows nothing, and nothing downstream can plan from it.
+     *
+     * Deliberately a date already past. Fabrication start is a fact about the job, not a deadline
+     * being set, and material lists genuinely arrive for jobs already on the floor - a late change, a
+     * line that was missed, a project put on the board after it started. "after:today" here would
+     * refuse those uploads outright, with the file attached and nothing to do but lie about the date.
+     */
+    $business = createBusiness('gmail');
+    recordExampleTemplates($business);
+
+    $user = createUser(1, $business, true, true);
+
+    $this->actingAs($user);
+    seedMasterMaterials();
+
+    $file = new UploadedFile(
+        base_path('public/examples/material_list.xlsx'),
+        'material_list.xlsx',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        null,
+        true
+    );
+
+    $begins = now()->subWeek()->toDateString();
+
+    $this->from('/dashboard')->post(route('projects.store'), [
+        'name' => 'Already in the shop',
+        'date_fabrication_begins' => $begins,
+        'tentative' => false,
+        'excel' => [$file],
+    ]);
+
+    $project = Project::firstWhere('name', 'Already in the shop');
+
+    expect($project)->not->toBeNull()
+        ->and(Carbon::parse($project->date_fabrication_begins)->toDateString())->toBe($begins)
+        ->and($project->rawMaterialQuotes()->count())->toBeGreaterThan(0);
+});
+
+it('would be a disaster if a mistyped fabrication date could never be corrected', function () {
+    /*
+     * The edit modal is the only way back. It posts every field it holds, so the rule has to accept
+     * this one - and accept it as nullable, because the projects created before anybody was asked
+     * carry no date at all and renaming one of those must not be blocked until a date is invented for
+     * it. See the migration that adds the column.
+     */
+    $business = createBusiness('gmail');
+    $user = createUser(1, $business, false, true);
+
+    $project = createProject($user);
+
+    $this->actingAs($user)
+        ->from('/dashboard')
+        ->put(route('projects.update', $project->id), [
+            'name' => $project->name,
+            'reference' => $project->reference,
+            'date_materials_required' => $project->date_materials_required,
+            'date_fabrication_begins' => now()->addMonths(2)->toDateString(),
+        ])
+        ->assertValid();
+
+    expect(Carbon::parse($project->fresh()->date_fabrication_begins)->toDateString())
+        ->toBe(now()->addMonths(2)->toDateString());
 });
 
 it('would be a disaster if uploading a material list extracted nothing', function () {
@@ -288,6 +401,7 @@ it('would be a disaster if one unreadable cell threw away the rest of the file',
         'name' => 'Unreadable length',
         'reference' => null,
         'date_materials_required' => null,
+        'date_fabrication_begins' => now()->addMonth()->toDateString(),
         'tentative' => false,
         'excel' => [materialListWithUnreadableLength()],
     ]);

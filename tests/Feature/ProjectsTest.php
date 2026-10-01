@@ -262,6 +262,7 @@ it('would be a disaster if user could create projects before email verification'
         ->from('/dashboard')
         ->post(route('projects.store'), [
             'name' => 'Too early',
+            'date_fabrication_begins' => now()->addMonth()->toDateString(),
             'tentative' => false,
             'excel' => [],
         ])
@@ -290,6 +291,7 @@ it('would be a disaster if a business with no templates yet were turned away at 
     $this->actingAs($user)
         ->post(route('projects.store'), [
             'name' => 'First one',
+            'date_fabrication_begins' => now()->addMonth()->toDateString(),
             'tentative' => false,
             'excel' => [],
         ])

@@ -87,6 +87,18 @@ class StoreProjectRequest extends FormRequest
                 Rule::exists('users', 'id')->where('business_id', $business->id),
             ],
             'date_materials_required' => 'nullable|date|after:today',
+            /*
+             * When the shop starts fabricating - the one date asked for, and the only one required.
+             *
+             * No "after:today", deliberately. Every other date rule here is about a deadline being
+             * worth setting; this one is a fact about the job, and a material list often arrives for
+             * a job already on the floor (a late change, a line that was missed, a project being put
+             * on the board after it started). Refusing those would refuse the upload itself, with
+             * the file attached and nothing the user can do about it but lie about the date. See the
+             * same lesson in UpdateProjectRequest, where "after:today" on the materials date made
+             * older projects impossible to rename.
+             */
+            'date_fabrication_begins' => ['required', 'date'],
             'tentative' => 'required|boolean',
             'excel' => ['required', 'array', 'min:1', 'max:'.self::MAX_FILES],
             /*
@@ -108,6 +120,7 @@ class StoreProjectRequest extends FormRequest
     {
         return [
             'name.not_in' => 'Pick a name different to your other projects - archived ones are free to reuse',
+            'date_fabrication_begins.required' => 'Tell us when fabrication begins - the materials have to be quoted, ordered and delivered before then.',
             'project_manager_id.exists' => 'Pick a project manager from your own company.',
             'excel.max' => 'Maximum '.self::MAX_FILES.' BOM files can be uploaded.',
             'excel.*.mimes' => 'Each material list must be an Excel file (.xls or .xlsx).',
@@ -120,6 +133,8 @@ class StoreProjectRequest extends FormRequest
         return [
             'excel' => 'material lists',
             'excel.*' => 'material list',
+            //Otherwise a bad date reads as "The date fabrication begins is not a valid date"
+            'date_fabrication_begins' => 'fabrication start date',
         ];
     }
 }

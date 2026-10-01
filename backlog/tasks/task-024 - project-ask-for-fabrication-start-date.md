@@ -1,12 +1,13 @@
 ---
 id: TASK-024
 title: 'project: ask for fabrication start date'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-01 10:36'
+updated_date: '2026-10-01 13:11'
 labels: []
 dependencies: []
-ordinal: 6500
+ordinal: 20000
 ---
 
 ## Description
