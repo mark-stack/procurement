@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\RecordsChanges;
 use App\Services\CellReference;
 use Database\Factories\TemplateFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -44,7 +45,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Template extends Model
 {
     /** @use HasFactory<TemplateFactory> */
-    use HasFactory;
+    use HasFactory, RecordsChanges;
 
     protected $guarded = [];
 
@@ -69,6 +70,21 @@ class Template extends Model
             'expected_heading_labels' => 'array',
             'compound_description_cells' => 'array',
         ];
+    }
+
+    /**
+     * The screenshot stays out of the change log.
+     *
+     * It is a data URI of a whole spreadsheet in a longText column, so recording it would put a
+     * megabyte of base64 in every row of a table whose job is to be readable - twice over on an
+     * update, since each entry holds the before and the after. It is also the one column on this
+     * model that changes nothing about what the importer reads, which is what the log is here for.
+     *
+     * @return list<string>
+     */
+    protected function changeLogExcept(): array
+    {
+        return ['screenshot'];
     }
 
     //Relationships

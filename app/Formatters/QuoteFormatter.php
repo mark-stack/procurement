@@ -3,6 +3,8 @@
 namespace App\Formatters;
 
 use App\Actions\Piece\AttachPiecesToQuote;
+use App\Enums\GoodsReceiptNonconformanceEnums;
+use App\Models\Bar;
 use App\Models\Batch;
 use App\Models\Business;
 use App\Models\Order;
@@ -181,6 +183,11 @@ class QuoteFormatter
                         'formDelivered' => [
                             'order_id' => $order->id,
                         ],
+                        /*
+                         * The goods receipt: what the gate recorded, and - for an order that has been
+                         * placed but not yet booked in - the bars whose heat numbers it can record.
+                         */
+                        'goodsReceipt' => $this->goodsReceiptState($order),
                     ];
                 }
 
@@ -222,9 +229,87 @@ class QuoteFormatter
                 'totalOrdersQty' => $batchService->totalOrdersQty($batch),
                 'sentOrdersQty' => $batch->orders()->where('order_sent', true)->count(),
                 "deliveredQty" => $batch->orders()->where('is_delivered', true)->count(),
+                /*
+                 * Deliveries with no receipt behind them.
+                 *
+                 * Every order marked delivered before the receipt columns existed is one of these, and
+                 * so is any booked in by a route that skipped the form. Counted and shown rather than
+                 * left to be discovered: an auditor asking "show me the goods receipt for this order"
+                 * and being told the column is simply null is the worst moment to find out.
+                 */
+                'deliveredWithoutReceiptQty' => $batch->orders()
+                    ->where('is_delivered', true)
+                    ->whereNull('received_at')
+                    ->count(),
                 'projectManagerApprovalMessage' => $batchService->projectManagerApprovalMessage($batch),
+                /*
+                 * Sent once for the whole modal rather than on every row - the reasons are the same
+                 * seven whichever delivery is being booked in.
+                 */
+                'receiptNonconformanceOptions' => GoodsReceiptNonconformanceEnums::options(),
             ],
             'supplierGroupCards' => $supplierGroupCards,
         ];
+    }
+
+    /**
+     * What this order's goods receipt says, and what it still needs.
+     *
+     * Three states, and the page draws a different thing for each: not sent (nothing to book in), sent
+     * and not received (the form, with this order's bars to put heat numbers against), and received
+     * (the record, read-only - a receipt is not a draft, so there is no edit).
+     *
+     * The bars are only read for an order that has been placed and not yet received, which is the only
+     * state the form is drawn in. One supplier group has at most one sent order, so this is at most one
+     * extra query per group rather than one per supplier row.
+     *
+     * @return array<string, mixed>
+     */
+    private function goodsReceiptState(Order $order): array
+    {
+        $received = $order->hasReceiptRecord();
+
+        $state = [
+            'order_id' => $order->id,
+            'canReceive' => $order->order_sent && ! $order->is_delivered,
+            'received' => $received,
+            //True, false, or null for "booked in, and nobody answered the checks"
+            'accepted' => $order->receiptAccepted(),
+            /*
+             * Delivered with no receipt behind it. The flag on its own is what this application
+             * recorded for years, so this is not an error state - it is an honest "arrived, unverified",
+             * and the page says so rather than drawing an empty receipt.
+             */
+            'deliveredWithoutReceipt' => $order->is_delivered && ! $received,
+            'bars' => [],
+        ];
+
+        if ($received) {
+            $state += [
+                'received_at' => $order->received_at?->toDateTimeString(),
+                'received_by' => $order->receivedBy?->name,
+                'docket_number' => $order->delivery_docket_number,
+                'quantity_verified' => $order->quantity_verified,
+                'grade_verified' => $order->grade_verified,
+                'nonconformance' => $order->receiptNonconformance()?->label(),
+                'note' => $order->receipt_note,
+            ];
+        }
+
+        if ($state['canReceive']) {
+            $state['bars'] = $order->bars()
+                ->orderBy('id')
+                ->get(['id', 'product_derived_label', 'length', 'heat_number'])
+                ->map(fn (Bar $bar) => [
+                    'id' => $bar->id,
+                    'label' => $bar->product_derived_label,
+                    'length' => $bar->length,
+                    'heat_number' => $bar->heat_number,
+                ])
+                ->values()
+                ->all();
+        }
+
+        return $state;
     }
 }

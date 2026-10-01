@@ -2095,6 +2095,17 @@ class NestingFormatter
                 'cutLength' => $cutLength,
                 'projectId' => $projectId,
                 'letter' => $lettersProjectArray[$projectId],
+                /*
+                 * Which piece row this cut is for. The offcut side of the nest has always carried it
+                 * (nestRequiredCutsIntoOffcuts puts piece_id on every cutData); new stock dropped it on
+                 * the floor, which is why a part cut from a bought bar could not be traced back to the
+                 * bar - and therefore not to the heat or the certificate.
+                 *
+                 * It is taken OUT again by consolidateStockNestingResults before the display shape is
+                 * built, because identical bars have to go on consolidating and no two cuts share a
+                 * piece id. The ids travel beside the display shape instead. See that method.
+                 */
+                'pieceId' => $cut['piece_id'] ?? null,
             ]],
             "offcut_id" => null //This gets carried over via serialisation, but before offcut ID is created
         ];
@@ -2168,6 +2179,8 @@ class NestingFormatter
             'cutLength' => $cutLength,
             'projectId' => $projectId,
             'letter' => $lettersProjectArray[$projectId],
+            //Carried for the same reason addNewStockBar carries it - see the note there
+            'pieceId' => $cut['piece_id'] ?? null,
         ];
 
         //Update 'unused' (remaining) and the kerf this bar has now given up
@@ -2269,28 +2282,67 @@ class NestingFormatter
         ];
     }
 
+    /**
+     * Group bars that are cut the same way, and keep each one's own piece ids beside the group.
+     *
+     * This list is unique stock length cuts. If two bars are identical except the project refs are
+     * different, they are treated as different.
+     *
+     * The piece ids are what makes this more than a serialize-and-count. Every cut carries one now, and
+     * no two cuts share it - so leaving the ids in the grouping key would make every bar unique, "3 ×
+     * 9000mm cut 2500|2500|2500|1500" would become three separate rows on every nesting screen, and the
+     * whole point of consolidating would be gone.
+     *
+     * So the ids come out of the shape that decides the grouping, and travel next to it as pieceIdSets:
+     * one entry per identical bar, in the order those bars were packed, each listing the piece ids on
+     * that bar in cut order. "result" is then byte-for-byte what this method has always returned, which
+     * is what every screen, formatter and print spec downstream reads; CreateBarsAndOffcuts reads
+     * pieceIdSets as it walks "count", so the i-th bar it writes gets the i-th bar's cuts.
+     *
+     * @param  array<int, array<string, mixed>>  $utilisedBars
+     * @return array<int, array{count: int, result: array<string, mixed>, pieceIdSets: array<int, list<int|null>>}>
+     */
     public function consolidateStockNestingResults(array $utilisedBars): array
     {
-        /**
-         * This list is unique stock length cuts.
-         * If 2 items area identical except the project refs are different, they'll be treated as different.
-         */
-        // Step 1: Serialize each array
-        $serialized = array_map('serialize', $utilisedBars);
+        $grouped = [];
 
-        // Step 2: Count occurrences
-        $counted = array_count_values($serialized);
+        foreach ($utilisedBars as $utilisedBar) {
+            $cuts = is_array($utilisedBar['pieces'] ?? null) ? $utilisedBar['pieces'] : [];
 
-        // Step 3: Unserialize keys to get original arrays
-        $result = [];
-        foreach ($counted as $key => $count) {
-            $result[] = [
-                'count' => $count,
-                'result' => unserialize($key),
-            ];
+            //This bar's own piece ids, in the order its cuts were placed
+            $pieceIds = array_map(
+                fn ($cut) => isset($cut['pieceId']) ? (int) $cut['pieceId'] : null,
+                array_values($cuts),
+            );
+
+            /*
+             * The display shape: this bar with the ids stripped back out, so two bars cut identically
+             * serialize identically again.
+             */
+            $displayBar = $utilisedBar;
+            foreach (array_keys($cuts) as $index) {
+                unset($displayBar['pieces'][$index]['pieceId']);
+            }
+
+            /*
+             * Keyed on the serialized display shape. First-occurrence order, which is the order
+             * array_count_values gave before and the order the nesting screens are read in.
+             */
+            $key = serialize($displayBar);
+
+            if (! isset($grouped[$key])) {
+                $grouped[$key] = [
+                    'count' => 0,
+                    'result' => $displayBar,
+                    'pieceIdSets' => [],
+                ];
+            }
+
+            $grouped[$key]['count']++;
+            $grouped[$key]['pieceIdSets'][] = $pieceIds;
         }
 
-        return $result;
+        return array_values($grouped);
     }
 
     public function orderList(array $utilisedBars): array

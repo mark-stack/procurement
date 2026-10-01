@@ -7,6 +7,7 @@
     import Modal from "@/Layouts/Modal.vue";
     import ConfirmModal from "@/Components/Modals/ConfirmModal.vue";
     import MaterialCertificatesModal from "@/Components/Modals/MaterialCertificatesModal.vue";
+    import GoodsReceiptModal from "@/Components/Modals/GoodsReceiptModal.vue";
 
     //Shared Methods
     import shared from '@/Shared/shared';
@@ -44,7 +45,7 @@
     });
 
     const formUndoOrderSent = useForm({});
-    const formDelivered = useForm({});
+    //The delivery form lives in GoodsReceiptModal now - it has fields, so it needs its own state
 
     //Variables
     const emit = defineEmits(['closeModal','refresh']);
@@ -71,10 +72,18 @@
     const certsOrderId = ref(null);
     const showCertsModal = ref(false);
 
+    //Held by order id for the same reason the certs panel is - booking in re-fetches the batch
+    const receiptOrderId = ref(null);
+    const showReceiptModal = ref(false);
+
     const {confirmDialog, askToConfirm, confirmDialogAccepted, confirmDialogCancelled} = useConfirm();
 
     //Computed
     const certsRow = computed(() => rowForOrderId(certsOrderId.value));
+
+    const receiptRow = computed(() => rowForOrderId(receiptOrderId.value));
+
+    const receiptSupplierName = computed(() => receiptRow.value?.info?.supplier?.name ?? '');
 
     const editingPurchaseOrderRow = computed(() => rowForOrderId(editingPurchaseOrderId.value));
 
@@ -277,10 +286,63 @@
         formOrderUpdate.post(url, {preserveScroll: true, onSuccess: () => emit('refresh')});
     }
 
-    function deliveredCheckbox(row){
-        let url = route("order.mark.delivered",row.formDelivered.order_id);
+    /*
+     * Delivery used to be this, and nothing else:
+     *
+     *     formDelivered.post(route("order.mark.delivered", row.formDelivered.order_id))
+     *
+     * One empty POST that set one boolean. No date, nobody's name, no docket, and no way to say that
+     * what came off the truck was not what was ordered - so a yard that took 38 bars of GR250 against
+     * an order for 40 of GR300 had nowhere to record it, and the board went on reading the order as
+     * filled. The receipt panel asks those questions instead; see GoodsReceiptModal.
+     */
+    function openReceipt(row){
+        /*
+         * Save a PO number left open in the cell alongside, for the reason openCerts does: both write
+         * to the same order, and the panel's own post would otherwise carry the stale number with it.
+         */
+        if(purchaseOrderChanged.value && editingPurchaseOrderRow.value){
+            savePurchaseOrder(editingPurchaseOrderRow.value);
+        }
 
-        formDelivered.post(url, {preserveScroll: true, onSuccess: () => emit('refresh')});
+        receiptOrderId.value = row.formDelivered.order_id;
+        showReceiptModal.value = true;
+    }
+
+    function closeReceipt(){
+        showReceiptModal.value = false;
+        receiptOrderId.value = null;
+    }
+
+    /**
+     * What the delivery cell says, which is a different question from whether the steel arrived.
+     */
+    function receiptSummary(row){
+        const receipt = row.goodsReceipt;
+
+        if(receipt?.received){
+            return receipt.accepted === false ? 'Received, with a problem' : 'Received';
+        }
+
+        if(receipt?.deliveredWithoutReceipt){
+            return 'Arrived, unverified';
+        }
+
+        return 'Book in';
+    }
+
+    function receiptTitle(row){
+        const receipt = row.goodsReceipt;
+
+        if(receipt?.received){
+            return 'Open the goods receipt for this delivery';
+        }
+
+        if(receipt?.deliveredWithoutReceipt){
+            return 'Marked as arrived with no goods receipt recorded against it';
+        }
+
+        return 'Record what came off the truck - docket, checks and heat numbers';
     }
 
     function undoOrderSent(row){
@@ -621,19 +683,31 @@
                                     </button>
                                 </div>
                             </div>
-                            <!-- delivered -->
+                            <!--
+                                Delivered. A checkbox here could only say "it turned up"; booking a
+                                delivery in is a form, so this opens one - and once it is booked in the
+                                same button shows the record rather than a tick nobody can read.
+                            -->
                             <div class="pt-1">
-                                <input
+                                <button
                                     v-if="row.info.order_sent"
-                                    v-model="row.info.is_delivered"
-                                    @change="deliveredCheckbox(row)"
-                                    :disabled="row.info.is_delivered"
-                                    :title="row.info.is_delivered
-                                        ? 'Already marked delivered - this cannot be undone'
-                                        : 'Mark this supplier\'s materials as delivered'"
-                                    type="checkbox"
-                                    :class="row.info.is_delivered ? 'cursor-not-allowed text-gray-500' : ''"
-                                />
+                                    type="button"
+                                    @click="openReceipt(row)"
+                                    :title="receiptTitle(row)"
+                                    class="mx-auto flex max-w-full items-center gap-1 rounded px-1.5 py-1 text-xs hover:bg-gray-100"
+                                    :class="row.goodsReceipt?.received
+                                        ? (row.goodsReceipt?.accepted === false ? 'text-orange-700' : 'text-gray-700')
+                                        : (row.goodsReceipt?.deliveredWithoutReceipt ? 'text-amber-700' : 'text-blue-600 underline')"
+                                >
+                                    <i
+                                        v-if="row.goodsReceipt?.received"
+                                        class="fa-solid flex-none text-[10px]"
+                                        :class="row.goodsReceipt?.accepted === false
+                                            ? 'fa-triangle-exclamation text-orange-500'
+                                            : 'fa-circle-check text-green-600'"
+                                    ></i>
+                                    <span class="truncate">{{ receiptSummary(row) }}</span>
+                                </button>
                             </div>
                             <!--
                                 Certs. A summary that opens the panel where the work happens - this
@@ -690,6 +764,15 @@
         :row="certsRow"
         :supplierName="certsSupplierName"
         @closeModal="closeCerts()"
+        @refresh="$emit('refresh')"
+    />
+
+    <GoodsReceiptModal
+        :show="showReceiptModal && !!receiptRow"
+        :row="receiptRow"
+        :supplierName="receiptSupplierName"
+        :nonconformanceOptions="quotesData.info.receiptNonconformanceOptions ?? []"
+        @closeModal="closeReceipt()"
         @refresh="$emit('refresh')"
     />
 

@@ -58,6 +58,15 @@ class Offcut extends Model
     }
 
     //Relationships
+    /**
+     * The bar this offcut was cut from, or null when it was cut from another offcut.
+     *
+     * Annotated for the reason the property declarations above are: Cut::originBar() walks this looking
+     * for the bar a cut's steel was originally rolled as, and without the generic every step of that
+     * walk reads as a property access on a plain Model.
+     *
+     * @return BelongsTo<Bar, $this>
+     */
     public function bar(): BelongsTo
     {
         return $this->belongsTo(Bar::class);

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\RecordsChanges;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,9 +14,26 @@ use Illuminate\Support\Collection;
 class Product extends Model
 {
     /** @use HasFactory<\Database\Factories\ProductFactory> */
-    use HasFactory;
+    use HasFactory, RecordsChanges;
 
     protected $guarded = [];
+
+    /**
+     * The master catalogue belongs to the platform, not to a business.
+     *
+     * The trait's default would file an edit under the admin's own business, which would read as that
+     * business having changed a row every business is matched against. Null says what is true: this
+     * is a platform-level change, and the user_id on the log row is who made it.
+     *
+     * Note what this does not cover. MaterialsJsonImport merges the catalogue with a query-builder
+     * update, which fires no model events - by design, it is one bulk statement for eleven hundred
+     * rows and it writes its own report. What lands here is the admin form, one row at a time, which
+     * is the path a person actually changes a product through.
+     */
+    protected function changeLogBusinessId(): ?int
+    {
+        return null;
+    }
 
     /**
      * The import used to write the spreadsheet's literal "TRUE"/"FALSE" text into
