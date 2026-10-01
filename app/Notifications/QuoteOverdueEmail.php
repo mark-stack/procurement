@@ -28,9 +28,13 @@ class QuoteOverdueEmail extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): MailMessage
     {
-        //Go to quotes page which has notifications for actioning
+        /*
+         * The board, which is where the batch this is chasing can actually be quoted. This used to
+         * be route('dashboard') back when that name redirected here; it is the material list upload
+         * page now, and landing an "action this" link on a file picker would be a dead end.
+         */
         $action = new LoginAction($this->recipient);
-        $action->response(redirect()->route('dashboard'));
+        $action->response(redirect()->route('projects.index'));
         $magicLinkUrl = $this->loginLinkFor($action);
 
         return (new MailMessage)

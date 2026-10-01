@@ -24,6 +24,16 @@
         business: Object,
         sources: Array,
         types: Array,
+        /*
+         * The uploads this business made that matched no template and that writing one automatically
+         * could not fix. The only part of setting a customer up that still needs a person, so they are
+         * the first thing on this screen when there are any.
+         *
+         * Each carries the proposal that failed, which is what "Open" below puts into the form: the
+         * whole value of keeping a failed attempt is starting from something wrong rather than from
+         * nothing.
+         */
+        attempts: Array,
     });
 
     //Form
@@ -72,6 +82,9 @@
     };
     const formTemplate = useForm({ ...blankTemplate });
     const formTemplateDelete = useForm({});
+    //Two writes with no payload: closing a failed attempt, and recording that a template was read
+    const formAttempt = useForm({});
+    const formReview = useForm({});
     //The sample spreadsheet the form can be read out of, rather than typed out of
     const formSample = useForm({ sample: null });
 
@@ -259,6 +272,23 @@
     //How many of them this business's uploads are actually matched against
     const liveCount = computed(() => props.templates
         .filter((template) => template.detection.detects).length);
+
+    /*
+     * Live templates a customer's own upload wrote and nobody here has read.
+     *
+     * Not a warning. They passed the same checklist an admin's template has to pass, which is why they
+     * are live at all. It is a reading list: these are in production, deciding how a customer's bills
+     * of materials are read, and the only thing nobody has done is look at one.
+     */
+    const unreviewedCount = computed(() => props.templates
+        .filter((template) => template.awaiting_review).length);
+
+    //Each outcome in words, for the attempts list. See App\Enums\TemplateLearningEnums
+    const attemptOutcomes = {
+        REFUSED: "Proposed and tested, test failed",
+        UNREADABLE: "Could not be read at all",
+        THROTTLED: "Too many attempts this hour",
+    };
 
     /*
      * A parsed sample arrives as a flash prop on the response to the upload, so it is applied when
@@ -467,6 +497,71 @@
     function screenshotUrl(templateId){
         return route("admin.businesses.templates.screenshot",[props.business.id,templateId]);
     }
+    function attemptSampleUrl(attempt){
+        return route("admin.businesses.template.attempts.sample",[props.business.id,attempt.id]);
+    }
+    /*
+     * Pick up a failed attempt: put what was proposed for it into the form, and leave the admin to
+     * download the same file and test against it.
+     *
+     * The sample is deliberately not loaded into the Test box. A browser cannot put a file into a file
+     * input without the user choosing it, so the honest flow is the two buttons the row shows:
+     * download the spreadsheet, then choose it. Reading it again from here would mean a second OpenAI
+     * call to produce the proposal that is already in the row.
+     */
+    function openAttempt(attempt){
+        resetForm();
+
+        if(attempt.proposal){
+            applyPrefill(attempt.proposal);
+
+            /*
+             * Every field in the proposal came from a model's reading of the sheet. Saying so matters
+             * more here than anywhere else on the screen: this proposal is known to be wrong, and the
+             * badges are what stop it being read as a set of verified cell references.
+             */
+            provenance.value = Object.fromEntries(
+                prefillFields
+                    .filter((field) => attempt.proposal[field] !== null && attempt.proposal[field] !== undefined)
+                    .map((field) => [field, "ai"]),
+            );
+
+            advancedOpen.value = Boolean(
+                attempt.proposal.should_skip_row
+                || attempt.proposal.is_last_data_row
+                || attempt.proposal.assembly_mark_cell
+                || (attempt.proposal.compound_description_cells ?? []).length,
+            );
+        }
+
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    /*
+     * Close an attempt without a template. The customer's spreadsheet is deleted with it, which is
+     * worth a confirmation: it is the only copy, and the row that is left says what failed but holds
+     * nothing to reproduce it with.
+     */
+    function resolveAttempt(attempt){
+        askToConfirm({
+            title: "Close this attempt?",
+            message: attempt.has_sample
+                ? "Use this for an upload there is no template to write - a file sent by mistake, a scan saved as a spreadsheet, or a format we have decided not to support. The copy of the customer's spreadsheet is deleted, so the failure cannot be reproduced afterwards."
+                : "The copy of this spreadsheet is already gone, so there is nothing left to reproduce. Closing it takes the row off this list.",
+            confirmLabel: "Close attempt",
+            tone: "danger",
+            onConfirmed: () => {
+                formAttempt.post(route("admin.businesses.template.attempts.resolve",[props.business.id,attempt.id]),{
+                    preserveScroll: true,
+                });
+            },
+        });
+    }
+    //Records that somebody read a machine-written template. Changes nothing about importing
+    function markReviewed(template){
+        formReview.post(route("admin.businesses.templates.reviewed",[props.business.id,template.id]),{
+            preserveScroll: true,
+        });
+    }
     function submit(){
         //Edit mode
         if(editId.value){
@@ -584,6 +679,100 @@
     <AuthenticatedLayout>
         <div class="py-12">
             <div class="mx-auto max-w-5xl sm:px-6 lg:px-8">
+                <!--
+                    Uploads we could not read, and could not teach ourselves to read.
+
+                    First on the screen, above the form, because it is the only thing on this page that
+                    is somebody's job. Everything below it either already works or is an admin choosing
+                    to do by hand what the upload now does by itself.
+                -->
+                <section v-if="attempts.length" class="mb-8 overflow-hidden border rounded-lg border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40">
+                    <div class="px-4 py-3 border-b border-amber-300 dark:border-amber-800">
+                        <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <h2 class="font-medium text-amber-900 dark:text-amber-100">Uploads waiting on a template</h2>
+                            <span class="px-3 py-1 text-xs rounded-full text-amber-900 bg-amber-200 dark:bg-amber-800 dark:text-amber-100">{{attempts.length}}</span>
+                        </div>
+                        <p class="mt-1 text-sm text-amber-800 dark:text-amber-200">
+                            These customers uploaded a spreadsheet that matched no template, and writing one
+                            automatically did not get through its test. Open one to fill this form in with what
+                            was proposed for it, download the same file, and test against it.
+                        </p>
+                    </div>
+
+                    <ul class="divide-y divide-amber-200 dark:divide-amber-900">
+                        <li v-for="attempt in attempts" :key="attempt.id" class="px-4 py-4">
+                            <div class="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+                                <div class="min-w-0">
+                                    <p class="font-medium text-gray-800 break-all dark:text-gray-100">{{attempt.file_name}}</p>
+                                    <p class="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                                        {{attemptOutcomes[attempt.outcome] ?? attempt.outcome}}
+                                        · {{attempt.uploaded_at}}
+                                        <template v-if="attempt.uploaded_by"> · {{attempt.uploaded_by}}</template>
+                                    </p>
+
+                                    <!-- The first failure in the checklist, which is the one that explains the rest -->
+                                    <p v-if="attempt.headline" class="max-w-2xl mt-2 text-sm text-red-700 dark:text-red-400">
+                                        &#10007; {{attempt.headline}}
+                                    </p>
+
+                                    <!--
+                                        Every check the test asked, not just the failures. A list of what WAS
+                                        established is how an admin tells "no table was found" from "the table
+                                        was found and none of its rows are in the catalogue" - two different jobs.
+                                    -->
+                                    <details v-if="attempt.checks.length" class="mt-2">
+                                        <summary class="text-xs text-gray-600 cursor-pointer dark:text-gray-400">
+                                            All {{attempt.checks.length}} checks
+                                        </summary>
+                                        <ul class="mt-2 space-y-1">
+                                            <li v-for="check in attempt.checks" :key="check.key" class="flex gap-x-2">
+                                                <span :class="checkClasses(check.status)" class="text-sm leading-5">{{checkMark(check.status)}}</span>
+                                                <span class="text-xs text-gray-700 dark:text-gray-300">
+                                                    <span class="font-medium">{{check.label}}.</span>
+                                                    {{check.detail}}
+                                                </span>
+                                            </li>
+                                        </ul>
+                                    </details>
+                                </div>
+
+                                <div class="flex items-center shrink-0 gap-x-3">
+                                    <button
+                                        v-if="attempt.proposal"
+                                        type="button"
+                                        @click="openAttempt(attempt)"
+                                        class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-500"
+                                    >
+                                        Open in the form
+                                    </button>
+
+                                    <!--
+                                        Offered only while the file is there. It is deleted when the attempt is
+                                        closed and pruned after the retention window, so a dead download on the
+                                        one screen that exists to reproduce a failure is worth avoiding.
+                                    -->
+                                    <a
+                                        v-if="attempt.has_sample"
+                                        :href="attemptSampleUrl(attempt)"
+                                        class="px-3 py-1.5 text-xs font-medium text-blue-700 underline dark:text-blue-400"
+                                    >
+                                        Download the file
+                                    </a>
+                                    <span v-else class="text-xs text-gray-500 dark:text-gray-400">File no longer kept</span>
+
+                                    <button
+                                        type="button"
+                                        @click="resolveAttempt(attempt)"
+                                        class="text-xs text-gray-600 underline dark:text-gray-400"
+                                    >
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </li>
+                    </ul>
+                </section>
+
                 <section class="bg-white dark:bg-gray-900">
                     <!--
                         Edit mode used to be a wash of yellow over the whole section and a heading
@@ -1456,6 +1645,15 @@
 
                         <span class="px-3 py-1 text-xs text-blue-600 bg-blue-100 rounded-full dark:bg-gray-800 dark:text-blue-400">{{templates.length}} recorded</span>
                         <span class="px-3 py-1 text-xs text-emerald-600 bg-emerald-100 rounded-full dark:bg-gray-800 dark:text-emerald-400">{{liveCount}} matched against uploads</span>
+                        <!--
+                            Written by a customer's upload and never read by anybody here. Not a warning -
+                            they passed the same checklist a typed one has to pass, which is why they are
+                            live. A reading list.
+                        -->
+                        <span
+                            v-if="unreviewedCount"
+                            class="px-3 py-1 text-xs rounded-full text-amber-700 bg-amber-100 dark:bg-gray-800 dark:text-amber-300"
+                        >{{unreviewedCount}} not reviewed</span>
                     </div>
 
                     <div class="flex flex-col mt-6">
@@ -1518,6 +1716,17 @@
                                                                     {{ template.name }}
                                                                 </h2>
                                                                 <small class="block text-gray-500 dark:text-gray-400">{{template.source}}</small>
+                                                                <!--
+                                                                    A customer's own upload wrote this one, and nobody here has
+                                                                    read it since. Worth saying where the name is, because every
+                                                                    other row on this screen was typed by one of us.
+                                                                -->
+                                                                <small
+                                                                    v-if="template.awaiting_review"
+                                                                    class="inline-block mt-1 px-2 py-0.5 text-xs rounded-full text-amber-800 bg-amber-100 dark:bg-amber-900/40 dark:text-amber-300"
+                                                                >
+                                                                    Written by an upload &middot; not reviewed
+                                                                </small>
                                                             </div>
                                                         </div>
                                                     </td>
@@ -1576,6 +1785,20 @@
                                                     </td>
                                                     <td class="px-4 py-4 text-sm whitespace-nowrap">
                                                         <div class="flex items-center gap-x-6">
+                                                            <!--
+                                                                Records that somebody read it. It writes nothing else - the
+                                                                template is already live, and an admin who disagrees with what
+                                                                they are reading edits it or unticks Live instead.
+                                                            -->
+                                                            <button
+                                                                v-if="template.awaiting_review"
+                                                                type="button"
+                                                                @click="markReviewed(template)"
+                                                                class="text-xs font-medium text-amber-700 underline dark:text-amber-300"
+                                                            >
+                                                                Mark reviewed
+                                                            </button>
+
                                                             <button
                                                                 type="button"
                                                                 @click="submitDelete(template)"

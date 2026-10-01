@@ -44,10 +44,10 @@ it("would be a disaster if another business's material list could be bulk delete
      * The ids arrive in the request body, so there is no bound model for a gate to check -
      * the endpoint had no ownership check at all, and deleted whatever ids it was handed.
      */
-    $business1 = createBusiness('biz1', true);
+    $business1 = createBusiness('biz1');
     $user1 = createUser(1, $business1, false, true);
 
-    $business2 = createBusiness('biz2', true);
+    $business2 = createBusiness('biz2');
     $user2 = createUser(1, $business2, false, true);
     $theirProject = createProject($user2);
     $theirRow = bomRowWithPiece($theirProject);
@@ -63,7 +63,7 @@ it("would be a disaster if another business's material list could be bulk delete
 });
 
 it('would be a disaster if your own material list could not be bulk deleted', function () {
-    $business = createBusiness('biz1', true);
+    $business = createBusiness('biz1');
     $user = createUser(1, $business, false, true);
     $project = createProject($user);
     $row = bomRowWithPiece($project);
@@ -83,7 +83,7 @@ it('would be a disaster if ordered material could be deleted out from under its 
      * The modal hides the checkbox on a row that is quoted or ordered, but that rule lived
      * only in the page - the endpoint deleted the row, its piece and the order behind it.
      */
-    $business = createBusiness('biz1', true);
+    $business = createBusiness('biz1');
     $user = createUser(1, $business, false, true);
     $project = createProject($user);
     $row = bomRowWithPiece($project);
@@ -114,10 +114,10 @@ it('would be a disaster if ordered material could be deleted out from under its 
 });
 
 it("would be a disaster if another business's rows could be deleted through clarifications", function () {
-    $business1 = createBusiness('biz1', true);
+    $business1 = createBusiness('biz1');
     $user1 = createUser(1, $business1, false, true);
 
-    $business2 = createBusiness('biz2', true);
+    $business2 = createBusiness('biz2');
     $user2 = createUser(1, $business2, false, true);
     $theirProject = createProject($user2);
     $theirRow = bomRowWithPiece($theirProject);
@@ -132,10 +132,10 @@ it("would be a disaster if another business's rows could be deleted through clar
 });
 
 it("would be a disaster if another business's rows could be deleted through customisations", function () {
-    $business1 = createBusiness('biz1', true);
+    $business1 = createBusiness('biz1');
     $user1 = createUser(1, $business1, false, true);
 
-    $business2 = createBusiness('biz2', true);
+    $business2 = createBusiness('biz2');
     $user2 = createUser(1, $business2, false, true);
     $theirProject = createProject($user2);
     $theirRow = bomRowWithPiece($theirProject);
@@ -150,10 +150,10 @@ it("would be a disaster if another business's rows could be deleted through cust
 });
 
 it("would be a disaster if another business's bill of materials could be downloaded", function () {
-    $business1 = createBusiness('biz1', true);
+    $business1 = createBusiness('biz1');
     $user1 = createUser(1, $business1, false, true);
 
-    $business2 = createBusiness('biz2', true);
+    $business2 = createBusiness('biz2');
     $user2 = createUser(1, $business2, false, true);
     $theirProject = createProject($user2);
 
@@ -167,7 +167,7 @@ it('would be a disaster if unimported items were lost, or kept after they were i
      * The warning was append-only, so a line the user fixed and re-uploaded stayed listed
      * forever - and the two causes were merged into one list labelled with only the first.
      */
-    $business = createBusiness('biz1', true);
+    $business = createBusiness('biz1');
     $user = createUser(1, $business, false, true);
     $project = createProject($user);
 
@@ -197,7 +197,7 @@ it('would be a disaster if an unreadable items_not_found took down the whole mod
      * It was read back with a bare unserialize() and piped straight into implode(),
      * which is a fatal TypeError on anything that does not round-trip.
      */
-    $business = createBusiness('biz1', true);
+    $business = createBusiness('biz1');
     $user = createUser(1, $business, false, true);
     $project = createProject($user);
 

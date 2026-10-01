@@ -77,7 +77,7 @@ it('never hands out a unique mark that is already stamped on an offcut', functio
      * With every three-letter code taken, a working generator has to grow to four letters. The broken
      * one saw an empty dictionary and kept returning three.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $batch = Batch::factory()->forUser($user->id)->create();
 
@@ -91,7 +91,7 @@ it('never hands out a unique mark that is already stamped on an offcut', functio
 
 it('keeps counting marks per product category', function () {
     //A mark taken by a UB does not stop a PFC using it - the pool is per category
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $batch = Batch::factory()->forUser($user->id)->create();
 
@@ -112,11 +112,11 @@ it('keeps counting marks per business', function () {
      * filling its pool to push every other yard onto longer marks. The generator used to count every
      * offcut in the database.
      */
-    $businessOne = createBusiness('biz1', true);
+    $businessOne = createBusiness('biz1');
     $userOne = createUser(1, $businessOne, false, true);
     $batchOne = Batch::factory()->forUser($userOne->id)->create();
 
-    $businessTwo = createBusiness('biz2', true);
+    $businessTwo = createBusiness('biz2');
     createUser(2, $businessTwo, false, true);
 
     //Business one has used up every three-letter mark it can be given
@@ -132,7 +132,7 @@ it('only uses letters that survive being read off a bar', function () {
      * A mark is written on the steel by hand and read back by eye. "ZIQ" was three misreads in one
      * code - Z/2, I/1, Q/O - so the alphabet lost I, O, Q, S, Z and U.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $generator = new UniqueLetterIDGenerator;
 
     for ($i = 0; $i < 50; $i++) {
@@ -143,7 +143,7 @@ it('only uses letters that survive being read off a bar', function () {
 
 it('never stamps a blocked word on a customer\'s steel', function () {
     //Leave exactly one three-letter mark free and make it one that must never be handed out
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $batch = Batch::factory()->forUser($user->id)->create();
 
@@ -163,7 +163,7 @@ it('does not hand the same mark out twice before the offcuts are written', funct
      * until its offcut is saved. One nest asks for many marks, and the in-memory reservation that was
      * meant to cover the gap was wiped by that re-read on the very next call.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $generator = new UniqueLetterIDGenerator;
 
     $marks = [];
@@ -180,7 +180,7 @@ it('would be a disaster if two offcuts in one yard wore the same mark', function
      * nest running at the same moment is invisible to that read. Only the database can stop the two
      * rows that follow - and there was no constraint on the table at all.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $batch = Batch::factory()->forUser($user->id)->create();
 
@@ -196,7 +196,7 @@ it('marks every bar of a consolidated count, not just the first', function () {
      * its own offcut. Only the first mark was written into the nesting data, so on a "3 off" bar two
      * offcuts sat in inventory under marks that were never on any steel.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $batch = Batch::factory()->forUser($user->id)->create();
 
@@ -254,7 +254,7 @@ it('deletes the offcuts a batch produced when the batch is unwound', function ()
      * pointing at a batch row that had just been deleted - invisible on the index, but still holding
      * their unique marks against the pool the next nest generates from.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $this->actingAs($user);
 
@@ -270,7 +270,7 @@ it('deletes the offcuts a batch produced when the batch is unwound', function ()
 
 it('still releases the offcuts a batch consumed when the batch is unwound', function () {
     //The source offcut goes back to inventory - it is only the batch's OWN offcuts that never existed
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $this->actingAs($user);
 
@@ -293,7 +293,7 @@ it('refuses to unwind a batch whose offcuts a later batch has already nested int
      * Deleting those offcuts would strip the later batch of material it is relying on, and of the
      * certificate trail that runs back through them.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $this->actingAs($user);
 
@@ -315,7 +315,7 @@ it('deletes the bars a batch cut when the batch is unwound', function () {
      * Same reasoning as the offcuts above - the cuts were never made. The bars table had no batch
      * column at all, so every unwind left one unreachable row per utilised bar behind forever.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $this->actingAs($user);
 
@@ -340,7 +340,7 @@ it('deletes the bars a batch cut when the batch is unwound', function () {
 
 it('clears the piece/quote pivot when the batch is unwound', function () {
     //The quotes go, and the rows joining them to the pieces have to go with them
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $this->actingAs($user);
 
@@ -363,7 +363,7 @@ it('would be a disaster if a failed unwind left the batch half destroyed', funct
      *
      * Failing on the very last statement is the worst case: everything before it has already run.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $this->actingAs($user);
 
@@ -393,7 +393,7 @@ it('stops walking an offcut chain that points back into itself', function () {
      * request body. Two rows pointing at each other is not a nest anybody can produce, but the ancestry
      * walk runs on every offcuts page render, and going round that loop never returns.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $batch = Batch::factory()->forUser($user->id)->create();
 
@@ -417,7 +417,7 @@ it('gives up on an offcut chain longer than anything a saw could produce', funct
      * generations. A chain far longer than that is corrupt data, and the walk stops rather than reading
      * the database one generation at a time forever.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $batch = Batch::factory()->forUser($user->id)->create();
 
@@ -440,7 +440,7 @@ it('gives up on an offcut chain longer than anything a saw could produce', funct
 
 it('reads the ancestry of a whole set of offcuts one generation at a time', function () {
     //Not one query per offcut per generation - see OffcutResource, which reads this for every row
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $batch = Batch::factory()->forUser($user->id)->create();
 

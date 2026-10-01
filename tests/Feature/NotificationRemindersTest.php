@@ -48,7 +48,7 @@ it('would be a disaster if one project manager’s reminder silenced everybody e
      * manager behind it. Every business with more than one live project lost reminders to this,
      * which is to say every business the reminders exist for.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
     $colleague = createUser(2, $business, false, true);
 
@@ -73,7 +73,7 @@ it('still reminds every project manager with a project overdue', function () {
     /*
      * The overdue check carries a copy of the same loop, and had the same break in it.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
     $colleague = createUser(2, $business, false, true);
 
@@ -102,7 +102,7 @@ it('would be a disaster if one project got both "due to quote" and "deadline has
      */
     $this->travelTo(now()->setTime(9, 0));
 
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $project = createProject($user);
@@ -127,7 +127,7 @@ it('would be a disaster if the day before the critical path went unchased by eit
      */
     $this->travelTo(now()->setTime(9, 0));
 
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $project = createProject($user);
@@ -152,7 +152,7 @@ it('would be a disaster if an unmatched BOM row chased a project manager forever
      * batch whose every orderable line had already been ordered, with no way to silence it. See
      * Project::everyOrderableRowOrdered.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
     $project = projectDueForQuoting($user);
 

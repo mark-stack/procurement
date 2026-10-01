@@ -36,7 +36,7 @@ function sampleNestedState(): array
 }
 
 it('would be a disaster if a saved nest did not survive a round trip', function () {
-    $user = createUser(1, createBusiness('biz', true), false, true);
+    $user = createUser(1, createBusiness('biz'), false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create();
     $batch->nested_state = sampleNestedState();
@@ -63,7 +63,7 @@ it('would be a disaster if a batch nested before the move to JSON became unreada
      * Batches saved by earlier releases hold PHP-serialized stdClass graphs. Reading them has to keep
      * working, so a batch stays legible either side of the conversion migration.
      */
-    $user = createUser(1, createBusiness('biz', true), false, true);
+    $user = createUser(1, createBusiness('biz'), false, true);
     $batch = Batch::factory()->forUser($user->id)->create();
 
     DB::table('batches')
@@ -78,7 +78,7 @@ it('would be a disaster if a batch nested before the move to JSON became unreada
 });
 
 it('would be a disaster if the conversion migration lost a saved nest', function () {
-    $user = createUser(1, createBusiness('biz', true), false, true);
+    $user = createUser(1, createBusiness('biz'), false, true);
 
     //A batch written the old way, and one never nested at all
     $legacy = Batch::factory()->forUser($user->id)->create();
@@ -107,7 +107,7 @@ it('would be a disaster if the conversion migration lost a saved nest', function
 });
 
 it('would be a disaster if unreadable nesting data took a page down', function () {
-    $user = createUser(1, createBusiness('biz', true), false, true);
+    $user = createUser(1, createBusiness('biz'), false, true);
     $batch = Batch::factory()->forUser($user->id)->create();
 
     DB::table('batches')

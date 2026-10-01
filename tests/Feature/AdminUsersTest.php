@@ -14,7 +14,7 @@ it('would be a disaster if the users list shipped every template screenshot to t
      * data url bounded at 1,000,000 characters, so each one went out twice per user row.
      * Three users in one business with two screenshots measured an 11.5MB response.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
     createUser(2, $business, false, true);
     createUser(3, $business, false, true);
@@ -40,7 +40,7 @@ it('would be a disaster if the users list shipped every template screenshot to t
 
 it('counts the templates and suppliers of the business', function () {
     //A business is created with no templates, so the count is the two recorded here
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     Template::factory()->count(2)->create(['business_id' => $business->id]);
@@ -62,7 +62,7 @@ it('counts only the templates the business can actually import with', function (
      * carried the heading row that finds the table, it is never matched against an upload, and
      * counting it would show a business as ready while every upload of theirs is rejected.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     Template::factory()->for($business)->create();
@@ -88,7 +88,7 @@ it('says how many templates were recorded as well as how many are live', functio
      * "0 of 3" is a different sentence: the templates exist, and switching one on is a tick on
      * another screen rather than an afternoon of recording them.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     Template::factory()->count(3)->for($business)->inactive()->create();
@@ -103,7 +103,7 @@ it('says how many templates were recorded as well as how many are live', functio
 
 it('would be a disaster if a user with no business broke the templates column', function () {
     //business_id is nullable, and both counts are read off a business that may not be there
-    $admin = createUser(1, createBusiness('Business A', true), true, true);
+    $admin = createUser(1, createBusiness('Business A'), true, true);
 
     User::factory()->create(['business_id' => null, 'name' => 'Orphan']);
 
@@ -117,32 +117,12 @@ it('would be a disaster if a user with no business broke the templates column', 
         );
 });
 
-it('would be a disaster if the ready column could not tell an active business from a new one', function () {
-    /**
-     * businesses.admin_setup_complete is a boolean column with no cast on the model, so the
-     * type reaching json was whatever the driver returned - an int on mysql, the string "0"
-     * on sqlite. The page compares it with ===, so the column rendered neither "Active" nor
-     * the Activate link under the test connection while it worked in production.
-     */
-    $active = createBusiness('Business A', true);
-    $new = createBusiness('Business B', false);
-    $admin = createUser(1, $active, true, true);
-    createUser(2, $new, false, true);
-
-    $this->actingAs($admin)
-        ->get(route('admin.users.index'))
-        ->assertInertia(fn ($page) => $page
-            ->where('users.data.0.business.admin_setup_complete', false)
-            ->where('users.data.1.business.admin_setup_complete', true)
-        );
-});
-
 it('lists the newest users first', function () {
     /**
      * The query had no order, so rows came back in whatever order the database chose and a
      * new signup - the reason to open this page - could appear anywhere in the list.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
     $second = createUser(2, $business, false, true);
     $third = createUser(3, $business, false, true);
@@ -157,7 +137,7 @@ it('lists the newest users first', function () {
 });
 
 it('would be a disaster if every user on the platform came back in one response', function () {
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
     for ($id = 2; $id <= 60; $id++) {
         createUser($id, $business, false, true);
@@ -177,7 +157,7 @@ it('would be a disaster if every user on the platform came back in one response'
 });
 
 it('would be a disaster if a non-admin could see every user on the platform', function () {
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $user = createUser(2, $business, false, true);
 
     $this->actingAs($user)
@@ -195,72 +175,16 @@ it('sends a signed-out admin to the login page and back to the page they asked f
         ->assertSessionHas('url.intended', route('admin.users.index'));
 });
 
-it('would be a disaster if activating a business were reachable by a link or a prefetch', function () {
-    /**
-     * It was a GET rendered as an <Link>, so a prefetch, a crawler or the back button
-     * welcomed every user in the business by email again.
-     */
-    $business = createBusiness('Business A', false);
-    $admin = createUser(1, $business, true, true);
-
-    Notification::fake();
-
-    $this->actingAs($admin)
-        ->get('/admin/activate-business/'.$business->id)
-        ->assertMethodNotAllowed();
-
-    expect($business->fresh()->admin_setup_complete)->toBeFalse();
-    Notification::assertNothingSent();
-});
-
-it('activates the business and welcomes its users', function () {
-    $business = createBusiness('Business A', false);
-    //Activation refuses a business with no template that can detect a table - see below
-    recordExampleTemplates($business);
-    $admin = createUser(1, $business, true, true);
-    $user = createUser(2, $business, false, true);
-
-    Notification::fake();
-
-    $this->actingAs($admin)
-        ->from(route('admin.users.index'))
-        ->post(route('admin.activate.business', $business))
-        ->assertRedirect(route('admin.users.index'));
-
-    expect($business->fresh()->admin_setup_complete)->toBeTrue();
-    Notification::assertSentTo($user, WelcomeActivatedUserEmail::class);
-    Notification::assertSentTimes(WelcomeActivatedUserEmail::class, 2);
-});
-
-it('would be a disaster if activating a business welcomed everyone in it twice', function () {
-    /**
-     * Nothing stopped the controller running against a business that was already active, so
-     * a refresh or a double click re-sent the welcome email to every user in it.
-     */
-    $business = createBusiness('Business A', false);
-    recordExampleTemplates($business);
-    $admin = createUser(1, $business, true, true);
-    createUser(2, $business, false, true);
-
-    Notification::fake();
-
-    $this->actingAs($admin)->post(route('admin.activate.business', $business));
-    $this->actingAs($admin)
-        ->post(route('admin.activate.business', $business))
-        ->assertSessionHas('warning', 'That business is already active.');
-
-    Notification::assertSentTimes(WelcomeActivatedUserEmail::class, 2);
-});
-
 it('would be a disaster if the welcome email signed everyone in as the same user', function () {
     /**
      * The notification carries a magic link that signs its recipient in, and it used to read
      * that recipient off a constructor argument rather than off the notifiable. It was only
      * correct because the controller built a fresh instance per user inside a loop - sending
-     * one instance to the collection, which is what it does now, would have handed every user
-     * in the business a link that signed them in as the first of them.
+     * one instance to a collection - which is how activation sent it, before activation was
+     * deleted - would have handed every user in the business a link that signed them in as the
+     * first of them. It is sent one at a time now, from the resend button.
      */
-    $business = createBusiness('Business A', false);
+    $business = createBusiness('Business A');
     $first = createUser(1, $business, true, true);
     $second = createUser(2, $business, false, true);
 
@@ -279,9 +203,10 @@ it('verifies the address the welcome email reached', function () {
      * Reaching the link is the same proof the verification email asks for. Without marking the
      * address verified, the link signed the user in and EnsureEmailIsVerified - which guards
      * projects.index - bounced them to the verification prompt, and an unverified signup is
-     * exactly who this email welcomes.
+     * exactly who this email is for: it is now the way to get a customer whose verification email
+     * never arrived into their account.
      */
-    $business = createBusiness('Business A', false);
+    $business = createBusiness('Business A');
     $user = createUser(2, $business, false, false);
 
     expect($user->hasVerifiedEmail())->toBeFalse();
@@ -292,33 +217,13 @@ it('verifies the address the welcome email reached', function () {
     expect($user->fresh()->hasVerifiedEmail())->toBeTrue();
 });
 
-it('would be a disaster if a business could be left active with nobody welcomed', function () {
-    /**
-     * The column was saved and the welcome sent afterwards, so a failure in between left the
-     * business reading "Active" with nobody emailed - and the already-active refusal then
-     * turned away every attempt to put that right.
-     */
-    $business = createBusiness('Business A', false);
-    recordExampleTemplates($business);
-    $admin = createUser(1, $business, true, true);
-
-    Notification::shouldReceive('send')->andThrow(new RuntimeException('the queue is down'));
-
-    $this->withoutExceptionHandling();
-
-    expect(fn () => $this->actingAs($admin)->post(route('admin.activate.business', $business)))
-        ->toThrow(RuntimeException::class);
-
-    expect($business->fresh()->admin_setup_complete)->toBeFalse();
-});
-
 it('resends the welcome to one user rather than the whole business', function () {
     /**
      * Activation can only happen once, so the thing needed afterwards is to put right the one
      * person whose email bounced or was queued while the worker was down - not to mail
      * everyone again, which is what any business-wide resend would amount to.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
     $user = createUser(2, $business, false, true);
 
@@ -334,31 +239,12 @@ it('resends the welcome to one user rather than the whole business', function ()
     Notification::assertNotSentTo($admin, WelcomeActivatedUserEmail::class);
 });
 
-it('refuses to welcome a user to a business that is not active yet', function () {
-    /**
-     * The email says the setup configuration is complete and its link lands on projects, which
-     * BusinessReadyMiddleware guards - so sending it before activation is a lie followed by a
-     * redirect back to onboarding.
-     */
-    $business = createBusiness('Business A', false);
-    $admin = createUser(1, $business, true, true);
-    $user = createUser(2, $business, false, true);
-
-    Notification::fake();
-
-    $this->actingAs($admin)
-        ->post(route('admin.resend.welcome', $user))
-        ->assertSessionHas('warning', 'That business is not active yet. Activate it, which welcomes everyone in it.');
-
-    Notification::assertNothingSent();
-});
-
 it('says so rather than throwing when the user has no business to be welcomed to', function () {
     /**
      * users.business_id is nullable, and an orphaned user is exactly the kind of row an admin
      * opens this page to look at - so the button next to one must not 500.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
     $orphan = User::factory()->create(['business_id' => null]);
 
@@ -372,7 +258,7 @@ it('says so rather than throwing when the user has no business to be welcomed to
 });
 
 it('would be a disaster if resending a welcome were reachable by a link or a prefetch', function () {
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
     $user = createUser(2, $business, false, true);
 
@@ -385,83 +271,20 @@ it('would be a disaster if resending a welcome were reachable by a link or a pre
     Notification::assertNothingSent();
 });
 
-it('deactivates a business without emailing anyone', function () {
-    /**
-     * Activation's counterpart, and deliberately not its mirror: there is no "your account has
-     * been switched off" message worth sending, and activating afterwards welcomes everyone
-     * again anyway.
+it('would be a disaster if a non-admin could resend a welcome', function () {
+    /*
+     * It mints a magic link that signs its recipient in, so the one thing that must never be true of
+     * it is that any logged-in customer can aim it at any address.
      */
-    $business = createBusiness('Business A', true);
-    $admin = createUser(1, $business, true, true);
-    createUser(2, $business, false, true);
-
-    Notification::fake();
-
-    $this->actingAs($admin)
-        ->from(route('admin.users.index'))
-        ->post(route('admin.deactivate.business', $business))
-        ->assertRedirect(route('admin.users.index'))
-        ->assertSessionHas('success');
-
-    expect($business->fresh()->admin_setup_complete)->toBeFalse();
-    Notification::assertNothingSent();
-});
-
-it('says so rather than pretending when a business is already inactive', function () {
-    $business = createBusiness('Business A', false);
-    $admin = createUser(1, $business, true, true);
-
-    $this->actingAs($admin)
-        ->post(route('admin.deactivate.business', $business))
-        ->assertSessionHas('warning', 'That business is not active.');
-});
-
-it('lets a deactivated business be activated again, welcoming everyone a second time', function () {
-    /**
-     * The welcome is what activation is for, so going round the loop sends it again - which is
-     * the reason deactivation is not offered as an undo for a misclick on Activate.
-     */
-    $business = createBusiness('Business A', false);
-    recordExampleTemplates($business);
-    $admin = createUser(1, $business, true, true);
-    createUser(2, $business, false, true);
-
-    Notification::fake();
-
-    $this->actingAs($admin)->post(route('admin.activate.business', $business));
-    $this->actingAs($admin)->post(route('admin.deactivate.business', $business));
-    $this->actingAs($admin)->post(route('admin.activate.business', $business));
-
-    expect($business->fresh()->admin_setup_complete)->toBeTrue();
-    Notification::assertSentTimes(WelcomeActivatedUserEmail::class, 4);
-});
-
-it('would be a disaster if deactivating a business were reachable by a link or a prefetch', function () {
-    $business = createBusiness('Business A', true);
-    $admin = createUser(1, $business, true, true);
-
-    $this->actingAs($admin)
-        ->get('/admin/deactivate-business/'.$business->id)
-        ->assertMethodNotAllowed();
-
-    expect($business->fresh()->admin_setup_complete)->toBeTrue();
-});
-
-it('would be a disaster if a non-admin could deactivate a business or resend a welcome', function () {
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $user = createUser(2, $business, false, true);
 
     Notification::fake();
 
     $this->actingAs($user)
-        ->post(route('admin.deactivate.business', $business))
-        ->assertRedirect('/');
-
-    $this->actingAs($user)
         ->post(route('admin.resend.welcome', $user))
         ->assertRedirect('/');
 
-    expect($business->fresh()->admin_setup_complete)->toBeTrue();
     Notification::assertNothingSent();
 });
 
@@ -470,7 +293,7 @@ it('says which users have not verified their email', function () {
      * Impersonating an unverified user lands on the verification prompt rather than the
      * dashboard, and the list gave no way to tell before clicking.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
     createUser(2, $business, false, false);
 

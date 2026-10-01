@@ -23,7 +23,7 @@ it('would be a disaster if a user could make themselves admin by changing their 
 
     expect(User::query()->where('email', 'support@steelnesting.com.au')->exists())->toBeFalse();
 
-    $business = createBusiness('fabricator', true);
+    $business = createBusiness('fabricator');
     $user = createUser(1, $business, false, true);
 
     expect($user->isAdmin())->toBeFalse();
@@ -49,10 +49,10 @@ it('would be a disaster if the impersonation route opened to a non-admin', funct
      * The one route worth naming on its own: it swaps the session onto another account, so it is
      * the whole of multi-tenancy in one request.
      */
-    $business = createBusiness('fabricator', true);
+    $business = createBusiness('fabricator');
     $user = createUser(1, $business, false, true);
 
-    $victimBusiness = createBusiness('victim', true);
+    $victimBusiness = createBusiness('victim');
     $victim = createUser(2, $victimBusiness, false, true);
 
     $this->actingAs($user)
@@ -64,7 +64,7 @@ it('would be a disaster if the impersonation route opened to a non-admin', funct
 
 it('opens the admin panel for the user carrying the flag', function () {
     //The other half: moving authority to a column must not have locked the admin out
-    $business = createBusiness('admin', true);
+    $business = createBusiness('admin');
     $admin = createUser(1, $business, true, true);
 
     expect($admin->isAdmin())->toBeTrue();
@@ -78,7 +78,7 @@ it('keeps the admin panel shut until the admin has verified their address', func
      * account whose address has never been confirmed should not be editing every business's
      * templates either - see the middleware note in routes/adminRoutes.php.
      */
-    $business = createBusiness('admin', true);
+    $business = createBusiness('admin');
     $admin = createUser(1, $business, true, false);
 
     $this->actingAs($admin)
@@ -94,7 +94,7 @@ it('would be a disaster if the telescope gate still read the email', function ()
      */
     config(['env.admin_email' => 'support@steelnesting.com.au']);
 
-    $business = createBusiness('fabricator', true);
+    $business = createBusiness('fabricator');
 
     //Holds the configured address, and nothing else
     $impostor = createUser(1, $business, false, true);

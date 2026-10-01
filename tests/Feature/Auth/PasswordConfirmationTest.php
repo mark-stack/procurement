@@ -3,7 +3,7 @@
 use Database\Factories\UserFactory;
 
 test('confirm password screen can be rendered', function () {
-    $business = createBusiness('admin', true);
+    $business = createBusiness('admin');
     $user = createUser(1, $business, false, true);
 
     $response = $this->actingAs($user)->get('/confirm-password');
@@ -12,7 +12,7 @@ test('confirm password screen can be rendered', function () {
 });
 
 test('password can be confirmed', function () {
-    $business = createBusiness('admin', true);
+    $business = createBusiness('admin');
     $user = createUser(1, $business, false, true);
 
     $response = $this->actingAs($user)->post('/confirm-password', [
@@ -24,7 +24,7 @@ test('password can be confirmed', function () {
 });
 
 test('password is not confirmed with invalid password', function () {
-    $business = createBusiness('admin', true);
+    $business = createBusiness('admin');
     $user = createUser(1, $business, false, true);
 
     $response = $this->actingAs($user)->post('/confirm-password', [

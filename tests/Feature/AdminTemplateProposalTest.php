@@ -86,7 +86,7 @@ it('fills the form in from a spreadsheet an existing template already describes,
      * will read. There is nothing for a model to improve on, and asking would spend money to be
      * told something less reliable.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
     recordExampleTemplates($business);
 
@@ -124,7 +124,7 @@ it('warns that a file which already imports would be imported twice', function (
      * can say: a second template for a table that already matches one reads the same rows again,
      * and every row of that upload is saved twice.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
     recordExampleTemplates($business);
 
@@ -143,7 +143,7 @@ it('warns that a file which already imports would be imported twice', function (
 it('reads the cells back out of the sample and says what each one holds', function () {
     //The point of the check is that a cell reference can be perfectly well formed and still be the
     //wrong column. Only the file can say otherwise.
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
     recordExampleTemplates($business);
 
@@ -170,7 +170,7 @@ it('would be a disaster if a model\'s reading quietly replaced what detection wo
      * worth hearing - it usually means the file has drifted from the entry it matches - but it does
      * not get to move the cells, and the disagreement has to be visible rather than silently lost.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
     recordExampleTemplates($business);
 
@@ -194,7 +194,7 @@ it('would be a disaster if a model\'s reading quietly replaced what detection wo
 });
 
 it('asks OpenAI about a spreadsheet no template describes, and marks the answer as a suggestion', function () {
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     fakeOpenAiAnswer([
@@ -240,7 +240,7 @@ it('records what it proposed for a file nothing matched, and that file then impo
      * in is submitted unchanged, and the same spreadsheet now imports - with no code change and no
      * deploy between the two halves of this test.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
     //There has to be a catalogue to match the descriptions against for the test below to pass
     seedMasterMaterials();
@@ -305,7 +305,7 @@ it('would be a disaster if OpenAI being down took the whole form with it', funct
      * with whatever detection could place and a sentence about what happened - not a 500 and an
      * empty form.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
     recordExampleTemplates($business);
 
@@ -326,7 +326,7 @@ it('would be a disaster if OpenAI being down took the whole form with it', funct
 });
 
 it('says so when the upload is not a spreadsheet at all', function () {
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     config(['openai.key' => null]);
@@ -340,7 +340,7 @@ it('says so when the upload is not a spreadsheet at all', function () {
 });
 
 it('refuses an upload that is not a spreadsheet file type', function () {
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $this->actingAs($admin)->post(
@@ -350,7 +350,7 @@ it('refuses an upload that is not a spreadsheet file type', function () {
 });
 
 it('would be a disaster if anyone but an admin could spend money reading spreadsheets', function () {
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $user = createUser(1, $business, false, true);
 
     config(['openai.key' => 'sk-test']);
@@ -368,7 +368,7 @@ it('would be a disaster if anyone but an admin could spend money reading spreads
 it('suggests a name this business has not already used', function () {
     //Names are unique per business, so a suggestion that collides wastes the round trip the
     //parser just saved
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     //The examples include one named "Assembly List", which is what this file detects as
@@ -387,7 +387,7 @@ it('suggests a name this business has not already used', function () {
 it('finds every table in a file that carries more than one', function () {
     //A Tekla report holds four. An admin who records the first and walks away has recorded a
     //quarter of the spreadsheet.
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
     recordExampleTemplates($business);
 

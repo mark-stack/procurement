@@ -29,7 +29,7 @@ class BillingCheckoutController extends Controller
         $business = $request->user()?->business;
 
         if ($business === null) {
-            return redirect()->route('onboarding');
+            return redirect('/');
         }
 
         $validated = $request->validate([

@@ -132,15 +132,15 @@ class Business extends Model
     ];
 
     /*
-     * These four are boolean columns in the migration, but without a cast the type that
-     * reaches json is whatever the driver hands back - int on mysql, the string "0" on
-     * sqlite. The admin users page compares admin_setup_complete with ===, so its Ready
-     * column silently emptied out under the test connection while it worked in production.
+     * These are boolean columns in the migration, but without a cast the type that reaches json is
+     * whatever the driver hands back - int on mysql, the string "0" on sqlite. The admin users page
+     * compared admin_setup_complete with ===, so its Ready column silently emptied out under the test
+     * connection while it worked in production. That column is gone; the lesson it taught is why the
+     * other three are still listed.
      */
     protected function casts(): array
     {
         return [
-            'admin_setup_complete' => 'boolean',
             'cap_12m_stock' => 'boolean',
             'meterage_only' => 'boolean',
             'allow_custom_products' => 'boolean',
@@ -264,6 +264,16 @@ class Business extends Model
         return $this->templates()->where('active', true)->detectable();
     }
 
+    /**
+     * The uploads of this business's that matched no template and could not be made to match one.
+     *
+     * @return HasMany<TemplateLearningAttempt, $this>
+     */
+    public function templateLearningAttempts(): HasMany
+    {
+        return $this->hasMany(TemplateLearningAttempt::class);
+    }
+
     public function quotes(): HasManyThrough
     {
         return $this->hasManyThrough(Quote::class, User::class);
@@ -280,21 +290,15 @@ class Business extends Model
     }
 
     //Local scopes
-    /**
-     * The businesses an admin has switched on, which is the only kind that can use the product.
+    /*
+     * scopeActivated() stood here: the businesses an admin had switched on, which was the only kind
+     * that could reach the product. SendTrialReminders asked for it so that a customer waiting on us
+     * to write their import templates was not warned that the trial they had never been able to use
+     * was running out.
      *
-     * Everything a customer would do is behind BusinessReadyMiddleware, so a business without this
-     * column set has a trial running against a board it cannot reach. SendTrialReminders asks for
-     * this because warning somebody that their trial is ending, and then that it has ended, for a
-     * product they have never once been given access to reads as a demand for money for nothing.
-     *
-     * @param  Builder<Business>  $query
-     * @return Builder<Business>
+     * It is gone with the column. A business can import from its first upload now, so every business
+     * on a trial is a business using one.
      */
-    public function scopeActivated(Builder $query): Builder
-    {
-        return $query->where('admin_setup_complete', true);
-    }
 
     //Boolean
     public function supplierGroupIsCurrentPlan($supplierGroup): bool

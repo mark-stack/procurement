@@ -228,7 +228,7 @@ it('takes a note on any other reason without demanding one', function () {
 it('will not let one business remove another business\'s steel', function () {
     [$user] = userWithDeliveredBatch();
 
-    $otherBusiness = createBusiness('other', true);
+    $otherBusiness = createBusiness('other');
     $otherUser = createUser(2, $otherBusiness, false, true);
     $theirOffcut = create_offcut_200PFC(2400, batchWithDeliveredOrder($otherUser)->id);
 
@@ -287,7 +287,7 @@ it('will not put back an offcut that was never removed', function () {
 it('will not let one business put back another business\'s steel', function () {
     [$user] = userWithDeliveredBatch();
 
-    $otherBusiness = createBusiness('other', true);
+    $otherBusiness = createBusiness('other');
     $otherUser = createUser(2, $otherBusiness, false, true);
     $theirOffcut = create_offcut_200PFC(2400, batchWithDeliveredOrder($otherUser)->id);
     $theirOffcut->removeFromInventory($otherUser, OffcutRemovalEnums::TAKEN);

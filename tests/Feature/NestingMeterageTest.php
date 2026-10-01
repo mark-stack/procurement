@@ -9,7 +9,7 @@ uses(RefreshDatabase::class);
 
 it("would be a disaster if total nested length didn't equal total pieces length", function (int $testCaseIndex) {
     //Create admin
-    $adminBusiness = createBusiness('admin', true);
+    $adminBusiness = createBusiness('admin');
     $adminUser = createUser(1, $adminBusiness, true, true);
 
     //Authorised
@@ -67,7 +67,7 @@ it("would be a disaster if meterage nesting for a single project didn't work cor
     /*
      * Create admin & seed materials
      */
-    $adminBusiness = createBusiness('admin', true);
+    $adminBusiness = createBusiness('admin');
     $adminUser = createUser(1, $adminBusiness, true, true);
 
     //Seed master_product.csv to create products
@@ -77,7 +77,7 @@ it("would be a disaster if meterage nesting for a single project didn't work cor
     /*
      * Create user
      */
-    $userBusiness = createBusiness('greg', true);
+    $userBusiness = createBusiness('greg');
     $user = createUser(2, $userBusiness, false, true);
     $this->actingAs($user);
 
@@ -141,7 +141,7 @@ it('would be a disaster if a small offcut on every bar was counted as reusable s
      * scrap threshold, so all three offcuts are scrap and no offcut is banked. Summing the offcuts first
      * (1,200mm) and then testing the total against the threshold reported them all as reusable.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $business->scrap_threshold_mm = 1000;
     $business->save();
 
@@ -167,7 +167,7 @@ it('would be a disaster if a small offcut on every bar was counted as reusable s
 });
 
 it('would be a disaster if an offcut big enough to reuse was counted as scrap', function () {
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $business->scrap_threshold_mm = 1000;
     $business->save();
 
@@ -195,7 +195,7 @@ it('would be a disaster if nesting runs were indexed by their efficiency', funct
      * Catching the deprecation is what pins this down: as long as no float reaches an array key, runs
      * are being compared by value rather than bucketed into whole percents.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $business->scrap_threshold_mm = 1000;
     $business->save();
 
@@ -227,7 +227,7 @@ it('would be a disaster if the nest chosen was not the best one available', func
      * 4x 3,000mm nests perfectly into one 12,000mm bar. Taking the smallest bar that fits each cut
      * instead ("best fit") needs two 10,000mm bars for the same pieces - 60% efficiency.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $business->scrap_threshold_mm = 1000;
     $business->save();
 
@@ -249,7 +249,7 @@ it('would be a disaster if nesting the same pieces twice gave two different answ
      * The suggested nesting screen and Actions/Batch/SaveNesting nest the same pieces independently.
      * If the algorithm is not deterministic the batch is ordered against a cut plan nobody approved.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $business->scrap_threshold_mm = 1000;
     $business->save();
 

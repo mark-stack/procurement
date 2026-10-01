@@ -45,30 +45,16 @@
         window.confirm('Sign in as this user? You will see the site exactly as they do until you stop impersonating.');
 
     /*
-     * Activating emails every user in the business, and that cannot be taken back.
+     * Activate and Deactivate stood here, with their own confirmations - activating emailed every user
+     * in the business that their setup was complete, which could not be taken back, and deactivating
+     * put all of them back on onboarding.
      *
-     * It names the two counts sitting in the row rather than trusting them to be read. They are
-     * the whole of whether this business can do anything - the welcome says the setup is
-     * complete - and they are three columns to the left of the button. The controller refuses
-     * activation outright with no detectable template; suppliers are worth saying out loud
-     * because it does not refuse over those, and a business that cannot quote yet is a support
-     * email either way.
+     * Both are gone. A business can import from its first upload, so there is nothing to switch on and
+     * nothing an admin is holding up. What is left is the one email that is still worth sending by
+     * hand: a login link for somebody who cannot get in.
      */
-    const confirmActivate = (user) =>
-        window.confirm(
-            `Activate this business? Every user in it is emailed a welcome message saying their setup is complete.\n\n`
-            + `Templates that can detect a table: ${user.templates_count}\n`
-            + `Suppliers: ${user.suppliers_count}`
-        );
-
-    //Another email to a real inbox, so it is worth a beat - but it is the recoverable one of
-    //the three, which is why it names the address rather than warning about anything
     const confirmResend = (user) =>
-        window.confirm(`Email a fresh welcome and login link to ${user.email}?`);
-
-    //This one takes the app away from everyone in the business until it is activated again
-    const confirmDeactivate = () =>
-        window.confirm('Deactivate this business? Everyone in it goes back to onboarding and cannot use the app until it is activated again. Nobody is emailed.');
+        window.confirm(`Email a fresh welcome and login link to ${user.email}? It signs them in and confirms their address.`);
 </script>
 
 <template>
@@ -97,7 +83,7 @@
                                     <th scope="col">Business</th>
                                     <th scope="col">Templates</th>
                                     <th scope="col">Suppliers</th>
-                                    <th scope="col">Ready</th>
+                                    <th scope="col">Access</th>
                                     <th scope="col">Created</th>
                                 </tr>
                             </thead>
@@ -183,16 +169,18 @@
                                             send mail, so none must be reachable by a prefetch, a
                                             crawler or the back button.
                                         -->
+                                        <!--
+                                            There is nothing to switch on any more, so this column says
+                                            what it can still say: whether the address is confirmed,
+                                            which is the one thing between a signup and the board - and
+                                            offers the link that fixes it when it is not.
+                                        -->
                                         <template v-if="user.business">
-                                            <!--
-                                                Active is not the end of the story: a welcome can
-                                                have been queued while the worker was down, and a
-                                                business can have been activated by mistake.
-                                            -->
-                                            <div v-if="user.business.admin_setup_complete" class="flex flex-wrap items-baseline gap-x-3">
-                                                <span>Active</span>
+                                            <div class="flex flex-wrap items-baseline gap-x-3">
+                                                <span :class="user.isVerified ? '' : 'text-amber-600 dark:text-amber-400'">
+                                                    {{ user.isVerified ? 'Verified' : 'Unverified' }}
+                                                </span>
 
-                                                <!-- This user's own welcome, not the whole business's -->
                                                 <Link
                                                     :href="route('admin.resend.welcome',user.id)"
                                                     method="post"
@@ -201,32 +189,9 @@
                                                     class="text-xs underline text-blue-500"
                                                     :on-before="() => confirmResend(user)"
                                                 >
-                                                    Resend welcome
-                                                </Link>
-
-                                                <Link
-                                                    :href="route('admin.deactivate.business',user.business.id)"
-                                                    method="post"
-                                                    as="button"
-                                                    type="button"
-                                                    class="text-xs underline text-red-500"
-                                                    :on-before="confirmDeactivate"
-                                                >
-                                                    Deactivate
+                                                    Send login link
                                                 </Link>
                                             </div>
-
-                                            <Link
-                                                v-else
-                                                :href="route('admin.activate.business',user.business.id)"
-                                                method="post"
-                                                as="button"
-                                                type="button"
-                                                class="text-green-500 font-bold"
-                                                :on-before="() => confirmActivate(user)"
-                                            >
-                                                Activate
-                                            </Link>
                                         </template>
                                         <span v-else>&mdash;</span>
                                     </td>

@@ -19,7 +19,6 @@ function createAdmin(): User
     $adminBusiness = Business::create([
         'name' => 'marko',
         'domain' => 'marko.com',
-        'admin_setup_complete' => true,
     ]);
 
     //Admin user

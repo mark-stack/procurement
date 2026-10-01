@@ -19,7 +19,7 @@ uses(RefreshDatabase::class);
  * writing Route::resource without ->only(), which is exactly how they arrived.
  */
 it('would be a disaster if an unimplemented verb answered 200 with an empty body', function () {
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create();
@@ -68,7 +68,7 @@ it('would be a disaster if an unimplemented verb answered 200 with an empty body
 
 it('still answers on the verbs that are implemented', function () {
     //Narrowing a resource is easy to overshoot, so the survivors are named too
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create();

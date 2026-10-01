@@ -24,14 +24,19 @@ class TestingFormatter
      * A business with no import templates, which is what registration creates.
      *
      * A test that uploads a spreadsheet has to record the template that reads it first -
-     * recordExampleTemplates() in tests/Pest.php does that with the calibrated examples.
+     * recordExampleTemplates() in tests/Pest.php does that with the calibrated examples. A test about
+     * a business with NO template is testing TemplateLearningService, which is what now happens when
+     * an upload matches nothing.
+     *
+     * This took a second argument, $adminSetupComplete, which every caller passed true to except the
+     * handful about onboarding. There is no such state now - see the migration that dropped the
+     * column - so the argument went with it rather than becoming a parameter nothing reads.
      */
-    public function createBusiness(string $name, bool $adminSetupComplete): Business
+    public function createBusiness(string $name): Business
     {
         return Business::create([
             'name' => $name,
             'domain' => str_replace(' ', '-', $name).'.com',
-            'admin_setup_complete' => $adminSetupComplete,
         ]);
     }
 

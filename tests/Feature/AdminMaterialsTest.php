@@ -24,7 +24,7 @@ uses(RefreshDatabase::class);
  */
 function adminActingAs($test)
 {
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $admin = createUser(1, $business, true, true);
     $test->actingAs($admin);
 
@@ -123,7 +123,7 @@ function pieceMatching(Product $product, Project $project): Piece
 */
 
 it('would be a disaster if a non-admin could edit the platform catalogue', function () {
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(2, $business, false, true);
     $product = platformProduct();
 
@@ -146,7 +146,7 @@ it("would be a disaster if this screen could edit another business's private pro
      */
     adminActingAs($this);
 
-    $otherBusiness = createBusiness('other', true);
+    $otherBusiness = createBusiness('other');
     $theirs = platformProduct(['business_id' => $otherBusiness->id, 'description' => 'Theirs']);
 
     $this->patch(route('admin.materials.update', $theirs), materialPayload(['kg_per_m' => 99]))

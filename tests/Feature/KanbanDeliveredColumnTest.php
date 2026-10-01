@@ -78,7 +78,7 @@ function deliveredColumnRow(Batch $batch): ?array
 }
 
 it('offers "Move to done" once the sent orders are in', function () {
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     [$batch] = batchInDeliveringColumn($user);
@@ -98,7 +98,7 @@ it('would be a disaster if a batch delivered by two suppliers in one group could
      * supplier CATEGORIES read 2 === 1 here, the button never appeared, and nothing else in the app
      * sets "done" - the batch was stuck on the board for good.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     [$batch] = batchInDeliveringColumn($user);
@@ -114,7 +114,7 @@ it('would be a disaster if it offered "Move to done" with a delivery still out',
      * The mirror of the count above: two delivered steel rows and one outstanding fasteners row also
      * read 2 === 2, so the card offered a button the controller then refused with a 403.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     [$batch] = batchInDeliveringColumn($user);
@@ -131,7 +131,7 @@ it('ignores a drafted but never sent order when deciding everything is in', func
      * An Order row is created for every supplier group the moment someone opens the quote screen.
      * Those drafts are not outstanding deliveries - the controller ignores them and so must the card.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     [$batch] = batchInDeliveringColumn($user);
@@ -143,7 +143,7 @@ it('ignores a drafted but never sent order when deciding everything is in', func
 });
 
 it('warns when a delivered steel merchant order has no material certs', function () {
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
@@ -165,7 +165,7 @@ it('would be a disaster if a second steel merchant\'s draft row withheld the cer
      * numbers, drafts included - and a business with two steel merchants always has one, so the button
      * was hidden for good however complete the real order's certs were.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     [$batch] = batchInDeliveringColumn($user);
@@ -184,7 +184,7 @@ it('leaves a batch whose orders are all delivered closeable by the controller it
      * The card's test and the controller's guard have to agree, or the button lies about what the post
      * will do. This is the same batch as the first test, put through the actual route.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     [$batch] = batchInDeliveringColumn($user);

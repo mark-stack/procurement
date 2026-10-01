@@ -50,7 +50,6 @@ class DatabaseSeeder extends Seeder
         $adminBusiness = Business::create([
             'name' => null,
             'domain' => $adminUser->getDomainFromEmail(),
-            'admin_setup_complete' => true,
         ]);
         $adminUser->business_id = $adminBusiness->id;
         $adminUser->save();
@@ -64,7 +63,6 @@ class DatabaseSeeder extends Seeder
         $sampleBusiness = Business::create([
             'name' => "SAMPLE",
             'domain' => 'sample.com',
-            'admin_setup_complete' => false,
         ]);
 
         /*

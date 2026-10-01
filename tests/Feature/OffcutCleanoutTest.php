@@ -33,7 +33,7 @@ function agedOffcut(int $lengthMm, int $daysOld, int $batchId): Offcut
  */
 function secondYardUser(): App\Models\User
 {
-    return createUser(1, createBusiness('other-biz', true), false, true);
+    return createUser(1, createBusiness('other-biz'), false, true);
 }
 
 /**

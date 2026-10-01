@@ -42,9 +42,6 @@ class HandleInertiaRequests extends Middleware
                 //While impersonating, isAdmin() reads the impersonated user, so nothing else
                 //on the page can tell that the session is not really theirs
                 'impersonating' => (bool) $request->session()->get('impersonator_id'),
-                //A user without a business is unexpected, but it must not 500 every
-                //page - these are shared on every Inertia response
-                'onboarded' => (bool) $request->user()?->business?->admin_setup_complete,
                 'notifications' => (new NotificationService)->getUnreadNotifications($request->user()),
                 "hasPastProjects" => (bool) $request->user()?->business?->batches()->inactive()->exists(),
             ],
@@ -118,10 +115,11 @@ class HandleInertiaRequests extends Middleware
      * out of json wherever a business is serialised, admin screens included.
      *
      * So: nothing until the address is confirmed, and then only these fields. allow_custom_products
-     * is the one the modals branch on; the rest are identity, and admin_setup_complete is already
-     * shared as 'onboarded' beside this.
+     * is the one the modals branch on; the rest are identity. admin_setup_complete used to be here
+     * and beside this as 'onboarded', which is what the nav drew the onboarding link from - both are
+     * gone with the column.
      *
-     * @return array{id: int, name: string|null, domain: string, allow_custom_products: bool, meterage_only: bool, admin_setup_complete: bool}|null
+     * @return array{id: int, name: string|null, domain: string, allow_custom_products: bool, meterage_only: bool}|null
      */
     private function businessProp(Request $request): ?array
     {
@@ -143,7 +141,6 @@ class HandleInertiaRequests extends Middleware
             'domain' => $business->domain,
             'allow_custom_products' => (bool) $business->allow_custom_products,
             'meterage_only' => (bool) $business->meterage_only,
-            'admin_setup_complete' => (bool) $business->admin_setup_complete,
         ];
     }
 

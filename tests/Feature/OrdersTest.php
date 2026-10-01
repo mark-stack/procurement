@@ -26,7 +26,7 @@ it('would be a disaster if ordered without other staff approval', function () {
      * names whoever actually pressed it, so a colleague's project shows the truth - approved, by
      * someone who is not its manager.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $colleague = createUser(2, $business, false, true);
 
@@ -67,7 +67,7 @@ it('would be a disaster if undoing a sent order left the approval standing', fun
      * Undoing hands the decision back, so there is nobody left to name - an approval that kept
      * its approver would read as still-agreed on a batch that is no longer ordered.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $project = createProject($user);
 
@@ -97,7 +97,7 @@ it('would be a disaster if duplicate orders were possible', function () {
      * One order per quote - Order::firstOrCreate(['quote_id' => ...]) always assumed it, but nothing
      * enforced it, so two concurrent renders of the quote/order page could both insert.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $batch = Batch::factory()->forUser($user->id)->create();
 

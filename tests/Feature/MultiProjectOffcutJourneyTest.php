@@ -118,7 +118,7 @@ it('would be a disaster if a batch spanning several projects cut the wrong steel
      * Stage 1: an admin imports the master materials, which is where the purchasable stock lengths
      * every nest is built from come from.
      */
-    $adminBusiness = createBusiness('admin', true);
+    $adminBusiness = createBusiness('admin');
     $adminUser = createUser(1, $adminBusiness, true, true);
     $this->actingAs($adminUser);
     seedMasterMaterials();
@@ -127,7 +127,7 @@ it('would be a disaster if a batch spanning several projects cut the wrong steel
      * A rival yard, with a 9,000mm 200PFC offcut delivered and available to them. It would fit any
      * piece in this journey perfectly, and nothing here may ever touch it.
      */
-    $rivalBusiness = createBusiness('rival', true);
+    $rivalBusiness = createBusiness('rival');
     $rivalUser = createUser(2, $rivalBusiness, false, true);
     $rivalBatch = Batch::factory()->forUser($rivalUser->id)->create();
     [, $rivalOrder] = quoteAndOrder($rivalUser, $rivalBatch, orderSent: true);
@@ -145,7 +145,7 @@ it('would be a disaster if a batch spanning several projects cut the wrong steel
      * fits: 5,000 + 4,500 is 9,500, so the only packing is A and B paired on one bar, C alone on
      * the other with 4,000mm left over.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(3, $business, false, true);
     $this->actingAs($user);
 

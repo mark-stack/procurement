@@ -33,7 +33,7 @@ class AdminUserIndexController extends Controller
         $users = User::query()
             //Relation, not Builder: an eager load closure is handed the relation itself
             ->with(['business' => fn (Relation $query) => $query
-                ->select(['id', 'domain', 'admin_setup_complete'])
+                ->select(['id', 'domain'])
                 /*
                  * The templates column answers "can these people import anything yet", which is
                  * the reason an admin opens this page after a signup. So it counts the templates

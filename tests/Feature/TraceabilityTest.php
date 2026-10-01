@@ -220,7 +220,7 @@ it('traces a cut taken off the rack back to the bar its steel was rolled as', fu
      * is the bug Batch::resolveOffcutOrdersWithCertificates documents: it reported fully traceable
      * steel as untraceable from the third generation on.
      */
-    $user = createUser(1, createBusiness('biz', true), false, true);
+    $user = createUser(1, createBusiness('biz'), false, true);
 
     $rootBatch = Batch::factory()->forUser($user->id)->create();
 
@@ -257,7 +257,7 @@ it('would be a disaster if a cut could be saved naming neither a bar nor an offc
      * empty on every model here, so the guard has to be in the model rather than in the one caller that
      * happens to write them today.
      */
-    $user = createUser(1, createBusiness('biz', true), false, true);
+    $user = createUser(1, createBusiness('biz'), false, true);
     $batch = Batch::factory()->forUser($user->id)->create();
     $piece = pieceOnBatch(createProject($user), $batch);
 

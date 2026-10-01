@@ -17,9 +17,9 @@ class BillingController extends Controller
     {
         $business = $request->user()?->business;
 
-        //Nothing to bill without a business. Onboarding is where that gets fixed.
+        //Nothing to bill without a business, and no page in here can fix that
         if ($business === null) {
-            return redirect()->route('onboarding');
+            return redirect('/');
         }
 
         return Inertia::render('Billing/Index', [

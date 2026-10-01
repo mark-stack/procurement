@@ -19,7 +19,6 @@ use App\Http\Controllers\OffcutController;
 use App\Http\Controllers\OffcutRemoveController;
 use App\Http\Controllers\OffcutRestoreController;
 use App\Http\Controllers\OffcutScrapController;
-use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderMarkDeliveredController;
 use App\Http\Controllers\OrderSentController;
@@ -37,16 +36,12 @@ use App\Http\Controllers\SandboxController;
 use App\Http\Controllers\SuggestedNestingController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Middleware\BillingWriteAccessMiddleware;
-use App\Http\Middleware\BusinessReadyMiddleware;
 use Illuminate\Support\Facades\Route;
 
 /*
  * Auth & verified
  */
 Route::middleware(['auth', 'verified'])->group(function () {
-
-    //Onboarding
-    Route::get('/onboarding', OnboardingController::class)->name('onboarding');
 
     //Profile
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -69,10 +64,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     /*
      * Billing
      *
-     * Outside BusinessReadyMiddleware deliberately: a trial runs from the moment the business is
-     * created, so it can expire before onboarding was ever finished, and the one page that can fix
-     * that must not be behind the thing it is blocked by. Outside BillingWriteAccessMiddleware for
-     * the same reason - subscribing is the one write a read-only account has to be able to make.
+     * Outside BillingWriteAccessMiddleware deliberately: subscribing is the one write a read-only
+     * account has to be able to make, so the page that fixes an expired trial must not be behind the
+     * thing an expired trial blocks.
+     *
+     * BusinessReadyMiddleware used to be the other half of that sentence. It is gone - a business can
+     * import from its first upload now, so there is no longer a state to be outside of.
      */
     Route::get('billing', BillingController::class)->name('billing.index');
     Route::post('billing/checkout', BillingCheckoutController::class)->name('billing.checkout');
@@ -83,7 +80,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
      * Test mode
      *
      * Outside both gates below, deliberately. Leaving test mode has to work from wherever the user
-     * is, including an account that has gone read-only or never finished onboarding - being stuck
+     * is, including an account that has gone read-only - being stuck
      * looking at a sandbox with no way back to the real board would be far worse than anything
      * these gates protect. Clearing is in the same position for the same reason, and it can only
      * ever delete the caller's own test rows.
@@ -92,8 +89,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('sandbox/leave', [SandboxController::class, 'leave'])->name('sandbox.leave');
     Route::delete('sandbox', [SandboxController::class, 'clear'])->name('sandbox.clear');
 
-    //Onboarding is finalised
-    Route::middleware([BusinessReadyMiddleware::class, BillingWriteAccessMiddleware::class])->group(function () {
+    /*
+     * The product. Everything here writes, so it is all behind the one gate that is left: whether
+     * this business's account is paid up or in its trial.
+     *
+     * BusinessReadyMiddleware sat in front of BillingWriteAccessMiddleware here and held the lot
+     * until an admin had recorded this business's import templates by hand. An upload that matches
+     * nothing now writes its own template - see TemplateLearningService - so there is nothing to
+     * wait for and nothing to hold.
+     */
+    Route::middleware([BillingWriteAccessMiddleware::class])->group(function () {
         //Current Projects
         //Create/show/edit were unimplemented stubs - the dashboard modals cover them
         Route::resource('projects', ProjectController::class)->only(['index', 'store', 'update', 'destroy']);
@@ -222,9 +227,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     /*
      * Batches
      *
-     * Gated on its own because it sits outside the BusinessReadyMiddleware group above - nesting a
-     * batch is the single most expensive write in the application, so it is the last thing that
-     * should stay open on a lapsed account.
+     * Gated on its own because it sits outside the group above - nesting a batch is the single most
+     * expensive write in the application, so it is the last thing that should stay open on a lapsed
+     * account.
      */
     /*
      * only(): destroy is the unwind; store exists to answer 404 to anything that tries to create a

@@ -14,7 +14,7 @@ it('would be a disaster if mismatched attributes', function (string $description
     /*
      * Create admin & seed materials
      */
-    $adminBusiness = createBusiness('admin', true);
+    $adminBusiness = createBusiness('admin');
     $adminUser = createUser(1, $adminBusiness, true, true);
 
     //Seed master_product.csv to create products
@@ -22,7 +22,7 @@ it('would be a disaster if mismatched attributes', function (string $description
     seedMasterMaterials();
 
     //Fake data
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
     $project = createProject($user);
 

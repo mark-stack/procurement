@@ -18,7 +18,7 @@ it('would be a disaster if meterage nesting with an offcut was not working corre
     /*
      * Create admin & seed materials
      */
-    $adminBusiness = createBusiness('admin', true);
+    $adminBusiness = createBusiness('admin');
     $adminUser = createUser(1, $adminBusiness, true, true);
 
     //Seed master_product.csv to create products
@@ -28,7 +28,7 @@ it('would be a disaster if meterage nesting with an offcut was not working corre
     /*
      * Business/User #1
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $this->actingAs($user);
     $project = createProject($user, true);
@@ -113,7 +113,7 @@ it('would be a disaster if using offcuts that are allocated to another batch', f
     /*
      * Business/User #1
      */
-    $business1 = createBusiness('biz1', true);
+    $business1 = createBusiness('biz1');
     $user1 = createUser(1, $business1, false, true);
     $this->actingAs($user1);
     $project1 = createProject($user1, true);
@@ -128,7 +128,7 @@ it('would be a disaster if using offcuts that are allocated to another batch', f
     /*
      * Business/User #2
      */
-    $business2 = createBusiness('biz2', true);
+    $business2 = createBusiness('biz2');
     $user2 = createUser(2, $business2, false, true);
     $this->actingAs($user2);
     $project2 = createProject($user2, true);
@@ -150,7 +150,7 @@ it("would be a disaster if offcut of an offcut didn't work", function () {
     $nestingFormatter = new NestingFormatter();
 
     //Create admin
-    $adminBusiness = createBusiness('admin', true);
+    $adminBusiness = createBusiness('admin');
     $adminUser = createUser(1, $adminBusiness, true, true);
 
     //Authorised
@@ -160,7 +160,7 @@ it("would be a disaster if offcut of an offcut didn't work", function () {
     seedMasterMaterials();
 
     //Create admin
-    $business = createBusiness('admin', true);
+    $business = createBusiness('admin');
     $user = createUser(1, $business, false, true);
 
     //Create project
@@ -299,7 +299,7 @@ it('would be a disaster if using offcuts that belong to another company', functi
     /*
      * Create admin & seed materials
      */
-    $adminBusiness = createBusiness('admin', true);
+    $adminBusiness = createBusiness('admin');
     $adminUser = createUser(1, $adminBusiness, true, true);
     $this->actingAs($adminUser);
     seedMasterMaterials();
@@ -307,7 +307,7 @@ it('would be a disaster if using offcuts that belong to another company', functi
     /*
      * Business #1 has a delivered batch with a 9,000mm offcut sitting in its inventory
      */
-    $business1 = createBusiness('biz1', true);
+    $business1 = createBusiness('biz1');
     $user1 = createUser(2, $business1, false, true);
     $this->actingAs($user1);
 
@@ -341,7 +341,7 @@ it('would be a disaster if using offcuts that belong to another company', functi
     /*
      * Business #2 nests pieces that would fit that offcut perfectly
      */
-    $business2 = createBusiness('biz2', true);
+    $business2 = createBusiness('biz2');
     $user2 = createUser(3, $business2, false, true);
     $this->actingAs($user2);
     $project2 = createProject($user2);
@@ -368,13 +368,13 @@ it('would be a disaster if using an offcut twice in the same project', function 
      * bar in the same nest.
      */
     //Create admin & seed materials
-    $adminBusiness = createBusiness('admin', true);
+    $adminBusiness = createBusiness('admin');
     $adminUser = createUser(1, $adminBusiness, true, true);
     $this->actingAs($adminUser);
     seedMasterMaterials();
 
     //Business with a delivered batch and three offcuts available
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(2, $business, false, true);
     $this->actingAs($user);
 

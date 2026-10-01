@@ -1,10 +1,10 @@
 ---
 id: TASK-010
 title: CI that enforces the test suite and the PHPStan baseline
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-01 01:56'
-updated_date: '2026-10-01 14:40'
+updated_date: '2026-10-01 05:02'
 labels:
   - ci
   - quality
@@ -12,7 +12,7 @@ labels:
 dependencies: []
 priority: high
 type: chore
-ordinal: 10000
+ordinal: 2000
 ---
 
 ## Description

@@ -49,7 +49,7 @@ it('would be a disaster if a colleague could take your project into their batch 
      * their own project. The confirmation naming whose work is being taken is shown to the person
      * doing the taking; the owner was told nothing and found out by noticing the card had moved.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $quoter = createUser(1, $business, false, true);
     $colleague = createUser(2, $business, false, true);
 
@@ -75,7 +75,7 @@ it('would be a disaster if the bell named a project the reader has no way to see
      * App\Sandbox\Sandbox sees live data only. These two run inside a request, where the person who
      * pressed the button may well be in their own sandbox.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $quoter = createUser(1, $business, false, true);
     $colleague = createUser(2, $business, false, true);
 
@@ -99,7 +99,7 @@ it('would be a disaster if re-sending an order rang every project manager again'
      * press settles the approval for every project on the batch, so without a per-batch guard each
      * press would also put another copy of the same sentence in every colleague's bell.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $orderer = createUser(1, $business, false, true);
     $colleague = createUser(2, $business, false, true);
 
@@ -120,7 +120,7 @@ it('tells the other project managers when someone sends the order that approves 
      * it. UpdateOrderApprovalStatus records who approved; this is what puts it in front of the
      * people it was recorded on behalf of.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $orderer = createUser(1, $business, false, true);
     $colleague = createUser(2, $business, false, true);
 
@@ -151,7 +151,7 @@ it('would be a disaster if a colleague could join the business and nobody be tol
      * whenever two quiet days passed - the platform admin's own signup alerts included.
      */
     //A company domain, not 'gmail' - a personal provider is refused registration outright
-    $business = createBusiness('acmesteel', true);
+    $business = createBusiness('acmesteel');
     $existing = createUser(1, $business, false, true);
 
     $response = $this->post(route('register'), [
@@ -188,10 +188,10 @@ it('would be a disaster if a colleague could join the business and nobody be tol
 });
 
 it('would be a disaster if a colleague notification crossed into another business', function () {
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $quoter = createUser(1, $business, false, true);
 
-    $otherBusiness = createBusiness('outlook', true);
+    $otherBusiness = createBusiness('outlook');
     $stranger = createUser(2, $otherBusiness, false, true);
 
     //A project of the stranger's, on the quoter's batch. Not reachable through the UI - the gates
@@ -220,7 +220,7 @@ it('would be a disaster if a reminder stayed in the bell after its deadline stop
      * Said the other way round - these project ids are still due, so reminders about anything else
      * are stale - it is correct with one business live or a thousand.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $settled = createProject($user);
@@ -250,7 +250,7 @@ it('fills the bell without emailing anybody, unless asked to', function () {
      * ['mail', 'database'], so the bell and the outbound email were one decision. They are not any
      * more, and the default is bell only - see config/notifications.php and the BellFirst trait.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $project = createProject($user);
@@ -278,7 +278,7 @@ it('renders every unread notification the bell is given, and only once each', fu
      * on every Inertia response - and would have appended a duplicate had two implementations ever
      * answered to the same type.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
     $colleague = createUser(2, $business, false, true);
 
@@ -304,7 +304,7 @@ it('would be a disaster if archiving a project left a colleague notification abo
      * stops being talked about, through NotificationService::clearProjectNotifications and the
      * project observer.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $owner = createUser(1, $business, false, true);
     $colleague = createUser(2, $business, false, true);
 

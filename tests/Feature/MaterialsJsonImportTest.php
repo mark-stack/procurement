@@ -355,7 +355,7 @@ it('would be a disaster if a plan approved against one catalogue applied to anot
 });
 
 it('would be a disaster if a non-admin could import or export the catalogue', function () {
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(2, $business, false, true);
 
     $this->actingAs($user);

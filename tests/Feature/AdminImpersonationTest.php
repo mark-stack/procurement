@@ -9,7 +9,7 @@ it('would be a disaster if impersonation were reachable by a link or a prefetch'
      * or a crawler hitting a logged-in admin silently swapped which account the session
      * was authenticated as - with no CSRF token involved and no way back.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
     $user = createUser(2, $business, false, true);
 
@@ -21,7 +21,7 @@ it('would be a disaster if impersonation were reachable by a link or a prefetch'
 });
 
 it('would be a disaster if a non-admin could impersonate another user', function () {
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $user = createUser(1, $business, false, true);
     $target = createUser(2, $business, false, true);
 
@@ -33,7 +33,7 @@ it('would be a disaster if a non-admin could impersonate another user', function
 });
 
 it('signs the admin in as the user and records the way back', function () {
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
     $user = createUser(2, $business, false, true);
 
@@ -52,7 +52,7 @@ it('would be a disaster if impersonating an unverified user stranded the admin',
      * which sends a real email to the customer. The admin nav is gone at that point, so
      * there was no way back short of logging out and logging in again.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
     $unverified = createUser(2, $business, false, false);
 
@@ -70,7 +70,7 @@ it('would be a disaster if the admin could not get back out of an impersonated s
      * impersonated user's email, so every /admin route redirected away and the nav items
      * disappeared. Logging out and back in was the only exit.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
     $user = createUser(2, $business, false, true);
 
@@ -88,7 +88,7 @@ it('would be a disaster if stop-impersonating were a way to become someone else'
      * impersonated user - so it has to refuse on its own when the session was never
      * impersonating in the first place.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $user = createUser(1, $business, false, true);
 
     $this->actingAs($user)
@@ -99,7 +99,7 @@ it('would be a disaster if stop-impersonating were a way to become someone else'
 });
 
 it('ends the session when the admin to return to has been deleted', function () {
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
     $user = createUser(2, $business, false, true);
 
@@ -119,7 +119,7 @@ it('refuses to impersonate an admin account', function () {
      * Impersonating yourself would overwrite impersonator_id with your own id, which makes
      * the way back a no-op.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $this->actingAs($admin)
@@ -137,7 +137,7 @@ it('would be a disaster if the admin session payload leaked into the impersonate
      * Auth::login() rotates the session id but keeps the attributes, so the admin's flash
      * data and intended url carried straight into the session that is now the customer's.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
     $user = createUser(2, $business, false, true);
 
@@ -149,7 +149,7 @@ it('would be a disaster if the admin session payload leaked into the impersonate
 });
 
 it('does not offer an impersonate button on the admin own row', function () {
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
     $user = createUser(2, $business, false, true);
 

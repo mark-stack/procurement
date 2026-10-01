@@ -315,7 +315,7 @@ function fakeBillingProvider(): Tests\Fakes\FakeBillingProvider
  */
 function lapsedTrialBusiness(string $name = 'Lapsed'): Business
 {
-    $business = createBusiness($name, true);
+    $business = createBusiness($name);
 
     $business->trial_ends_at = now()->subDay();
     $business->save();
@@ -323,14 +323,9 @@ function lapsedTrialBusiness(string $name = 'Lapsed'): Business
     return $business;
 }
 
-function createBusiness(string $name, bool $adminSetupComplete): Business
+function createBusiness(string $name): Business
 {
-    return (new TestingFormatter())->createBusiness($name,$adminSetupComplete);
-//    return Business::create([
-//        'name' => $name,
-//        'domain' => str_replace(' ', '-', $name).'.com',
-//        'admin_setup_complete' => $adminSetupComplete,
-//    ]);
+    return (new TestingFormatter())->createBusiness($name);
 }
 
 /**
@@ -612,7 +607,7 @@ function batchWithDeliveredOrder(User $user, ?string $cert = null, ?Supplier $su
  */
 function offcutsIndexUser(): User
 {
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
 
     return createUser(1, $business, false, true);
 }
@@ -667,11 +662,11 @@ function nestedBatch(array $nest, string $businessName = 'fabricator'): array
     $dataClassificationService = new App\Services\DataClassificationService;
 
     //The catalogue has to exist before a BOM can be matched against it
-    $adminUser = createUser(1, createBusiness('admin', true), true, true);
+    $adminUser = createUser(1, createBusiness('admin'), true, true);
     test()->actingAs($adminUser);
     seedMasterMaterials();
 
-    $business = createBusiness($businessName, true);
+    $business = createBusiness($businessName);
     $user = createUser(1, $business, false, true);
     $project = createProject($user);
 

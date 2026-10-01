@@ -26,7 +26,7 @@ class BillingPortalController extends Controller
         $business = $request->user()?->business;
 
         if ($business === null) {
-            return redirect()->route('onboarding');
+            return redirect('/');
         }
 
         try {

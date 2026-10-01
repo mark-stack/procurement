@@ -10,29 +10,20 @@ use Illuminate\Http\Request;
 class ResendWelcomeEmailController extends Controller
 {
     /**
-     * Handle the incoming request.
+     * Sends a user a magic link that signs them in and verifies their address.
+     *
+     * It used to be the follow-up to activation: an admin switched a business on, everybody in it was
+     * welcomed, and this put right the one person whose email bounced. Activation is gone - a business
+     * can import from its first upload - so what is left is the useful half, which is a way to get a
+     * customer into their account when the verification email from registration never arrived or has
+     * expired. The wording is unchanged because what it says is still true, and truer than it was:
+     * their setup is complete, from the minute they signed up.
      */
     public function __invoke(Request $request, User $user): RedirectResponse
     {
-        /*
-         * Per user, not per business. Activation welcomes everyone at once and can only happen
-         * once, so the thing an admin actually needs afterwards is to put right the one person
-         * whose email bounced, went to spam, or was queued while the worker was down - not to
-         * mail the whole business again.
-         */
-        $business = $user->business;
-
-        if (! $business) {
+        //Per user: the thing an admin needs is to get one person in, not to mail a whole business
+        if (! $user->business) {
             return back()->with('warning', 'That user has no business, so there is nothing to welcome them to.');
-        }
-
-        /*
-         * The email says the setup configuration is complete, and its link lands on projects,
-         * which BusinessReadyMiddleware guards. Sending it before activation would be a lie
-         * followed by a redirect back to onboarding.
-         */
-        if (! $business->admin_setup_complete) {
-            return back()->with('warning', 'That business is not active yet. Activate it, which welcomes everyone in it.');
         }
 
         /*
