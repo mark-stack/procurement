@@ -231,8 +231,16 @@ it('would be a disaster if using an offcut you already own scored worse than buy
     $statsWith = $formatter->usageStats(['METERAGE' => [(object) ['nested' => $withOffcut]]]);
     $statsWithout = $formatter->usageStats(['METERAGE' => [(object) ['nested' => $without]]]);
 
-    expect($statsWith['METERAGE']['efficiency'])->toBe(100.0)
-        ->and($statsWithout['METERAGE']['efficiency'])->toBe(100.0);
+    expect($statsWith['METERAGE']['effectiveEfficiency'])->toBe(100.0)
+        ->and($statsWithout['METERAGE']['effectiveEfficiency'])->toBe(100.0);
+
+    /*
+     * The headline efficiency figure is used/total, so the offcut nest does read lower - 6,000mm of an
+     * 11,000mm offcut went back on the rack instead of into the job. That is the honest answer to what
+     * it asks, and it is the not-destroyed figure above that the 70% check is made on.
+     */
+    expect($statsWith['METERAGE']['efficiency'])->toBe(45.5)
+        ->and($statsWithout['METERAGE']['efficiency'])->toBe(83.3);
 
     //Nothing was bought for the offcut nest, and the offcut is reported apart from purchases
     expect($statsWith['METERAGE']['totalPurchasedMaterial'])->toBe(0)
@@ -252,7 +260,25 @@ it('would be a disaster if scrapped steel did not show up in the efficiency figu
     //8,200 of 9,000 became pieces and 800 was binned
     expect($stats['METERAGE']['totalScrap'])->toBe(800)
         ->and($stats['METERAGE']['efficiency'])->toBe(91.1)
-        ->and($stats['METERAGE']['yield'])->toBe(91.1);
+        ->and($stats['METERAGE']['effectiveEfficiency'])->toBe(91.1);
+});
+
+it('would be a disaster if a bar with a metre still on the rack was reported as 100%', function () {
+    /*
+     * Two 3,600mm cuts in a 9,000mm bar leave 1,800mm, over the scrap threshold, so it is banked for
+     * reuse rather than binned. Nothing is destroyed - which is why the not-destroyed figure says 100%
+     * - but only 80% of the steel bought was consumed by the job, and that is what the screens report.
+     */
+    $business = nestingBusiness();
+    $formatter = new NestingFormatter();
+
+    $nested = $formatter->meterageAlgorithm(nestingCuts([[3600, 2]]), [9000], [], [1 => 'A'], $business);
+    $stats = $formatter->usageStats(['METERAGE' => [(object) ['nested' => $nested]]]);
+
+    expect($stats['METERAGE']['totalScrap'])->toBe(0)
+        ->and($stats['METERAGE']['totalReusable'])->toBe(1800)
+        ->and($stats['METERAGE']['efficiency'])->toBe(80.0)
+        ->and($stats['METERAGE']['effectiveEfficiency'])->toBe(100.0);
 });
 
 /**
