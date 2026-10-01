@@ -316,6 +316,9 @@
 
     /**
      * What the delivery cell says, which is a different question from whether the steel arrived.
+     *
+     * Only reached once there is something to report. A delivery with nothing recorded against it is
+     * the unticked checkbox in the template, not a label, so there is no "Book in" case here.
      */
     function receiptSummary(row){
         const receipt = row.goodsReceipt;
@@ -324,11 +327,7 @@
             return receipt.accepted === false ? 'Received, with a problem' : 'Received';
         }
 
-        if(receipt?.deliveredWithoutReceipt){
-            return 'Arrived, unverified';
-        }
-
-        return 'Book in';
+        return 'Arrived, unverified';
     }
 
     function receiptTitle(row){
@@ -684,20 +683,30 @@
                                 </div>
                             </div>
                             <!--
-                                Delivered. A checkbox here could only say "it turned up"; booking a
-                                delivery in is a form, so this opens one - and once it is booked in the
-                                same button shows the record rather than a tick nobody can read.
+                                Delivered. The checkbox reads as the third step of Sent Quote and Sent
+                                order, but it cannot tick itself: booking a delivery in is a form, so
+                                clicking opens one and what comes back decides what this cell says.
+                                Once there is a receipt the summary replaces it, because a tick alone
+                                cannot say whether what came off the truck was what was ordered.
                             -->
                             <div class="pt-1">
+                                <input
+                                    v-if="row.info.order_sent
+                                        && !row.goodsReceipt?.received
+                                        && !row.goodsReceipt?.deliveredWithoutReceipt"
+                                    @click.prevent="openReceipt(row)"
+                                    :title="receiptTitle(row)"
+                                    type="checkbox"
+                                />
                                 <button
-                                    v-if="row.info.order_sent"
+                                    v-else-if="row.info.order_sent"
                                     type="button"
                                     @click="openReceipt(row)"
                                     :title="receiptTitle(row)"
                                     class="mx-auto flex max-w-full items-center gap-1 rounded px-1.5 py-1 text-xs hover:bg-gray-100"
                                     :class="row.goodsReceipt?.received
                                         ? (row.goodsReceipt?.accepted === false ? 'text-orange-700' : 'text-gray-700')
-                                        : (row.goodsReceipt?.deliveredWithoutReceipt ? 'text-amber-700' : 'text-blue-600 underline')"
+                                        : 'text-amber-700'"
                                 >
                                     <i
                                         v-if="row.goodsReceipt?.received"
@@ -771,7 +780,7 @@
         :show="showReceiptModal && !!receiptRow"
         :row="receiptRow"
         :supplierName="receiptSupplierName"
-        :nonconformanceOptions="quotesData.info.receiptNonconformanceOptions ?? []"
+        :nonconformanceOptions="quotesData?.info?.receiptNonconformanceOptions ?? []"
         @closeModal="closeReceipt()"
         @refresh="$emit('refresh')"
     />

@@ -1,13 +1,22 @@
 # Kanban Board Export (powered by Backlog.md)
-Generated on: 2026-10-01 02:42:45
+Generated on: 2026-10-01 04:40:58
 Project: Steelnesting
 
 | To Do | In Progress | Done |
 | --- | --- | --- |
-| **TASK-007** - Retain measurements instead of recomputing them<br>*#iso-9001 #clause-9.1 #clause-6.2 #reporting #minor* |  | **TASK-001** - Item-level traceability, goods receipt and an append-only change log<br>*#iso-9001 #clause-8.5.2 #clause-8.6 #clause-7.5.3.2 #major* |
+| **TASK-021** - Weekly plan to be Stripe | **TASK-010** - CI that enforces the test suite and the PHPStan baseline<br>*#ci #quality #clause-8.3* | **TASK-001** - Item-level traceability, goods receipt and an append-only change log<br>*#iso-9001 #clause-8.5.2 #clause-8.6 #clause-7.5.3.2 #major* |
+| **TASK-018** - 2D plates |  |  |
+| **TASK-020** - nesting provable metrics |  |  |
+| **TASK-019** - Admin only: simulator with visual output, provable metrics |  |  |
+| **TASK-016** - link cert numbers to actual files when available |  |  |
+| **TASK-017** - an AI spreadsheet parser for universality? |  |  |
+| **TASK-014** - an animated walk through of nesting behaviour as remnants are stored then used |  |  |
+| **TASK-015** - landing page: ambiguity check |  |  |
+| **TASK-013** - tests: survive/kill |  |  |
+| **TASK-012** - Add a landing page section about ISO 9001 alignment<br>*#iso-9001 #marketing #landing-page* |  |  |
+| **TASK-007** - Retain measurements instead of recomputing them<br>*#iso-9001 #clause-9.1 #clause-6.2 #reporting #minor* |  |  |
 | **TASK-008** - Master catalogue review record and measurement inputs<br>*#iso-9001 #clause-7.1.5 #catalogue #minor* |  |  |
 | **TASK-009** - Give order confirmation a writer<br>*#iso-9001 #clause-8.4.3 #orders* |  |  |
-| **TASK-010** - CI that enforces the test suite and the PHPStan baseline<br>*#ci #quality #clause-8.3* |  |  |
 | **TASK-011** - Decide the QMS scope boundary and what the product claims<br>*#iso-9001 #scope #observation* |  |  |
 | **TASK-002** - Supplier approval and evaluation<br>*#iso-9001 #clause-8.4.1 #suppliers #major* |  |  |
 | **TASK-003** - Template version control and retained verification evidence<br>*#iso-9001 #clause-8.5.6 #clause-7.5.2 #templates #major* |  |  |

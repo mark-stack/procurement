@@ -1,0 +1,113 @@
+#
+# The suite and the static-analysis baseline, run somewhere that is not the author's laptop.
+#
+# The two jobs are deliberately independent: a failing test should not hide a PHPStan rise, and a
+# PHPStan rise should not stop anybody seeing which tests failed. See docs/quality-gates.md.
+#
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+#A new push to a branch makes the run in flight for that branch pointless, so stop paying for it
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Pest
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          # gd is a hard require in composer.json. The suite runs on in-memory SQLite (phpunit.xml),
+          # so pdo_sqlite is what it needs rather than a MySQL service container
+          extensions: gd, pdo_sqlite, sqlite3
+          ini-values: memory_limit=1G
+          coverage: none
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ runner.os }}-php8.5-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php8.5-
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install JS dependencies
+        run: npm ci --no-audit --no-fund
+
+      #
+      # Not optional, and not a frontend concern. public/build is gitignored, so a fresh checkout has
+      # no Vite manifest - and every Inertia page renders through a Blade root that calls @vite. With
+      # no manifest that throws, the response stops being a valid Inertia page, and 116 tests fail on
+      # an error that has nothing to do with what they are testing.
+      #
+      # It does mean a broken frontend build fails CI, which is worth having on its own.
+      #
+      - name: Build frontend assets
+        run: npm run build
+
+      #APP_KEY is empty in .env.example, and the encrypter refuses to boot without one
+      - name: Prepare the environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Run the test suite
+        run: php -d memory_limit=1G vendor/bin/pest --colors=always
+
+  static-analysis:
+    name: PHPStan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: gd, pdo_sqlite, sqlite3
+          ini-values: memory_limit=1G
+          coverage: none
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ runner.os }}-php8.5-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php8.5-
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      #
+      # No .env, no key and no built assets here on purpose - PHPStan analyses app/ without booting
+      # an HTTP request, and this job was checked to pass without any of them.
+      #
+      # Fails on a rise above the count recorded in docs/quality-gates.md, and only on a rise.
+      #
+      - name: PHPStan against its baseline
+        run: php scripts/phpstan-gate.php
