@@ -41,7 +41,7 @@
         totalKerf: 0,
         totalScrap: 0,
         efficiency: 0,
-        yield: 0,
+        effectiveEfficiency: 0,
     });
 
 

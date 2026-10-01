@@ -399,7 +399,7 @@ class NestingFormatter
                 "totalKerf" => 0,
                 "totalScrap" => 0,
                 'efficiency' => 0,
-                'yield' => 0,
+                'effectiveEfficiency' => 0,
             ],
             NestingEnums::BUNDLE->value => [
                 'totalRequired' => 0,
@@ -453,21 +453,26 @@ class NestingFormatter
                     "totalKerf" => $totalKerf,
                     "totalScrap" => $totalScrap,
                     /*
-                     * Efficiency: the share of the material this nest consumed that left as finished
-                     * pieces. New stock is charged at its full purchase length and an offcut off the rack
-                     * only for what it gave up - see materialConsumed() for why the two differ.
+                     * Efficiency: the share of the material this nest consumed that left as a finished
+                     * piece, and the headline figure on the nesting screens.
+                     *
+                     * New stock is charged at its full purchase length, so a remainder banked for reuse
+                     * is still steel on the rack rather than in the job and counts against it. An offcut
+                     * off the rack is charged only for what it gave up. See materialConsumed() for why
+                     * the two sides differ.
                      */
                     'efficiency' => $totalConsumed <= 0
                         ? 0
                         : (round(($totalUsedMaterial / $totalConsumed * 100),1)),
                     /*
-                     * Yield: the same share charged against every millimetre handled, offcuts included at
-                     * their full length. Lower whenever the nest drew on the rack, and the figure to read
-                     * when the question is how much steel was moved rather than how much was spent.
+                     * Effective efficiency: the share that was not destroyed. An offcut at or over the
+                     * scrap threshold is banked, so only scrap and saw kerf are waste by this measure.
+                     * Higher than efficiency, and the two answer different questions - this one is about
+                     * the skip, where efficiency is about what the job cost to make.
                      */
-                    'yield' => $totalMaterial === 0
+                    'effectiveEfficiency' => $totalMaterial === 0
                         ? 0
-                        : (round(($totalUsedMaterial / $totalMaterial * 100),1)),
+                        : (round((($totalMaterial - $totalScrap - $totalKerf) / $totalMaterial * 100),1)),
                 ];
             }
 
@@ -523,6 +528,12 @@ class NestingFormatter
 
         /*
          * 3) Efficiency 70%+
+         *
+         * Checked on the headline figure. This used to be checked on effectiveEfficiency instead,
+         * because the headline charged an offcut at its full length and so read 45.5% for a job that
+         * took one short cut from a long offcut already in the yard - a good nest the check would have
+         * failed every time. Charging the offcut for what it gave up puts that nest at 100%, so the
+         * number on the screen and the number the nest is judged on can be the one number again.
          */
         $efficiency = $usageStatsMeterage["efficiency"] <= 100 && $usageStatsMeterage["efficiency"] > 70;
         $efficiency_number = $usageStatsMeterage["efficiency"];

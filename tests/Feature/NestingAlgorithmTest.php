@@ -239,6 +239,15 @@ it('would be a disaster if using an offcut you already own scored worse than buy
     $statsWith = $formatter->usageStats(['METERAGE' => [(object) ['nested' => $withOffcut]]]);
     $statsWithout = $formatter->usageStats(['METERAGE' => [(object) ['nested' => $without]]]);
 
+    //Neither nest destroys a millimetre
+    expect($statsWith['METERAGE']['effectiveEfficiency'])->toBe(100.0)
+        ->and($statsWithout['METERAGE']['effectiveEfficiency'])->toBe(100.0);
+
+    /*
+     * And the headline figure now says so too. The offcut is charged for the 5,000mm it gave up, not
+     * for all 11,000mm of itself, so reuse scores the better of the two outright rather than reading
+     * 45.5% against 83.3% for buying new.
+     */
     expect($statsWith['METERAGE']['efficiency'])->toBe(100.0)
         ->and($statsWithout['METERAGE']['efficiency'])->toBe(83.3)
         ->and($statsWith['METERAGE']['efficiency'])->toBeGreaterThan($statsWithout['METERAGE']['efficiency']);
@@ -261,17 +270,14 @@ it('would be a disaster if scrapped steel did not show up in the efficiency figu
     //8,200 of 9,000 became pieces and 800 was binned
     expect($stats['METERAGE']['totalScrap'])->toBe(800)
         ->and($stats['METERAGE']['efficiency'])->toBe(91.1)
-        ->and($stats['METERAGE']['yield'])->toBe(91.1);
+        ->and($stats['METERAGE']['effectiveEfficiency'])->toBe(91.1);
 });
 
-it('would be a disaster if a nest leaving offcuts on bought steel reported a perfect result', function () {
-    /**
-     * Two 3,600mm cuts in a 9,000mm bar bank 1,800mm, which is over the threshold and goes on the rack.
-     *
-     * Efficiency used to be "everything handled that was not destroyed", which credited that 1,800mm in
-     * full - so with no scrap and kerf_mm at its default of 0 the figure could not read anything but
-     * 100%, on a bar the drawing right beside it marked as 80% used. Banking an offcut is deferral, not
-     * recovery: the business has paid for 9,000mm and 1,800mm of it is not in the structure.
+it('would be a disaster if a bar with a metre still on the rack was reported as 100%', function () {
+    /*
+     * Two 3,600mm cuts in a 9,000mm bar leave 1,800mm, over the scrap threshold, so it is banked for
+     * reuse rather than binned. Nothing is destroyed - which is why the not-destroyed figure says 100%
+     * - but only 80% of the steel bought was consumed by the job, and that is what the screens report.
      */
     $business = nestingBusiness();
     $formatter = new NestingFormatter();
@@ -279,11 +285,10 @@ it('would be a disaster if a nest leaving offcuts on bought steel reported a per
     $nested = $formatter->meterageAlgorithm(nestingCuts([[3600, 2]]), [9000], [], [1 => 'A'], $business);
     $stats = $formatter->usageStats(['METERAGE' => [(object) ['nested' => $nested]]]);
 
-    //Nothing destroyed, and still not a perfect nest
     expect($stats['METERAGE']['totalScrap'])->toBe(0)
-        ->and($stats['METERAGE']['totalKerf'])->toBe(0)
         ->and($stats['METERAGE']['totalReusable'])->toBe(1800)
-        ->and($stats['METERAGE']['efficiency'])->toBe(80.0);
+        ->and($stats['METERAGE']['efficiency'])->toBe(80.0)
+        ->and($stats['METERAGE']['effectiveEfficiency'])->toBe(100.0);
 });
 
 /**
