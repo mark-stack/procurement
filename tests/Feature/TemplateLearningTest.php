@@ -144,6 +144,7 @@ function uploadToNewProject(User $user, UploadedFile $file, string $name = 'Firs
             'name' => $name,
             'reference' => null,
             'date_materials_required' => null,
+            'date_fabrication_begins' => now()->addMonth()->toDateString(),
             'tentative' => false,
             'excel' => [$file],
         ]);

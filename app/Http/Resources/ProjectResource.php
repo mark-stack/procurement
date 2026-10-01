@@ -34,8 +34,17 @@ class ProjectResource extends JsonResource
             'name' => $project->name,
             'user_id' => $project->user_id,
             'reference' => $project->reference,
-            //The edit modal reuses the card's project, so these two come with it
+            //The edit modal reuses the card's project, so these come with it
             'date_materials_required' => $project->date_materials_required,
+            /*
+             * Trimmed to just the date part. The column is a date, but MySQL hands it back as
+             * "2026-11-02 00:00:00" through this cast-less model, and a date input shows nothing at
+             * all for a value it cannot parse - so the edit form would open empty on a project that
+             * has a fabrication date and quietly offer to clear it.
+             */
+            'date_fabrication_begins' => $project->date_fabrication_begins
+                ? substr((string) $project->date_fabrication_begins, 0, 10)
+                : null,
             'tentative' => $project->tentative,
             'archive' => $project->archive,
             'projectManager' => $project->user,

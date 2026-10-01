@@ -176,6 +176,8 @@ class ProjectController extends Controller
             'name' => $validated['name'],
             'reference' => $validated['reference'] ?? null,
             'date_materials_required' => $validated['date_materials_required'] ?? null,
+            //Required by the request, so there is always an answer here - no ?? null
+            'date_fabrication_begins' => $validated['date_fabrication_begins'],
             'tentative' => $validated['tentative'],
         ]);
 

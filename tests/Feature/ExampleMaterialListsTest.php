@@ -103,6 +103,7 @@ function uploadExamples(User $user, array $files): void
             'name' => 'Examples',
             'reference' => null,
             'date_materials_required' => null,
+            'date_fabrication_begins' => now()->addMonth()->toDateString(),
             'tentative' => false,
             'excel' => array_map(fn (string $file) => new UploadedFile(
                 examplePath($file),

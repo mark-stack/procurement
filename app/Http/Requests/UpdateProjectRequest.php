@@ -89,6 +89,13 @@ class UpdateProjectRequest extends FormRequest
                     ['after:today'],
                 ),
             ],
+            /*
+             * Required when the project is created, nullable here - so a mistyped fabrication date can
+             * be corrected, and a project created before anybody was asked can be given one, without
+             * the rename form refusing to save until a date is invented for it. See the migration that
+             * adds the column for why those older projects carry none.
+             */
+            'date_fabrication_begins' => ['nullable', 'date'],
         ];
     }
 

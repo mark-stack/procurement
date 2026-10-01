@@ -65,6 +65,8 @@ class TestingFormatter
             'user_id' => $user->id,
             'reference' => 'ref',
             'date_materials_required' => null,
+            //Required of every project created through the form, so a fixture without one is unreal
+            'date_fabrication_begins' => now()->addMonth()->toDateString(),
             'tentative' => true,
             'archive' => false,
         ]);
