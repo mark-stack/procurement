@@ -1,7 +1,7 @@
 <script setup>
     //General Imports
     import {Head, Link, router, useForm, usePage} from '@inertiajs/vue3';
-    import {computed, onUnmounted, ref, toRefs, watch} from "vue";
+    import {computed, onMounted, onUnmounted, ref, toRefs, watch} from "vue";
     import useConfirm from "@/Shared/useConfirm.js";
     import shared from "@/Shared/shared.js";
     import axios from 'axios';
@@ -71,6 +71,14 @@
      * sitting in this step.
      */
     const unfinishedImports = computed(() => props.projects['READY_FOR_NESTING'].unfinishedImports?.data ?? []);
+
+    /*
+     * The day this column stops waiting and buys for itself - the earliest fabrication date in it,
+     * less the days App\Services\FabricationDeadlineQuoting holds off for. Computed server side so
+     * that window is stated in exactly one place; null until some project in the column has a
+     * fabrication date.
+     */
+    const orderingTriggerDate = computed(() => props.projects['READY_FOR_NESTING'].orderingTriggerDate ?? null);
     const quotedBatches = computed(() => props.batches['QUOTED']);
     const orderedBatches = computed(() => props.batches['ORDERED']);
     const deliveredBatches = computed(() => props.batches['DELIVERED']);
@@ -381,6 +389,40 @@
      * happened at all, with no reason given and a board still showing the state that no longer
      * exists. Inertia raises "invalid" for that response, which is the one place it can be caught.
      */
+    /**
+     * Open Quotes / Orders straight away when the board was reached by a "?quotes=<batch>" link.
+     *
+     * The fabrication deadline emails land here. They no longer carry the material tables - the
+     * modal generates a ready-addressed draft per supplier, and re-typing a list out of an email is
+     * the work this application exists to remove - so the email's whole value is getting the
+     * recipient to that modal in one tap. Dropping them on the board and leaving them to find the
+     * right card and press Quotes would waste most of it.
+     *
+     * Only for a batch actually on this board. The id comes in off a URL anybody could edit, the
+     * batch may have been re-nested since the email went out, and the fetch behind the modal answers
+     * 403 for a batch that is not yours - which would open a modal that can only say it failed.
+     */
+    onMounted(() => {
+        const requested = new URLSearchParams(window.location.search).get('quotes');
+
+        if(!requested){
+            return;
+        }
+
+        /*
+         * Take the parameter out of the address bar either way, so a refresh - or a back button
+         * later in the session - does not keep re-opening a modal the user has closed.
+         */
+        window.history.replaceState({}, '', window.location.pathname);
+
+        const onThisBoard = [...quotedBatches.value, ...orderedBatches.value, ...deliveredBatches.value]
+            .some(batch => String(batch.info.batch.id) === String(requested));
+
+        if(onThisBoard){
+            showQuoteOrders(Number(requested));
+        }
+    });
+
     const stopListeningForStaleBoard = router.on('invalid', (event) => {
         if(event.detail.response?.status !== 403){
             return;
@@ -498,6 +540,7 @@
                         :projects="nestingProjects"
                         kanbanColumn="NESTING"
                         :usageStats="usageData"
+                        :orderingTriggerDate="orderingTriggerDate"
                         :prerequisiteStartQuoting="prerequisiteStartQuoting"
                         @toggleArchive="p => toggleArchive(p)"
                         @editMode="p => editMode(p)"

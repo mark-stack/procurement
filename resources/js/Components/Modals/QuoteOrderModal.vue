@@ -435,9 +435,31 @@
         <!-- header -->
         <div class="grid grid-cols-3 pt-2 pr-5 pb-2 pl-5">
             <div class="col-span-2">
-                <h3 class="text-2xl leading-6 font-medium text-gray-900 mb-5" id="quote-order-modal-title">
+                <h3 class="text-2xl leading-6 font-medium text-gray-900" id="quote-order-modal-title">
                     Quotes / Orders
                 </h3>
+                <!--
+                    Whose jobs this batch is buying for.
+
+                    A batch is the whole Nesting column in one nest, so this screen listed the
+                    suppliers and the sections and never said which work was in the cart. It is the
+                    screen the order goes out from, and since the fabrication deadline sweep started
+                    making batches nobody pressed a button for, it is also where you find out what
+                    came along with the project the email named.
+                -->
+                <p
+                    v-if="quotesData?.info?.projects?.length"
+                    class="mt-1.5 mb-5 text-sm text-gray-500"
+                >
+                    <span
+                        v-for="(project,index) in quotesData.info.projects"
+                        :key="project.id"
+                    >
+                        <span class="font-medium text-gray-700">{{ shared.capitalizeWords(project.name) }}</span><span v-if="index < quotesData.info.projects.length - 1">, </span>
+                    </span>
+                </p>
+                <!-- Keeps the heading's spacing when the batch has no projects to name -->
+                <div v-else class="mb-5"></div>
             </div>
             <div v-if="quotesData" class="text-right">
                 <p>

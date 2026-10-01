@@ -502,6 +502,41 @@ it('serves the quotes and orders for your own batch', function () {
         ->assertJsonStructure(['quotesData' => ['info', 'supplierGroupCards']]);
 });
 
+it('names every project the batch is buying for', function () {
+    /*
+     * A batch is the whole Nesting column swept into one nest, so this screen listed the suppliers
+     * and the sections and never said whose jobs were in the cart - and it is the screen the order
+     * actually goes out from. It matters more again since the fabrication deadline sweep started
+     * creating batches nobody pressed a button for: the email that brings you here names one
+     * project, and this is where you find out what came with it.
+     */
+    $business = createBusiness('biz');
+    $user = createUser(1, $business, false, true);
+    $colleague = createUser(2, $business, false, true);
+
+    $batch = Batch::factory()->forUser($user->id)->create();
+
+    $mine = createProject($user);
+    $mine->update(['name' => 'Conveyor gantry']);
+    pieceOnBatch($mine, $batch);
+
+    //A colleague's project, swept in with yours - the one you would not otherwise know about
+    $theirs = createProject($colleague);
+    $theirs->update(['name' => 'Pump station platform']);
+    pieceOnBatch($theirs, $batch);
+
+    $this->actingAs($user);
+
+    $names = collect($this->getJson(route('download.quotes.data', $batch))
+        ->assertOk()
+        ->json('quotesData.info.projects'))
+        ->pluck('name');
+
+    expect($names)->toContain('Conveyor gantry');
+    expect($names)->toContain('Pump station platform');
+    expect($names)->toHaveCount(2);
+});
+
 it('would be a disaster if orders.store could raise orders on another business’s batch', function () {
     /**
      * Found by the route audit - orders.store had no test at all, which is how it came to die on an

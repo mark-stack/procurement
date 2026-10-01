@@ -10,7 +10,8 @@ namespace App\Enums;
  *
  *  Built, hourly:      TENTATIVE_MATERIALS_DATE_CORRECT, QUOTE_DUE, QUOTE_OVERDUE
  *  Built, event-driven: COLLEAGUE_JOINED, A_COLLEAGUE_QUOTED_YOUR_MATERIALS,
- *                       A_COLLEAGUE_ORDERED_YOUR_MATERIALS
+ *                       A_COLLEAGUE_ORDERED_YOUR_MATERIALS, BATCH_READY_TO_QUOTE,
+ *                       A_COLLEAGUE_IS_ORDERING_THIS_BATCH_TODAY
  *
  * Deliberately not built:
  *
@@ -57,6 +58,16 @@ enum NotificationEnums: string
 
     //Quote by a colleague
     case A_COLLEAGUE_QUOTED_YOUR_MATERIALS = 'A_COLLEAGUE_QUOTED_YOUR_MATERIALS';
+
+    /*
+     * The fabrication deadline sweep: a project in the Nesting column is close enough to its
+     * fabrication start date that waiting any longer costs it the critical path, so the whole column
+     * was taken into one batch. The first goes to the manager of the project that forced it, with the
+     * material tables; the second to every other project manager on the batch.
+     */
+    case BATCH_READY_TO_QUOTE = 'BATCH_READY_TO_QUOTE';
+
+    case A_COLLEAGUE_IS_ORDERING_THIS_BATCH_TODAY = 'A_COLLEAGUE_IS_ORDERING_THIS_BATCH_TODAY';
 
     //Order due
     case ORDER_DUE = 'ORDER_DUE';

@@ -124,6 +124,9 @@ class Batch extends Model
             ->get();
     }
 
+    /**
+     * @return EloquentCollection<int, Project>
+     */
     public function projectSummaries(): EloquentCollection
     {
         /*

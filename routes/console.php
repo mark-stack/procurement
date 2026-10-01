@@ -26,6 +26,20 @@ $frequency = $testMode ? 'everyMinute' : 'hourly';
 Schedule::job(new HourlyNotificationsJob)->$frequency();
 
 /*
+ * The Nesting column, moved into Quoting when the shop is about to start cutting.
+ *
+ * Its own schedule rather than a line in the hourly job above, because this is not a reminder: it
+ * creates a batch, saves a nest and consumes offcut inventory on the business's behalf. Hourly
+ * because the window is counted in days and a few hours either side of the fifth day costs nobody
+ * anything - and because a schedule that can spend money is one to run at the slowest cadence that
+ * still works.
+ *
+ * Idempotent by construction: a swept column has no unbatched pieces left, so the next run finds
+ * nothing to do. See App\Services\FabricationDeadlineQuoting.
+ */
+Schedule::command('quoting:fabrication-deadline')->$frequency();
+
+/*
  * Trial expiry warnings. Idempotent - each business gets each reminder once, recorded in
  * notification_logs - so running it more often only makes the warnings more timely, never
  * duplicated. Hourly in test mode for the same reason the notifications job is.

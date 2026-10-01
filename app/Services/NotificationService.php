@@ -4,7 +4,9 @@ namespace App\Services;
 
 use App\Models\Project;
 use App\Services\Interfaces\NotificationInterface;
+use App\Services\NotificationImplementations\NotificationBatchReadyToQuoteImplementation;
 use App\Services\NotificationImplementations\NotificationColleagueOrderedImplementation;
+use App\Services\NotificationImplementations\NotificationColleagueOrderingTodayImplementation;
 use App\Services\NotificationImplementations\NotificationColleagueQuotedImplementation;
 use App\Services\NotificationImplementations\NotificationMaterialsDateImplementation;
 use App\Services\NotificationImplementations\NotificationNewColleagueImplementation;
@@ -49,6 +51,16 @@ class NotificationService
             new NotificationNewColleagueImplementation,
             new NotificationColleagueQuotedImplementation,
             new NotificationColleagueOrderedImplementation,
+
+            /*
+             * The fabrication deadline sweep, which presses "Start quoting" for a business whose shop
+             * is about to start cutting. Event-driven in the same sense as the three above - the
+             * service that creates the batch sends both of these at the time, and their hourlyCheck()
+             * is empty - except that the event is a schedule rather than a person. See
+             * App\Services\FabricationDeadlineQuoting and the quoting:fabrication-deadline command.
+             */
+            new NotificationBatchReadyToQuoteImplementation,
+            new NotificationColleagueOrderingTodayImplementation,
 
             /*
              * Quarterly, and driven by its own scheduled command rather than by the hourly sweep -

@@ -11,6 +11,9 @@ use App\Models\Project;
 use App\Models\User;
 use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\BatchService;
+use App\Services\FabricationDeadlineQuoting;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 class KanbanFormatter
 {
@@ -45,7 +48,36 @@ class KanbanFormatter
             'unfinishedImports' => UnfinishedImportResource::collection(
                 $business->projectsWithUnfinishedImport()
             ),
+            'orderingTriggerDate' => $this->orderingTriggerDate($projects),
         ];
+    }
+
+    /**
+     * The day this column stops waiting and buys.
+     *
+     * The earliest fabrication start date on the card, less the days
+     * App\Services\FabricationDeadlineQuoting waits before it presses "Start quoting" on the
+     * business's behalf. Computed here, off that same constant, rather than subtracting five in the
+     * template - the board would otherwise go on promising a date the schedule had stopped keeping
+     * the moment anybody changed the window.
+     *
+     * Null when no project in the column has a fabrication date. That is only possible for projects
+     * created before the date was asked for (see the add_date_fabrication_begins migration), and a
+     * card of those genuinely has no trigger: nothing will auto-quote them.
+     *
+     * @param  Collection<int, Project>  $projects
+     */
+    private function orderingTriggerDate(Collection $projects): ?string
+    {
+        $earliest = $projects
+            ->pluck('date_fabrication_begins')
+            ->filter()
+            ->map(fn ($date) => Carbon::parse($date))
+            ->min();
+
+        return $earliest
+            ?->subDays(FabricationDeadlineQuoting::DAYS_BEFORE_FABRICATION)
+            ->toDateString();
     }
 
     public function quotedColumn(Business $business, User $user): array
