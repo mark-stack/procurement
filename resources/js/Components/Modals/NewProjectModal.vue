@@ -6,6 +6,7 @@
     import Modal from "@/Layouts/Modal.vue";
     import ConfirmModal from "@/Components/Modals/ConfirmModal.vue";
     import useConfirm from "@/Shared/useConfirm.js";
+    import shared from "@/Shared/shared.js";
     import {computed, ref, toRefs, watch} from "vue";
 
     //Props
@@ -15,6 +16,15 @@
         bomData: Object,
         refreshNewProject: Boolean,
         projectAfterUpload: Object,
+        /**
+         * The business's other staff, so a new project can be created for the colleague whose job it
+         * is - the draftsman uploading a material list for a project manager. See
+         * User::colleagueOptions. Empty on a one-person business, and then nothing is asked.
+         */
+        colleagues: {
+            type: Array,
+            default: () => [],
+        },
         /**
          * The parent keeps this mounted with v-show, so the component has to be told
          * when it is reopened - otherwise the previous attempt's name, files, errors
@@ -40,6 +50,13 @@
         date_materials_required: null,
         tentative: false,
         excel: [],
+        /*
+         * Which colleague the job is for. Null is "me", and the edit step never sends it - the
+         * project manager of an existing project is not changed from here (UpdateProjectRequest does
+         * not accept it), because handing a live job to somebody else is a different decision to
+         * saying whose it was in the first place.
+         */
+        project_manager_id: null,
     });
     let formClarifications = thisDownloadedBomData(props.bomData)
         ? (useForm(Object.assign({}, thisDownloadedBomData(props.bomData).partialProductMatches, {deletedIds:[]})))
@@ -84,6 +101,13 @@
         .map(([, message]) => message));
 
     const projectName = computed(() => (formProjectCreate.name ?? "").trim());
+
+    //Who the job is being created for, and whose name to offer as the default
+    const authUserName = computed(() => usePage().props.auth?.user?.name ?? "me");
+
+    const chosenProjectManager = computed(
+        () => props.colleagues.find(colleague => colleague.id === formProjectCreate.project_manager_id) ?? null
+    );
 
     /**
      * The heading used to read from the input, so clearing the field left the user
@@ -563,6 +587,48 @@
                                         :disabled="formProjectCreate.processing || freezeView"
                                     >
                                     <div v-if="formProjectCreate.errors.name" class="text-sm text-red-500">{{ formProjectCreate.errors.name }}</div>
+                                </div>
+
+                                <!--
+                                    Whose job this is.
+
+                                    Only for a business with somebody else on it. A material list is
+                                    often uploaded by the draftsman who detailed the job, for the
+                                    project manager running it - and the manager is who the board
+                                    names, who may rename or archive it, and who every materials
+                                    deadline reminder goes to. Defaults to the uploader.
+                                -->
+                                <div v-if="colleagues.length > 0">
+                                    <label for="new-project-manager" class="text-gray-700 dark:text-gray-200 ml-1">Project manager</label>
+                                    <select
+                                        id="new-project-manager"
+                                        v-model="formProjectCreate.project_manager_id"
+                                        class="w-full px-4 py-2 text-gray-700 bg-white border rounded-md dark:bg-gray-900 dark:text-gray-300 dark:border-gray-600 focus:border-blue-400 dark:focus:border-blue-300 focus:outline-none focus:ring focus:ring-blue-300 focus:ring-opacity-40"
+                                        :disabled="formProjectCreate.processing || freezeView"
+                                    >
+                                        <!-- null, not your own id - the server reads "nobody else" from it -->
+                                        <option :value="null">{{ shared.capitalizeWords(authUserName) }} (me)</option>
+                                        <option
+                                            v-for="colleague in colleagues"
+                                            :key="colleague.id"
+                                            :value="colleague.id"
+                                        >
+                                            {{ shared.capitalizeWords(colleague.name) }}
+                                        </option>
+                                    </select>
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        <template v-if="chosenProjectManager">
+                                            The project will be {{ shared.capitalizeWords(chosenProjectManager.name) }}'s
+                                            on the board, and their materials deadline to watch. You keep the
+                                            upload, so you can add the rest of the materials yourself.
+                                        </template>
+                                        <template v-else>
+                                            Uploading for a colleague? Pick them here and the project is theirs.
+                                        </template>
+                                    </p>
+                                    <div v-if="formProjectCreate.errors.project_manager_id" class="text-sm text-red-500">
+                                        {{ formProjectCreate.errors.project_manager_id }}
+                                    </div>
                                 </div>
 
                                 <!-- Project reference -->

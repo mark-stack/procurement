@@ -88,6 +88,12 @@ class ProjectController extends Controller
         );
 
         return Inertia::render('Dashboard', [
+            /*
+             * The staff a new project can be created for, for the board's own new-project modal -
+             * the same facility the upload page has, because the person with the spreadsheet is
+             * often not the person running the job. See User::colleagueOptions.
+             */
+            'colleagues' => $user->colleagueOptions(),
             'projects' => $projects,
             'batches' => $batches,
             'archivedProjects' => $archivedProjects,
@@ -140,10 +146,33 @@ class ProjectController extends Controller
         }
 
         /*
+         * Who the job is for.
+         *
+         * user_id is the project manager, and until now it was whoever was logged in - which in a
+         * fabricator with a drawing office is the draftsman, not the manager running the job. The BOM
+         * comes out of the model and is uploaded by the person who detailed it, so every one of those
+         * projects appeared on the board under the draftsman's name and the manager could not edit
+         * it, archive it, or be reminded of its materials date.
+         *
+         * So the manager is chosen on the upload page and recorded here, and the uploader is kept in
+         * created_by_user_id - which is what lets them add the rest of the materials later and finish
+         * an import that stops at a clarification. Null when nobody is acting on anybody's behalf:
+         * see Project::isManagedBy.
+         *
+         * The id is already known to be a user of this business - StoreProjectRequest scopes it -
+         * so nothing here can hand a project to a stranger.
+         */
+        //Cast: an upload is multipart, so this arrives as a string and "2" !== 2 would read every
+        //manager picking themselves as somebody acting on their own behalf
+        $projectManagerId = (int) ($validated['project_manager_id'] ?? $user->id);
+        $onBehalfOfColleague = $projectManagerId !== $user->id;
+
+        /*
          * Create project
          */
         $project = Project::create([
-            'user_id' => $user->id,
+            'user_id' => $projectManagerId,
+            'created_by_user_id' => $onBehalfOfColleague ? $user->id : null,
             'name' => $validated['name'],
             'reference' => $validated['reference'] ?? null,
             'date_materials_required' => $validated['date_materials_required'] ?? null,

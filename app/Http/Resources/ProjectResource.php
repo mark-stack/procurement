@@ -39,6 +39,20 @@ class ProjectResource extends JsonResource
             'tentative' => $project->tentative,
             'archive' => $project->archive,
             'projectManager' => $project->user,
+            /*
+             * Who uploaded the material list, when that was not the manager it is for - a draftsman
+             * detailing the job for a colleague. Null for the ordinary case, so the card draws
+             * nothing extra on the projects most businesses have.
+             *
+             * A name rather than the user object: the only thing drawn off it is a sentence saying
+             * who to go and ask about the spreadsheet, the same way UnfinishedImportResource carries
+             * projectManagerName.
+             *
+             * The id comes with it because "you" reads better than your own name on your own work,
+             * and the card already draws the owner that way off user_id.
+             */
+            'created_by_user_id' => $project->created_by_user_id,
+            'uploadedByName' => $project->createdBy?->name,
             //The relation, not a fresh count query - callers that eager load it then pay nothing here
             'qtyMaterialRows' => $project->rawMaterialQuotes->count(),
             "prerequisiteUploadMaterials" => $user

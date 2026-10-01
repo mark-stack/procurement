@@ -72,6 +72,20 @@ class Project extends Model
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * Whoever uploaded the first material list, when that was not the project manager.
+     *
+     * Null for the ordinary case - a manager who created their own project - so a caller asking "who
+     * did this on somebody's behalf" gets no answer rather than a misleading one. See the migration
+     * that adds created_by_user_id for why both people are recorded.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by_user_id');
+    }
+
     //Optional
     public function quotes(): HasMany
     {
@@ -385,6 +399,49 @@ class Project extends Model
         $staffIds = $business->users()->get()->pluck('id')->toArray();
 
         $query->whereIn('user_id', $staffIds);
+    }
+
+    /**
+     * May this user change the material list on this project?
+     *
+     * Its manager, or whoever uploaded it for them - and nobody else. Deliberately narrower than the
+     * business and deliberately wider than user_id alone:
+     *
+     *  - Wider, because a draftsman who uploads for a project manager has to be able to finish what
+     *    they started. Materials arrive in several files over several days, and an import that stops
+     *    at a price book clarification stops mid-upload - leaving it to a manager who has never seen
+     *    the spreadsheet is leaving it undone.
+     *  - Narrower than the business, because the Nesting column is shared: every colleague can open
+     *    every BOM, and the one thing they may not do is change one that is nothing to do with them.
+     *
+     * This is the question behind PrerequisiteConditions::uploadMaterials and
+     * RawMaterialQuote::scopeOwnedByUser, and the two must keep agreeing - the first decides whether
+     * the Bill of Materials modal draws its upload dropzone, its row-delete checkboxes and its
+     * clarification forms, and the second is what the endpoints behind them scope to. A control drawn
+     * by one that the other refuses is a button that can only answer 403.
+     *
+     * NOT the question behind editProject or archiveProject. Renaming a job, moving its materials
+     * date and taking it off the board are the manager's call, and an uploader has no more say in
+     * them than any other colleague.
+     */
+    public function isManagedBy(User $user): bool
+    {
+        return $this->user_id === $user->id || $this->created_by_user_id === $user->id;
+    }
+
+    /**
+     * The query form of isManagedBy - the projects whose material lists this user may change.
+     *
+     * Grouped, because every caller already has conditions of its own and an unparenthesised orWhere
+     * would escape them: "yours or created by you" ANDed with "not archived" reads as "yours and not
+     * archived, or created by you" without the nesting.
+     */
+    public function scopeManagedBy(Builder $query, int $userId): void
+    {
+        $query->where(function (Builder $query) use ($userId) {
+            $query->where('user_id', $userId)
+                ->orWhere('created_by_user_id', $userId);
+        });
     }
 
     public function scopeUnBatchedPieces(Builder $query): void

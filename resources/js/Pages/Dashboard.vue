@@ -1,6 +1,6 @@
 <script setup>
     //General Imports
-    import {Head, Link, router, useForm} from '@inertiajs/vue3';
+    import {Head, Link, router, useForm, usePage} from '@inertiajs/vue3';
     import {computed, onUnmounted, ref, toRefs, watch} from "vue";
     import useConfirm from "@/Shared/useConfirm.js";
     import shared from "@/Shared/shared.js";
@@ -23,6 +23,15 @@
         batches: Object,
         archivedProjects: Object,
         prerequisiteStartQuoting: Boolean,
+        /**
+         * The business's other staff, for the new-project modal's "whose job is this" select -
+         * see User::colleagueOptions. Empty on a one-person business, and the modal then asks
+         * nothing.
+         */
+        colleagues: {
+            type: Array,
+            default: () => [],
+        },
     });
 
     //Forms
@@ -71,6 +80,30 @@
 
 
     //Methods
+    /**
+     * Whose unfinished import this is, and who has the spreadsheet it stopped on.
+     *
+     * The manager first, because the project is theirs - then the uploader, where somebody uploaded
+     * it for them. Both of them can finish it, and the point of the line is to tell a colleague who
+     * to go and ask.
+     */
+    function unfinishedImportOwnerLabel(project){
+        const authUserId = usePage().props.auth.user?.id;
+        const owner = project.user_id === authUserId
+            ? 'You'
+            : shared.capitalizeWords(project.projectManagerName);
+
+        if(!project.uploadedByName){
+            return owner;
+        }
+
+        const uploader = project.created_by_user_id === authUserId
+            ? 'you'
+            : shared.capitalizeWords(project.uploadedByName);
+
+        return owner + ', uploaded by ' + uploader;
+    }
+
     function sendRefreshModalBom(){
         refreshModalBom.value = !refreshModalBom.value; // Toggle refreshModalBom
     }
@@ -498,9 +531,19 @@
                                     <p class="truncate text-xs font-semibold text-gray-900" :title="project.name">
                                         {{ shared.capitalizeWords(project.name) }}
                                     </p>
+                                    <!--
+                                        Whose it is, and who has the spreadsheet.
+
+                                        This used to read the upload gate and print "You" when it
+                                        passed, which is no longer the same question: that gate now
+                                        also passes for a draftsman who uploaded the list for a
+                                        colleague, and printing "You" on a colleague's project would
+                                        name the wrong manager. The owner is the owner; the uploader
+                                        gets their own clause.
+                                    -->
                                     <p class="mt-0.5 text-[11px] text-orange-800">
                                         Import unfinished ·
-                                        {{ project.prerequisiteUploadMaterials ? 'You' : shared.capitalizeWords(project.projectManagerName) }}
+                                        {{ unfinishedImportOwnerLabel(project) }}
                                     </p>
                                 </div>
                                 <button
@@ -677,6 +720,7 @@
         :bomData="bomData"
         :refreshNewProject="refreshNewProject"
         :projectAfterUpload="projectAfterUpload"
+        :colleagues="colleagues"
         @closeModal="showNewProjectModal = false; bomData = null;"
         @closeModalOnSuccess="showNewProjectModal = false; "
         @redownload="project => downloadProjectBomData(project,'NEW_PROJECT')"

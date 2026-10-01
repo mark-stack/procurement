@@ -104,7 +104,8 @@ class Batch extends Model
          * the same batch instance, and each walk is the full eager-loaded tree.
          */
         return $this->projectsMemo ??= Project::query()
-            ->with(['user', 'rawMaterialQuotes.piece.order', 'pieces.batch'])
+            //createdBy for the same resource - the colleague who uploaded the list, where there was one
+            ->with(['user', 'createdBy', 'rawMaterialQuotes.piece.order', 'pieces.batch'])
             ->whereIn('id', $this->pieces()->distinct()->pluck('project_id'))
             ->get();
     }

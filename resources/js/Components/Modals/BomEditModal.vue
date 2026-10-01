@@ -399,6 +399,27 @@
         return projectManager ? shared.capitalizeWords(projectManager) : "another project manager";
     });
 
+    /**
+     * Who uploaded this material list, when that was not the manager it belongs to - a draftsman
+     * detailing the job for a colleague. Both resources that reach this modal carry the name.
+     *
+     * It changes two sentences below, because it changes who may act: the uploader can add to the
+     * list and finish its clarifications as well as the manager can (see
+     * PrerequisiteConditions::uploadMaterials), so "only they can change it" would be untrue, and a
+     * colleague reading it would go and ask the one person who has never seen the spreadsheet.
+     */
+    const uploaderName = computed(() => {
+        const uploader = props.project?.uploadedByName;
+
+        return uploader ? shared.capitalizeWords(uploader) : null;
+    });
+
+    //Uploaded by this user, for a project that belongs to somebody else
+    const uploadedByMe = computed(
+        () => !!props.project?.created_by_user_id
+            && props.project.created_by_user_id === usePage().props.auth.user?.id
+    );
+
     //Watcher
     const { refreshModalBom } = toRefs(props);
     watch(refreshModalBom, () => {
@@ -431,7 +452,9 @@
                     -->
                     <p v-if="project" class="mt-1 text-sm text-gray-500">
                         {{ shared.capitalizeWords(project.name) }}
-                        <span v-if="!isMine"> · {{ ownerName }}'s project</span>
+                        <span v-if="!isMine">
+                            · {{ ownerName }}'s project<template v-if="uploadedByMe">, uploaded by you</template>
+                        </span>
                     </p>
 
                     <!--
@@ -444,10 +467,13 @@
                     >
                         <i class="fa-solid fa-circle-info mt-0.5 flex-none text-gray-400"></i>
                         <span v-if="!isMine">
-                            You can read {{ ownerName }}'s material list here, but only they can add to it or
+                            You can read {{ ownerName }}'s material list here, but only they<template
+                                v-if="uploaderName"
+                            > and {{ uploaderName }}, who uploaded it,</template> can add to it or
                             change it.
                             <template v-if="hasClarifications || hasUserCustomProducts">
-                                Some rows are still waiting on them to confirm the exact product.
+                                Some rows are still waiting on
+                                {{ uploaderName ? 'one of them' : 'them' }} to confirm the exact product.
                             </template>
                         </span>
                         <span v-else>

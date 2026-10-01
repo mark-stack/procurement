@@ -71,6 +71,21 @@ class StoreProjectRequest extends FormRequest
                 Rule::notIn($allCurrentProjectNames),
             ],
             'reference' => ['nullable', 'string', 'max:'.Project::MAX_REFERENCE_CHARACTERS],
+            /*
+             * Which colleague this job is for, when somebody is uploading on their behalf - the
+             * draftsman case this whole column exists for (see the migration adding
+             * created_by_user_id). Absent, or your own id, means the plain case.
+             *
+             * Scoped to the business, not just to "a user that exists": this id decides who owns a
+             * project, who is reminded about its deadline and who may archive it, so an arbitrary id
+             * would hand a stranger a project - and hide it from the person who uploaded it, since
+             * their own board is drawn from their business's users.
+             */
+            'project_manager_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('users', 'id')->where('business_id', $business->id),
+            ],
             'date_materials_required' => 'nullable|date|after:today',
             'tentative' => 'required|boolean',
             'excel' => ['required', 'array', 'min:1', 'max:'.self::MAX_FILES],
@@ -93,6 +108,7 @@ class StoreProjectRequest extends FormRequest
     {
         return [
             'name.not_in' => 'Pick a name different to your other projects - archived ones are free to reuse',
+            'project_manager_id.exists' => 'Pick a project manager from your own company.',
             'excel.max' => 'Maximum '.self::MAX_FILES.' BOM files can be uploaded.',
             'excel.*.mimes' => 'Each material list must be an Excel file (.xls or .xlsx).',
             'excel.*.max' => 'Each material list must be under 1Mb.',
