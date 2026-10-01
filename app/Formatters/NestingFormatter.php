@@ -399,7 +399,7 @@ class NestingFormatter
                 "totalKerf" => 0,
                 "totalScrap" => 0,
                 'efficiency' => 0,
-                'yield' => 0,
+                'effectiveEfficiency' => 0,
             ],
             NestingEnums::BUNDLE->value => [
                 'totalRequired' => 0,
@@ -451,17 +451,24 @@ class NestingFormatter
                     "totalKerf" => $totalKerf,
                     "totalScrap" => $totalScrap,
                     /*
-                     * Efficiency: the share of everything handled that was not destroyed. An offcut at or
-                     * over the scrap threshold is banked as an offcut, so it is not waste - only scrap
-                     * and saw kerf are.
+                     * Efficiency: the share of everything handled that left as a finished piece. This is
+                     * the headline figure on the nesting screens, so it is the plain-English one - 100%
+                     * means every millimetre bought was consumed by cuts. A remainder banked for reuse is
+                     * still steel sitting on the rack rather than in the job, so it counts against it.
                      */
                     'efficiency' => $totalMaterial === 0
                         ? 0
-                        : (round((($totalMaterial - $totalScrap - $totalKerf) / $totalMaterial * 100),1)),
-                    //Yield: the share that left as finished pieces. Lower, and the two answer different questions
-                    'yield' => $totalMaterial === 0
-                        ? 0
                         : (round(($totalUsedMaterial / $totalMaterial * 100),1)),
+                    /*
+                     * Effective efficiency: the share that was not destroyed. An offcut at or over the
+                     * scrap threshold is banked, so only scrap and saw kerf are waste by this measure.
+                     * Higher than efficiency, and the two answer different questions - this is the one
+                     * the nest is checked on, because cutting a short piece from a long offcut you
+                     * already own is a good nest that scores badly on used/total.
+                     */
+                    'effectiveEfficiency' => $totalMaterial === 0
+                        ? 0
+                        : (round((($totalMaterial - $totalScrap - $totalKerf) / $totalMaterial * 100),1)),
                 ];
             }
 
@@ -516,10 +523,14 @@ class NestingFormatter
         $meteragePieces = $piecesNested[NestingEnums::METERAGE->value] ?? [];
 
         /*
-         * 3) Efficiency 70%+
+         * 3) Effective efficiency 70%+
+         *
+         * Checked on the not-destroyed figure rather than the headline used/total one. A job that takes
+         * one short cut from a long offcut already in the yard banks the rest and destroys nothing - a
+         * good nest, and one that reads well under 70% on used/total.
          */
-        $efficiency = $usageStatsMeterage["efficiency"] <= 100 && $usageStatsMeterage["efficiency"] > 70;
-        $efficiency_number = $usageStatsMeterage["efficiency"];
+        $efficiency = $usageStatsMeterage["effectiveEfficiency"] <= 100 && $usageStatsMeterage["effectiveEfficiency"] > 70;
+        $efficiency_number = $usageStatsMeterage["effectiveEfficiency"];
 
         /*
          * Count passing individual products
@@ -768,7 +779,7 @@ class NestingFormatter
             ],
             //3
             "efficiency" => [
-                "description" => "Efficiency (material not scrapped) 70%+",
+                "description" => "Effective efficiency (material not scrapped) 70%+",
                 "result" => $efficiency,
                 "number" => $efficiency_number,
                 "suffix" => "%",
