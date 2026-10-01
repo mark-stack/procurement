@@ -116,7 +116,7 @@
                                     <th>Reusable</th>
                                     <th>Scrap</th>
                                     <th>Saw Kerf</th>
-                                    <th>Efficiency</th>
+                                    <th title="The share of the material this nest consumed that left as finished pieces. A bar you bought is charged in full; an offcut off the rack is charged only for what it gave up.">Efficiency</th>
                                 </tr>
                             </thead>
                             <tbody>
