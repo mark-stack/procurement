@@ -6,6 +6,9 @@
     //Component Imports
     import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 
+    //Shared methods
+    import shared from '@/Shared/shared.js';
+
     //Props
     const props = defineProps({
         /**
@@ -14,6 +17,16 @@
          * everything in here is a legal target and nothing in here needs a second check.
          */
         eligibleProjects: {
+            type: Array,
+            default: () => [],
+        },
+        /**
+         * The business's other staff, if it has any - see DashboardController::colleagues. A
+         * draftsman uploads the material list for the project manager running the job, so the new
+         * project can be handed to one of these as it is created. Empty on a one-person business,
+         * and then nothing about this page changes.
+         */
+        colleagues: {
             type: Array,
             default: () => [],
         },
@@ -38,6 +51,13 @@
         date_materials_required: null,
         tentative: false,
         excel: [],
+        /*
+         * Which project manager the job is for. Null is "me", which is what reset() puts it back to
+         * after every successful upload - deliberately, because the next spreadsheet in the pile is
+         * as likely to be somebody else's job, and a select that quietly stays on the last colleague
+         * is how a project ends up under the wrong manager's name.
+         */
+        project_manager_id: null,
     });
 
     const formExistingProject = useForm({
@@ -87,6 +107,18 @@
     const warning = computed(() => (warningDismissed.value ? null : flashedWarning.value));
 
     const hasEligibleProjects = computed(() => props.eligibleProjects.length > 0);
+
+    //Only worth asking who a job is for when there is somebody else it could be for
+    const hasColleagues = computed(() => props.colleagues.length > 0);
+
+    const authUserName = computed(() => usePage().props.auth?.user?.name ?? 'me');
+
+    /**
+     * The colleague the new project is being created for, or null when it is the uploader's own.
+     */
+    const projectManager = computed(
+        () => props.colleagues.find(colleague => colleague.id === formNewProject.project_manager_id) ?? null
+    );
 
     const form = computed(() => (mode.value === 'new' ? formNewProject : formExistingProject));
 
@@ -258,7 +290,8 @@
                  * the name - the user's next move is another file under the same name.
                  */
                 if (projectFlashed.value) {
-                    recordImport(projectFlashed.value, 'created');
+                    //Read before reset(), which puts the manager select back to "me"
+                    recordImport(projectFlashed.value, 'created', projectManager.value?.name ?? null);
 
                     formNewProject.reset();
                 }
@@ -287,7 +320,11 @@
                 warningDismissed.value = false;
 
                 if (projectFlashed.value) {
-                    recordImport(projectFlashed.value, 'added');
+                    //The dropdown holds colleagues' projects too, where this user uploaded the first list
+                    const target = props.eligibleProjects
+                        .find(project => project.id === existingProjectId.value);
+
+                    recordImport(projectFlashed.value, 'added', target?.projectManagerName ?? null);
                 }
 
                 clearExistingFile();
@@ -311,12 +348,16 @@
     /**
      * @param project the project the server flashed back
      * @param outcome "created" for a new project, "added" for materials joining an existing one
+     * @param forName the project manager it belongs to, when that is not the uploader - so the
+     *        confirmation says whose board it has just landed on rather than leaving the uploader to
+     *        go and check that the colleague they picked was the one that was saved
      */
-    function recordImport(project, outcome) {
+    function recordImport(project, outcome, forName = null) {
         lastImport.value = {
             id: project.id,
             name: project.name,
             outcome: outcome,
+            forName: forName,
         };
     }
 
@@ -353,10 +394,13 @@
             >
                 <p>
                     <span v-if="lastImport.outcome === 'created'">
-                        <b>{{ lastImport.name }}</b> has been created and its materials extracted.
+                        <b>{{ lastImport.name }}</b> has been created<template v-if="lastImport.forName">
+                        for <b>{{ lastImport.forName }}</b></template> and its materials extracted.
                     </span>
                     <span v-else>
-                        The materials have been added to <b>{{ lastImport.name }}</b>.
+                        The materials have been added to <b>{{ lastImport.name }}</b><template
+                            v-if="lastImport.forName"
+                        >, which is <b>{{ lastImport.forName }}</b>'s project</template>.
                     </span>
                     <br>
                     <Link
@@ -417,7 +461,7 @@
                     role="radio"
                     :aria-checked="mode === 'existing'"
                     :disabled="!hasEligibleProjects"
-                    :title="hasEligibleProjects ? null : 'No project of yours is still waiting to be nested'"
+                    :title="hasEligibleProjects ? null : 'No project you manage or uploaded for a colleague is still waiting to be nested'"
                     :class="[
                         mode === 'existing'
                             ? 'border-blue-600 bg-blue-50 text-blue-900 dark:bg-blue-900/30 dark:text-blue-100'
@@ -433,7 +477,7 @@
                             Add to one that has not been nested yet
                         </template>
                         <template v-else>
-                            Nothing of yours is waiting to be nested
+                            Nothing you can add to is waiting to be nested
                         </template>
                     </span>
                 </button>
@@ -460,6 +504,53 @@
                             >
                             <div v-if="formNewProject.errors.name" class="text-sm text-red-500">
                                 {{ formNewProject.errors.name }}
+                            </div>
+                        </div>
+
+                        <!--
+                            Whose job this is.
+
+                            Only drawn for a business with more than one person on it. The material
+                            list is often uploaded by the draftsman who detailed the job, for the
+                            project manager running it - and the manager is the one the board names,
+                            the one who may rename or archive it, and the one every deadline reminder
+                            goes to. Defaults to the uploader, which is the common case and was the
+                            only case until now.
+                        -->
+                        <div v-if="hasColleagues">
+                            <label for="new-project-manager" class="ml-1 text-gray-700 dark:text-gray-200">
+                                Project manager
+                            </label>
+                            <select
+                                id="new-project-manager"
+                                v-model="formNewProject.project_manager_id"
+                                class="w-full px-4 py-2 text-gray-700 bg-white border rounded-md dark:bg-gray-900 dark:text-gray-300 dark:border-gray-600 focus:border-blue-400 dark:focus:border-blue-300 focus:outline-none focus:ring focus:ring-blue-300 focus:ring-opacity-40"
+                                :disabled="formNewProject.processing"
+                            >
+                                <!-- null, not the user's own id - the server reads "nobody else" from it -->
+                                <option :value="null">{{ shared.capitalizeWords(authUserName) }} (me)</option>
+                                <option
+                                    v-for="colleague in colleagues"
+                                    :key="colleague.id"
+                                    :value="colleague.id"
+                                >
+                                    {{ shared.capitalizeWords(colleague.name) }}
+                                </option>
+                            </select>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                <template v-if="projectManager">
+                                    The project will appear on the board as
+                                    {{ shared.capitalizeWords(projectManager.name) }}'s, and the
+                                    materials deadline reminders will go to them. You can still add the
+                                    rest of the materials to it yourself.
+                                </template>
+                                <template v-else>
+                                    Uploading for a colleague? Pick them here and the project is theirs
+                                    - you keep the upload.
+                                </template>
+                            </p>
+                            <div v-if="formNewProject.errors.project_manager_id" class="text-sm text-red-500">
+                                {{ formNewProject.errors.project_manager_id }}
                             </div>
                         </div>
 
@@ -585,12 +676,19 @@
                                     :value="project.id"
                                 >
                                     {{ project.name }}<template v-if="project.reference"> ({{ project.reference }})</template>
-                                    - {{ project.rows }} material {{ project.rows === 1 ? 'line' : 'lines' }}
+                                    - {{ project.rows }} material {{ project.rows === 1 ? 'line' : 'lines' }}<!--
+                                        Whose job it is, where it is not this user's own. Two jobs with
+                                        similar names belonging to different managers is exactly the
+                                        mix-up that puts one manager's steel on another's cutting list.
+                                    --><template v-if="project.projectManagerName">
+                                        - {{ shared.capitalizeWords(project.projectManagerName) }}'s
+                                    </template>
                                 </option>
                             </select>
                             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                Only your own projects that have not been nested into a batch yet. Uploads
-                                are cumulative - this adds to the list rather than replacing it.
+                                Projects that have not been nested into a batch yet - your own, and any you
+                                uploaded the first material list for. Uploads are cumulative - this adds to
+                                the list rather than replacing it.
                             </p>
                         </div>
 

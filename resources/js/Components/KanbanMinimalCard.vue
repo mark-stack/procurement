@@ -71,6 +71,25 @@
     }
 
     /**
+     * Who uploaded the material list, when that was not the manager named above - a draftsman
+     * detailing the job for a colleague.
+     *
+     * Worth a line on the card because the two people can do different things to it: the manager
+     * owns the job and the uploader owns the spreadsheet, so "whose card is this" and "who do I ask
+     * about the materials" now have different answers. Null on the projects most businesses have,
+     * where the manager uploaded their own.
+     */
+    function uploaderLabel(project){
+        if(!project.created_by_user_id){
+            return null;
+        }
+
+        return project.created_by_user_id === user.value.id
+            ? "uploaded by you"
+            : "uploaded by " + shared.capitalizeWords(project.uploadedByName ?? "a colleague");
+    }
+
+    /**
      * Archiving is the owner's call and only before the project is nested - the server refuses
      * anything else, and a button that can only answer 403 reads as a broken button. The column
      * was already the test here; the owner half is new, because the archived list you restore
@@ -312,6 +331,13 @@
                         :title="ownerLabel(project)"
                     >
                         {{ ownerLabel(project) }}
+                    </span>
+                    <span
+                        v-if="uploaderLabel(project)"
+                        class="truncate text-gray-500"
+                        :title="uploaderLabel(project)"
+                    >
+                        · {{ uploaderLabel(project) }}
                     </span>
                 </p>
 

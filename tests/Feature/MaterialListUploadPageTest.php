@@ -122,6 +122,77 @@ it('says how many material lines a project already has, so an upload is not adde
         ->and($offered[0]['name'])->toBe($project->name);
 });
 
+it('offers the colleagues a new project can be created for', function () {
+    /*
+     * The draftsman uploading for a project manager. There is no staff list and no roles - a business
+     * is every user whose email domain matched at registration - so every colleague is offered, and
+     * the uploader is not among them: the select's own default is "me".
+     */
+    $business = createBusiness('acmesteel');
+    $user = createUser(1, $business, false, true);
+    $colleague = createUser(2, $business, false, true);
+
+    //Another business's staff, who would be a stranger holding one of this company's jobs
+    createUser(3, createBusiness('othersteel'), false, true);
+
+    $response = $this->actingAs($user)->get(route('dashboard'));
+
+    expect(collect($response->viewData('page')['props']['colleagues'])->pluck('id')->all())
+        ->toBe([$colleague->id]);
+});
+
+it('asks nobody anything on a one person business', function () {
+    //Most of them. The select is not drawn at all, so the page is exactly what it was.
+    $business = createBusiness('acmesteel');
+    $user = createUser(1, $business, false, true);
+
+    $response = $this->actingAs($user)->get(route('dashboard'));
+
+    expect($response->viewData('page')['props']['colleagues'])->toBe([]);
+});
+
+it('offers a colleague’s project you uploaded the first material list for', function () {
+    /*
+     * The other half of uploading on somebody's behalf. A job's materials do not arrive in one file on
+     * one day, and the second file reaches the draftsman the first one did - so the project they
+     * created for a manager has to be in the dropdown, or they have no way to finish what they
+     * started. PrerequisiteConditions::uploadMaterials says yes to it, which is the only test this
+     * list is allowed to disagree with.
+     */
+    $business = createBusiness('acmesteel');
+    $draftsman = createUser(1, $business, false, true);
+    $projectManager = createUser(2, $business, false, true);
+
+    $theirs = createProject($projectManager);
+    $theirs->update(['created_by_user_id' => $draftsman->id]);
+    Piece::factory()->create(['project_id' => $theirs->id]);
+
+    $response = $this->actingAs($draftsman)->get(route('dashboard'));
+
+    $offered = $response->viewData('page')['props']['eligibleProjects'];
+
+    expect(eligibleProjectIds($response))->toBe([$theirs->id])
+        /*
+         * Named, because the dropdown now mixes your own jobs with other people's. Two similarly
+         * named projects belonging to different managers is how one manager's steel ends up on
+         * another's cutting list.
+         */
+        ->and($offered[0]['projectManagerName'])->toBe($projectManager->name);
+});
+
+it('does not name a manager on your own projects', function () {
+    //Nothing to disambiguate, and "Tower A - your name's" on every row is noise
+    $business = createBusiness('acmesteel');
+    $user = createUser(1, $business, false, true);
+
+    $project = createProject($user);
+    Piece::factory()->create(['project_id' => $project->id]);
+
+    $response = $this->actingAs($user)->get(route('dashboard'));
+
+    expect($response->viewData('page')['props']['eligibleProjects'][0]['projectManagerName'])->toBeNull();
+});
+
 it('shows a test mode account only its own projects', function () {
     /*
      * The sandbox is a global scope on the model, so this needs no code of its own - but the

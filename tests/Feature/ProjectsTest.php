@@ -652,6 +652,9 @@ it('would be a disaster if a half-finished import was on nobody’s board', func
                 ->where('user_id', $colleague->id)
                 //Named, so a colleague knows who to go and ask rather than just seeing it stuck
                 ->where('projectManagerName', $colleague->name)
+                //Nobody uploaded this for them - they created their own project
+                ->where('created_by_user_id', null)
+                ->where('uploadedByName', null)
                 //Only its owner can finish it
                 ->where('prerequisiteUploadMaterials', false)
             )

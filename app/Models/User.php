@@ -88,6 +88,38 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     //Collections
+    /**
+     * The rest of the staff at this user's company, as a picker needs them: an id and a name.
+     *
+     * For choosing which project manager a material list is being uploaded for. The person with the
+     * spreadsheet is often not the person running the job - a draftsman details it and uploads the
+     * BOM for a colleague - and until projects.created_by_user_id existed every one of those projects
+     * landed on the board under the draftsman's name, out of reach of the manager it was for.
+     *
+     * There is no staff list, no roles and no invitations in this application: a business is every
+     * user whose email domain matched at registration, and they are all peers. So every colleague is
+     * an equally valid answer and they come back in name order, with no notion of who is "a project
+     * manager" - anyone can be, and the one who uploads for somebody else today is the one somebody
+     * else uploads for tomorrow.
+     *
+     * Empty on a one-person business, which is most of them, and the forms draw nothing at all then.
+     *
+     * @return list<array{id: int, name: string}>
+     */
+    public function colleagueOptions(): array
+    {
+        return $this->business->users()
+            ->select(['id', 'name'])
+            ->where('id', '!=', $this->id)
+            ->orderBy('name')
+            ->get()
+            ->map(fn (User $colleague) => [
+                'id' => $colleague->id,
+                'name' => $colleague->name,
+            ])
+            ->all();
+    }
+
     public function productsOrdered(): Collection
     {
         $products = [];

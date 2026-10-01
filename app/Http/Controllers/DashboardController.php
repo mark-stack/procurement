@@ -26,6 +26,9 @@ use Inertia\Response;
  * Both already existed, driven from the board's new-project modal. Nothing here replaces that modal
  * or the clarification steps behind it - a project needing a price book clarification is still
  * finished on the board, which is where it is drawn.
+ *
+ * A new project can also be handed to a colleague as it is created, because the person with the
+ * spreadsheet is often not the person running the job - see User::colleagueOptions.
  */
 class DashboardController extends Controller
 {
@@ -35,6 +38,11 @@ class DashboardController extends Controller
 
         return Inertia::render('MaterialListUpload', [
             'eligibleProjects' => $this->eligibleProjects($user->id),
+            /*
+             * The other staff a new project can be handed to as it is created - the draftsman
+             * uploading for the manager running the job. See User::colleagueOptions.
+             */
+            'colleagues' => $user->colleagueOptions(),
         ]);
     }
 
@@ -45,6 +53,11 @@ class DashboardController extends Controller
      * what ProductController::store actually enforces - yours, live, and nothing nested into a batch
      * yet. Offering anything wider would be offering a 403.
      *
+     * "Yours" means a project you manage or one you uploaded for a colleague (Project::managedBy),
+     * which is the same answer that gate gives. A job's materials do not arrive in one file on one
+     * day, and the second file reaches the draftsman who sent the first - so leaving their
+     * colleagues' projects out would leave them with no way to finish what they started.
+     *
      * That set is the Nesting column's, minus colleagues' cards: the column holds exactly the
      * projects that exist and have not been batched. It is NOT Business::projectsReadyForBatching(),
      * which excludes a project still waiting on a price book clarification - those are drawn on the
@@ -53,14 +66,15 @@ class DashboardController extends Controller
      * cheaper: that method runs a price book match per material row of every project the business
      * has ever had, which is not a price worth paying to fill a dropdown.
      *
-     * @return list<array{id: int, name: string, reference: string|null, rows: int}>
+     * @return list<array{id: int, name: string, reference: string|null, rows: int, projectManagerName: string|null}>
      */
     private function eligibleProjects(int $userId): array
     {
         return Project::query()
-            ->select(['id', 'name', 'reference'])
+            ->select(['id', 'name', 'reference', 'user_id'])
+            ->with('user:id,name')
             ->withCount('rawMaterialQuotes')
-            ->where('user_id', $userId)
+            ->managedBy($userId)
             ->where('archive', false)
             //No piece of it is in a batch. Nested work is past the point where a BOM can grow.
             ->whereDoesntHave('pieces', fn (Builder $pieces) => $pieces->has('batch'))
@@ -72,6 +86,13 @@ class DashboardController extends Controller
                 'reference' => $project->reference,
                 //So the select can say what is already on a project before adding to it
                 'rows' => $project->raw_material_quotes_count,
+                /*
+                 * Whose job it is, named only when it is not the uploader's own. The dropdown now
+                 * mixes your own projects with the ones you uploaded for a colleague, and two jobs
+                 * with similar names belonging to different managers is exactly the mix-up that puts
+                 * one manager's steel on another's cutting list.
+                 */
+                'projectManagerName' => $project->user_id === $userId ? null : $project->user->name,
             ])
             ->all();
     }

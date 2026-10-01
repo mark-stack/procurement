@@ -173,7 +173,7 @@ class PrerequisiteConditions
     {
         /**
          * 1) BUSINESS: Your business
-         * 2) PROJECT: Your project
+         * 2) PROJECT: Yours to change - its manager, or whoever uploaded it for them
          * 3) PROJECT: Not archived
          * 4A) BATCH: No Batch exists for this project
          * 4B) No quote for this project (requires batch)
@@ -183,8 +183,15 @@ class PrerequisiteConditions
         //1) BUSINESS: Your business
         $condition_1 = $project->user->business->id === $user->business->id;
 
-        //2) PROJECT: Your project
-        $condition_2 = $project->user->id === $user->id;
+        /*
+         * 2) PROJECT: Yours to change
+         *
+         * This was user_id alone, which is the project manager. A draftsman who uploads a material
+         * list for a manager's project could then do nothing further to it: no second file when the
+         * rest of the BOM arrives, and no finishing an import that stopped at a price book
+         * clarification. See Project::isManagedBy for where that line now sits and why.
+         */
+        $condition_2 = $project->isManagedBy($user);
 
         //3) PROJECT: Not archived
         $condition_3 = !$project->archive;

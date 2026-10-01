@@ -326,7 +326,9 @@ class Business extends Model
          * per material row per project - a project with 50 BOM lines cost 110 queries to draw one card.
          */
         return Project::query()
-            ->with(['user', 'rawMaterialQuotes', 'pieces.batch'])
+            //createdBy is null on all but the projects one colleague uploaded for another, and an
+            //unloaded null relation costs no query - but the ones that do have it are drawn here too
+            ->with(['user', 'createdBy', 'rawMaterialQuotes', 'pieces.batch'])
             ->has("rawMaterialQuotes")
             ->whereNotIn("id",$requiringClarification)
             ->whereIn("id",$piecesReadyForBatching->pluck("project_id")->toArray())

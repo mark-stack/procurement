@@ -53,10 +53,19 @@ class RawMaterialQuote extends Model
          * endpoints scoped only to the business, so the one thing a colleague could not do to your
          * BOM was add to it, while committing product choices and deleting rows outright - the
          * half that does not come back - went through.
+         *
+         * "Yours" is the project's manager or whoever uploaded the list for them, which is the same
+         * answer PrerequisiteConditions::uploadMaterials gives - the modal draws these forms from
+         * that flag, so anything narrower here would draw a form that can only answer 403. A
+         * clarification is part of the import, and the import belongs to whoever has the spreadsheet.
+         * See Project::isManagedBy.
          */
         return $query->whereHas(
             'project',
-            fn (Builder $project) => $project->where('user_id', $user->id)
+            function (Builder $project) use ($user): void {
+                /** @var Builder<Project> $project */
+                $project->managedBy($user->id);
+            }
         );
     }
 

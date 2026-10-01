@@ -3,6 +3,7 @@
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
+use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\CsvService;
 use App\Services\DataClassificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -13,7 +14,12 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 uses(RefreshDatabase::class);
 
-function uploadExampleMaterialList($test, $user, string $projectName = 'Example project')
+/**
+ * @param  int|null  $projectManagerId  the colleague the job is for, when somebody is uploading on
+ *                                      their behalf - null is the plain case, where it is the
+ *                                      uploader's own project
+ */
+function uploadExampleMaterialList($test, $user, string $projectName = 'Example project', ?int $projectManagerId = null)
 {
     $file = new UploadedFile(
         base_path('public/examples/material_list.xlsx'),
@@ -30,6 +36,7 @@ function uploadExampleMaterialList($test, $user, string $projectName = 'Example 
             'reference' => null,
             'date_materials_required' => null,
             'tentative' => false,
+            'project_manager_id' => $projectManagerId,
             'excel' => [$file],
         ]);
 }
@@ -401,6 +408,139 @@ it('would be a disaster if a BOM upload took a file that is not a spreadsheet', 
         ->assertInvalid('excel');
 
     expect($project->rawMaterialQuotes()->count())->toBe(0);
+});
+
+/*
+ * Uploading on behalf of a colleague.
+ *
+ * The draftsman has the spreadsheet; the project manager has the job. Before projects.user_id could
+ * name somebody other than whoever was logged in, every BOM the drawing office uploaded produced a
+ * project under the draftsman's name - on the board as theirs, editable and archivable by nobody
+ * else, and with the materials deadline reminders going to the one person not running the job.
+ */
+it('creates the project under the colleague it was uploaded for, and records who uploaded it', function () {
+    $business = createBusiness('gmail');
+    recordExampleTemplates($business);
+    $draftsman = createUser(1, $business, false, true);
+    $projectManager = createUser(2, $business, false, true);
+    seedMasterMaterials();
+
+    uploadExampleMaterialList($this, $draftsman, 'Tower A', $projectManager->id);
+
+    $project = Project::firstWhere('name', 'Tower A');
+
+    expect($project)->not->toBeNull()
+        //The manager owns it, which is what the board draws and what the owner-only gates read
+        ->and($project->user_id)->toBe($projectManager->id)
+        //And the draftsman is on the record as the one who uploaded it
+        ->and($project->created_by_user_id)->toBe($draftsman->id)
+        //The materials still came out of the file, into the manager's project
+        ->and($project->rawMaterialQuotes()->count())->toBeGreaterThan(0);
+});
+
+it('leaves created_by_user_id empty when a project manager uploads their own list', function () {
+    /*
+     * The common case, and the one that must stay unremarkable: null means "nobody acted on anybody's
+     * behalf". Posting your own id counts as that too - the select offers "me" as null, but anything
+     * posting straight at the route may well send it.
+     */
+    $business = createBusiness('gmail');
+    recordExampleTemplates($business);
+    $user = createUser(1, $business, false, true);
+    seedMasterMaterials();
+
+    uploadExampleMaterialList($this, $user, 'Mine', $user->id);
+
+    expect(Project::firstWhere('name', 'Mine')->created_by_user_id)->toBeNull();
+});
+
+it('would be a disaster if a project could be created for somebody outside the business', function () {
+    /*
+     * This id decides who owns a project: who the board names, who may rename or archive it, and who
+     * is chased about its deadline. An id from another business would hand a stranger a project - and
+     * take it off the uploader's own board, which is drawn from their business's users, so neither of
+     * them would be able to reach it.
+     */
+    $business = createBusiness('gmail');
+    recordExampleTemplates($business);
+    $user = createUser(1, $business, false, true);
+
+    $otherBusiness = createBusiness('othersteel');
+    $stranger = createUser(2, $otherBusiness, false, true);
+
+    seedMasterMaterials();
+
+    uploadExampleMaterialList($this, $user, 'Tower A', $stranger->id)
+        ->assertInvalid('project_manager_id');
+
+    expect(Project::count())->toBe(0);
+});
+
+it('lets the draftsman who uploaded a colleague’s list add the rest of the materials to it', function () {
+    /*
+     * A job's materials do not arrive in one file on one day, and the second file reaches whoever the
+     * first one did. Without this the draftsman could create the manager's project and then do
+     * nothing further to it - including finishing an import that stopped at a price book
+     * clarification, which is part of the upload and not part of running the job.
+     *
+     * The colleague's project this is NOT allowed on is the test above it (a project they had no hand
+     * in), which still answers 403.
+     */
+    $business = createBusiness('gmail');
+    recordExampleTemplates($business);
+    $draftsman = createUser(1, $business, false, true);
+    $projectManager = createUser(2, $business, false, true);
+    seedMasterMaterials();
+
+    uploadExampleMaterialList($this, $draftsman, 'Tower A', $projectManager->id);
+
+    $project = Project::firstWhere('name', 'Tower A');
+    $rowsFromTheFirstFile = $project->rawMaterialQuotes()->count();
+
+    $this->actingAs($draftsman)
+        ->from('/dashboard')
+        ->post(route('projects.products.store', $project->id), [
+            'excel' => new UploadedFile(
+                base_path('public/examples/material_list.xlsx'),
+                'material_list.xlsx',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                null,
+                true
+            ),
+        ])
+        ->assertSessionHasNoErrors();
+
+    //Uploads are cumulative, so the second file adds to the list rather than replacing it
+    expect($project->rawMaterialQuotes()->count())->toBeGreaterThan($rowsFromTheFirstFile);
+});
+
+it('still refuses the manager’s colleagues everything except reading the list', function () {
+    /*
+     * The line only moved for the person who uploaded the material list. A third colleague - no
+     * relation to the job - gets the same 403 they always did, and the board still disables the
+     * controls for them.
+     */
+    $business = createBusiness('gmail');
+    recordExampleTemplates($business);
+    $draftsman = createUser(1, $business, false, true);
+    $projectManager = createUser(2, $business, false, true);
+    $bystander = createUser(3, $business, false, true);
+    seedMasterMaterials();
+
+    uploadExampleMaterialList($this, $draftsman, 'Tower A', $projectManager->id);
+
+    $project = Project::firstWhere('name', 'Tower A');
+
+    expect((new PrerequisiteConditions())->uploadMaterials($draftsman, $project))->toBeTrue()
+        ->and((new PrerequisiteConditions())->uploadMaterials($projectManager, $project))->toBeTrue()
+        ->and((new PrerequisiteConditions())->uploadMaterials($bystander, $project))->toBeFalse()
+        /*
+         * And the uploader is not a second owner: renaming the job, moving its materials date and
+         * taking it off the board stay the manager's call.
+         */
+        ->and((new PrerequisiteConditions())->editProject($draftsman, $project))->toBeFalse()
+        ->and((new PrerequisiteConditions())->archiveProject($draftsman, $project))->toBeFalse()
+        ->and((new PrerequisiteConditions())->editProject($projectManager, $project))->toBeTrue();
 });
 
 it('adds the material rows when the owner uploads to their own project', function () {

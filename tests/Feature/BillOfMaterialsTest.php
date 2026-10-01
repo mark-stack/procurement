@@ -78,6 +78,49 @@ it('would be a disaster if your own material list could not be bulk deleted', fu
     expect(Piece::where('raw_material_quote_id', $row->id)->exists())->toBeFalse();
 });
 
+it('lets whoever uploaded a colleague’s material list edit the rows on it', function () {
+    /*
+     * A draftsman who uploads a BOM for a project manager (see projects.created_by_user_id) can finish
+     * the import: confirm a partial price book match, save a custom product, delete a row that came
+     * off the sheet wrong. All three endpoints scope through RawMaterialQuote::scopeOwnedByUser, which
+     * has to give the same answer as PrerequisiteConditions::uploadMaterials - that gate is what draws
+     * the controls, so a narrower scope here would draw a checkbox that can only answer 403.
+     */
+    $business = createBusiness('biz1');
+    $draftsman = createUser(1, $business, false, true);
+    $projectManager = createUser(2, $business, false, true);
+
+    $project = createProject($projectManager);
+    $project->update(['created_by_user_id' => $draftsman->id]);
+    $row = bomRowWithPiece($project);
+
+    $this->actingAs($draftsman)
+        ->post(route('raw.material.quote.bulk.destroy'), [
+            'selectedRawMaterialQuoteIds' => [$row->id],
+        ])
+        ->assertRedirect();
+
+    expect(RawMaterialQuote::find($row->id))->toBeNull();
+});
+
+it('would be a disaster if a colleague with no hand in the list could delete its rows', function () {
+    //The line moved for the uploader alone. Everybody else on the shared board still only reads it.
+    $business = createBusiness('biz1');
+    $projectManager = createUser(1, $business, false, true);
+    $bystander = createUser(2, $business, false, true);
+
+    $project = createProject($projectManager);
+    $row = bomRowWithPiece($project);
+
+    $this->actingAs($bystander)
+        ->post(route('raw.material.quote.bulk.destroy'), [
+            'selectedRawMaterialQuoteIds' => [$row->id],
+        ])
+        ->assertRedirect();
+
+    expect(RawMaterialQuote::find($row->id))->not->toBeNull();
+});
+
 it('would be a disaster if ordered material could be deleted out from under its order', function () {
     /*
      * The modal hides the checkbox on a row that is quoted or ordered, but that rule lived
