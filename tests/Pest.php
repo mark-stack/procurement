@@ -648,6 +648,59 @@ function offcutGenerations(User $user, Batch $rootBatch, int $generations, int $
 }
 
 /**
+ * Nest a real BOM the way the button does, and hand back what it produced.
+ *
+ * The long way round on purpose - through quotes.store - because the things worth testing on the far
+ * side of it (the cuts the nest wrote down, the bars it bought, the supplier groups the batch requires)
+ * are all derived from a real nest. A hand-built batch with one fixture piece on it produces none of
+ * them: piecesNested needs a piece complete enough to resolve a product spec, and pieces with no
+ * actual_qty expand to no cuts at all.
+ *
+ * Lives here rather than in one test file because three files need it. test() rather than $this, since
+ * a helper at file scope is a plain function.
+ *
+ * @param  array<int, array{0: int, 1: int}>  $nest  length vs qty, as nestingTestCases() uses
+ * @return array{0: Business, 1: User, 2: Batch}
+ */
+function nestedBatch(array $nest, string $businessName = 'fabricator'): array
+{
+    $dataClassificationService = new App\Services\DataClassificationService;
+
+    //The catalogue has to exist before a BOM can be matched against it
+    $adminUser = createUser(1, createBusiness('admin', true), true, true);
+    test()->actingAs($adminUser);
+    seedMasterMaterials();
+
+    $business = createBusiness($businessName, true);
+    $user = createUser(1, $business, false, true);
+    $project = createProject($user);
+
+    $sampleBOM = sampleBOM($project, $dataClassificationService, $nest);
+    createPieces($sampleBOM, $project, $dataClassificationService);
+
+    test()->actingAs($user);
+    test()->post(route('quotes.store'));
+
+    return [$business, $user, Batch::first()];
+}
+
+/**
+ * A supplier of one group, attached to this business - which is what makes that group draw rows in the
+ * quotes/orders modal. See SupplierFormatter::suppliersForSupplierGroup.
+ */
+function supplierForGroup(Business $business, string $supplierGroup = 'STEEL_MERCHANT', string $name = 'Southern Steel'): Supplier
+{
+    $supplier = Supplier::create([
+        'name' => $name,
+        'supplier_categories' => serialize([$supplierGroup => true]),
+    ]);
+
+    $business->suppliers()->attach($supplier->id);
+
+    return $supplier;
+}
+
+/**
  * A quote for one supplier group on a batch, with the order that always accompanies it.
  *
  * @return array{0: Quote, 1: Order}

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Bar\AttachBarsToOrder;
 use App\Actions\Order\SetOrderSentForBatchSupplierGroup;
 use App\Actions\OrderApproval\UpdateOrderApprovalStatus;
 use App\Actions\Piece\AttachPiecesToOrder;
@@ -67,6 +68,15 @@ class OrderSentController extends Controller
 
         //Attach pieces to order
         AttachPiecesToOrder::run($batch, $orderedOrder);
+
+        /*
+         * And the bars, which is the other half of the same fact.
+         *
+         * The pieces are what was asked for; the bars are what is being bought to make them. Only the
+         * bars can carry a heat number, and only an order carries certificates - so this column is the
+         * join between a cut and the steel it is made of. See App\Actions\Bar\AttachBarsToOrder.
+         */
+        AttachBarsToOrder::run($batch, $orderedOrder);
 
         /*
          * Ordering is approved for the batch, on behalf of every project manager on it, by the

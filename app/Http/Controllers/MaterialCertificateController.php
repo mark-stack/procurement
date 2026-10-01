@@ -68,6 +68,21 @@ class MaterialCertificateController extends Controller
         //The certificate has no owner of its own - it is as private as the order it hangs off
         Gate::authorize('owned', $materialCertificate->order);
 
+        /*
+         * Refused once the order has been placed - see MaterialCertificate::isDeletable for why, and
+         * for what to do instead. Answered rather than aborted: this is reachable from a button the
+         * page draws, and somebody who has just attached the wrong file deserves to be told what the
+         * right move is rather than handed a 403.
+         */
+        if (! $materialCertificate->isDeletable()) {
+            return back()->withErrors([
+                'certificate' => 'This certificate belongs to an order that has already been placed, '
+                    .'so it is part of that order\'s record and cannot be removed. Attach the correct '
+                    .'certificate instead - both will show, and the traceability trail will report '
+                    .'both.',
+            ]);
+        }
+
         $materialCertificate->deleteWithFile();
 
         return back();

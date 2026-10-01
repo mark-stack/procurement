@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Bar\DetachBarsFromOrder;
+use App\Actions\Order\UpdateOrderSentStatus;
 use App\Actions\OrderApproval\UpdateOrderApprovalStatus;
 use App\Actions\Piece\DetachPiecesFromOrder;
 use App\Models\Order;
@@ -33,11 +35,23 @@ class OrderUndoSentController extends Controller
         $batch = $order->batch;
         abort_if(! $batch, 404);
 
-        $order->order_sent = false;
-        $order->save();
+        /*
+         * Through the action rather than setting the flag here, so that order_sent_at is cleared with
+         * it. Two columns describing one fact have to agree, and this was the second writer of one of
+         * them - see UpdateOrderSentStatus.
+         */
+        UpdateOrderSentStatus::run($order, false);
 
         //Detach pieces to order
         DetachPiecesFromOrder::run($batch, $order);
+
+        /*
+         * And let go of the bars. They were attached when the order was placed (AttachBarsToOrder), so
+         * an order that is no longer placed has not bought them - leaving them pointed at it would put
+         * a heat number column on an order nobody has sent, and would mean two orders in the same
+         * supplier group each claiming the same steel once this one is re-sent to a different merchant.
+         */
+        DetachBarsFromOrder::run($order);
 
         /*
          * Sending the order set every approval on the batch to true (OrderSentController), so undoing it

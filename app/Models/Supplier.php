@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\RecordsChanges;
 use Database\Factories\SupplierFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,7 +13,7 @@ use Illuminate\Support\Collection;
 class Supplier extends Model
 {
     /** @use HasFactory<SupplierFactory> */
-    use HasFactory;
+    use HasFactory, RecordsChanges;
 
     protected $guarded = [];
 

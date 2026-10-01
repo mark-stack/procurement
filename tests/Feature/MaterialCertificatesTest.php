@@ -196,15 +196,21 @@ it('would be a disaster if another business could read a certificate', function 
 
 it('takes the file off the disk when a certificate is removed', function () {
     /*
-     * A row with no file behind it is a download that 404s. Removing one is the correction for a
-     * cert attached to the wrong order, so it has to leave nothing behind.
+     * A row with no file behind it is a download that 404s, so removing one has to leave nothing
+     * behind.
+     *
+     * On an order that has NOT been placed, which is the only state a certificate can still be taken
+     * back off. This test used to run against a delivered order, on the reasoning that removing a cert
+     * is the correction for one attached to the wrong order - see the test below for why that is no
+     * longer allowed, and what the correction is instead.
      */
     Storage::fake(MaterialCertificate::DISK);
 
     $business = createBusiness('biz', true);
     $user = createUser(1, $business, false, true);
 
-    [, $order] = deliveredSteelOrder($user);
+    $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
+    [, $order] = quoteAndOrder($user, $batch, quoteSent: true, orderSent: false);
 
     $this->actingAs($user)
         ->post(route('material.certificates.store', $order), [
@@ -218,6 +224,63 @@ it('takes the file off the disk when a certificate is removed', function () {
 
     Storage::disk(MaterialCertificate::DISK)->assertMissing($path);
     expect(MaterialCertificate::query()->whereKey($certificate->id)->exists())->toBeFalse();
+});
+
+it('would be a disaster if a certificate could be deleted off an order that has been placed', function () {
+    /*
+     * The certificate behind a placed order is evidence, not a draft. Steel has been bought against
+     * it, it is very possibly cut and installed, and the offcut ancestry walks back to this exact row
+     * for its trail - so deleting it destroys the only record of what was received.
+     *
+     * The correction is to attach the right one. Both show, and the trail reports both.
+     */
+    Storage::fake(MaterialCertificate::DISK);
+
+    $business = createBusiness('biz', true);
+    $user = createUser(1, $business, false, true);
+
+    [, $order] = deliveredSteelOrder($user);
+
+    $this->actingAs($user)
+        ->post(route('material.certificates.store', $order), [
+            'certificates' => [UploadedFile::fake()->create('heat-214887.pdf', 10, 'application/pdf')],
+        ]);
+
+    $certificate = $order->materialCertificates()->sole();
+
+    $this->delete(route('material.certificates.destroy', $certificate))
+        ->assertRedirect()
+        ->assertSessionHasErrors('certificate');
+
+    //Both the row and the file are still there
+    expect(MaterialCertificate::query()->whereKey($certificate->id)->exists())->toBeTrue();
+    Storage::disk(MaterialCertificate::DISK)->assertExists($certificate->path);
+});
+
+it('refuses to delete a placed order\'s certificate even when the model is asked directly', function () {
+    /*
+     * The controller answers the user; this is what makes the rule true for the next caller. A future
+     * screen reaching for deleteWithFile() should not be able to do by accident what the route refuses
+     * to do on purpose.
+     */
+    Storage::fake(MaterialCertificate::DISK);
+
+    $business = createBusiness('biz', true);
+    $user = createUser(1, $business, false, true);
+
+    [, $order] = deliveredSteelOrder($user);
+
+    $certificate = MaterialCertificate::create([
+        'order_id' => $order->id,
+        'user_id' => $user->id,
+        'path' => 'material-certificates/'.$order->id.'/whatever.pdf',
+        'original_filename' => 'whatever.pdf',
+        'mime_type' => 'application/pdf',
+        'size_bytes' => 100,
+    ]);
+
+    expect(fn () => $certificate->deleteWithFile())->toThrow(RuntimeException::class);
+    expect(MaterialCertificate::query()->whereKey($certificate->id)->exists())->toBeTrue();
 });
 
 it('refuses a file that is not a certificate', function () {

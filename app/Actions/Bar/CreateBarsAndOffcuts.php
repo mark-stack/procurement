@@ -6,6 +6,7 @@ use App\Enums\NestingEnums;
 use App\Formatters\UniqueLetterIDGenerator;
 use App\Models\Bar;
 use App\Models\Batch;
+use App\Models\Cut;
 use App\Models\Offcut;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
@@ -82,6 +83,26 @@ class CreateBarsAndOffcuts
                             "product_derived_label" => $product->product_derived_label, //200PFC
                             "length" => $utilisedBar["result"]["bar_length"],
                         ]);
+
+                        /*
+                         * Record the cuts this particular bar carries.
+                         *
+                         * "count" identical bars share one cut plan but not one set of parts, so the
+                         * ids come from this bar's own entry in pieceIdSets - the i-th bar gets the
+                         * i-th set. Pairing them with result.pieces by index is sound because that is
+                         * what consolidation grouped on: two bars are only in the same group if their
+                         * cut lists are identical, so the lengths are the same list in the same order.
+                         *
+                         * This is the row that makes a part traceable. Without it the chain ran
+                         * piece -> order -> certificates, which is a set; with it the chain runs
+                         * piece -> cut -> bar -> heat number, which is an answer.
+                         */
+                        $this->recordCuts(
+                            $batch,
+                            $utilisedBar["pieceIdSets"][$i - 1] ?? [],
+                            $utilisedBar["result"]["pieces"] ?? [],
+                            barId: $bar->id,
+                        );
 
                         //Should make offcut
                         if($unused >= $threshold){
@@ -162,6 +183,24 @@ class CreateBarsAndOffcuts
 
                             $offcut->batch_to_id = $batch->id;
                             $offcut->save();
+
+                            /*
+                             * The cuts taken out of this offcut.
+                             *
+                             * The offcut side of the nest has always carried a piece_id on every cut, so
+                             * there is nothing to thread through here - it only needed writing down. A
+                             * cut recorded against an offcut inherits that offcut's ancestry for its
+                             * certificate trail, which is what Cut::originBar walks back up to find the
+                             * bar the steel was originally rolled as.
+                             */
+                            $cuts = $offcutData["sourceOffcut"]["cuts"] ?? [];
+
+                            $this->recordCuts(
+                                $batch,
+                                array_map(fn ($cut) => $cut["piece_id"] ?? null, $cuts),
+                                $cuts,
+                                offcutId: $offcut->id,
+                            );
                         }
                         else {
                             Log::error("Offcut with ID wasn't found: ", [$offcutData["sourceOffcut"]["offcutId"]]);
@@ -238,6 +277,49 @@ class CreateBarsAndOffcuts
         $batch->letters_project_array = $lettersProjectArray;
 
         $batch->save();
+    }
+
+    /**
+     * Write one cuts row per part taken out of a bar or an offcut.
+     *
+     * Two callers with two cut shapes, which is why the length is read from either key: the new stock
+     * side calls its measurement "cutLength" (addNewStockBar) and the offcut side calls it "length"
+     * (nestRequiredCutsIntoOffcuts). Normalising here rather than renaming one of them keeps the saved
+     * nested_state readable by every screen that already parses it.
+     *
+     * Rows with no piece id are skipped rather than written with a null. A cut that cannot name its part
+     * traces nothing, and a traceability table whose rows may or may not mean anything is one nobody can
+     * rely on - better to be short and honest, which is what Batch::offcutOrdersWithCertificates already
+     * does when it reports the certificates material "could have come from". In practice this skips
+     * nothing: both nesting paths carry an id for every cut. It is the guard that keeps that true.
+     *
+     * @param  array<int, int|null>  $pieceIds  the parts on this bar, in cut order
+     * @param  array<int, array<string, mixed>>  $cuts  the same cuts, carrying their lengths
+     */
+    private function recordCuts(
+        Batch $batch,
+        array $pieceIds,
+        array $cuts,
+        ?int $barId = null,
+        ?int $offcutId = null,
+    ): void {
+        $cuts = array_values($cuts);
+
+        foreach (array_values($pieceIds) as $index => $pieceId) {
+            if ($pieceId === null) {
+                continue;
+            }
+
+            $cut = $cuts[$index] ?? [];
+
+            Cut::create([
+                'piece_id' => (int) $pieceId,
+                'batch_id' => $batch->id,
+                'bar_id' => $barId,
+                'offcut_id' => $offcutId,
+                'length' => (float) ($cut['cutLength'] ?? $cut['length'] ?? 0),
+            ]);
+        }
     }
 
     /**
