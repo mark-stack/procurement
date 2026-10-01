@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Formatters\KanbanFormatter;
+use App\Imports\ExcelImport;
 use App\Formatters\NestingFormatter;
 use App\Http\Requests\StoreProjectRequest;
 use App\Http\Requests\UpdateProjectRequest;
@@ -11,10 +12,12 @@ use App\Http\Resources\ProjectResource;
 use App\Models\Project;
 use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\CsvService;
+use App\Services\TemplateLearningService;
 use App\Services\TemplateService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Http\RedirectResponse;
+use Maatwebsite\Excel\Facades\Excel;
 use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Validation\ValidationException;
@@ -92,7 +95,17 @@ class ProjectController extends Controller
         ]);
     }
 
-    public function store(StoreProjectRequest $request): RedirectResponse
+    /**
+     * Create a project and import the bills of materials uploaded with it - writing the template for
+     * any of them we have no template for.
+     *
+     * That last part is what onboarding used to be, and this is the path it mattered most on: the new
+     * project modal is where a customer's very first spreadsheet arrives. A file matching nothing used
+     * to fail validation here, before the project was even created, with "didn't auto-detect properly,
+     * did the template change?" - to a business for which no template had ever been recorded. There
+     * was no template to change.
+     */
+    public function store(StoreProjectRequest $request, TemplateLearningService $learner): RedirectResponse
     {
         $validated = $request->validated();
 
@@ -111,9 +124,18 @@ class ProjectController extends Controller
          * then again here - and the detected tables thrown away in between.
          */
         $read = (new TemplateService())->readFiles($files);
-        if(count($read['invalid']) > 0){
+
+        /*
+         * A file that is not a spreadsheet at all - or one our own detection threw on - is refused
+         * before anything is created, which is what used to happen to every file that produced no
+         * tables. No template can be written for these, so there is nothing to gain by going on.
+         *
+         * Files that read perfectly well and simply match no template are no longer in here; they are
+         * dealt with below, once there is a project to import them into.
+         */
+        if(count($read['unreadable']) > 0){
             throw ValidationException::withMessages([
-                'invalid_template' => [$read['invalid']],
+                'invalid_template' => [array_values($read['unreadable'])],
             ]);
         }
 
@@ -135,6 +157,42 @@ class ProjectController extends Controller
          * so a batch reported whichever file happened to be last. Outcomes are collected
          * and answered once, below.
          */
+        /*
+         * The spreadsheets we could read and had no template for.
+         *
+         * Each one is described, tested against itself and recorded if it passes - see
+         * TemplateLearningService - and then re-read, because a template that now exists is a template
+         * detection will find. Outside any transaction: it makes two calls to OpenAI per file, and a
+         * transaction held open across an outbound HTTP call pins a database connection to somebody
+         * else's API.
+         *
+         * A file this cannot write a template for is reported as a failure below, the same as one that
+         * threw: the customer is told we have it and are dealing with it, which is true - the attempt
+         * is recorded and an admin has been emailed.
+         */
+        $learnedNames = [];
+        $unlearnable = [];
+
+        foreach($read['unmatched'] as $index => $name){
+            $learning = $learner->learn($files[$index], $project);
+
+            if(! $learning->learned()){
+                $unlearnable[$name] = $learning->message;
+
+                continue;
+            }
+
+            $learnedNames[] = $learning->template->name;
+
+            $detected = $csvService->detectTables(
+                Excel::toArray(new ExcelImport, $files[$index])[0],
+            );
+
+            if($detected !== []){
+                $read['tables'][$index] = $detected;
+            }
+        }
+
         $failedFiles = [];
 
         foreach($read['tables'] as $index => $detectedTables){
@@ -171,6 +229,16 @@ class ProjectController extends Controller
             //Discard the empty shell so the user can retry with the same name
             $project->delete();
 
+            /*
+             * The learning message in preference to the support one, where there is a learning
+             * message to give. It says we have the file and are dealing with it, which is true and is
+             * the opposite of what the support line asks of them - we already have it, an admin has
+             * been emailed, and asking them to send it in would be asking for a second copy.
+             */
+            if ($unlearnable !== []) {
+                return back()->with('warning', reset($unlearnable));
+            }
+
             return back()->with('warning', count($failedFiles) > 0
                 ? "We couldn't read ".implode(', ', $failedFiles).". Please email the file to {$supportEmail} so we can take a look."
                 : "No materials could be matched from the uploaded file. Please email it to {$supportEmail} so we can take a look.");
@@ -180,12 +248,29 @@ class ProjectController extends Controller
          * Something imported. The modal moves on to the BOM either way - a file that
          * failed outright is named there, alongside the individual rows that could not
          * be used, rather than being reported as a template that stopped auto-detecting.
+         *
+         * A file we could not write a template for is in here too. From the BOM's point of view it is
+         * the same thing as one that threw - nothing came out of it - and the difference is in the
+         * message above and in the attempt an admin is now looking at.
          */
-        if (count($failedFiles) > 0) {
-            $project->recordUnimportedItems([], [], $failedFiles);
+        $notImported = [...$failedFiles, ...array_keys($unlearnable)];
+
+        if (count($notImported) > 0) {
+            $project->recordUnimportedItems([], [], $notImported);
         }
 
-        return back()->with('project', $project);
+        return back()
+            ->with('project', $project)
+            /*
+             * Only when a format we had never seen now works. The customer has no idea anything
+             * happened - the file simply imported - and the name is the only place the template we
+             * wrote for them is ever mentioned to them.
+             */
+            ->with($learnedNames === [] ? [] : [
+                'success' => count($learnedNames) === 1
+                    ? sprintf('We had not seen that spreadsheet format before. It has been read, checked and saved as "%s" - uploads of it will import straight away from now on.', $learnedNames[0])
+                    : sprintf('We had not seen %d of those spreadsheet formats before. They have been read, checked and saved as %s - uploads of them will import straight away from now on.', count($learnedNames), implode(', ', array_map(fn (string $name) => '"'.$name.'"', $learnedNames))),
+            ]);
     }
 
     public function update(UpdateProjectRequest $request, Project $project): RedirectResponse

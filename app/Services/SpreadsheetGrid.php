@@ -35,8 +35,28 @@ class SpreadsheetGrid
      */
     public static function fromUpload(UploadedFile $file): ?self
     {
+        return self::read($file);
+    }
+
+    /**
+     * The same, for a spreadsheet already on disk.
+     *
+     * The samples kept against a failed TemplateLearningAttempt are read through here: an attempt is
+     * reopened to ask whether a template recorded since now finds the table in it, and the file it
+     * is asked about has not been uploaded for months.
+     */
+    public static function fromPath(string $path): ?self
+    {
+        return is_file($path) ? self::read($path) : null;
+    }
+
+    /**
+     * @param  UploadedFile|string  $source  Anything Excel::toArray() accepts
+     */
+    private static function read(UploadedFile|string $source): ?self
+    {
         try {
-            return new self(Excel::toArray(new ExcelImport, $file)[0]);
+            return new self(Excel::toArray(new ExcelImport, $source)[0]);
         } catch (ReaderException|UnreadableFileException|NoTypeDetectedException|NoSheetsFoundException) {
             return null;
         } catch (Throwable $exception) {

@@ -56,7 +56,7 @@ it('would be a disaster if a non-Excel upload reached the extractor', function (
      * stopping this - the request had no per-file rules at all, so anything at all
      * got handed to Excel::toArray.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $response = postMaterialLists($this, $user, [
@@ -68,7 +68,7 @@ it('would be a disaster if a non-Excel upload reached the extractor', function (
 });
 
 it('would be a disaster if an oversized upload reached the extractor', function () {
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $response = postMaterialLists($this, $user, [
@@ -84,7 +84,7 @@ it('would be a disaster if an oversized upload reached the extractor', function 
 });
 
 it('would be a disaster if the five file limit was only enforced in the browser', function () {
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $files = collect(range(1, 6))
@@ -111,7 +111,7 @@ it('would be a disaster if a new project could be named anything at all', functi
      * Both refusals have to land before the upload is read, or the answer arrives after the
      * spreadsheet has been parsed and a project created under the name being refused.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $file = fn () => UploadedFile::fake()->create(
@@ -148,7 +148,7 @@ it('would be a disaster if a padded name slipped past the duplicate check', func
      * different name to "Tower A" as far as the check is concerned and the same name everywhere it
      * is read.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $existing = createProject($user);
@@ -168,7 +168,7 @@ it('would be a disaster if a padded name slipped past the duplicate check', func
 });
 
 it('would be a disaster if uploading a material list extracted nothing', function () {
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     recordExampleTemplates($business);
 
     $user = createUser(1, $business, true, true);
@@ -191,7 +191,7 @@ it('would be a disaster if an empty extraction looked like a success', function 
      * to be created and flashed as a success anyway, so the modal closed and the user
      * was handed an empty BOM with no explanation.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     recordExampleTemplates($business);
 
     $user = createUser(1, $business, true, true);
@@ -209,7 +209,7 @@ it('would be a disaster if an empty extraction looked like a success', function 
 });
 
 it('would be a disaster if a failed extraction blocked retrying the same name', function () {
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     recordExampleTemplates($business);
 
     $user = createUser(1, $business, true, true);
@@ -270,7 +270,7 @@ it('would be a disaster if one unreadable cell threw away the rest of the file',
      * the bad one was lost, the half-filled project was left behind, and the user was
      * told the template had stopped auto-detecting.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     recordExampleTemplates($business);
 
     $user = createUser(1, $business, false, true);
@@ -305,7 +305,7 @@ it('would be a disaster if a template with no SubQty column crashed the import',
      * sub_qty is NOT NULL, and a template that does not map a SubQty column leaves it
      * null. One is what getSubQty() already substitutes for a zero, for the same reason.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, true, true);
     $this->actingAs($user);
     seedMasterMaterials();
@@ -358,7 +358,7 @@ it('would be a disaster if a BOM upload could be posted onto a colleague’s pro
      * way a material list gets into the application. It is owner-only for the same reason editing
      * is: the BOM is what the nest cuts from.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     recordExampleTemplates($business);
     $user = createUser(1, $business, false, true);
     $colleague = createUser(2, $business, false, true);
@@ -387,7 +387,7 @@ it('would be a disaster if a BOM upload took a file that is not a spreadsheet', 
      * The other route into the extractor. projects.store already refuses this per file; this one
      * validates on its own and nothing covered it.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     recordExampleTemplates($business);
     $user = createUser(1, $business, false, true);
 
@@ -405,7 +405,7 @@ it('would be a disaster if a BOM upload took a file that is not a spreadsheet', 
 
 it('adds the material rows when the owner uploads to their own project', function () {
     //The other half - the route audit found no test proving this path works at all
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     recordExampleTemplates($business);
     $user = createUser(1, $business, false, true);
     seedMasterMaterials();

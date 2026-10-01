@@ -227,7 +227,6 @@ it('would be a disaster if an unverified registrant were handed the business the
     $victim = Business::query()->create([
         'name' => 'Acme Steel',
         'domain' => 'acmesteel.test',
-        'admin_setup_complete' => true,
         'labour_rate_per_hour' => 137.50,
         'material_cost_per_tonne' => 2450.00,
     ]);
@@ -251,7 +250,7 @@ it('would be a disaster if an unverified registrant were handed the business the
 });
 
 it('shares only the named business fields once the address is verified', function () {
-    $business = createBusiness('acmesteel', true);
+    $business = createBusiness('acmesteel');
     $business->labour_rate_per_hour = 137.50;
     $business->material_cost_per_tonne = 2450.00;
     $business->stripe_id = 'cus_secret';
@@ -281,7 +280,7 @@ it('would be a disaster if a colleague were announced before they verified', fun
      * strength of an address nobody had checked. See App\Listeners\AnnounceVerifiedColleague - and
      * NotificationBellTest, which pins down that verifying still announces them.
      */
-    $business = createBusiness('acmesteel', true);
+    $business = createBusiness('acmesteel');
     $existing = createUser(1, $business, false, true);
 
     $this->post('/register', [

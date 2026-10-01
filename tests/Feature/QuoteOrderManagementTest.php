@@ -29,12 +29,12 @@ it("would be a disaster if another business's order could be marked as sent", fu
      * order.sent gated the batch but took order_id straight from the request, so your own batch id plus
      * somebody else's order id marked their order sent and pointed your pieces at it.
      */
-    $business1 = createBusiness('biz1', true);
+    $business1 = createBusiness('biz1');
     $user1 = createUser(1, $business1, false, true);
     $batch1 = Batch::factory()->forUser($user1->id)->create();
     quoteAndOrder($user1, $batch1);
 
-    $business2 = createBusiness('biz2', true);
+    $business2 = createBusiness('biz2');
     $user2 = createUser(1, $business2, false, true);
     $batch2 = Batch::factory()->forUser($user2->id)->create();
     [, $theirOrder] = quoteAndOrder($user2, $batch2);
@@ -52,7 +52,7 @@ it('would be a disaster if an order from a different batch could be marked as se
      * Same business, so the policy passes - the order still has to belong to the batch in the URL, or
      * approving one batch silently orders another.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $batchA = Batch::factory()->forUser($user->id)->create();
@@ -68,7 +68,7 @@ it('would be a disaster if an order from a different batch could be marked as se
 });
 
 it('marks an order sent when it belongs to the batch', function () {
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create();
@@ -87,12 +87,12 @@ it("would be a disaster if a quote could be moved onto another business's batch"
      * UpdateQuoteRequest validated batch_id and quotes are $guarded = [], so validated() fed it straight
      * into update() - the policy only ever checked the quote's current owner.
      */
-    $business1 = createBusiness('biz1', true);
+    $business1 = createBusiness('biz1');
     $user1 = createUser(1, $business1, false, true);
     $batch1 = Batch::factory()->forUser($user1->id)->create();
     [$quote] = quoteAndOrder($user1, $batch1);
 
-    $business2 = createBusiness('biz2', true);
+    $business2 = createBusiness('biz2');
     $user2 = createUser(1, $business2, false, true);
     $batch2 = Batch::factory()->forUser($user2->id)->create();
 
@@ -111,7 +111,7 @@ it('would be a disaster if a batch spanning two project managers could never be 
      * markQuoteAsSent described "you're a PM on at least 1 project" but was written as "you own every
      * project", so on a merged batch the checkbox was disabled for everyone and nothing could be quoted.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user1 = createUser(1, $business, false, true);
     $user2 = createUser(2, $business, false, true);
 
@@ -127,7 +127,7 @@ it('would be a disaster if a batch spanning two project managers could never be 
 });
 
 it('still refuses to mark a quote sent for someone with no project on the batch', function () {
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user1 = createUser(1, $business, false, true);
     $outsider = createUser(2, $business, false, true);
 
@@ -145,7 +145,7 @@ it('would be a disaster if a batch could be unwound after its materials were ord
      * "order_sent is null" on a non-nullable boolean - so it counted 0 every time and let the batch,
      * its quotes and its orders be deleted after the materials had actually been ordered.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create();
@@ -160,7 +160,7 @@ it('would be a disaster if a batch could be unwound after its materials were ord
 });
 
 it('still unwinds a batch that has no sent order', function () {
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create();
@@ -179,7 +179,7 @@ it('would be a disaster if undoing a sent order left the approvals granted', fun
      * Sending the order sets every approval on the batch to true. Undoing it used to leave them there,
      * so re-sending skipped the project manager approval the confirm dialog exists to collect.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $project = createProject($user);
 
@@ -210,7 +210,7 @@ it("would be a disaster if undoing one supplier group cleared another group's ap
      * approved by nobody - and approved_by_user_id / approved_at, the record of who committed their
      * colleagues, were thrown away with it.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $project = createProject($user);
 
@@ -252,7 +252,7 @@ it("would be a disaster if sending one supplier's order un-sent a delivered one"
      * undo route refuses outright, and which the rest of the app cannot read: the certificate trail
      * filters on order_sent while the offcut inventory keys on is_delivered.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $project = createProject($user);
 
@@ -282,7 +282,7 @@ it('would be a disaster if a second delivery post un-delivered the order', funct
      * is delivered - so the only thing a repeated post could do was take delivered steel back out of
      * inventory, and no screen offered a way to do it deliberately.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create();
@@ -297,7 +297,7 @@ it('would be a disaster if a second delivery post un-delivered the order', funct
 });
 
 it('would be a disaster if an order that was never sent could be undone', function () {
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create();
@@ -309,7 +309,7 @@ it('would be a disaster if an order that was never sent could be undone', functi
 });
 
 it('would be a disaster if an order could be marked delivered before it was sent', function () {
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create();
@@ -327,7 +327,7 @@ it('would be a disaster if the order counts fatalled on an order with no quote',
      * quote_id is nullable and both models mark the relation optional, but totalOrdersQty read straight
      * through it.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create();
@@ -351,7 +351,7 @@ it('would be a disaster if saving material certs overwrote the purchase order nu
      * The page shipped the supplier group's sent-order PO number as this row's form state, so saving
      * certs on any row wrote another order's PO onto it - or blanked it when nothing was sent yet.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create();
@@ -378,7 +378,7 @@ it('leaves a field alone when the request does not carry it', function () {
      * neither can write back a value it read off the row before somebody else changed it. The test
      * above pins the older, weaker guarantee: that sending both keeps both.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create();
@@ -408,7 +408,7 @@ it('clears a purchase order number when the box is emptied', function () {
      * input with no form around it, so neither did anything and an emptied box saved "" - a PO
      * number that is not there, but does not read as absent to anything asking.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create();
@@ -428,7 +428,7 @@ it('would be a disaster if discarding an unsent order threw', function () {
      * orders.destroy also firstOrCreate'd a Quote with quote_requests / quote_responses - neither column
      * exists, so with $guarded = [] the route always died on "column not found".
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create();
@@ -453,7 +453,7 @@ it('would be a disaster if discarding an order left the batch impossible to unwi
      * this one, and then threw deleting the quote it pointed at. The batch could never be re-nested,
      * and nothing in the app could reach the row to fix it.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create();
@@ -475,10 +475,10 @@ it("would be a disaster if another business's quotes and orders could be downloa
      * /quote-order-management/{batch} page. The page authorised the batch; the endpoint has to do the
      * same, or every supplier, PO number and cert on somebody else's batch is one guessed id away.
      */
-    $business1 = createBusiness('biz1', true);
+    $business1 = createBusiness('biz1');
     $user1 = createUser(1, $business1, false, true);
 
-    $business2 = createBusiness('biz2', true);
+    $business2 = createBusiness('biz2');
     $user2 = createUser(1, $business2, false, true);
     $theirBatch = Batch::factory()->forUser($user2->id)->create();
     pieceOnBatch(createProject($user2), $theirBatch);
@@ -489,7 +489,7 @@ it("would be a disaster if another business's quotes and orders could be downloa
 });
 
 it('serves the quotes and orders for your own batch', function () {
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create();
@@ -508,10 +508,10 @@ it('would be a disaster if orders.store could raise orders on another businessâ€
      * ArgumentCountError before doing anything and nobody noticed. Nothing in resources/js posts to
      * it, but it is registered, and it takes batch_id straight out of the request body.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
-    $otherBusiness = createBusiness('outlook', true);
+    $otherBusiness = createBusiness('outlook');
     $otherUser = createUser(2, $otherBusiness, false, true);
     $theirBatch = Batch::factory()->forUser($otherUser->id)->create();
     pieceOnBatch(createProject($otherUser), $theirBatch);
@@ -530,7 +530,7 @@ it('raises one order per quote on your own batch, and does not double up', funct
      * The other half. firstOrCreate is keyed on (batch, quote), so posting twice - a double click on
      * whatever ends up wired to this - has to leave one order per quote rather than two.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create();
@@ -555,7 +555,7 @@ it('raises one order per quote on your own batch, and does not double up', funct
 
 it('would be a disaster if orders.store accepted no batch at all', function () {
     //"nullable" means validated() has no key when the field is missing, which used to be an undefined index
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $this->actingAs($user)

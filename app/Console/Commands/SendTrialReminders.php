@@ -68,9 +68,15 @@ class SendTrialReminders extends Command
 
         $sent = 0;
 
-        //Cheap first pass in SQL; whether they are really still on trial is Billing's call below
+        /*
+         * Cheap first pass in SQL; whether they are really still on trial is Billing's call below.
+         *
+         * ->activated() used to lead this, to keep the warnings away from a business still waiting on
+         * us to write its import templates - being chased for money for a product you have never been
+         * able to open. There is no such business now: an upload teaches the importer the format, so
+         * every trial is a trial somebody can spend.
+         */
         $candidates = Business::query()
-            ->activated()
             ->whereNotNull('trial_ends_at')
             ->whereBetween('trial_ends_at', [now(), now()->addDays($marks->max())])
             ->get();
@@ -120,8 +126,8 @@ class SendTrialReminders extends Command
     {
         $sent = 0;
 
+        //No ->activated() here either - see remindEndingSoon()
         $candidates = Business::query()
-            ->activated()
             ->whereNotNull('trial_ends_at')
             ->whereBetween('trial_ends_at', [now()->subDays(self::ENDED_WINDOW_DAYS), now()])
             ->get();

@@ -84,7 +84,7 @@ function gateCreatePayload(array $overrides = []): array
  */
 function gateAdmin(string $name = 'Business A'): array
 {
-    $business = createBusiness($name, true);
+    $business = createBusiness($name);
     $admin = createUser(1, $business, true, true);
     //Whose catalogue the descriptions are matched against
     createUser(2, $business, false, true);
@@ -218,7 +218,7 @@ it('would be a disaster if proof for one business created a template for another
      * for one must not travel.
      */
     [$businessA, $admin] = gateAdmin('Business A');
-    $businessB = createBusiness('Business B', true);
+    $businessB = createBusiness('Business B');
 
     $result = runGateTest($businessA, $admin);
 

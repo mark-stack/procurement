@@ -44,7 +44,6 @@ class UserResource extends JsonResource
             'business' => $business ? [
                 'id' => $business->id,
                 'domain' => $business->domain,
-                'admin_setup_complete' => $business->admin_setup_complete,
             ] : null,
             /*
              * How many templates are matched against uploads, how many exist at all, and the

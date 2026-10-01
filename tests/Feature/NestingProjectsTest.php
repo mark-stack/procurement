@@ -15,7 +15,7 @@ it('would be a disaster if a project with an upload BOM had no materials availab
      * //todo remove "awarded"
      */
     //Create admin
-    $adminBusiness = createBusiness('admin', true);
+    $adminBusiness = createBusiness('admin');
     $adminUser = createUser(1, $adminBusiness, true, true);
 
     //Authorised
@@ -62,14 +62,14 @@ it("would be a disaster if a nest could be downloaded from another business's ba
      * download-nesting takes a bare batch id and used to run no ownership check at all, so any signed
      * in user could read any batch's cut plan, pieces and project names.
      */
-    $business1 = createBusiness('biz1', true);
+    $business1 = createBusiness('biz1');
     $user1 = createUser(1, $business1, false, true);
     $batch = Batch::factory()->forUser($user1->id)->create();
     $batch->nested_state = ['METERAGE' => []];
     $batch->save();
 
     //A stranger from another business
-    $business2 = createBusiness('biz2', true);
+    $business2 = createBusiness('biz2');
     $user2 = createUser(2, $business2, false, true);
     $this->actingAs($user2);
 
@@ -82,7 +82,7 @@ it("would be a disaster if a nest could be downloaded from another business's ba
 
 it('would be a disaster if "ready to nest" could not be downloaded', function () {
     //batch_id 0 means "not batched yet", which belongs to the caller by definition
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $this->actingAs($user);
 
@@ -94,7 +94,7 @@ it('would be a disaster if a batch that was never nested took the page down', fu
      * nested_state is nullable, so a batch can exist without one. unserialize(null) returns false,
      * which used to be handed straight to usageStats() as if it were an array.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $this->actingAs($user);
 
@@ -111,7 +111,7 @@ it('would be a disaster if a nest with no steel in it took the page down', funct
      * checks() and the nesting screens read usage.METERAGE unconditionally. A business quoting only
      * bolts has no meterage at all, and used to get "Undefined array key METERAGE".
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $formatter = new NestingFormatter();
 
     $piecesNested = ['BUNDLE' => collect([(object) ['product_category' => 'BOLT', 'nested' => []]])];
@@ -130,13 +130,13 @@ it('would be a disaster if the nest saved to the batch was not the nest the user
      * the batch was ordered against a cut list nobody had seen.
      */
     //Create admin & seed materials
-    $adminBusiness = createBusiness('admin', true);
+    $adminBusiness = createBusiness('admin');
     $adminUser = createUser(1, $adminBusiness, true, true);
     $this->actingAs($adminUser);
     seedMasterMaterials();
 
     //Create user & project
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(2, $business, false, true);
     $this->actingAs($user);
     $project = createProject($user);
@@ -183,13 +183,13 @@ it('would be a disaster if the project letters on the batch page named a differe
      * got each other's letters, and the print friendly sheet sent the wrong steel to the wrong job.
      */
     //Create admin & seed materials
-    $adminBusiness = createBusiness('admin', true);
+    $adminBusiness = createBusiness('admin');
     $adminUser = createUser(1, $adminBusiness, true, true);
     $this->actingAs($adminUser);
     seedMasterMaterials();
 
     //Create user
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(2, $business, false, true);
     $this->actingAs($user);
 
@@ -234,12 +234,12 @@ it('would be a disaster if a batch nested before the letters were stored lost it
      * Batches saved before letters_project_array existed still carry the letters on the cuts, so the
      * legend is recovered from the nest itself rather than guessed at from the batch's projects.
      */
-    $adminBusiness = createBusiness('admin', true);
+    $adminBusiness = createBusiness('admin');
     $adminUser = createUser(1, $adminBusiness, true, true);
     $this->actingAs($adminUser);
     seedMasterMaterials();
 
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(2, $business, false, true);
     $this->actingAs($user);
 
@@ -269,7 +269,7 @@ it('would be a disaster if a batch containing bolts took the print friendly page
      * have no nest at all, and the print friendly page used to paginate cutting diagrams for every
      * material in the batch regardless, taking the whole sheet down with it.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $business->update(['meterage_only' => false]);
     $user = createUser(1, $business, false, true);
     $this->actingAs($user);
@@ -303,7 +303,7 @@ it('would be a disaster if a batch containing bolts took the print friendly page
 });
 
 it('would be a disaster if a mistyped batch nesting url returned a 500 instead of a 404', function () {
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $this->actingAs($user);
 
@@ -322,12 +322,12 @@ it('would be a disaster if the batch nesting page ran a query per project', func
      * The page loaded one project per piece, then re-fetched each of those projects again inside
      * ProjectResource. A batch spanning a dozen jobs paid for that twice over.
      */
-    $adminBusiness = createBusiness('admin', true);
+    $adminBusiness = createBusiness('admin');
     $adminUser = createUser(1, $adminBusiness, true, true);
     $this->actingAs($adminUser);
     seedMasterMaterials();
 
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(2, $business, false, true);
     $this->actingAs($user);
 
@@ -357,12 +357,12 @@ it('would be a disaster if the suggested nesting page asked twice for the same o
      * spec. checks() then went back to the database for exactly the same rows, so every meterage
      * spec on the page cost two identical offcut queries instead of one.
      */
-    $adminBusiness = createBusiness('admin', true);
+    $adminBusiness = createBusiness('admin');
     $adminUser = createUser(1, $adminBusiness, true, true);
     $this->actingAs($adminUser);
     seedMasterMaterials();
 
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(2, $business, false, true);
     $this->actingAs($user);
 

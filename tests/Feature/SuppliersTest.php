@@ -7,8 +7,8 @@ it('would be a disaster if the suppliers page showed another business\'s supplie
      * The route takes no business id - the business is the user's own, so
      * there is no id to tamper with. This pins that down.
      */
-    $businessA = createBusiness('Business A', true);
-    $businessB = createBusiness('Business B', true);
+    $businessA = createBusiness('Business A');
+    $businessB = createBusiness('Business B');
 
     $userA = createUser(1, $businessA, false, true);
 
@@ -32,8 +32,8 @@ it('would be a disaster if a new supplier was attached to the wrong business', f
      * store() used to take the business from the url without authorizing it,
      * so any user could attach a supplier to any business.
      */
-    $businessA = createBusiness('Business A', true);
-    $businessB = createBusiness('Business B', true);
+    $businessA = createBusiness('Business A');
+    $businessB = createBusiness('Business B');
 
     $userA = createUser(1, $businessA, false, true);
 
@@ -51,8 +51,8 @@ it('would be a disaster if an admin adding a supplier for a business added it to
      * The admin page is the one place the business is not the session's own,
      * so it posts to the admin route that still takes it as a parameter.
      */
-    $adminBusiness = createBusiness('Admin Business', true);
-    $theirBusiness = createBusiness('Their Business', true);
+    $adminBusiness = createBusiness('Admin Business');
+    $theirBusiness = createBusiness('Their Business');
 
     $admin = createUser(1, $adminBusiness, true, true);
 
@@ -66,8 +66,8 @@ it('would be a disaster if an admin adding a supplier for a business added it to
 });
 
 it('would be a disaster if a non-admin could add a supplier for another business', function () {
-    $businessA = createBusiness('Business A', true);
-    $businessB = createBusiness('Business B', true);
+    $businessA = createBusiness('Business A');
+    $businessB = createBusiness('Business B');
 
     $userA = createUser(1, $businessA, false, true);
 
@@ -80,11 +80,17 @@ it('would be a disaster if a non-admin could add a supplier for another business
 });
 
 it('would be a disaster if a user without a business hit a 500 on the suppliers page', function () {
+    /*
+     * users.business_id is nullable, and every supplier on this page is read off the business. It
+     * used to be BusinessReadyMiddleware that caught this and redirected to onboarding; with that
+     * gone the guard is Controller::businessOf(), which refuses rather than redirecting - and
+     * refusing is the honest answer, because there is no page that can fix having no business.
+     */
     $user = \App\Models\User::factory()->create(['business_id' => null]);
 
     $this->actingAs($user)
         ->get(route('suppliers.index'))
-        ->assertRedirect(route('onboarding'));
+        ->assertForbidden();
 });
 
 it('would be a disaster if a user could rewrite another business\'s supplier', function () {
@@ -96,8 +102,8 @@ it('would be a disaster if a user could rewrite another business\'s supplier', f
      *
      * Not a cosmetic write: the name goes out on quote requests and purchase orders.
      */
-    $mine = createBusiness('Mine', true);
-    $theirs = createBusiness('Theirs', true);
+    $mine = createBusiness('Mine');
+    $theirs = createBusiness('Theirs');
 
     $me = createUser(1, $mine, false, true);
 
@@ -117,7 +123,7 @@ it('would be a disaster if a user could rewrite another business\'s supplier', f
 
 it('lets a user rename a supplier their own business has attached', function () {
     //The other half of the rule above: scoping it must not have taken the feature away
-    $mine = createBusiness('Mine', true);
+    $mine = createBusiness('Mine');
     $me = createUser(1, $mine, false, true);
 
     $supplier = Supplier::create([
@@ -139,10 +145,10 @@ it('lets an admin rename a supplier for a business that is not theirs', function
      * Deliberate, and the reason SupplierPolicy passes admins: the admin supplier screen edits
      * another business's list, and its form posts to this same route.
      */
-    $adminBusiness = createBusiness('admin', true);
+    $adminBusiness = createBusiness('admin');
     $admin = createUser(1, $adminBusiness, true, true);
 
-    $theirs = createBusiness('Theirs', true);
+    $theirs = createBusiness('Theirs');
     $supplier = Supplier::create([
         'name' => 'Before',
         'supplier_categories' => serialize(['STEEL_MERCHANT' => true]),
@@ -167,7 +173,7 @@ it('would be a disaster if removing a supplier took the orders placed with it', 
      * and the offcut ancestry both read $order->supplier->name, and orders.supplier_id is nullable,
      * so a deleted supplier would leave steel already installed reporting "Unknown supplier".
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $supplier = Supplier::create(['name' => 'Merchant', 'supplier_categories' => serialize([])]);
@@ -194,10 +200,10 @@ it('would be a disaster if removing a supplier took the orders placed with it', 
 
 it('would be a disaster if an admin could delete a supplier that is in use', function () {
     //The admin branch is the only one that deletes the row rather than detaching it
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
-    $adminBusiness = createBusiness('Admin Business', true);
+    $adminBusiness = createBusiness('Admin Business');
     $admin = createUser(2, $adminBusiness, true, true);
 
     $supplier = Supplier::create(['name' => 'Merchant', 'supplier_categories' => serialize([])]);
@@ -222,10 +228,10 @@ it('would be a disaster if an admin could delete a supplier that is in use', fun
 
 it('would be a disaster if the admin supplier page showed the wrong business', function () {
     //Found by the route audit - admin.suppliers.index had no test, and it takes the business by id
-    $theirBusiness = createBusiness('Their Business', true);
-    $otherBusiness = createBusiness('Other Business', true);
+    $theirBusiness = createBusiness('Their Business');
+    $otherBusiness = createBusiness('Other Business');
 
-    $adminBusiness = createBusiness('Admin Business', true);
+    $adminBusiness = createBusiness('Admin Business');
     $admin = createUser(1, $adminBusiness, true, true);
 
     $theirs = Supplier::create(['name' => 'Theirs', 'supplier_categories' => serialize([])]);
@@ -246,8 +252,8 @@ it('would be a disaster if the admin supplier page showed the wrong business', f
 });
 
 it('would be a disaster if a non-admin could read another business’s supplier page', function () {
-    $theirBusiness = createBusiness('Their Business', true);
-    $business = createBusiness('gmail', true);
+    $theirBusiness = createBusiness('Their Business');
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $this->actingAs($user)

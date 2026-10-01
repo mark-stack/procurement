@@ -43,3 +43,12 @@ Schedule::command('billing:trial-reminders')->$frequency();
  * opens the rack and says so. See App\Services\OffcutCleanout.
  */
 Schedule::command('offcuts:cleanout')->{$testMode ? 'everyMinute' : 'quarterly'}();
+
+/*
+ * The copies of customers' spreadsheets kept against learning attempts nobody picked up.
+ *
+ * Daily rather than hourly: the window is counted in days and nothing downstream is waiting on it.
+ * Not run faster in test mode either - a command whose whole job is deleting a customer's file is
+ * the wrong one to have firing every minute on a developer's machine.
+ */
+Schedule::command('templates:prune-samples')->daily();

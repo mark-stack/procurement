@@ -4,7 +4,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Support\Facades\Hash;
 
 test('password can be updated', function () {
-    $business = createBusiness('admin', true);
+    $business = createBusiness('admin');
     $user = createUser(1, $business, false, true);
 
     $response = $this
@@ -24,7 +24,7 @@ test('password can be updated', function () {
 });
 
 test('correct password must be provided to update password', function () {
-    $business = createBusiness('admin', true);
+    $business = createBusiness('admin');
     $user = createUser(1, $business, false, true);
 
     $response = $this

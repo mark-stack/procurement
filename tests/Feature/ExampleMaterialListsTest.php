@@ -51,7 +51,7 @@ function examplePath(string $file): string
  */
 function exampleUploader(): User
 {
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     recordExampleTemplates($business);
 
     $user = createUser(2, $business, false, true);

@@ -24,7 +24,7 @@ class BillingInvoiceController extends Controller
         $business = $request->user()?->business;
 
         if ($business === null) {
-            return redirect()->route('onboarding');
+            return redirect('/');
         }
 
         return Inertia::render('Billing/RequestInvoice', [

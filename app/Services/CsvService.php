@@ -11,53 +11,28 @@ use App\Models\RawMaterialQuote;
 use App\Models\Template;
 use App\Models\User;
 use App\Notifications\AdminUnfoundItems;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Notification;
 
 class CsvService
 {
-    public function processCsv(array $csvArray, Project $project, string $errorMsg): RedirectResponse
+    /**
+     * Every table this user's templates find in an uploaded sheet.
+     *
+     * This was processCsv(), which detected, imported and then built the RedirectResponse for both
+     * outcomes. Detecting is now asked on its own because the answer "nothing matched" has stopped
+     * being the end of the story: ProductController takes that answer to TemplateLearningService,
+     * which writes a template for the file if it can, and then asks this again. A method that
+     * imported and redirected in the same breath had nowhere to put that step.
+     *
+     * validateTemplateExists() was deleted alongside it. It was this question with the answer
+     * flattened to a bool, and nothing had called it since templates started driving detection.
+     *
+     * @param  array<int, array<int, mixed>>  $csvArray
+     * @return array<int, array<string, mixed>>
+     */
+    public function detectTables(array $csvArray): array
     {
-        /**
-         * Single purpose: detect template matches
-         */
-
-        //Eligible Tables
-        $eligibleTables = $this->eligibleTables();
-
-        //Detected Tables
-        $detectedTables = $this->detectedTables($csvArray, $eligibleTables);
-
-        //Should have at least 1 result
-        if (count($detectedTables) > 0) {
-            //Process data
-            $this->processTemplate($detectedTables, $project);
-
-            //Return back with project ID
-            $return = back()->with("project",$project);
-        } else {
-            $return = back()->with('warning', $errorMsg);
-        }
-
-        return $return;
-    }
-
-    public function validateTemplateExists(array $csvArray): bool
-    {
-        $templateExists = false;
-
-        //Eligible Tables
-        $eligibleTables = $this->eligibleTables();
-
-        //Detected Tables
-        $detectedTables = $this->detectedTables($csvArray, $eligibleTables);
-
-        //Should have at least 1 result
-        if (count($detectedTables) > 0) {
-            $templateExists = true;
-        }
-
-        return $templateExists;
+        return $this->detectedTables($csvArray, $this->eligibleTables());
     }
 
     public function eligibleTables(): array

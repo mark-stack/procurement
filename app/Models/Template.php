@@ -41,6 +41,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $web_source
  * @property string|null $screenshot
  * @property bool $active
+ * @property bool $generated_by_ai
+ * @property \Illuminate\Support\Carbon|null $reviewed_at
+ * @property int|null $reviewed_by_user_id
  */
 class Template extends Model
 {
@@ -67,6 +70,8 @@ class Template extends Model
     {
         return [
             'active' => 'boolean',
+            'generated_by_ai' => 'boolean',
+            'reviewed_at' => 'datetime',
             'expected_heading_labels' => 'array',
             'compound_description_cells' => 'array',
         ];
@@ -93,7 +98,25 @@ class Template extends Model
         return $this->belongsTo(Business::class);
     }
 
+    public function reviewedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by_user_id');
+    }
+
     //Scopes
+    /**
+     * Templates a customer's upload wrote for itself that nobody has looked at since.
+     *
+     * Both halves matter. An unreviewed template an admin typed is not a thing - typing it was the
+     * review - and a machine-written one that has been read is no different from any other row. It
+     * is the pair that is worth a list.
+     *
+     * @param  Builder<Template>  $query
+     */
+    public function scopeAwaitingReview(Builder $query): void
+    {
+        $query->where('generated_by_ai', true)->whereNull('reviewed_at');
+    }
     /**
      * The templates an upload by this user is matched against: their own business's, and active.
      *

@@ -30,7 +30,7 @@ it('would be a disaster if duplicate quotes were possible', function () {
      * was a lookup followed by a create, so two concurrent loads could both miss and both insert.
      * The unique index is what makes firstOrCreate actually safe.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $batch = Batch::factory()->forUser($user->id)->create();
     $supplier = Supplier::factory()->create();
@@ -90,7 +90,7 @@ it('would be a disaster if two presses of start quoting cut the same steel twice
      * hold whoever calls it: a piece that already has a batch is left exactly where it is, and the
      * count says the claim was short.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $project = createProject($user);
@@ -120,7 +120,7 @@ it('leaves nothing behind when start quoting loses the race', function () {
      * claim rolls back with everything else - which is why what is asserted here is that nothing was
      * left behind and the presser was told, not where the steel ended up. That is the assertion above.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $project = createProject($user);
@@ -139,7 +139,7 @@ it('leaves nothing behind when start quoting loses the race', function () {
 
 it('still starts quoting when nothing is racing it', function () {
     //The guard has to let the ordinary press through, which is the whole point of it
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $project = createProject($user);
@@ -167,7 +167,7 @@ it('would be a disaster if a project awaiting clarification were nested with no 
      * anyway. So the one project manager on the batch who was never asked was also the one with no row
      * recording that their work had been committed - and the confirm dialog names them out loud.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $me = createUser(1, $business, false, true);
     $colleague = createUser(2, $business, false, true);
 

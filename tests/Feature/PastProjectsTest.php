@@ -51,10 +51,10 @@ it("would be a disaster if another business's batch could be closed", function (
      * This was the one batch controller with no gate on it, so any onboarded user could close any
      * other business's live batch by id - and nothing in the app sets "done" back.
      */
-    $business1 = createBusiness('biz1', true);
+    $business1 = createBusiness('biz1');
     $user1 = createUser(1, $business1, false, true);
 
-    $business2 = createBusiness('biz2', true);
+    $business2 = createBusiness('biz2');
     $user2 = createUser(1, $business2, false, true);
     $theirBatch = Batch::factory()->forUser($user2->id)->create(['done' => false]);
 
@@ -71,7 +71,7 @@ it('would be a disaster if a batch could be closed with materials still out for 
      * The kanban cards only offer "Move to done" once the deliveries are in, but that is the button's
      * own state - a stale tab or a replayed post reached the controller with nothing to stop it.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
@@ -86,7 +86,7 @@ it('would be a disaster if a batch could be closed with materials still out for 
 });
 
 it('still closes a batch once its sent orders are delivered', function () {
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
@@ -106,7 +106,7 @@ it('still closes a batch that never placed an order', function () {
      * "delivered rows === supplier categories" sum would have read 0 === 0 here and gating on
      * "has a delivered order" would have locked the batch open forever.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
@@ -124,7 +124,7 @@ it('still ignores an order that was drafted but never sent', function () {
      * An Order row is firstOrCreate'd for every supplier group the moment someone opens the quote
      * screen. Those drafts are not outstanding deliveries.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
@@ -139,12 +139,12 @@ it('still ignores an order that was drafted but never sent', function () {
 });
 
 it("would be a disaster if the archive listed another business's batches", function () {
-    $business1 = createBusiness('biz1', true);
+    $business1 = createBusiness('biz1');
     $user1 = createUser(1, $business1, false, true);
     $mine = Batch::factory()->forUser($user1->id)->create(['done' => true]);
     $stillActive = Batch::factory()->forUser($user1->id)->create(['done' => false]);
 
-    $business2 = createBusiness('biz2', true);
+    $business2 = createBusiness('biz2');
     $user2 = createUser(1, $business2, false, true);
     $theirs = Batch::factory()->forUser($user2->id)->create(['done' => true]);
 
@@ -164,7 +164,7 @@ it('counts the orders a batch needed, not the drafts it accumulated', function (
      * A plain orders count reported every draft row. BatchService::totalOrdersQty counts unique
      * supplier categories for exactly this reason, and the archive has to agree with it.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create(['done' => true]);
@@ -188,7 +188,7 @@ it('sends the archive nothing but the project names it renders', function () {
      * Batch::projects() - every project's owner and its whole raw material quote tree - plus a
      * nestingData prop plucked from the saved nesting that no page has ever read.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create(['done' => true]);
@@ -213,7 +213,7 @@ it('would be a disaster if the archive credited a batch to the wrong person', fu
      * belongs to whoever pressed it. This row used to be labelled with that person - so a batch
      * spanning two project managers named one of them at most, and often neither.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $batcher = createUser(1, $business, false, true);
     $colleague = createUser(2, $business, false, true);
 
@@ -231,7 +231,7 @@ it('would be a disaster if the archive credited a batch to the wrong person', fu
 });
 
 it('would be a disaster if a batch spanning two managers named only one', function () {
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $colleague = createUser(2, $business, false, true);
 
@@ -253,7 +253,7 @@ it('reads the archive in a fixed number of queries however many batches it holds
      * This is the archive, so it only ever grows and nothing caps the row count. It used to make nine
      * queries a row - the batch's user, the project tree, and an orders count, one batch at a time.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $addBatches = function (int $batches) use ($user): void {

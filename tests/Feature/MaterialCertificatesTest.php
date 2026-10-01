@@ -30,7 +30,7 @@ function deliveredSteelOrder(\App\Models\User $user): array
 it('attaches a certificate file to an order', function () {
     Storage::fake(MaterialCertificate::DISK);
 
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     [, $order] = deliveredSteelOrder($user);
@@ -59,7 +59,7 @@ it('would be a disaster if an attached certificate still counted as missing cert
      */
     Storage::fake(MaterialCertificate::DISK);
 
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     [$batch, $order] = deliveredSteelOrder($user);
@@ -93,7 +93,7 @@ it('would be a disaster if an emptied reference box read as certified', function
      * would satisfy that, and the board would drop its warning for a delivery with nothing recorded
      * against it at all.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     [, $order] = deliveredSteelOrder($user);
@@ -115,7 +115,7 @@ it('carries a file-only certificate into the traceability trail', function () {
      */
     Storage::fake(MaterialCertificate::DISK);
 
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     [$batch, $order] = deliveredSteelOrder($user);
@@ -137,7 +137,7 @@ it('carries a file-only certificate into the traceability trail', function () {
 it('downloads a certificate under the name it arrived with', function () {
     Storage::fake(MaterialCertificate::DISK);
 
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     [, $order] = deliveredSteelOrder($user);
@@ -162,10 +162,10 @@ it('would be a disaster if another business could read a certificate', function 
      */
     Storage::fake(MaterialCertificate::DISK);
 
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
-    $otherBusiness = createBusiness('rival', true);
+    $otherBusiness = createBusiness('rival');
     $outsider = createUser(2, $otherBusiness, false, true);
 
     [, $order] = deliveredSteelOrder($user);
@@ -206,7 +206,7 @@ it('takes the file off the disk when a certificate is removed', function () {
      */
     Storage::fake(MaterialCertificate::DISK);
 
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
@@ -236,7 +236,7 @@ it('would be a disaster if a certificate could be deleted off an order that has 
      */
     Storage::fake(MaterialCertificate::DISK);
 
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     [, $order] = deliveredSteelOrder($user);
@@ -265,7 +265,7 @@ it('refuses to delete a placed order\'s certificate even when the model is asked
      */
     Storage::fake(MaterialCertificate::DISK);
 
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     [, $order] = deliveredSteelOrder($user);
@@ -286,7 +286,7 @@ it('refuses to delete a placed order\'s certificate even when the model is asked
 it('refuses a file that is not a certificate', function () {
     Storage::fake(MaterialCertificate::DISK);
 
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     [, $order] = deliveredSteelOrder($user);

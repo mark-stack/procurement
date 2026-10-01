@@ -119,7 +119,7 @@ it('would be a disaster if a test project turned up on the real board', function
      * against the real price book - it is not a job, nobody is quoting it, and it must not appear
      * on the board the business runs off.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
     $colleague = createUser(2, $business, false, true);
 
@@ -157,7 +157,7 @@ it('would be a disaster if test mode showed the real projects', function () {
      * The other half of it. A sandbox that still lists live work is not a sandbox - the first
      * thing somebody tries in there is nesting everything on the board.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $live = createProject($user);
@@ -181,7 +181,7 @@ it('would be a disaster if one person’s sandbox was visible in another’s', f
      * Per user, not per business. Two people at the same company experimenting at the same time
      * would otherwise be handing each other rubbish to make sense of.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
     $colleague = createUser(2, $business, false, true);
 
@@ -207,7 +207,7 @@ it('would be a disaster if the suppliers went missing in test mode', function ()
      * to try a real BOM against the real price book and the real merchants. Only the work made
      * against them is disposable.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $supplier = Supplier::create(['name' => 'Ours', 'supplier_categories' => serialize([])]);
@@ -229,7 +229,7 @@ it('would be a disaster if leaving test mode threw the sandbox away', function (
      * Switching modes is a view, not a deletion. Somebody halfway through an experiment has to be
      * able to go and do a day's real work and come back to it.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     actingInTestMode($user);
@@ -252,7 +252,7 @@ it('would be a disaster if clearing left any of the test data behind', function 
      * a deleted batch is exactly the wreckage the sandbox exists to avoid - and an offcut left
      * behind still holds its unique mark against the pool the next nest draws from.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     actingInTestMode($user);
@@ -291,7 +291,7 @@ it('would be a disaster if clearing a sandbox reached live work', function () {
      * The button says "clear everything", and everything means everything in the sandbox. A live
      * project, a live batch and a colleague's sandbox all have to survive it.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
     $colleague = createUser(2, $business, false, true);
 
@@ -327,7 +327,7 @@ it('would be a disaster if a test project was chased by the hourly reminders', f
      */
     Notification::fake();
 
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
     $colleague = createUser(2, $business, false, true);
 

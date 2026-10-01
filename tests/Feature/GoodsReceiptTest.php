@@ -16,7 +16,7 @@ uses(RefreshDatabase::class);
  */
 function orderAwaitingDelivery(): array
 {
-    $user = createUser(1, createBusiness('biz', true), false, true);
+    $user = createUser(1, createBusiness('biz'), false, true);
     $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
 
     [, $order] = quoteAndOrder($user, $batch, quoteSent: true, orderSent: true);
@@ -184,7 +184,7 @@ it('would be a disaster if a second post rewrote the receipt', function () {
 });
 
 it('refuses to book in an order that was never placed', function () {
-    $user = createUser(1, createBusiness('biz', true), false, true);
+    $user = createUser(1, createBusiness('biz'), false, true);
     $batch = Batch::factory()->forUser($user->id)->create();
 
     [, $order] = quoteAndOrder($user, $batch, orderSent: false);
@@ -202,7 +202,7 @@ it('stamps the date an order was placed, and clears it when that is undone', fun
      * The two have to agree in both directions - this application has been bitten repeatedly by one
      * column describing a state the other contradicts.
      */
-    $user = createUser(1, createBusiness('biz', true), false, true);
+    $user = createUser(1, createBusiness('biz'), false, true);
     $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
     $project = createProject($user);
     pieceOnBatch($project, $batch);

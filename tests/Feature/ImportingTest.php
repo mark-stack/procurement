@@ -28,7 +28,7 @@ it('would be a disaster if user had no eligible tables', function () {
 
     //User (staff of mark.laravel.coder@gmail.com), with the examples recorded against
     //their business - a business is created with no templates and imports nothing
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     recordExampleTemplates($business);
     $user = createUser(2, $business, false, true);
     Auth::login($user);
@@ -45,7 +45,7 @@ it('would be a disaster if could not detect a table', function () {
     $csvArray = csvArray();
 
     //User (staff of mark.laravel.coder@gmail.com)
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     recordExampleTemplates($business);
 
     $user = createUser(2, $business, false, true);
@@ -189,7 +189,7 @@ it('would be a disaster if quantities misidentified', function () {
     $csvArray = csvArray();
 
     //User (staff of mark.laravel.coder@gmail.com)
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     recordExampleTemplates($business);
 
     $user = createUser(2, $business, false, true);
@@ -240,7 +240,7 @@ it('would be a disaster if user could delete other staff material lists', functi
      * body, and this endpoint scoped them to the BUSINESS, so the hidden checkbox was the only
      * thing standing between a colleague and your material list.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $colleague = createUser(2, $business, false, true);
 
@@ -269,7 +269,7 @@ it('would be a disaster if user could clarify other staff material lists', funct
      * colleague's project at all, so the one thing you could not do to somebody else's BOM was add
      * to it.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $colleague = createUser(2, $business, false, true);
 
@@ -296,7 +296,7 @@ it('still lets a project manager clear rows from their own material list', funct
      * The other half of the rule above - the scope narrowed from the business to the owner, so
      * getting it wrong would lock everybody out of their own BOM.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $project = createProject($user);
@@ -329,7 +329,7 @@ it('would be a disaster if re-posting a clarification cut the material row twice
      */
     seedMasterMaterials();
 
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $project = createProject($user);
 
@@ -388,7 +388,7 @@ it('leaves a piece that is already nested alone when the clarification is re-pos
      */
     seedMasterMaterials();
 
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $project = createProject($user);
     $batch = Batch::factory()->forUser($user->id)->create();

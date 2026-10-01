@@ -19,7 +19,14 @@
     //Shared data
     const page = usePage();
     const isAdmin = page.props.auth.isAdmin;
-    const onboarded = page.props.auth.onboarded;
+    /*
+     * Every link below used to be behind an "onboarded" flag - whether an admin had recorded this
+     * business's import templates and pressed Activate. Until that was true the nav showed one item,
+     * Onboarding, pointing at a page that asked the customer to email us their spreadsheets.
+     *
+     * There is no such state now: an upload that matches no template writes its own. So the product's
+     * own links are simply the product's links.
+     */
     const user = computed(() => page.props.auth.user);
     const notifications = computed(() => page.props.auth.notifications ?? []);
 
@@ -138,8 +145,19 @@
                 </Link>
 
                 <nav class="items-center hidden gap-1 lg:flex">
+                    <!--
+                        First, because it is the first thing anybody does here and it is where
+                        login lands - see DashboardController. The route is still called
+                        "dashboard"; a dozen places point at the name.
+                    -->
                     <Link
-                        v-if="onboarded"
+                        :href="route('dashboard')"
+                        title="Upload a material list"
+                        :class="[barLink, isActive(route('dashboard')) ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white']"
+                    >
+                        Upload Materials
+                    </Link>
+                    <Link
                         :href="route('projects.index')"
                         title="Current Projects"
                         :class="[barLink, isActive(route('projects.index')) ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white']"
@@ -264,30 +282,20 @@
                             </Link>
 
                             <div class="p-1.5 space-y-0.5 border-t border-gray-200">
-                                <!-- Onboarding -->
-                                <NavButton
-                                    v-if="!onboarded"
-                                    :route="route('onboarding')"
-                                    label="Onboarding"
-                                    icon="fa-solid fa-list-check"
-                                />
                                 <!-- Suppliers -->
                                 <NavButton
-                                    v-if="onboarded"
                                     :route="route('suppliers.index')"
                                     label="Suppliers"
                                     icon="fa-solid fa-cubes"
                                 />
                                 <!-- Offcuts -->
                                 <NavButton
-                                    v-if="onboarded"
                                     :route="route('offcuts.index')"
                                     label="Offcuts"
                                     icon="fa-solid fa-scissors"
                                 />
                                 <!-- Profile -->
                                 <NavButton
-                                    v-if="onboarded"
                                     :route="route('profile.edit')"
                                     label="Profile"
                                     icon="fa-solid fa-gear"
@@ -298,7 +306,7 @@
                                     a safe place to try something goes to find one.
                                 -->
                                 <NavButton
-                                    v-if="onboarded && !inSandbox"
+                                    v-if="!inSandbox"
                                     :route="route('sandbox.enter')"
                                     label="Test mode"
                                     icon="fa-solid fa-flask"
@@ -313,9 +321,8 @@
                                 />
                                 <!--
                                     Billing
-                                    Not behind onboarded: the free trial starts when the business
-                                    does, so it can run out before onboarding was ever finished, and
-                                    the page that fixes that has to stay reachable.
+                                    The free trial starts when the business does, and the page that
+                                    fixes an expired one sits outside the gate an expired one applies.
                                 -->
                                 <NavButton
                                     :route="route('billing.index')"
@@ -375,7 +382,7 @@
                 </div>
 
                 <!-- Mobile menu: the same primary links the bar hides below lg -->
-                <div v-if="onboarded" v-click-away="closeMobileNav" class="relative lg:hidden">
+                <div v-click-away="closeMobileNav" class="relative lg:hidden">
                     <button
                         type="button"
                         @click="toggleMobileNav"
@@ -404,6 +411,13 @@
                             @click="closeMobileNav"
                             class="absolute right-0 z-40 w-56 mt-2 origin-top-right bg-white shadow-xl rounded-xl ring-1 ring-black ring-opacity-5 p-1.5 space-y-0.5"
                         >
+                            <Link
+                                :href="route('dashboard')"
+                                :class="[panelLink, isActive(route('dashboard')) ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-700']"
+                            >
+                                <i class="w-4 text-center fa-solid fa-file-arrow-up"></i>
+                                <span>Upload Materials</span>
+                            </Link>
                             <Link
                                 :href="route('projects.index')"
                                 :class="[panelLink, isActive(route('projects.index')) ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-700']"

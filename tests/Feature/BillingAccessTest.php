@@ -56,7 +56,7 @@ it('would be a disaster if a lapsed account could still nest a batch', function 
 });
 
 it('would be a disaster if the billing gate blocked a business that was still on trial', function () {
-    $business = createBusiness('On trial', true);
+    $business = createBusiness('On trial');
     $user = createUser(1, $business, false, true);
 
     $this->actingAs($user)
@@ -71,16 +71,13 @@ it('would be a disaster if the billing gate blocked a business that was still on
 
 it('would be a disaster if a read-only account could not reach the page that fixes it', function () {
     /*
-     * The billing routes sit outside both gates on purpose. Subscribing is the one write a read-only
-     * account has to be able to make, and the trial can expire before onboarding was ever finished,
-     * so the page must not be behind the thing it is blocked by either.
+     * The billing routes sit outside BillingWriteAccessMiddleware on purpose: subscribing is the one
+     * write a read-only account has to be able to make, so the page that fixes an expired trial must
+     * not be behind the thing an expired trial blocks.
      */
     fakeBillingProvider();
 
     $business = lapsedTrialBusiness();
-    $business->admin_setup_complete = false;
-    $business->save();
-
     $user = createUser(1, $business, false, true);
 
     $this->actingAs($user)
@@ -99,7 +96,7 @@ it('would be a disaster if a read-only account could not reach the page that fix
 it('would be a disaster if checkout sent the customer anywhere but the provider', function () {
     $fake = fakeBillingProvider();
 
-    $business = createBusiness('Buying', true);
+    $business = createBusiness('Buying');
     $user = createUser(1, $business, false, true);
 
     $this->actingAs($user)
@@ -118,7 +115,7 @@ it('would be a disaster if the annual plan stopped being sold on an invoice', fu
      */
     $fake = fakeBillingProvider();
 
-    $business = createBusiness('Invoiced yearly', true);
+    $business = createBusiness('Invoiced yearly');
     $user = createUser(1, $business, false, true);
 
     $this->actingAs($user)
@@ -159,7 +156,7 @@ it('would be a disaster if the annual plan were not the discount it is sold as',
 it('would be a disaster if a made-up plan reached the payment provider', function () {
     $fake = fakeBillingProvider();
 
-    $business = createBusiness('Buying', true);
+    $business = createBusiness('Buying');
     $user = createUser(1, $business, false, true);
 
     $this->actingAs($user)
@@ -180,7 +177,7 @@ it('would be a disaster if a plan the provider cannot sell were offered for sale
     $fake = fakeBillingProvider();
     $fake->sells = false;
 
-    $business = createBusiness('Buying', true);
+    $business = createBusiness('Buying');
     $user = createUser(1, $business, false, true);
 
     $this->actingAs($user)
@@ -208,7 +205,7 @@ it('would be a disaster if an outage at the payment provider took the billing pa
     $fake = fakeBillingProvider();
     $fake->failWith = new RuntimeException('Stripe is having a day');
 
-    $business = createBusiness('Buying', true);
+    $business = createBusiness('Buying');
     $user = createUser(1, $business, false, true);
 
     $this->actingAs($user)
@@ -221,7 +218,7 @@ it('would be a disaster if an invoice customer were sent to a billing portal tha
     $fake = fakeBillingProvider();
     $fake->manageUrl = null;
 
-    $business = createBusiness('Invoiced', true);
+    $business = createBusiness('Invoiced');
     $user = createUser(1, $business, false, true);
 
     $this->actingAs($user)
@@ -233,7 +230,7 @@ it('would be a disaster if an invoice customer were sent to a billing portal tha
 it('would be a disaster if managing billing did not reach the provider portal', function () {
     fakeBillingProvider();
 
-    $business = createBusiness('Paying', true);
+    $business = createBusiness('Paying');
     $user = createUser(1, $business, false, true);
 
     $this->actingAs($user)
@@ -246,7 +243,7 @@ it('would be a disaster if asking for an invoice stopped working', function () {
      * Plenty of fabricators will not put a company card into a web form, and this was how the
      * product was sold before any provider existed. It stays reachable whichever driver is live.
      */
-    $business = createBusiness('Invoiced', true);
+    $business = createBusiness('Invoiced');
     $user = createUser(1, $business, false, true);
 
     $this->actingAs($user)

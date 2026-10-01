@@ -15,14 +15,25 @@ class TemplateService
     /**
      * Single purpose: read each upload once and say which ones carry a template we know.
      *
-     * Returns ['invalid' => [filename, ...], 'tables' => [index => detectedTables, ...]],
-     * keyed by the file's position in $files. The detected tables are handed back because
-     * the caller used to throw them away and start again from the file: two full
-     * spreadsheet parses and three template-detection passes per upload, five uploads
-     * to a submit.
+     * The detected tables are handed back because the caller used to throw them away and start
+     * again from the file: two full spreadsheet parses and three template-detection passes per
+     * upload, five uploads to a submit.
+     *
+     * "invalid" used to be the whole answer and is now the least useful part of it. There are two
+     * ways a file ends up in it, and they are no longer the same thing to the caller:
+     *
+     *  - "unmatched": a spreadsheet we read perfectly well and have no template for. This is now
+     *    something to act on rather than refuse - TemplateLearningService writes the template for
+     *    it - so it has to be told apart, and by index, because acting on it means going back to
+     *    that file.
+     *  - "unreadable": not a spreadsheet, or our own detection breaking on one. Nothing can be
+     *    written for these and they are still refused outright.
+     *
+     * "invalid" is kept, as both of those by name, because invalidFiles() below is the question
+     * several callers actually ask.
      *
      * @param  array<int, UploadedFile>  $files
-     * @return array{invalid: array<int, string>, tables: array<int, array>}
+     * @return array{invalid: array<int, string>, unmatched: array<int, string>, unreadable: array<int, string>, tables: array<int, array>}
      */
     public function readFiles(array $files): array
     {
@@ -33,6 +44,8 @@ class TemplateService
         $eligibleTables = $csvService->eligibleTables();
 
         $invalidFiles = [];
+        $unmatched = [];
+        $unreadable = [];
         $tables = [];
 
         foreach ($files as $index => $file) {
@@ -49,6 +62,8 @@ class TemplateService
                 if (count($detectedTables) > 0) {
                     $tables[$index] = $detectedTables;
                 } else {
+                    //Read fine, matched nothing. The learnable case
+                    $unmatched[$index] = $file->getClientOriginalName();
                     $invalidFiles[] = $file->getClientOriginalName();
                 }
             }
@@ -57,6 +72,7 @@ class TemplateService
              * Nothing to investigate - tell the user about the file.
              */
             catch (ReaderException|UnreadableFileException|NoTypeDetectedException|NoSheetsFoundException $e) {
+                $unreadable[$index] = $file->getClientOriginalName();
                 $invalidFiles[] = $file->getClientOriginalName();
             }
             /*
@@ -72,14 +88,27 @@ class TemplateService
                     throw $e;
                 }
 
+                /*
+                 * Unreadable rather than unmatched, even though the file may be perfectly fine: the
+                 * fault is ours, and asking a model to describe a sheet our own detection just threw
+                 * on would answer a question nobody asked.
+                 */
+                $unreadable[$index] = $file->getClientOriginalName();
                 $invalidFiles[] = $file->getClientOriginalName();
             }
         }
 
-        return ['invalid' => $invalidFiles, 'tables' => $tables];
+        return [
+            'invalid' => $invalidFiles,
+            'unmatched' => $unmatched,
+            'unreadable' => $unreadable,
+            'tables' => $tables,
+        ];
     }
 
     /**
+     * Every upload that produced no tables, by name - unmatched and unreadable together.
+     *
      * @param  array<int, UploadedFile>  $files
      * @return array<int, string>
      */

@@ -33,7 +33,7 @@ test('users can not authenticate with invalid password', function () {
 });
 
 test('users can logout', function () {
-    $business = createBusiness('admin', true);
+    $business = createBusiness('admin');
     $user = createUser(1, $business, false, true);
 
     $response = $this->actingAs($user)->post(route('logout'));

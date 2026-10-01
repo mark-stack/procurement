@@ -37,7 +37,7 @@ it('would be a disaster if a past materials date locked a project out of editing
      * already passed resubmitted that past date into "after:today" and failed. The
      * date field isn't even rendered, so the user saw nothing happen at all.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $project = createProject($user);
@@ -56,7 +56,7 @@ it('would be a disaster if a past materials date locked a project out of editing
 });
 
 it('would be a disaster if a new materials date could be set in the past', function () {
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $project = createProject($user);
@@ -78,7 +78,7 @@ it('would be a disaster if a name freed up by archiving stayed unreachable', fun
      * one frees its name. Renaming checked every project the business had ever
      * had, and refused under a message about "currently active projects".
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $archived = createProject($user);
@@ -99,7 +99,7 @@ it('would be a disaster if a name freed up by archiving stayed unreachable', fun
 });
 
 it('would be a disaster if a project could be renamed onto another current project', function () {
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $taken = createProject($user);
@@ -120,7 +120,7 @@ it('would be a disaster if a project could be renamed onto another current proje
 
 it('would be a disaster if a project could keep its own name only by accident', function () {
     //Saving any other change resubmits the current name, which must not clash with itself
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $project = createProject($user);
@@ -142,10 +142,10 @@ it('would be a disaster if user could edit another business’s projects', funct
      * Validation used to run first, so another business's project was checked for
      * name clashes - and told the caller about them - before anything refused it.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
-    $otherBusiness = createBusiness('outlook', true);
+    $otherBusiness = createBusiness('outlook');
     $otherUser = createUser(2, $otherBusiness, false, true);
     $otherProject = createProject($otherUser);
 
@@ -170,7 +170,7 @@ it('would be a disaster if user could edit other staff projects', function () {
      * the project on the board and in Past Projects, and date_materials_required drives the
      * critical path and every deadline reminder its owner is sent.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
     $colleague = createUser(2, $business, false, true);
 
@@ -192,7 +192,7 @@ it('would be a disaster if a user could not edit their own project', function ()
      * The other half of the rule above - the owner-only check runs in the form request, before
      * validation, so getting it wrong would lock everybody out rather than just colleagues.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $project = createProject($user);
@@ -217,10 +217,10 @@ it('would be a disaster if user could see other business’s projects', function
      * company's projects, batches and suppliers in front of you rather than merely letting you
      * write to them.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
-    $otherBusiness = createBusiness('outlook', true);
+    $otherBusiness = createBusiness('outlook');
     $otherUser = createUser(2, $otherBusiness, false, true);
 
     $mine = createProject($user);
@@ -255,7 +255,7 @@ it('would be a disaster if user could create projects before email verification'
      * "was it awarded?" notification - and the route group's own 'verified' is the only thing
      * holding it.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $unverified = createUser(1, $business, false, false);
 
     $this->actingAs($unverified)
@@ -270,23 +270,31 @@ it('would be a disaster if user could create projects before email verification'
     expect(Project::count())->toBe(0);
 });
 
-it('would be a disaster if user could create projects before admin confirmation', function () {
+it('would be a disaster if a business with no templates yet were turned away at the door', function () {
     /*
-     * A business is only ready once an admin has recorded its templates - without them a BOM
-     * auto-detects nothing, so the project would be created and then handed back empty. That is
-     * what BusinessReadyMiddleware is for, and nothing asserted it over project creation.
+     * This test asserted the opposite until templates became self-service, and the reasoning was sound
+     * at the time: without a template recorded for the business a BOM auto-detects nothing, so the
+     * project would be created and handed straight back empty. BusinessReadyMiddleware held project
+     * creation for exactly that reason, and redirected to onboarding.
+     *
+     * Uploading is now the first step of setting the business up - the file is what writes the
+     * template, see TemplateLearningService - so nothing may stand between a new customer and the
+     * form. The request reaches validation, which is as far as a submit with no files should get;
+     * whether a file then imports is TemplateLearningTest's subject.
      */
-    $business = createBusiness('gmail', false);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
+    expect($business->detectableTemplates()->count())->toBe(0);
+
     $this->actingAs($user)
-        ->from('/dashboard')
         ->post(route('projects.store'), [
-            'name' => 'Too early',
+            'name' => 'First one',
             'tentative' => false,
             'excel' => [],
         ])
-        ->assertRedirect(route('onboarding'));
+        //Its own validation rule, not a gate in front of the route
+        ->assertInvalid('excel');
 
     expect(Project::count())->toBe(0);
 });
@@ -298,7 +306,7 @@ it('would be a disaster if user could archive other staff projects', function ()
      * list it is restored from is filtered to your own projects, so archiving a colleague's
      * project took it off the board with no way back for anyone but them.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
     $colleague = createUser(2, $business, false, true);
 
@@ -319,7 +327,7 @@ it('would be a disaster if user could archive project with active quotes and ord
      * of the business cannot see. The button hid itself outside the Nesting column; nothing
      * on the server did.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $project = createProject($user);
@@ -335,7 +343,7 @@ it('would be a disaster if user could archive project with active quotes and ord
 });
 
 it('would be a disaster if a project archived before nesting could not be restored', function () {
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $project = createProject($user);
@@ -353,7 +361,7 @@ it('would be a disaster if a project archived while nested could not be restored
      * "Lost it" on a notification used to do exactly that - is the one holding its batch back,
      * so refusing to restore it would leave the batch stuck for good.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $project = createProject($user);
@@ -382,7 +390,7 @@ it('would be a disaster if restoring a project put two of the same name on the b
      * Past Projects, and a colleague pressing "Start quoting" nests both into one batch whose spec
      * sheet, BOM download and notifications all name "Tower A". Steel gets cut for the wrong one.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $archived = createProject($user);
@@ -404,7 +412,7 @@ it('would be a disaster if restoring a project put two of the same name on the b
 
 it('lets a renamed project be restored once its old name is taken', function () {
     //The other half of the rule above - refusing has to leave a way through, not a dead end
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $archived = createProject($user);
@@ -437,7 +445,7 @@ it('would be a disaster if a colleague’s project blocked a restore invisibly',
      * holding the name blocks the restore too. What matters is that it is refused with the reason
      * rather than silently, since renaming the colleague's project is not something this user can do.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
     $colleague = createUser(2, $business, false, true);
 
@@ -463,7 +471,7 @@ it('would be a disaster if a project name had no length at all', function () {
      * of every project involved, which is how "Start quoting" names whose work is being taken - so
      * one pasted wall of text makes a dialog nobody can read or reach the button of.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $this->actingAs($user)
@@ -481,7 +489,7 @@ it('would be a disaster if a project could be named nothing but spaces', functio
      * the route was saved under a name that is blank everywhere it is displayed, on a board where
      * the name is the only thing identifying it.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $this->actingAs($user)
@@ -499,7 +507,7 @@ it('would be a disaster if a project reference could be anything at all', functi
      * been a database error on MySQL. The modal never renders the field, so the route is the only
      * way in and there was nothing on it.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
     $project = createProject($user);
 
@@ -526,7 +534,7 @@ it('would be a disaster if archiving left the project’s reminders in the bell'
      * counts archiving as an answer - so an archived project kept asking whether it had been
      * awarded, from a board it no longer appears on.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $project = createProject($user);
@@ -544,10 +552,10 @@ it('would be a disaster if a notification id was enough to archive someone else�
      * archives the project it names - so an id, from any account, archived another business's
      * project.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
-    $otherBusiness = createBusiness('outlook', true);
+    $otherBusiness = createBusiness('outlook');
     $otherUser = createUser(2, $otherBusiness, false, true);
     $otherProject = createProject($otherUser);
     $notification = projectAwardedNotification($otherUser, $otherProject);
@@ -564,7 +572,7 @@ it('would be a disaster if a notification id was enough to archive someone else�
 });
 
 it('would be a disaster if "Lost it" archived a project that is already nested', function () {
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $project = createProject($user);
@@ -591,7 +599,7 @@ it('would be a disaster if the archived list cost a walk of every material row',
      * and > order per row with nothing eager loaded - about three queries per material line,
      * on every dashboard load, for fields nothing renders.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $project = createProject($user);
@@ -619,7 +627,7 @@ it('would be a disaster if a half-finished import was on nobody’s board', func
      * its owner had no route back to it, and a colleague could not so much as discover it
      * existed. It is listed separately now, alongside the column it is stuck before.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
     $colleague = createUser(2, $business, false, true);
 
@@ -651,7 +659,7 @@ it('would be a disaster if a half-finished import was on nobody’s board', func
 });
 
 it('still offers the owner of a half-finished import a way to finish it', function () {
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $project = createProject($user);
@@ -679,7 +687,7 @@ it('would be a disaster if an archived project reappeared as an unfinished impor
      * ones included - listing those would put projects back on the board that were deliberately
      * taken off it.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $project = createProject($user);
@@ -706,7 +714,7 @@ it('puts your own projects first in the shared nesting column', function () {
      * batch columns already sort this way through BatchService::sortByUserAndLatest; only the
      * column of projects did not.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
     $colleague = createUser(2, $business, false, true);
 
@@ -731,7 +739,7 @@ it('would be a disaster if the hourly checks could not ask for active projects',
      * All four hourly notification checks open with Project::query()->active(), and the scope
      * did not exist - so each of them died on a BadMethodCallException as soon as the job ran.
      */
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $active = createProject($user);

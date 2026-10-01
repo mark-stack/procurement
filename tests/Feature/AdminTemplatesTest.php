@@ -75,7 +75,7 @@ it('would be a disaster if editing a template silently deactivated it', function
      * to its false default and every save turned an active template off. There was
      * no input for "active" either, so it could never be turned back on.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $template = Template::factory()->for($business)->create(['active' => true]);
@@ -94,8 +94,8 @@ it('would be a disaster if a template from another business could be edited thro
      * The nested resource was not scoped, so {template} resolved globally and
      * a mistyped business id edited a different customer's row.
      */
-    $businessA = createBusiness('Business A', true);
-    $businessB = createBusiness('Business B', true);
+    $businessA = createBusiness('Business A');
+    $businessB = createBusiness('Business B');
     $admin = createUser(1, $businessA, true, true);
 
     $theirs = Template::factory()->for($businessB)->create(['name' => 'Theirs']);
@@ -109,8 +109,8 @@ it('would be a disaster if a template from another business could be edited thro
 });
 
 it('would be a disaster if a template from another business could be deleted through this url', function () {
-    $businessA = createBusiness('Business A', true);
-    $businessB = createBusiness('Business B', true);
+    $businessA = createBusiness('Business A');
+    $businessB = createBusiness('Business B');
     $admin = createUser(1, $businessA, true, true);
 
     $theirs = Template::factory()->for($businessB)->create();
@@ -123,8 +123,8 @@ it('would be a disaster if a template from another business could be deleted thr
 });
 
 it('would be a disaster if the index leaked another business\'s templates', function () {
-    $businessA = createBusiness('Business A', true);
-    $businessB = createBusiness('Business B', true);
+    $businessA = createBusiness('Business A');
+    $businessB = createBusiness('Business B');
     $admin = createUser(1, $businessA, true, true);
 
     Template::factory()->for($businessA)->create(['name' => 'Ours']);
@@ -142,7 +142,7 @@ it('would be a disaster if the index leaked another business\'s templates', func
 });
 
 it('would be a disaster if a non-admin could reach the templates screen', function () {
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $user = createUser(1, $business, false, true);
 
     $this->actingAs($user)
@@ -151,7 +151,7 @@ it('would be a disaster if a non-admin could reach the templates screen', functi
 });
 
 it('stores a template against the business in the url', function () {
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $this->actingAs($admin)->post(
@@ -169,7 +169,7 @@ it('stores a template that is not active', function () {
      * is "required|boolean", and a "required" that rejected false would have made
      * every new template active whether the box was ticked or not.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $this->actingAs($admin)->post(
@@ -184,7 +184,7 @@ it('rejects a cell reference that is not a cell reference', function () {
     /**
      * The old rule was "min:2|max:5", which accepted "zz" and "hello".
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $this->actingAs($admin)->post(
@@ -200,7 +200,7 @@ it('rejects row zero, which is not a row', function () {
      * The row part of the rule was [0-9]{1,4}, so "B0" stored as a cell reference.
      * Spreadsheet rows start at 1.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $this->actingAs($admin)->post(
@@ -216,7 +216,7 @@ it('stores a lower case cell reference in upper case', function () {
      * "b7" used to be stored verbatim, so the table mixed cases - the seeded row
      * said "b28" while the form's own placeholder says "B7".
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $this->actingAs($admin)->post(
@@ -237,7 +237,7 @@ it('stores a blank optional cell as null', function () {
      * ConvertEmptyStringsToNull - pinned here, because without it every existing row
      * with a blank material cell would fail its own regex on the next save.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $this->actingAs($admin)->post(
@@ -253,7 +253,7 @@ it('rejects a screenshot that is not a base64 image', function () {
      * "min:50" was a length check, so any 50 characters passed and were stored
      * as the template's image.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $this->actingAs($admin)->post(
@@ -269,7 +269,7 @@ it('rejects units the enum column cannot hold', function () {
      * length_width_units was only validated as "string", but the column is
      * enum('m','mm'), so anything else was a 500 at write time.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $this->actingAs($admin)->post(
@@ -285,7 +285,7 @@ it('rejects a second template with the same name in one business', function () {
      * Two byte-identical rows, both marked active, used to store fine - and the name
      * is the only thing distinguishing one recorded template from another.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $this->actingAs($admin)->post(route('admin.businesses.templates.store', $business->id), templatePayload([], $business));
@@ -298,8 +298,8 @@ it('rejects a second template with the same name in one business', function () {
 it('lets two businesses record a template under the same name', function () {
     //The name is unique within a business, not across the platform: both customers
     //can import an "Assembly List"
-    $businessA = createBusiness('Business A', true);
-    $businessB = createBusiness('Business B', true);
+    $businessA = createBusiness('Business A');
+    $businessB = createBusiness('Business B');
     $admin = createUser(1, $businessA, true, true);
 
     $this->actingAs($admin)->post(route('admin.businesses.templates.store', $businessA->id), templatePayload([], $businessA));
@@ -313,7 +313,7 @@ it('lets two businesses record a template under the same name', function () {
 it('lets a template keep its own name when it is edited', function () {
     //The uniqueness rule has to ignore the row being edited, or nothing could be
     //saved twice
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $template = Template::factory()->for($business)->create(['name' => 'Their assembly list']);
@@ -342,7 +342,7 @@ it('refuses a template with no heading labels', function () {
      * nothing, so saving it produces a template that quietly never fires - which is
      * worse than no template, because the screen would list it as one.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $this->actingAs($admin)->post(
@@ -355,7 +355,7 @@ it('refuses a template with no heading labels', function () {
 
 it('refuses a template with no heading cell', function () {
     //Every column is an offset from the heading cell, so without it no column has a position
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $this->actingAs($admin)->post(
@@ -372,7 +372,7 @@ it('refuses a template with no way to say what a row is', function () {
      * with neither a description column nor a compound description built out of other
      * cells detects the table and then imports none of it.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $this->actingAs($admin)->post(
@@ -385,7 +385,7 @@ it('refuses a template with no way to say what a row is', function () {
 
 it('accepts a compound description in place of a description column', function () {
     //How the bolt summaries work: "M" + diameter + grade + length + "mm"
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $this->actingAs($admin)->post(
@@ -408,7 +408,7 @@ it('tells the screen when a recorded template cannot detect anything', function 
      * has to say they are documentation and not a working template, or an admin will wonder
      * why the file they describe never imports.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     Template::factory()->for($business)->undetectable()->create(['name' => 'Recorded long ago']);
@@ -427,7 +427,7 @@ it('keeps the stored screenshot when an edit does not send one', function () {
      * because the form copied the screenshot out of the index props and sent it back.
      * A missing screenshot now means "keep", and must not blank the column.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $template = Template::factory()->for($business)->create();
@@ -448,7 +448,7 @@ it('keeps the stored screenshot when an edit does not send one', function () {
 it('keeps the stored screenshot when the field comes back blank', function () {
     //What the form actually sends: the input is present and empty, which
     //ConvertEmptyStringsToNull turns into a present null
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $template = Template::factory()->for($business)->create();
@@ -464,7 +464,7 @@ it('keeps the stored screenshot when the field comes back blank', function () {
 
 it('still rejects a screenshot that is sent and is not an image', function () {
     //"keep what is stored" must not become "accept anything"
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $template = Template::factory()->for($business)->create();
@@ -481,7 +481,7 @@ it('would be a disaster if the index carried every screenshot inline', function 
      * and on the redirect back after every create, update and delete, to render a
      * 128x80 thumbnail. The same mistake on the admin users page measured 11.5MB.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     Template::factory()->for($business)->create();
@@ -492,7 +492,7 @@ it('would be a disaster if the index carried every screenshot inline', function 
 });
 
 it('serves a recorded screenshot as an image', function () {
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $template = Template::factory()->for($business)->create();
@@ -510,8 +510,8 @@ it('serves a recorded screenshot as an image', function () {
 it('would be a disaster if a screenshot could be read through another business\'s url', function () {
     //Same reason the resource routes are scoped: a mistyped business id must not
     //serve another customer's document
-    $businessA = createBusiness('Business A', true);
-    $businessB = createBusiness('Business B', true);
+    $businessA = createBusiness('Business A');
+    $businessB = createBusiness('Business B');
     $admin = createUser(1, $businessA, true, true);
 
     $theirs = Template::factory()->for($businessB)->create();
@@ -522,7 +522,7 @@ it('would be a disaster if a screenshot could be read through another business\'
 });
 
 it('would be a disaster if a non-admin could read a recorded screenshot', function () {
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $user = createUser(1, $business, false, true);
     $template = Template::factory()->for($business)->create();
 
@@ -536,7 +536,7 @@ it('does not serve a screenshot that is not a data url this app wrote', function
      * Rows predating the data-URL rule can hold anything, and serving a stored payload
      * as a file is exactly where that matters.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $template = Template::factory()->for($business)->create();
@@ -564,7 +564,7 @@ it('would be a disaster if recording a template did not change what an import de
      * makes a spreadsheet importable, so a row that reaches the table and never reaches
      * detection is the same feature broken from the other side.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $user = createUser(2, $business, false, true);
 
     $this->actingAs($user);
@@ -581,7 +581,7 @@ it('does not match uploads against a template that is not active', function () {
      * Active is what an admin flips once the record has been checked against a real file.
      * Before this change it decided nothing at all.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $user = createUser(2, $business, false, true);
 
     $this->actingAs($user);
@@ -595,7 +595,7 @@ it('does not match uploads against a template that is not active', function () {
 
 it('does not match uploads against a template that cannot detect', function () {
     //Recorded before templates drove detection: cell references, and nothing to find them by
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $user = createUser(2, $business, false, true);
 
     $this->actingAs($user);
@@ -613,8 +613,8 @@ it('would be a disaster if one business\'s template read another business\'s upl
      * leaking across businesses does not merely show the wrong row on a screen - it reads
      * a stranger's spreadsheet at the wrong offsets and imports the results.
      */
-    $businessA = createBusiness('Business A', true);
-    $businessB = createBusiness('Business B', true);
+    $businessA = createBusiness('Business A');
+    $businessB = createBusiness('Business B');
 
     Template::factory()->for($businessB)->create(['name' => 'Theirs']);
 
@@ -635,7 +635,7 @@ it('gives a new business no templates at all', function () {
      * So a business starts with nothing and can import nothing. The customer emails us the reports
      * they export and an admin records a template per report against their business.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
 
     $this->actingAs(createUser(2, $business, false, true));
 
@@ -646,7 +646,7 @@ it('gives a new business no templates at all', function () {
 it('gives the admin\'s own business no templates either', function () {
     //createBusiness('gmail') is the admin email's domain, which is how the config scoped the
     //demo template for material_list.xlsx to us. Nothing is scoped to anybody now.
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
 
     $this->actingAs(createUser(2, $business, false, true));
 
@@ -655,7 +655,7 @@ it('gives the admin\'s own business no templates either', function () {
 
 it('does not serve a screenshot url for a template that has none', function () {
     //A screenshot records where a template came from, and it is not compulsory
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     Template::factory()->for($business)->create(['screenshot' => null]);
@@ -672,7 +672,7 @@ it('would be a disaster if the index shipped the whole business row', function (
      * A Business serializes 23 columns including every cost and pricing setting, and
      * this page reads the id and the domain. It is the mistake UserResource records.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $this->actingAs($admin)
@@ -693,7 +693,7 @@ it('would be a disaster if the admin users list broke for a user with no busines
      * users.business_id is nullable and UserResource dereferenced it straight
      * away, so one orphaned user took the whole list down for every admin.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $orphan = createUser(2, $business, false, true);
@@ -713,7 +713,7 @@ it('would be a disaster if the admin users list broke for a user with no busines
 
 it('refuses cells that name different rows', function () {
     //They are the five columns of the first row of data. Three rows is not one row of anything.
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $this->actingAs($admin)->post(
@@ -726,7 +726,7 @@ it('refuses cells that name different rows', function () {
 
 it('refuses row 1 as the first row of data', function () {
     //A table's heading row is above its data, so row 1 is always the reference typed a row short
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $this->actingAs($admin)->post(
@@ -770,7 +770,7 @@ it('saves a record that reads oddly, and says how', function () {
      * that is merely unusual is saved and argued with on screen. Refusing this one would stop an
      * admin recording a spreadsheet that is genuinely shaped this way.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $this->actingAs($admin)->post(
@@ -785,7 +785,7 @@ it('saves a record that reads oddly, and says how', function () {
 
 it('says when the heading cell is too far above the data to be the heading', function () {
     //Usually the anchor has been pointed at a report title rather than at the heading run
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $this->actingAs($admin)->post(
@@ -798,7 +798,7 @@ it('says when the heading cell is too far above the data to be the heading', fun
 });
 
 it('says when an assembly mark rule has no cell to read', function () {
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $this->actingAs($admin)->post(

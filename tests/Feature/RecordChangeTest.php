@@ -32,7 +32,7 @@ it('records what changed on an order, with the before and the after', function (
      * though it had always said what it says now, with updated_at as the only clue and one value to
      * carry it.
      */
-    $user = createUser(1, createBusiness('biz', true), false, true);
+    $user = createUser(1, createBusiness('biz'), false, true);
     $batch = Batch::factory()->forUser($user->id)->create();
     [, $order] = quoteAndOrder($user, $batch);
 
@@ -75,7 +75,7 @@ it('records nothing for a save that changed nothing', function () {
      * A save with no change is not an event. Recording it would mean every page that re-saves a row it
      * did not alter leaves a row in the log saying so, and the handful that matter would be buried.
      */
-    $user = createUser(1, createBusiness('biz', true), false, true);
+    $user = createUser(1, createBusiness('biz'), false, true);
     $batch = Batch::factory()->forUser($user->id)->create();
     [, $order] = quoteAndOrder($user, $batch);
 
@@ -102,7 +102,7 @@ it('keeps what a deleted row held', function () {
      */
     Storage::fake(MaterialCertificate::DISK);
 
-    $user = createUser(1, createBusiness('biz', true), false, true);
+    $user = createUser(1, createBusiness('biz'), false, true);
     $batch = Batch::factory()->forUser($user->id)->create();
     //Not sent, so the certificate can still be taken back off
     [, $order] = quoteAndOrder($user, $batch, orderSent: false);
@@ -129,7 +129,7 @@ it('keeps what a deleted row held', function () {
 });
 
 it('records the creation of a row as the row it created', function () {
-    $user = createUser(1, createBusiness('biz', true), false, true);
+    $user = createUser(1, createBusiness('biz'), false, true);
 
     $this->actingAs($user)->post(route('suppliers.store'), [
         'name' => 'Southern Steel',
@@ -152,10 +152,10 @@ it('names the admin behind a change made while impersonating', function () {
      * account read as the customer placing it, and the only trace was a Log::info line in a rotating
      * file.
      */
-    $adminBusiness = createBusiness('admin', true);
+    $adminBusiness = createBusiness('admin');
     $admin = createUser(1, $adminBusiness, true, true);
 
-    $business = createBusiness('customer', true);
+    $business = createBusiness('customer');
     $customer = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($customer->id)->create();
@@ -186,7 +186,7 @@ it('files a master catalogue edit under no business at all', function () {
      * The catalogue is the platform's, not a customer's. Filing an edit under the admin's own business
      * would read as that business having changed a row every business is matched against.
      */
-    $admin = createUser(1, createBusiness('admin', true), true, true);
+    $admin = createUser(1, createBusiness('admin'), true, true);
     seedMasterMaterials();
 
     $product = Product::query()->where('deprecated', false)->first();
@@ -213,7 +213,7 @@ it('keeps a template screenshot out of the log', function () {
      * base64 in every row of a table whose job is to be readable - twice over on an update, since each
      * entry holds the before and the after.
      */
-    $business = createBusiness('biz', true);
+    $business = createBusiness('biz');
 
     $template = Template::factory()->create([
         'business_id' => $business->id,
@@ -246,7 +246,7 @@ it('would be a disaster if a change log row could be edited or deleted', functio
      * the honest mistake: a future screen calling update() on a log row because every other model here
      * allows it.
      */
-    $user = createUser(1, createBusiness('biz', true), false, true);
+    $user = createUser(1, createBusiness('biz'), false, true);
     $batch = Batch::factory()->forUser($user->id)->create();
     [, $order] = quoteAndOrder($user, $batch);
 
@@ -271,7 +271,7 @@ it('records a change made with nobody logged in without falling over', function 
      * and no session at all. Asking an unbooted session for the impersonator id throws, so the trait has
      * to cope - a log row with no user is correct for a change nobody made by hand.
      */
-    $user = createUser(1, createBusiness('biz', true), false, true);
+    $user = createUser(1, createBusiness('biz'), false, true);
     $batch = Batch::factory()->forUser($user->id)->create();
     [, $order] = quoteAndOrder($user, $batch);
 

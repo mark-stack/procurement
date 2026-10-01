@@ -69,7 +69,7 @@ it('would be a disaster if Stripe was asked about a business that has never been
      * No customer id means Cashier has nothing, and asking anyway would be a query on every page
      * load of every trialling account for a row that cannot exist.
      */
-    $business = createBusiness('Never paid', true);
+    $business = createBusiness('Never paid');
 
     expect(stripeDriver()->subscriptionFor($business))->toBeNull();
 });
@@ -119,7 +119,7 @@ it('would be a disaster if a lapsed Stripe subscription still allowed writes', f
      */
     useStripeDriver();
 
-    $business = createBusiness('Lapsed subscriber', true);
+    $business = createBusiness('Lapsed subscriber');
 
     cashierSubscription($business, ['stripe_status' => 'canceled', 'ends_at' => now()->subDay()]);
 
@@ -135,7 +135,7 @@ it('would be a disaster if the plan a subscriber is on could not be named', func
     //Rebuilt because Plans reads config once and is a singleton
     app()->forgetInstance(Plans::class);
 
-    $business = createBusiness('Named plan', true);
+    $business = createBusiness('Named plan');
     cashierSubscription($business, ['stripe_price' => 'price_weekly_test']);
 
     $state = stripeDriver()->subscriptionFor($business->fresh());
@@ -150,7 +150,7 @@ it('would be a disaster if a legacy price set up in the Stripe dashboard locked 
      * of our plans. That is a plan the billing page cannot name - not a reason to stop a paying
      * customer working.
      */
-    $business = createBusiness('Legacy deal', true);
+    $business = createBusiness('Legacy deal');
     cashierSubscription($business, ['stripe_price' => 'price_some_handshake_deal']);
 
     $state = stripeDriver()->subscriptionFor($business->fresh());
@@ -167,7 +167,7 @@ it('would be a disaster if a subscription were attached to a business Cashier co
      * package it would be user_id, the relation would match nothing, and every paying customer would
      * read as lapsed - silently, with the rows sitting right there in the table.
      */
-    $business = createBusiness('Related', true);
+    $business = createBusiness('Related');
     cashierSubscription($business);
 
     expect($business->fresh()->subscription('default'))->not->toBeNull();

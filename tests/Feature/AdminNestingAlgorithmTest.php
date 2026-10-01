@@ -3,7 +3,7 @@
 use App\Services\NestingCostModel;
 
 it('would be a disaster if a non-admin could read another business\'s nesting settings', function () {
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $user = createUser(1, $business, false, true);
 
     $this->actingAs($user)
@@ -12,7 +12,7 @@ it('would be a disaster if a non-admin could read another business\'s nesting se
 });
 
 it('explains the algorithm with the settings of the business being viewed', function () {
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $business->scrap_threshold_mm = 1500;
@@ -43,7 +43,7 @@ it('shows what acquiring new steel costs beyond the steel', function () {
      * order overhead are the newest part of the model and the easiest to let drift, because they are the part
      * a reader is most likely to want spelled out in prose.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $business->material_cost_per_tonne = 1800.00;
@@ -88,7 +88,7 @@ it('tells a business on no freight that none of it is priced yet', function () {
      * the page has to say so rather than quietly showing a $0 line. A reader who takes the zero at face value
      * concludes delivery is free, which is the opposite of what the model now believes.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $response = $this->actingAs($admin)->get(route('admin.nesting.algorithm', $business->id));
@@ -108,7 +108,7 @@ it('shows what the scrap bin pays back', function () {
      * Binning steel is a loss of most of it, not all of it. The page has to show both halves, because
      * "scrap costs you everything" is what makes a nest cling to remnants it should let go of.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $response = $this->actingAs($admin)->get(route('admin.nesting.algorithm', $business->id));
@@ -132,7 +132,7 @@ it('would be a disaster if the page still rendered when the admin has no busines
      * to a fresh model rather than erroring means the route still answers - and a new Business carries the
      * documented defaults, which is what a page about the defaults wants to show.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
     $admin->business_id = null;
     $admin->save();
@@ -155,7 +155,7 @@ it('shows what labour costs on real sections and where a remnant stops paying fo
      * A heavier section costs more to cut and far more to move - but the steel in it is worth more still,
      * so its remnants become worth keeping at a SHORTER length, not a longer one.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $response = $this->actingAs($admin)->get(route('admin.nesting.algorithm', $business->id));
@@ -182,7 +182,7 @@ it('would be a disaster if the curve drawn was not the curve the nest is scored 
      * The page exists to explain what nesting does, so every figure on it has to come from the real cost
      * model. Prose written alongside the model drifts from it the first time a coefficient changes.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $response = $this->actingAs($admin)->get(route('admin.nesting.algorithm', $business->id));
@@ -216,7 +216,7 @@ it('would be a disaster if the dollar curve did not move with the section', func
      * sixteen between light angle and a heavy beam. Retention is a SHARE of value, so it is identical across
      * sections - only the money differs, and that is exactly why showing shares alone was not enough.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $response = $this->actingAs($admin)->get(route('admin.nesting.algorithm', $business->id));
@@ -245,7 +245,7 @@ it('would be a disaster if the page did not flag settings that buy steel to rack
      * bar to make a short cut. The two settings are individually reasonable and only wrong together, so
      * the page has to say so rather than leave it to be noticed in a quote.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $this->actingAs($admin)
@@ -272,7 +272,7 @@ it('costs each worked example on a light and a heavy section', function () {
      * The first example is the stub-versus-long-length case - retire a 1,500mm stub by binning 800mm, or
      * keep it and nibble a 12,000mm offcut instead.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $response = $this->actingAs($admin)->get(route('admin.nesting.algorithm', $business->id));
@@ -294,7 +294,7 @@ it('explains why the rack is cleared on a calendar rather than by the nest', fun
      * the real model's, not prose: keeping a fresh stub is cheaper than binning it for every section,
      * because the bin destroys most of the steel to save a few dollars of handling.
      */
-    $business = createBusiness('Business A', true);
+    $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     $response = $this->actingAs($admin)->get(route('admin.nesting.algorithm', $business->id));

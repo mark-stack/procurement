@@ -248,7 +248,7 @@ it('hides offcuts that are already assigned, or whose batch has no delivered ord
 it('does not leak offcuts from another business', function () {
     $user = offcutsIndexUser();
 
-    $otherBusiness = createBusiness('other', true);
+    $otherBusiness = createBusiness('other');
     $otherUser = createUser(2, $otherBusiness, false, true);
     $otherBatch = batchWithDeliveredOrder($otherUser);
     create_offcut_200PFC(4000, $otherBatch->id);

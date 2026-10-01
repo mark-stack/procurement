@@ -1,14 +1,19 @@
 <?php
 
 /*
- * The only place in this app that talks to OpenAI is App\Services\OpenAiService, and the only
- * thing that asks it anything is the import-template parser: an admin uploads a sample
- * spreadsheet and the form for recording its template is filled in for them.
+ * The only place in this app that talks to OpenAI is App\Services\OpenAiService, and everything that
+ * asks it anything is about reading a customer's spreadsheet: the proposal that describes a table, and
+ * the review that reads the extracted rows back to check the description was right.
  *
- * Nothing here is load bearing. With no key the parser still works - matching a sample against
- * the templates already recorded is deterministic and needs no model at all - it just cannot
- * suggest anything for a spreadsheet that matches none of them. So an absent key is a reduced
- * feature, never an error, and the tests run with none.
+ * This used to say "nothing here is load bearing", and that was true while the only caller was an
+ * admin filling in a form more quickly than they could type it. It is not true any more. A customer's
+ * upload that matches none of their templates is read here and becomes a template, which is the whole
+ * of how a new business sets itself up - see App\Services\TemplateLearningService. With no key, every
+ * unrecognised spreadsheet is a failed attempt waiting on one of us, which is the queue the feature
+ * was built to empty.
+ *
+ * It still degrades rather than breaks, and the tests still run with no key: an absent one is a
+ * reduced product, never an error, and never a 500 on a customer's upload.
  */
 return [
 

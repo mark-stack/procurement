@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\ActivateBusinessController;
 use App\Http\Controllers\AdminImpersonationController;
 use App\Http\Controllers\AdminMaterialDestroyController;
 use App\Http\Controllers\AdminMaterialExportController;
@@ -12,11 +11,13 @@ use App\Http\Controllers\AdminNestingAlgorithmController;
 use App\Http\Controllers\AdminStopImpersonationController;
 use App\Http\Controllers\AdminSupplierIndexController;
 use App\Http\Controllers\AdminSupplierStoreController;
+use App\Http\Controllers\AdminTemplateAttemptResolveController;
+use App\Http\Controllers\AdminTemplateAttemptSampleController;
 use App\Http\Controllers\AdminTemplateProposalController;
+use App\Http\Controllers\AdminTemplateReviewController;
 use App\Http\Controllers\AdminTemplateScreenshotController;
 use App\Http\Controllers\AdminTemplateTestController;
 use App\Http\Controllers\AdminUserIndexController;
-use App\Http\Controllers\DeactivateBusinessController;
 use App\Http\Controllers\ResendWelcomeEmailController;
 use App\Http\Controllers\TemplateController;
 use App\Http\Middleware\AdminMiddleware;
@@ -60,6 +61,32 @@ Route::prefix('admin')->name('admin.')->middleware([AdminMiddleware::class, 'ver
         ->scopeBindings()
         ->name('businesses.templates.screenshot');
 
+    /*
+     * Records that a person has read a template a customer's upload wrote for itself. POST because it
+     * writes, and nothing else: the template is already live, and reviewing it changes nothing about
+     * what the importer reads. scopeBindings() so {template} must belong to {business}.
+     */
+    Route::post('businesses/{business}/templates/{template}/reviewed', AdminTemplateReviewController::class)
+        ->scopeBindings()
+        ->name('businesses.templates.reviewed');
+
+    /*
+     * Failed learning attempts: the uploads that matched no template and could not be read
+     * automatically. The only part of setting a customer up that still needs a person.
+     *
+     * The sample is a customer's bill of materials on a private disk, so this route is the only way
+     * to it. Both are scoped to {business} in the controller rather than by scopeBindings(), because
+     * the binding is on a plain id and the relation name would have to be guessed from it.
+     */
+    Route::get('businesses/{business}/template-attempts/{attempt}/sample', AdminTemplateAttemptSampleController::class)
+        ->whereNumber('attempt')
+        ->name('businesses.template.attempts.sample');
+
+    //POST: it writes, and it deletes the stored spreadsheet - not something a link or a prefetch does
+    Route::post('businesses/{business}/template-attempts/{attempt}/resolve', AdminTemplateAttemptResolveController::class)
+        ->whereNumber('attempt')
+        ->name('businesses.template.attempts.resolve');
+
     //Master materials
     //The catalogue is edited here row by row. It used to be authored in a spreadsheet and
     //re-imported wholesale, which meant one click rewrote all 1,150 rows and any correction
@@ -94,14 +121,15 @@ Route::prefix('admin')->name('admin.')->middleware([AdminMiddleware::class, 'ver
     //button. Per user rather than per business - see the controller
     Route::post('resend-welcome/{user}', ResendWelcomeEmailController::class)->name('resend.welcome');
 
-    //Business
-    //POST: activating emails every user in the business, so it must not be reachable by a
-    //link, a prefetch, a crawler or the back button
-    Route::post('activate-business/{business}', ActivateBusinessController::class)->name('activate.business');
-
-    //POST: it writes, and it puts every user in the business back on onboarding. It sends no
-    //mail, which is the one way it is not activation's mirror
-    Route::post('deactivate-business/{business}', DeactivateBusinessController::class)->name('deactivate.business');
+    /*
+     * Activate and deactivate stood here. Activating wrote admin_setup_complete, started the trial and
+     * welcomed every user in the business by email; deactivating put them all back on onboarding.
+     *
+     * Both are gone with the column. A business can import from its first upload - see
+     * TemplateLearningService - so there is nothing for an admin to switch on, and the trial now runs
+     * from registration because that is when the product starts working. What is left of the pair is
+     * resend-welcome above, which is a way to get one customer into their account.
+     */
 
     //Nesting algorithm
     //{business?}: the cost settings are per business, so an admin can inspect any of them, but the

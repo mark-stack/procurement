@@ -5,7 +5,7 @@ use App\Models\Project;
 use Database\Factories\UserFactory;
 
 test('profile page is displayed', function () {
-    $business = createBusiness('admin', true);
+    $business = createBusiness('admin');
     $user = createUser(1, $business, false, true);
 
     $response = $this
@@ -16,7 +16,7 @@ test('profile page is displayed', function () {
 });
 
 test('profile information can be updated', function () {
-    $business = createBusiness('admin', true);
+    $business = createBusiness('admin');
     $user = createUser(1, $business, false, true);
 
     $response = $this
@@ -38,7 +38,7 @@ test('profile information can be updated', function () {
 });
 
 test('email verification status is unchanged when the email address is unchanged', function () {
-    $business = createBusiness('admin', true);
+    $business = createBusiness('admin');
     $user = createUser(1, $business, false, true);
 
     $response = $this
@@ -56,7 +56,7 @@ test('email verification status is unchanged when the email address is unchanged
 });
 
 test('the email cannot be changed to a personal address', function () {
-    $business = createBusiness('admin', true);
+    $business = createBusiness('admin');
     $user = createUser(1, $business, false, true);
 
     $response = $this
@@ -75,7 +75,7 @@ test('the email cannot be changed to a personal address', function () {
  * fix a typo in their name without the form rejecting an email they never touched.
  */
 test('an existing personal address can be kept', function () {
-    $business = createBusiness('admin', true);
+    $business = createBusiness('admin');
     $user = createUser(1, $business, false, true);
     $user->email = 'sam@gmail.com';
     $user->save();
@@ -95,7 +95,7 @@ test('an existing personal address can be kept', function () {
 });
 
 test('user can delete their account', function () {
-    $business = createBusiness('admin', true);
+    $business = createBusiness('admin');
     $user = createUser(1, $business, false, true);
 
     $response = $this
@@ -123,7 +123,7 @@ it('would be a disaster if deleting an account answered with a 500', function ()
      * The test that covered this route used an account with no projects, which is the one case that
      * worked.
      */
-    $business = createBusiness('admin', true);
+    $business = createBusiness('admin');
     $user = createUser(1, $business, false, true);
     createProject($user);
 
@@ -142,7 +142,7 @@ it('would be a disaster if deleting an account answered with a 500', function ()
 
 it('names what is in the way when an account cannot be deleted', function () {
     //A refusal that does not say what is holding it up is a dead end
-    $business = createBusiness('admin', true);
+    $business = createBusiness('admin');
     $user = createUser(1, $business, false, true);
     createProject($user);
     createProject($user);
@@ -163,7 +163,7 @@ it('would be a disaster if a colleague’s board could be deleted with an accoun
      * colleagues' Nesting column and their batches hold the steel those colleagues ordered, so
      * there is no version of "delete my account" that should take that with it.
      */
-    $business = createBusiness('admin', true);
+    $business = createBusiness('admin');
     $user = createUser(1, $business, false, true);
     $colleague = createUser(2, $business, false, true);
 
@@ -185,7 +185,7 @@ it('would be a disaster if test-mode rows were invisible to the deletion check',
      * told they are clear to delete and then hit the foreign key on their own test rows - the exact
      * 500 this check exists to prevent.
      */
-    $business = createBusiness('admin', true);
+    $business = createBusiness('admin');
     $user = createUser(1, $business, false, true);
 
     //Made in test mode, and read back from outside it
@@ -205,7 +205,7 @@ it('would be a disaster if test-mode rows were invisible to the deletion check',
 });
 
 test('correct password must be provided to delete account', function () {
-    $business = createBusiness('admin', true);
+    $business = createBusiness('admin');
     $user = createUser(1, $business, false, true);
 
     $response = $this

@@ -20,7 +20,7 @@ it('would be a disaster if a new business got no free trial', function () {
      * hook on the model rather than in the registration controller precisely because businesses are
      * created from several places and every one of them has to get it.
      */
-    $business = createBusiness('New Fabricator', true);
+    $business = createBusiness('New Fabricator');
 
     expect($business->trial_ends_at)->not->toBeNull();
     expect($business->trial_ends_at->isFuture())->toBeTrue();
@@ -38,7 +38,7 @@ it('would be a disaster if a business registering got a different trial than the
         ->assertStatus(200)
         ->assertInertia(fn ($page) => $page->where('trialDays', (int) config('billing.trial_days')));
 
-    $business = createBusiness('Advertised', true);
+    $business = createBusiness('Advertised');
 
     expect($business->trial_ends_at->startOfDay()->toDateString())
         ->toBe(now()->addDays((int) config('billing.trial_days'))->startOfDay()->toDateString());
@@ -62,7 +62,7 @@ it('would be a disaster if a business already using the product was locked out b
      * access - manual_plan set, manual_access_until null - and this pins down that a null date means
      * indefinite rather than expired, which is the reading that would have locked all of them out.
      */
-    $business = createBusiness('Grandfathered', true);
+    $business = createBusiness('Grandfathered');
 
     $business->trial_ends_at = now()->subYear();
     $business->manual_plan = 'grandfathered';
@@ -77,7 +77,7 @@ it('would be a disaster if a business already using the product was locked out b
 });
 
 it('would be a disaster if a manual grant that had run out still allowed writes', function () {
-    $business = createBusiness('Invoiced', true);
+    $business = createBusiness('Invoiced');
 
     $business->trial_ends_at = now()->subYear();
     $business->manual_plan = 'annual';
@@ -95,7 +95,7 @@ it('would be a disaster if a manual grant were overruled by the payment provider
     $fake = fakeBillingProvider();
     $fake->subscription = new SubscriptionState(BillingStatusEnums::LAPSED, SubscriptionState::SOURCE_PROVIDER);
 
-    $business = createBusiness('Invoiced', true);
+    $business = createBusiness('Invoiced');
     $business->trial_ends_at = now()->subYear();
     $business->manual_plan = 'annual';
     $business->manual_access_until = now()->addYear();
@@ -147,7 +147,7 @@ it('would be a disaster if a failed payment locked a customer out on the spot', 
     $fake = fakeBillingProvider();
     $fake->subscription = new SubscriptionState(BillingStatusEnums::PAST_DUE, SubscriptionState::SOURCE_PROVIDER);
 
-    expect(createBusiness('Past due', true)->billingState()->allowsWrites())->toBeTrue();
+    expect(createBusiness('Past due')->billingState()->allowsWrites())->toBeTrue();
 });
 
 it('would be a disaster if a cancelled subscriber lost access before the date they had paid to', function () {
@@ -158,7 +158,7 @@ it('would be a disaster if a cancelled subscriber lost access before the date th
         endsAt: now()->addDays(9),
     );
 
-    $state = createBusiness('Cancelling', true)->billingState();
+    $state = createBusiness('Cancelling')->billingState();
 
     expect($state->allowsWrites())->toBeTrue();
     expect($state->daysRemaining())->toBe(9);
@@ -171,7 +171,7 @@ it('would be a disaster if a trial ran out with no warning', function () {
      */
     Notification::fake();
 
-    $business = createBusiness('Warned', true);
+    $business = createBusiness('Warned');
     $business->trial_ends_at = now()->addDays(5);
     $business->save();
 
@@ -189,7 +189,7 @@ it('would be a disaster if the same trial warning were sent every time the sched
      */
     Notification::fake();
 
-    $business = createBusiness('Warned once', true);
+    $business = createBusiness('Warned once');
     $business->trial_ends_at = now()->addDays(5);
     $business->save();
 
@@ -209,7 +209,7 @@ it('would be a disaster if trial warnings went to every user in the business', f
      */
     Notification::fake();
 
-    $business = createBusiness('Crowded', true);
+    $business = createBusiness('Crowded');
     $business->trial_ends_at = now()->addDays(2);
     $business->save();
 
@@ -230,7 +230,7 @@ it('would be a disaster if a trial warning went to someone who had already subsc
     $fake = fakeBillingProvider();
     $fake->subscription = new SubscriptionState(BillingStatusEnums::ACTIVE, SubscriptionState::SOURCE_PROVIDER);
 
-    $business = createBusiness('Already paying', true);
+    $business = createBusiness('Already paying');
     $business->trial_ends_at = now()->addDays(3);
     $business->save();
 

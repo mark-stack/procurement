@@ -30,7 +30,7 @@ function exampleUpload(): UploadedFile
 }
 
 it('would be a disaster if an unreadable upload threw instead of being reported', function () {
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, true, true);
     Auth::login($user);
 
@@ -40,7 +40,7 @@ it('would be a disaster if an unreadable upload threw instead of being reported'
 });
 
 it('would be a disaster if a valid template was reported as invalid', function () {
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     recordExampleTemplates($business);
 
     $user = createUser(1, $business, true, true);
@@ -69,7 +69,7 @@ function breakTemplateDetection(Business $business): void
 }
 
 it('would be a disaster if a bug in detection was reported as a bad template', function () {
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $admin = createUser(1, $business, true, true);
     Auth::login($admin);
     breakTemplateDetection($business);
@@ -82,7 +82,7 @@ it('would be a disaster if a bug in detection was reported as a bad template', f
 it('would be a disaster if a bug in detection was never logged', function () {
     Exceptions::fake();
 
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(2, $business, false, true);
     Auth::login($user);
     breakTemplateDetection($business);
@@ -96,7 +96,7 @@ it('would be a disaster if a bug in detection was never logged', function () {
 });
 
 it('would be a disaster if temp uploads were left behind on disk', function () {
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $user = createUser(1, $business, true, true);
     Auth::login($user);
 
@@ -110,7 +110,7 @@ it('would be a disaster if temp uploads were left behind on disk', function () {
 });
 
 it('would be a disaster if a rethrown error leaked the temp upload', function () {
-    $business = createBusiness('gmail', true);
+    $business = createBusiness('gmail');
     $admin = createUser(1, $business, true, true);
     Auth::login($admin);
     breakTemplateDetection($business);
