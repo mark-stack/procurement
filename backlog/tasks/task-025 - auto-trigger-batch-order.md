@@ -1,12 +1,13 @@
 ---
 id: TASK-025
 title: auto trigger batch order
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-01 10:38'
+updated_date: '2026-10-01 23:02'
 labels: []
 dependencies: []
-ordinal: 9750
+ordinal: 21000
 ---
 
 ## Description
