@@ -419,6 +419,7 @@ class NestingFormatter
                 $totalReusable = 0;
                 $totalKerf = 0;
                 $totalScrap = 0;
+                $totalConsumed = 0;
 
                 //Loop different products. e.g PFC
                 foreach ($items as $item) {
@@ -438,6 +439,7 @@ class NestingFormatter
                         $totalReusable = $totalReusable + $totals["oldStock"]['reusable'] + $totals["newStock"]['reusable'];
                         $totalKerf = $totalKerf + ($totals["oldStock"]['kerf'] ?? 0) + ($totals["newStock"]['kerf'] ?? 0);
                         $totalScrap = $totalScrap + $totals["oldStock"]['scrap'] + $totals["newStock"]['scrap'];
+                        $totalConsumed = $totalConsumed + $this->materialConsumed($totals);
                     }
                 }
 
@@ -451,20 +453,22 @@ class NestingFormatter
                     "totalKerf" => $totalKerf,
                     "totalScrap" => $totalScrap,
                     /*
-                     * Efficiency: the share of everything handled that left as a finished piece. This is
-                     * the headline figure on the nesting screens, so it is the plain-English one - 100%
-                     * means every millimetre bought was consumed by cuts. A remainder banked for reuse is
-                     * still steel sitting on the rack rather than in the job, so it counts against it.
+                     * Efficiency: the share of the material this nest consumed that left as a finished
+                     * piece, and the headline figure on the nesting screens.
+                     *
+                     * New stock is charged at its full purchase length, so a remainder banked for reuse
+                     * is still steel on the rack rather than in the job and counts against it. An offcut
+                     * off the rack is charged only for what it gave up. See materialConsumed() for why
+                     * the two sides differ.
                      */
-                    'efficiency' => $totalMaterial === 0
+                    'efficiency' => $totalConsumed <= 0
                         ? 0
-                        : (round(($totalUsedMaterial / $totalMaterial * 100),1)),
+                        : (round(($totalUsedMaterial / $totalConsumed * 100),1)),
                     /*
                      * Effective efficiency: the share that was not destroyed. An offcut at or over the
                      * scrap threshold is banked, so only scrap and saw kerf are waste by this measure.
-                     * Higher than efficiency, and the two answer different questions - this is the one
-                     * the nest is checked on, because cutting a short piece from a long offcut you
-                     * already own is a good nest that scores badly on used/total.
+                     * Higher than efficiency, and the two answer different questions - this one is about
+                     * the skip, where efficiency is about what the job cost to make.
                      */
                     'effectiveEfficiency' => $totalMaterial === 0
                         ? 0
@@ -509,7 +513,7 @@ class NestingFormatter
         /**
          1) Total length of input pieces = total length of output cuts
          2) Qty of input pieces = qty of output cuts
-         3) Efficiency (share of material not scrapped) 70%+
+         3) Efficiency (share of consumed material that left as finished pieces) 70%+
          4) a cut longer than max stock length is categorised as "too long"
          5) total offcuts used < total available
          6) new offcuts + scrap = total unused
@@ -523,14 +527,16 @@ class NestingFormatter
         $meteragePieces = $piecesNested[NestingEnums::METERAGE->value] ?? [];
 
         /*
-         * 3) Effective efficiency 70%+
+         * 3) Efficiency 70%+
          *
-         * Checked on the not-destroyed figure rather than the headline used/total one. A job that takes
-         * one short cut from a long offcut already in the yard banks the rest and destroys nothing - a
-         * good nest, and one that reads well under 70% on used/total.
+         * Checked on the headline figure. This used to be checked on effectiveEfficiency instead,
+         * because the headline charged an offcut at its full length and so read 45.5% for a job that
+         * took one short cut from a long offcut already in the yard - a good nest the check would have
+         * failed every time. Charging the offcut for what it gave up puts that nest at 100%, so the
+         * number on the screen and the number the nest is judged on can be the one number again.
          */
-        $efficiency = $usageStatsMeterage["effectiveEfficiency"] <= 100 && $usageStatsMeterage["effectiveEfficiency"] > 70;
-        $efficiency_number = $usageStatsMeterage["effectiveEfficiency"];
+        $efficiency = $usageStatsMeterage["efficiency"] <= 100 && $usageStatsMeterage["efficiency"] > 70;
+        $efficiency_number = $usageStatsMeterage["efficiency"];
 
         /*
          * Count passing individual products
@@ -779,7 +785,7 @@ class NestingFormatter
             ],
             //3
             "efficiency" => [
-                "description" => "Effective efficiency (material not scrapped) 70%+",
+                "description" => "Efficiency (consumed material that left as finished pieces) 70%+",
                 "result" => $efficiency,
                 "number" => $efficiency_number,
                 "suffix" => "%",
@@ -1242,22 +1248,46 @@ class NestingFormatter
     }
 
     /**
-     * The share of all material handled that was not destroyed. See meterageAlgorithm().
+     * The share of the material this nest consumed that left as finished pieces. See
+     * meterageAlgorithm() and usageStats(), which charges the whole nest the same way.
      *
      * @param  array{oldStock: array<string, int>, newStock: array<string, int>}  $totals
      */
     public function effectiveEfficiency(array $totals): float
     {
-        $total = $totals["oldStock"]["total"] + $totals["newStock"]["total"];
+        $consumed = $this->materialConsumed($totals);
 
-        if ($total <= 0) {
+        if ($consumed <= 0) {
             return 0;
         }
 
-        $destroyed = $totals["oldStock"]["scrap"] + $totals["newStock"]["scrap"]
-            + $totals["oldStock"]["kerf"] + $totals["newStock"]["kerf"];
+        $used = $totals["oldStock"]["used"] + $totals["newStock"]["used"];
 
-        return round((($total - $destroyed) / $total * 100), 1);
+        return round(($used / $consumed * 100), 1);
+    }
+
+    /**
+     * What a nest actually costs its business in material, and the denominator both efficiency
+     * figures are charged against.
+     *
+     * A bar of new stock is charged at its full purchase length: you bought all of it, and the drop
+     * banked off the end is steel you have paid for that is not in the structure. An offcut taken off
+     * the rack is charged only for what it gave up - the cuts, the kerf and anything binned - because
+     * the remainder goes straight back where it came from and no steel was bought to get it.
+     *
+     * The asymmetry is the point. Charging an offcut at its full length is what made reuse score worse
+     * than buying new: an 11,000mm offcut opened for one 700mm cut reported 45.5% against 83.3% for
+     * buying a 6,000mm bar, and failed the 70% check (3) for using your own steel. Crediting every
+     * banked drop instead fixed that, but in the wrong place - it put the nest at 100% whenever nothing
+     * was scrapped, which with kerf_mm defaulting to 0 is most of them. Banking an offcut is deferral,
+     * not recovery; it only becomes recovery when someone reaches for it.
+     *
+     * @param  array{oldStock: array<string, int>, newStock: array<string, int>}  $totals
+     */
+    public function materialConsumed(array $totals): int|float
+    {
+        return $totals["newStock"]["total"]
+            + ($totals["oldStock"]["total"] - $totals["oldStock"]["reusable"]);
     }
 
     /**
