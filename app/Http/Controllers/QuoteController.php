@@ -2,22 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Actions\Batch\SaveNesting;
-use App\Actions\OrderApproval\CreatePendingOrderApprovals;
-use App\Actions\Piece\AttachPiecesToBatch;
+use App\Actions\Batch\StartQuoting;
 use App\Formatters\NestingFormatter;
 use App\Http\Requests\UpdateQuoteRequest;
 use App\PrerequisiteConditions\PrerequisiteConditions;
-use App\Models\Batch;
-use App\Models\Piece;
 use App\Models\Quote;
 use App\Services\NotificationImplementations\NotificationColleagueQuotedImplementation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
-use RuntimeException;
 use Throwable;
 
 class QuoteController extends Controller
@@ -48,71 +42,12 @@ class QuoteController extends Controller
         abort_if(!$prerequisiteStartQuoting,403);
 
         try {
-            $batch = DB::transaction(function () use($business,$user,$piecesReadyForBatching){
-                /*
-                 * Claim the steel before anything is created.
-                 *
-                 * Everything above this line is a read, and it happened outside the transaction, so
-                 * two people pressing "Start quoting" seconds apart - or one person double clicking,
-                 * or a second tab, or a retried request - both got here holding the same list of
-                 * unbatched pieces. Nothing then stopped the second one: the batch was created first
-                 * and the pieces were moved onto it by id, off whichever batch already had them.
-                 *
-                 * What that left is not recoverable by anything in the application. The first batch
-                 * kept its order approvals, its saved nesting and the offcuts SaveNesting had already
-                 * consumed against it, while the pieces those offcuts were cut for now belonged to the
-                 * second batch - two batches in the Quoting column for one set of projects, one of
-                 * them empty, and the same steel quoted and ordered twice.
-                 *
-                 * FOR UPDATE makes the second caller wait here until the first commits, and it then
-                 * reads the batch_id the first one wrote. A short count means somebody got there
-                 * first, and this returns before a single row is written.
-                 */
-                $stillUnbatched = Piece::query()
-                    ->whereIn('id', $piecesReadyForBatching->pluck('id'))
-                    ->whereNull('batch_id')
-                    ->lockForUpdate()
-                    ->count();
-
-                if ($stillUnbatched !== $piecesReadyForBatching->count()) {
-                    return null;
-                }
-
-                /*
-                 * Create batch
-                 */
-                $batch = Batch::create([
-                    'user_id' => $user->id,
-                ]);
-
-                /*
-                 * Attach pieces to batch.
-                 *
-                 * The count is checked rather than assumed. The lock above is what actually prevents
-                 * the race; this is the same question asked once more by the write itself, so a
-                 * database or driver that does not honour the lock still cannot get past it. Throwing
-                 * rolls the batch back.
-                 */
-                $claimed = AttachPiecesToBatch::run($piecesReadyForBatching, $batch);
-
-                if ($claimed !== $piecesReadyForBatching->count()) {
-                    throw new RuntimeException(
-                        'Claimed '.$claimed.' of '.$piecesReadyForBatching->count().' pieces for batch '.$batch->id
-                    );
-                }
-
-                /*
-                 * Create pending order approvals - after the pieces, because the approvals are read off
-                 * them. See CreatePendingOrderApprovals for why they are not read off
-                 * $projectsReadyForBatching, which is a smaller set than what actually got nested.
-                 */
-                CreatePendingOrderApprovals::run($batch);
-
-                //Save the current nesting state (points offcuts to new batch)
-                SaveNesting::run($piecesReadyForBatching, $batch, $business);
-
-                return $batch;
-            });
+            /*
+             * The locking, the batch, the nesting and the order approvals all live in the action -
+             * App\Services\FabricationDeadlineQuoting presses this same button on a schedule, and the
+             * race it guards against does not care which of the two is running.
+             */
+            $batch = StartQuoting::run($user, $business, $piecesReadyForBatching);
         } catch (Throwable $e) {
             /*
              * The transaction rolled back, so no batch exists. Say so - redirecting silently made a

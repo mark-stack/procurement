@@ -19,6 +19,13 @@
         usageStats: Object,
         prerequisiteStartQuoting: Boolean,
         batchInfo: Object,
+        /*
+         * The day this column stops waiting and buys - the earliest fabrication date on the card
+         * less the days the sweep holds off for. Computed server side off the one constant that
+         * decides it (KanbanFormatter::orderingTriggerDate), so the board cannot promise a date the
+         * schedule has stopped keeping. Null on a card where no project has a fabrication date.
+         */
+        orderingTriggerDate: String,
     });
 
     //Form
@@ -48,6 +55,22 @@
     const atLeastOneProjectIsYours = computed(() => props.batchInfo
         ? shared.atLeastOneProjectIsYours(props.batchInfo.projects.data,user.value.id)
         : true);
+
+    /**
+     * The day this column stops waiting and buys, as a date and as a countdown.
+     *
+     * Worth a line of its own on the header because it is the one thing about this column nobody
+     * can work out by looking at it: the card says "the longer you hold off the better the nest",
+     * and what it never said is when holding off stops being your decision. On that day the sweep
+     * nests everything here into one batch and emails whoever's deadline forced it.
+     */
+    const orderingTriggerLabel = computed(() => props.orderingTriggerDate
+        ? moment(props.orderingTriggerDate).format("D MMM YY")
+        : null);
+
+    const daysUntilOrderingTrigger = computed(() => props.orderingTriggerDate
+        ? moment(props.orderingTriggerDate).startOf('day').diff(moment().startOf('day'),'days')
+        : null);
 
     //Methods
     /**
@@ -79,6 +102,41 @@
      * about the materials" now have different answers. Null on the projects most businesses have,
      * where the manager uploaded their own.
      */
+    /**
+     * When the shop starts cutting this job.
+     *
+     * The date every deadline on this card is really measured from - it is what the ordering trigger
+     * in the header is counted back from, and on a card of several projects it is the only way to
+     * see which one of them is driving that date. Null on projects created before the question was
+     * asked (see the add_date_fabrication_begins migration), where the honest answer is nothing
+     * rather than a guess.
+     */
+    function fabricationLabel(project){
+        if(!project.date_fabrication_begins){
+            return null;
+        }
+
+        return moment(project.date_fabrication_begins).format("D MMM YY");
+    }
+
+    /**
+     * Whether this project is the one setting the ordering trigger - the earliest fabrication date
+     * on the card. Marked because the header gives a date without saying whose it is, and on a
+     * four-project card that is the first thing you want to know.
+     */
+    function drivesOrderingTrigger(project){
+        if(!project.date_fabrication_begins || props.projects.length < 2){
+            return false;
+        }
+
+        const earliest = Object.values(props.projects)
+            .map(p => p.date_fabrication_begins)
+            .filter(Boolean)
+            .sort()[0];
+
+        return project.date_fabrication_begins === earliest;
+    }
+
     function uploaderLabel(project){
         if(!project.created_by_user_id){
             return null;
@@ -266,9 +324,38 @@
     >
         <!-- card header: batch identity on the left, efficiency on the right -->
         <div
-            v-if="batchInfo || (usageStats && atLeastOneProjectIsYours)"
+            v-if="batchInfo || orderingTriggerLabel || (usageStats && atLeastOneProjectIsYours)"
             class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 bg-gray-50 px-3 py-2"
         >
+            <!--
+                When this column stops waiting and buys.
+
+                The column's own tooltip tells you to hold off as long as you can, because every day
+                more material arrives is a better nest and a better price - and until now nothing
+                said when holding off stops being your decision. On this date the fabrication
+                deadline sweep nests everything in here into one batch, owned by whoever's job
+                starts first, and emails the rest of the business to say so.
+            -->
+            <span
+                v-if="orderingTriggerLabel"
+                class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold ring-1 ring-inset"
+                :class="daysUntilOrderingTrigger <= 0
+                    ? 'bg-red-50 text-red-800 ring-red-200'
+                    : (daysUntilOrderingTrigger <= 2
+                        ? 'bg-amber-50 text-amber-900 ring-amber-200'
+                        : 'bg-white text-gray-600 ring-gray-200')"
+                :title="daysUntilOrderingTrigger <= 0
+                    ? 'This batch is due to be quoted now - the earliest fabrication date on this card is within the ordering window'
+                    : 'On this date these projects are nested into one batch automatically, so the materials can be quoted, ordered and delivered before fabrication starts'"
+            >
+                <i class="fa-solid fa-cart-shopping text-[10px] opacity-70"></i>
+                Order by {{ orderingTriggerLabel }}
+                <span v-if="daysUntilOrderingTrigger > 0" class="font-medium opacity-75">
+                    ({{ daysUntilOrderingTrigger }}d)
+                </span>
+                <span v-else class="font-medium opacity-75">(now)</span>
+            </span>
+
             <span
                 v-if="batchInfo"
                 class="inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-600 ring-1 ring-inset ring-gray-200"
@@ -338,6 +425,32 @@
                         :title="uploaderLabel(project)"
                     >
                         · {{ uploaderLabel(project) }}
+                    </span>
+                </p>
+
+                <!--
+                    When the shop starts cutting this one.
+
+                    The date behind the ordering trigger in the header, per project, so a card of
+                    several makes it obvious which job is driving it. Small, because it is reference
+                    rather than an action.
+
+                    Nesting only. It is the column where the date still decides something - what is
+                    waiting here, and until when. Past this point the batch is committed and the
+                    delivery dates on the quotes are what the shop is watching instead.
+                -->
+                <p
+                    v-if="kanbanColumn === 'NESTING' && fabricationLabel(project)"
+                    class="mt-1 flex items-center gap-1.5 text-[11px] text-gray-500"
+                >
+                    <i class="fa-regular fa-calendar text-[9px] text-gray-400"></i>
+                    <span class="truncate">Fabrication starts {{ fabricationLabel(project) }}</span>
+                    <span
+                        v-if="drivesOrderingTrigger(project)"
+                        class="flex-none font-medium text-gray-600"
+                        title="The earliest fabrication date on this card, so this is the project setting the ordering date above"
+                    >
+                        · earliest
                     </span>
                 </p>
 

@@ -8,6 +8,7 @@ use App\Models\Bar;
 use App\Models\Batch;
 use App\Models\Business;
 use App\Models\Order;
+use App\Models\Project;
 use App\Models\Quote;
 use App\Models\User;
 use App\PrerequisiteConditions\PrerequisiteConditions;
@@ -224,6 +225,24 @@ class QuoteFormatter
 
         return [
             'info' => [
+                /*
+                 * The jobs this batch is buying for, named under the modal's heading.
+                 *
+                 * A batch is the whole Nesting column swept into one nest, so "Quotes / Orders" on
+                 * its own named nothing: the suppliers and the sections are visible, and which of
+                 * your colleagues' work is in the cart was not. It matters most on the screen where
+                 * the order actually goes out, and more again since the fabrication deadline sweep
+                 * started creating batches nobody pressed a button for - the email that brings you
+                 * here names one project, and this is where you find out what came with it.
+                 *
+                 * projectSummaries() rather than projects(): id and name is all that is drawn, and
+                 * the other one eager loads the rawMaterialQuotes/piece/quote/order tree that
+                 * ProjectResource needs.
+                 */
+                'projects' => $batch->projectSummaries()
+                    ->map(fn (Project $project) => ['id' => $project->id, 'name' => $project->name])
+                    ->values()
+                    ->all(),
                 'totalQuotesQty' => $batch->quotes()->count(),
                 'sentQuotesQty' => $batch->quotes()->where('quote_sent', true)->count(),
                 'totalOrdersQty' => $batchService->totalOrdersQty($batch),

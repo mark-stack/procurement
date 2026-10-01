@@ -20,6 +20,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
+/*
+ * Still a stub. There was briefly a server-side copy of this - the fabrication deadline email
+ * printed the same tables - and it is gone with that email's material lists: the one generator is
+ * Shared/shared.js::sendSupplierBatchEmail again, which builds a mailto out of the open modal and
+ * cannot be reached from here.
+ */
 it("would be a disaster if the one click email material list generator didn't work correctly", function () {});
 
 it('would be a disaster if quote deadline missed', function () {});
