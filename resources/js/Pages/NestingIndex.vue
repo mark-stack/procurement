@@ -77,6 +77,8 @@
     const bomLoadFailed = ref(false);
     //Which card the open modal belongs to, so a late answer cannot be drawn into another card's table
     const bomCardKey = ref(null);
+    //And the card itself, so the modal can ask for the same batch again after removing a file from it
+    const bomBatch = ref(null);
 
     //Order list modal, which follows the same pattern as the BOM one above
     const showOrderListModal = ref(false);
@@ -301,12 +303,33 @@
      */
     function showBom(batch) {
         bomCardKey.value = cardKey(batch);
+        bomBatch.value = batch;
         bomTitle.value = modalTitle(batch);
         bomData.value = null;
         bomLoadFailed.value = false;
         showBomModal.value = true;
 
         downloadBom(batch);
+    }
+
+    /**
+     * Fetch the open modal's batch again, after it has changed something.
+     *
+     * Removing an uploaded file takes its materials off the batch, so the table it is listed above is
+     * now wrong - and the card behind the modal is too, since its second line counts the cuts. The
+     * delete itself is an Inertia request, so the page props have already come back with the new
+     * count by the time this runs; this is only the modal's own fetch, which Inertia knows nothing
+     * about.
+     */
+    function refreshBom() {
+        if (bomBatch.value === null) {
+            return;
+        }
+
+        bomData.value = null;
+        bomLoadFailed.value = false;
+
+        downloadBom(bomBatch.value);
     }
 
     async function downloadBom(batch) {
@@ -417,6 +440,7 @@
         bomData.value = null;
         bomTitle.value = null;
         bomCardKey.value = null;
+        bomBatch.value = null;
         bomLoadFailed.value = false;
     }
 
@@ -736,6 +760,7 @@
         :bom="bomData"
         :loadFailed="bomLoadFailed"
         @closeModal="closeBom()"
+        @refresh="refreshBom()"
     />
 
     <OrderListModal

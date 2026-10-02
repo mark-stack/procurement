@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Imports\ExcelImport;
+use App\Models\MaterialListFile;
 use App\Models\Project;
 use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\CsvService;
@@ -88,11 +89,26 @@ class ProductController extends Controller
         }
 
         /*
+         * The spreadsheet itself, kept, with every row it is about to produce pointing back at it.
+         *
+         * Recorded here rather than at the top of the method: a file nothing could be read out of has
+         * no materials to be the file behind, and listing it on the batch's BOM as an upload with no
+         * rows would be offering to delete something that was never imported. A file that failed
+         * learning is kept by TemplateLearningService instead, where an admin can get at it.
+         *
+         * Outside the transaction below, because it writes to the disk as well as the database and a
+         * rolled-back row would leave the file behind it orphaned. The reverse - a stored file whose
+         * import then failed - is a row with no materials on it, which the modal can show and somebody
+         * can delete.
+         */
+        $materialListFile = MaterialListFile::record($file, $project, $user);
+
+        /*
          * A transaction so a failure part way through leaves nothing behind, and \Throwable rather
          * than \Exception so a TypeError is caught too - it used to escape as a 500. Admins get the
          * exception instead, because a broken extraction is theirs to read.
          */
-        $import = fn () => $csvService->processTemplate($detected, $project);
+        $import = fn () => $csvService->processTemplate($detected, $project, $materialListFile);
 
         if ($user->isAdmin()) {
             DB::transaction($import);
@@ -101,6 +117,9 @@ class ProductController extends Controller
                 DB::transaction($import);
             } catch (Throwable $e) {
                 report($e);
+
+                //Nothing came of it, so nothing is listed as having come of it
+                $materialListFile->deleteWithRows($user->business);
 
                 return back()->with('warning', $this->supportMessage());
             }

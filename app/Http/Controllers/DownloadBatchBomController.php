@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Formatters\NestingFormatter;
 use App\Models\Batch;
 use App\Models\Business;
+use App\Models\MaterialListFile;
+use App\Models\Project;
 use App\Models\RawMaterialQuote;
 use App\Services\ProductService;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -79,8 +81,138 @@ class DownloadBatchBomController extends Controller
                 'batch_id' => $batch?->id,
                 'projectCount' => $projects->count(),
                 'rows' => $rows,
+                /*
+                 * The spreadsheets behind those rows. Only the open batch's can be taken off again -
+                 * see files() - but every batch lists them, because "which revision is this steel
+                 * off" is a question asked of a batch long after it has been ordered.
+                 */
+                'files' => $this->files($projectNames),
+                /*
+                 * And how much of the table no file accounts for. Everything imported before uploads
+                 * started being kept is in here, and so are the example lists, which never came off a
+                 * spreadsheet. Said out loud: a files list that does not add up to the table below it
+                 * otherwise reads as a files list with something missing from it.
+                 */
+                'rowsWithoutFile' => $rawMaterialQuotes
+                    ->filter(fn (RawMaterialQuote $row) => $row->material_list_file_id === null)
+                    ->count(),
             ],
         ]);
+    }
+
+    /**
+     * The uploads behind this batch's materials, newest first.
+     *
+     * One query for the files and one for their rows, rather than walking back from each material
+     * row: a file is listed even when every row it produced has since been deleted one at a time, and
+     * the only honest answer to "what did this upload leave on the batch" is then zero.
+     *
+     * @param  \Illuminate\Support\Collection<int, string>  $projectNames
+     * @return array<int, array<string, mixed>>
+     */
+    private function files(\Illuminate\Support\Collection $projectNames): array
+    {
+        $user = auth()->user();
+
+        $materialListFiles = MaterialListFile::query()
+            ->with(['user', 'rawMaterialQuotes.piece.order', 'rawMaterialQuotes.piece.quotes'])
+            ->whereIn('project_id', $projectNames->keys())
+            ->orderByDesc('id')
+            ->get();
+
+        /*
+         * Whose material lists this person may change, asked once for the whole batch rather than per
+         * file. The same question the per-project BOM asks before drawing its delete checkboxes - the
+         * project's manager, or whoever uploaded for them - because this is the same job done to a
+         * whole upload at once. See Project::isManagedBy.
+         */
+        $projectsManaged = Project::query()
+            ->whereIn('id', $projectNames->keys())
+            ->managedBy($user->id)
+            ->pluck('id')
+            ->all();
+
+        return $materialListFiles->map(function (MaterialListFile $materialListFile) use ($projectNames, $projectsManaged) {
+            /*
+             * Both read off the rows already loaded above rather than through the model's own
+             * committedRows()/batchedRows(), which each run a query: this is a list, and a batch
+             * carrying a dozen uploads would be two dozen round trips to draw it.
+             */
+            $committed = $materialListFile->rawMaterialQuotes
+                ->filter(fn (RawMaterialQuote $row) => $row->status() !== null);
+
+            $batched = $materialListFile->rawMaterialQuotes
+                ->filter(fn (RawMaterialQuote $row) => $row->piece?->batch_id !== null);
+
+            return [
+                'id' => $materialListFile->id,
+                'filename' => $materialListFile->original_filename,
+                'project' => $projectNames->get($materialListFile->project_id, ''),
+                'size_bytes' => $materialListFile->size_bytes,
+                'rowCount' => $materialListFile->rawMaterialQuotes->count(),
+                //The name the uploader goes by, or nothing where that account has since been deleted
+                'uploadedBy' => $materialListFile->user?->name,
+                'uploadedAt' => $materialListFile->created_at?->toIso8601String(),
+                //A row whose file could not be stored still lists; there is just nothing to open
+                'downloadable' => $materialListFile->isDownloadable(),
+                'deletable' => $committed->isEmpty()
+                    && $batched->isEmpty()
+                    && in_array($materialListFile->project_id, $projectsManaged, true),
+                //Why not, in the words the modal prints under the file. Null when it can be deleted
+                'undeletableReason' => $this->undeletableReason(
+                    $materialListFile,
+                    $committed,
+                    $batched,
+                    $projectsManaged,
+                ),
+            ];
+        })->all();
+    }
+
+    /**
+     * Why this upload cannot be taken off, in the order the reasons actually bite.
+     *
+     * The steel first, then the batch, then who is asking. A row that has been quoted or ordered is
+     * a commitment to a supplier, which is a stronger thing to say than that its batch has been
+     * nested - and a colleague looking at somebody else's job is told whose it is rather than that
+     * they lack a permission.
+     *
+     * @param  \Illuminate\Support\Collection<int, RawMaterialQuote>  $committed
+     * @param  \Illuminate\Support\Collection<int, RawMaterialQuote>  $batched
+     * @param  array<int, int>  $projectsManaged
+     */
+    private function undeletableReason(
+        MaterialListFile $materialListFile,
+        \Illuminate\Support\Collection $committed,
+        \Illuminate\Support\Collection $batched,
+        array $projectsManaged,
+    ): ?string {
+        if ($committed->isNotEmpty()) {
+            //Named, not counted: "which four" is the next question and the answer is right here
+            $names = $committed->take(3)
+                ->map(fn (RawMaterialQuote $row) => $row->description)
+                ->implode(', ');
+
+            $andMore = $committed->count() > 3
+                ? ' and '.($committed->count() - 3).' more'
+                : '';
+
+            return $committed->count() === 1
+                ? 'Already quoted or ordered: '.$names.'. Removing the file would take that with it.'
+                : $committed->count().' of these materials are already quoted or ordered ('
+                    .$names.$andMore.'), so this file cannot be removed.';
+        }
+
+        if ($batched->isNotEmpty()) {
+            return 'This file\'s materials have been nested into a batch, so they are being bought '
+                .'as part of it.';
+        }
+
+        if (! in_array($materialListFile->project_id, $projectsManaged, true)) {
+            return 'Only the project manager, or whoever uploaded it, can remove this file.';
+        }
+
+        return null;
     }
 
     /**

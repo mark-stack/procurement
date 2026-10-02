@@ -19,6 +19,19 @@ class RawMaterialQuote extends Model
         return $this->belongsTo(Project::class);
     }
 
+    /**
+     * The upload this line came off, where it is known.
+     *
+     * Null for every row imported before uploads started being kept, and for the example lists, which
+     * come from an array rather than a spreadsheet.
+     *
+     * @return BelongsTo<MaterialListFile, $this>
+     */
+    public function materialListFile(): BelongsTo
+    {
+        return $this->belongsTo(MaterialListFile::class);
+    }
+
     /** @return HasOne<Piece, $this> */
     public function piece(): HasOne
     {

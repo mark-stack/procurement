@@ -11,12 +11,14 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DownloadBatchBomController;
 use App\Http\Controllers\DownloadBomController;
 use App\Http\Controllers\DownloadMaterialCertificateController;
+use App\Http\Controllers\DownloadMaterialListFileController;
 use App\Http\Controllers\DownloadNesting;
 use App\Http\Controllers\DownloadQuotesDataController;
 use App\Http\Controllers\DownloadUsageController;
 use App\Http\Controllers\MarkAsPastProjectController;
 use App\Http\Controllers\MarkNotificationStatusController;
 use App\Http\Controllers\MaterialCertificateController;
+use App\Http\Controllers\MaterialListFileController;
 use App\Http\Controllers\NestingEfficiencyController;
 use App\Http\Controllers\NestingIndexController;
 use App\Http\Controllers\OffcutController;
@@ -123,6 +125,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
          * Nesting column - which is the one card on that page with no id to pass.
          */
         Route::get('download-batch-bom/{batch?}', DownloadBatchBomController::class)->name('download.batch.bom');
+
+        /*
+         * The spreadsheets a batch's materials were imported from, listed by the BOM above.
+         *
+         * The download is open to the business, like the BOM itself - "which revision is this steel
+         * off" is asked by whoever is buying it. The delete is not: it takes a whole upload and every
+         * material row that came out of it off the job, so it is the project's manager or whoever
+         * uploaded for them, and it is refused once that steel is on a batch. See the controller.
+         */
+        Route::get('material-list-files/{materialListFile}/download', DownloadMaterialListFileController::class)
+            ->name('material.list.file.download');
+        Route::delete('material-list-files/{materialListFile}', [MaterialListFileController::class, 'destroy'])
+            ->name('material.list.file.destroy');
 
         /*
          * What to buy for a batch, a block per supplier group - the Nesting page's "Order list" modal.

@@ -9,6 +9,7 @@ use App\Http\Requests\StoreProjectRequest;
 use App\Http\Requests\UpdateProjectRequest;
 use App\Http\Resources\ArchivedProjectResource;
 use App\Http\Resources\ProjectResource;
+use App\Models\MaterialListFile;
 use App\Models\Project;
 use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\CsvService;
@@ -233,19 +234,33 @@ class ProjectController extends Controller
 
         foreach($read['tables'] as $index => $detectedTables){
             /*
+             * The spreadsheet itself, kept, with every row it is about to produce pointing back at
+             * it - so the Nesting page's BOM can list the uploads behind a batch and take a whole
+             * one off again. Only for the files something was actually read out of; see
+             * ProductController::store, which records one for the same reason at the same point.
+             *
+             * Outside the transaction below: it writes to the disk as well as the database, and a
+             * rolled-back row would leave the file behind it orphaned.
+             */
+            $materialListFile = MaterialListFile::record($files[$index], $project, $user);
+
+            /*
              * A transaction per file. Individual unusable rows are already reported
              * without stopping the file; this is for everything else, so a file that
              * fails part way leaves nothing behind rather than half a BOM the user
              * cannot tell apart from a whole one.
              */
             try {
-                DB::transaction(function () use ($csvService, $detectedTables, $project) {
-                    $csvService->processTemplate($detectedTables, $project);
+                DB::transaction(function () use ($csvService, $detectedTables, $project, $materialListFile) {
+                    $csvService->processTemplate($detectedTables, $project, $materialListFile);
                 });
             }
             //Users to get nice error message, admin to throw error.
             catch (\Throwable $e) {
                 report($e);
+
+                //Nothing came of it, so nothing is listed as having come of it
+                $materialListFile->deleteWithRows($user->business);
 
                 if ($user->isAdmin()) {
                     throw $e;
@@ -262,6 +277,15 @@ class ProjectController extends Controller
          * and the user is handed an empty BOM with no explanation.
          */
         if ($project->rawMaterialQuotes()->count() === 0) {
+            /*
+             * Any copy kept of the uploads, before the project goes. The rows cascade off the project
+             * and the files on disk do not, so this is the one place an orphan could be left - there
+             * are no materials pointing at them, so there is nothing to refuse over.
+             */
+            foreach ($project->materialListFiles()->get() as $materialListFile) {
+                $materialListFile->deleteWithRows($user->business);
+            }
+
             //Discard the empty shell so the user can retry with the same name
             $project->delete();
 

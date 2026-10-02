@@ -2,19 +2,29 @@
     /**
      * The bill of materials for a whole batch - every project on it, in one table.
      *
-     * Read-only on purpose, and so not a second BomEditModal: that modal is where a material list is
-     * uploaded, clarified, customised and deleted from, and every one of those is a per-project job
-     * that only the project's owner may do. This answers a different question - what steel is on this
-     * batch - which is why it has a Project column and no buttons.
+     * The table is read-only on purpose, and so this is not a second BomEditModal: that modal is
+     * where a material list is uploaded, clarified, customised and deleted a row at a time, and every
+     * one of those is a per-project job that only the project's owner may do. This answers a
+     * different question - what steel is on this batch - which is why it has a Project column.
+     *
+     * The one thing it does change is the uploads behind that steel, and for the reason the row-level
+     * editing stays where it is: taking a wrong revision off the open batch means recognising one
+     * spreadsheet's rows by eye in a table carrying several projects', which is not a thing anybody
+     * should be asked to do. Removing the file is one decision about one upload, and the server
+     * refuses it the moment that steel is on a batch or has been quoted - see
+     * MaterialListFile::isDeletable.
      */
     //General Imports
-    import {computed} from "vue";
+    import {computed, ref} from "vue";
+    import {router, usePage} from "@inertiajs/vue3";
 
     //Component Imports
     import Modal from "@/Layouts/Modal.vue";
+    import ConfirmModal from "@/Components/Modals/ConfirmModal.vue";
 
     //Shared methods
     import shared from "@/Shared/shared.js";
+    import useConfirm from "@/Shared/useConfirm.js";
 
     //Props
     const props = defineProps({
@@ -29,9 +39,28 @@
         loadFailed: Boolean,
     });
 
+    //Variables
+    //Asks the page to fetch the batch again - the table, the file list and the card's cut count
+    const emit = defineEmits(['closeModal', 'refresh']);
+    //Which file's delete is in flight, so only that row's button says so
+    const deletingId = ref(null);
+
+    //Shared methods
+    const {confirmDialog, askToConfirm, confirmDialogAccepted, confirmDialogCancelled} = useConfirm();
+
     //Derived state
     const rows = computed(() => props.bom?.rows ?? []);
     const loading = computed(() => !props.bom && !props.loadFailed);
+    const files = computed(() => props.bom?.files ?? []);
+    //Rows no file accounts for: imported before uploads were kept, or from an example list
+    const rowsWithoutFile = computed(() => props.bom?.rowsWithoutFile ?? 0);
+
+    /*
+     * The server's refusal, where it refused. It answers back() with an error rather than a 403
+     * because the button is drawn from the same three rules - a mismatch between them is a thing the
+     * person pressing it should be told about, not a thing the browser should swallow.
+     */
+    const deleteError = computed(() => usePage().props.errors?.materialListFile);
 
     //Methods
     /*
@@ -62,6 +91,75 @@
     function productLabel(row){
         return row.product_label ?? "no matching product yet";
     }
+
+    /*
+     * The file list's own three.
+     */
+    function readableSize(bytes){
+        if(!bytes){
+            return '';
+        }
+
+        return bytes < 1024 * 1024
+            ? Math.max(1, Math.round(bytes / 1024)) + ' KB'
+            : (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function rowLabel(file){
+        return file.rowCount.toLocaleString() + (file.rowCount === 1 ? ' material' : ' materials');
+    }
+
+    //The day it was uploaded, not the hour: this is a list of revisions, not an audit log
+    function uploadedLabel(file){
+        const parts = [];
+
+        if(file.uploadedBy){
+            parts.push(shared.capitalizeWords(file.uploadedBy));
+        }
+
+        if(file.uploadedAt){
+            parts.push(new Date(file.uploadedAt).toLocaleDateString(undefined, {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+            }));
+        }
+
+        return parts.join(' · ');
+    }
+
+    //A new tab rather than a fetch: this is a streamed download off the private disk
+    function downloadFile(file){
+        window.open(route('material.list.file.download', file.id), '_blank');
+    }
+
+    /**
+     * Take the upload, and everything that came out of it, off the job.
+     *
+     * Confirmed first and with the count in the question, because this is the one button on an
+     * otherwise read-only screen and what it removes is not the file - it is that many lengths of
+     * steel off the batch. The server refuses it again on its own terms; see the controller.
+     */
+    function removeFile(file){
+        askToConfirm({
+            title: 'Remove ' + file.filename + '?',
+            message: 'This takes the file and the ' + rowLabel(file) + ' it imported off '
+                + file.project + '. Nothing of it stays on the batch.',
+            note: 'You can upload the file again afterwards.',
+            confirmLabel: 'Remove file',
+            tone: 'danger',
+            onConfirmed: () => {
+                deletingId.value = file.id;
+
+                router.delete(route('material.list.file.destroy', file.id), {
+                    preserveScroll: true,
+                    //The table, the file list and the card's cut count all move together
+                    onSuccess: () => emit('refresh'),
+                    onFinish: () => deletingId.value = null,
+                });
+            },
+        });
+    }
 </script>
 
 <template>
@@ -88,7 +186,116 @@
                 We could not load this batch's material list. Close this and try again.
             </p>
 
-            <p v-else-if="rows.length === 0" class="py-16 text-center text-gray-600">
+            <!--
+                Everything the fetch brought back, in one branch: the files and the table are two
+                halves of the same answer, and each has its own empty state inside here.
+            -->
+            <template v-else>
+
+            <!--
+                The uploads behind the table below.
+                Above it rather than under it, because this is the half somebody can act on, and a
+                row of buttons found by scrolling past two hundred lengths of steel is a row of
+                buttons nobody finds. Drawn whenever the fetch landed - a batch with files and no
+                materials left is exactly the state a half-finished delete leaves behind, and it
+                should be visible.
+            -->
+            <section v-if="files.length > 0" class="mt-5">
+                <h4 class="text-xs font-semibold tracking-wide text-gray-500 uppercase">
+                    Uploaded files
+                </h4>
+
+                <ul class="mt-2 space-y-1.5">
+                    <li
+                        v-for="file in files"
+                        :key="file.id"
+                        class="p-2 bg-white border border-gray-200 rounded-lg"
+                    >
+                        <div class="flex items-center gap-2">
+                            <i class="flex-none text-gray-400 fa-regular fa-file-excel"></i>
+
+                            <!--
+                                The name, and under it which job it was uploaded against - a batch
+                                carries several, and "beams.xlsx" means nothing without that.
+                            -->
+                            <div class="flex-1 min-w-0">
+                                <button
+                                    v-if="file.downloadable"
+                                    type="button"
+                                    @click="downloadFile(file)"
+                                    class="block w-full text-sm text-left text-blue-700 underline truncate hover:text-blue-800"
+                                    :title="'Download ' + file.filename"
+                                >
+                                    {{ file.filename }}
+                                </button>
+                                <!--
+                                    A row can outlive its file: the disk refused it on upload, or was
+                                    cleared out from under it. Still listed, because its materials are
+                                    on the batch and removing them is still the thing to offer.
+                                -->
+                                <span
+                                    v-else
+                                    :title="file.filename + ' is no longer stored, so it cannot be opened'"
+                                    class="block text-sm text-gray-700 truncate"
+                                >
+                                    {{ file.filename }}
+                                </span>
+
+                                <span class="block text-xs text-gray-500 truncate">
+                                    {{ file.project }} · {{ rowLabel(file) }}
+                                    <template v-if="uploadedLabel(file)">
+                                        · {{ uploadedLabel(file) }}
+                                    </template>
+                                    <template v-if="readableSize(file.size_bytes)">
+                                        · {{ readableSize(file.size_bytes) }}
+                                    </template>
+                                </span>
+                            </div>
+
+                            <button
+                                v-if="file.deletable"
+                                type="button"
+                                @click="removeFile(file)"
+                                :disabled="deletingId === file.id"
+                                class="flex-none rounded px-1.5 py-0.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:text-gray-400"
+                                :title="'Remove ' + file.filename + ' and its materials'"
+                            >
+                                {{ deletingId === file.id ? 'Removing...' : 'Remove' }}
+                            </button>
+                        </div>
+
+                        <!--
+                            And when it cannot go, why - in place of the button rather than beside a
+                            disabled one, because "already on order" is the answer to the question
+                            somebody is about to ask and a greyed-out button is not.
+                        -->
+                        <p v-if="!file.deletable" class="mt-1 text-xs italic text-gray-500">
+                            {{ file.undeletableReason }}
+                        </p>
+                    </li>
+                </ul>
+
+                <!--
+                    The table is the whole batch and this list is only what came off a spreadsheet, so
+                    say when the two do not add up. Everything imported before uploads started being
+                    kept is in here, and so are the example lists.
+                -->
+                <p v-if="rowsWithoutFile > 0" class="mt-2 text-xs text-gray-500">
+                    {{ rowsWithoutFile.toLocaleString() }}
+                    {{ rowsWithoutFile === 1 ? 'material was' : 'materials were' }}
+                    imported before uploaded files were kept, so
+                    {{ rowsWithoutFile === 1 ? 'it has' : 'they have' }}
+                    no file here. Remove
+                    {{ rowsWithoutFile === 1 ? 'it' : 'them' }}
+                    from the project's own Bill of Materials.
+                </p>
+
+                <p v-if="deleteError" class="mt-2 text-xs font-medium text-red-600">
+                    {{ deleteError }}
+                </p>
+            </section>
+
+            <p v-if="rows.length === 0" class="py-16 text-center text-gray-600">
                 There are no materials on this batch.
             </p>
 
@@ -155,6 +362,20 @@
                     </table>
                 </div>
             </div>
+
+            </template>
         </div>
+
+        <!-- Teleported out from under this modal - see ConfirmModal -->
+        <ConfirmModal
+            v-if="confirmDialog"
+            :title="confirmDialog.title"
+            :message="confirmDialog.message"
+            :note="confirmDialog.note"
+            :confirmLabel="confirmDialog.confirmLabel"
+            :tone="confirmDialog.tone"
+            @confirm="confirmDialogAccepted()"
+            @cancel="confirmDialogCancelled()"
+        />
     </Modal>
 </template>
