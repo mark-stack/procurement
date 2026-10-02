@@ -8,6 +8,7 @@ use App\Http\Controllers\AdminMaterialIndexController;
 use App\Http\Controllers\AdminMaterialStoreController;
 use App\Http\Controllers\AdminMaterialUpdateController;
 use App\Http\Controllers\AdminNestingAlgorithmController;
+use App\Http\Controllers\AdminNotificationIndexController;
 use App\Http\Controllers\AdminStopImpersonationController;
 use App\Http\Controllers\AdminSupplierIndexController;
 use App\Http\Controllers\AdminSupplierStoreController;
@@ -112,6 +113,16 @@ Route::prefix('admin')->name('admin.')->middleware([AdminMiddleware::class, 'ver
 
     //Users
     Route::get('users', AdminUserIndexController::class)->name('users.index');
+
+    /*
+     * Notifications: every bell entry and every email this application has sent, with the channel on
+     * each row. The users list links here with ?channel=mail&user={id} - "what have we emailed this
+     * person" - and the page's own pills widen it back out.
+     *
+     * Read-only, and there is deliberately no resend here. The one thing worth sending by hand is the
+     * welcome and login link, which has its own button on the users list and its own confirmation.
+     */
+    Route::get('notifications', AdminNotificationIndexController::class)->name('notifications.index');
 
     //POST: this swaps which account the session is authenticated as, so it must not be
     //reachable by a link, a prefetch or a cross-site <img> pointed at a logged-in admin

@@ -3,6 +3,7 @@
 use App\Models\Supplier;
 use App\Models\Template;
 use App\Models\User;
+use App\Notifications\ColleagueJoined;
 use App\Notifications\WelcomeActivatedUserEmail;
 use Illuminate\Support\Facades\Notification;
 
@@ -163,6 +164,33 @@ it('would be a disaster if a non-admin could see every user on the platform', fu
     $this->actingAs($user)
         ->get(route('admin.users.index'))
         ->assertRedirect('/');
+});
+
+it('counts the emails sent to each user, and not the bell entries', function () {
+    /**
+     * The Emails column is the one question about a signup this platform could not answer: the bell
+     * has its own table and mail had no record at all until notification_deliveries. It links to the
+     * log filtered to the mail channel - see AdminNotificationsTest for the screen itself.
+     *
+     * Counted on the user and not the business, because mail is addressed to a person: a business
+     * whose owner has had four emails and whose draftsman has had none is the normal case.
+     */
+    $business = createBusiness('Business A');
+    $admin = createUser(1, $business, true, true);
+    $user = createUser(2, $business, false, true);
+
+    //Two emails to one of them, and a bell entry that must not be counted as a third
+    $user->notify(new WelcomeActivatedUserEmail);
+    $user->notify(new WelcomeActivatedUserEmail);
+    $user->notify(new ColleagueJoined($admin));
+
+    $this->actingAs($admin)
+        ->get(route('admin.users.index'))
+        ->assertInertia(fn ($page) => $page
+            //Newest first, so the second user is row 0 and the admin behind them has had nothing
+            ->where('users.data.0.emails_count', 2)
+            ->where('users.data.1.emails_count', 0)
+        );
 });
 
 it('sends a signed-out admin to the login page and back to the page they asked for', function () {

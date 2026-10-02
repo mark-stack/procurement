@@ -7,6 +7,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Collection;
@@ -85,6 +86,21 @@ class User extends Authenticatable implements MustVerifyEmail
     public function business(): BelongsTo
     {
         return $this->belongsTo(Business::class);
+    }
+
+    /**
+     * Everything this application has sent this user, bell and email alike.
+     *
+     * Separate from notifications() on purpose. That relation is the bell: rows get marked read,
+     * cleared when their project leaves the board, and written only by the database channel. This one
+     * is the delivery log - see App\Models\NotificationDelivery - and is the only record that an
+     * email was ever sent to anybody.
+     *
+     * @return MorphMany<NotificationDelivery, $this>
+     */
+    public function notificationDeliveries(): MorphMany
+    {
+        return $this->morphMany(NotificationDelivery::class, 'notifiable');
     }
 
     //Collections
