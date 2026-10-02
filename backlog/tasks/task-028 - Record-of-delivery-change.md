@@ -1,12 +1,13 @@
 ---
 id: TASK-028
 title: Record of delivery change
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-01 22:20'
+updated_date: '2026-10-02 07:39'
 labels: []
 dependencies: []
-ordinal: 6500
+ordinal: 23000
 ---
 
 ## Description
