@@ -60,8 +60,22 @@
     const onlyMine = ref(true);
 
     //Computed
+    /*
+     * The open batch, which the server always sends and always sends first - see
+     * NestingIndexController. The one card on this page that is not a batch row.
+     */
+    const openBatch = computed(() => props.batches.find(batch => batch.id === null) ?? null);
+
+    /*
+     * The switch never hides the open batch.
+     *
+     * It is the only batch an upload can join, and the "+ Materials" button above the list puts work
+     * on it - a switch that took it off the page would be hiding the card somebody is about to use,
+     * and hiding it exactly when they have nothing on it yet. Everything else on the page is a closed
+     * batch, which the switch is for: those are a colleague's work or they are yours.
+     */
     const visibleBatches = computed(() => onlyMine.value
-        ? props.batches.filter(batch => batch.mine)
+        ? props.batches.filter(batch => batch.mine || batch.id === null)
         : props.batches);
 
     /*
@@ -69,6 +83,14 @@
      * Named for what the user would see, which is why it counts against the whole list.
      */
     const hiddenCount = computed(() => props.batches.length - visibleBatches.value.length);
+
+    /*
+     * The page with nothing on it at all: the open batch, nothing waiting on it, and no live batch
+     * behind it. Not an empty page - there is a card - so it is said as what the card is waiting for.
+     */
+    const nothingAnywhere = computed(() => props.batches.length === 1
+        && openBatch.value !== null
+        && openBatch.value.projects.length === 0);
 
     //BOM modal
     const showBomModal = ref(false);
@@ -92,6 +114,12 @@
     const newProjectBomData = ref(null);
     const projectAfterUpload = ref(null);
     const refreshNewProject = ref(false);
+    /*
+     * The project that same modal is editing, or null when it is being used to add one. It is the
+     * board's own switch between the two (ProjectsBoard::editMode), so the two pages open the same
+     * form on the same project - see editProjectMode().
+     */
+    const editProject = ref(null);
 
     //Methods
     /*
@@ -103,6 +131,18 @@
         return batch.id ?? batch.stage;
     }
 
+    /*
+     * Whether this card has nothing on it to read.
+     *
+     * Only ever the open batch, which is drawn whether or not anything is waiting on it. All three of
+     * its buttons answer for material - the list, the stock to buy, the nest - so with none waiting
+     * there is nothing behind any of them, and they are greyed rather than left to open an empty
+     * table. A closed batch is deliberately not tested: every one of them was nested out of projects.
+     */
+    function isEmptyOpenBatch(batch) {
+        return batch.id === null && batch.projects.length === 0;
+    }
+
     /**
      * Which of the two labels the list is split by belongs above this card, if either.
      *
@@ -112,9 +152,9 @@
      * "+ Materials" belongs to the page and not to any card (see addProject()). Two cards that look
      * alike are not where somebody would expect to find that out.
      *
-     * Each label is drawn only when the half below it has a card, because the "Only my batches" switch
-     * hides whole halves: an "open batch" heading over nothing but closed batches would be labelling
-     * them as something they are not.
+     * The "open batch" label is always drawn, the card below it being always drawn. The closed one is
+     * drawn only when a closed batch follows it: the switch can hide every one of them, and that
+     * heading over nothing would be labelling the end of the page as something it is not.
      */
     function dividerAbove(index) {
         //The pending card, which the server always sends first - the one batch still taking material
@@ -140,9 +180,12 @@
     }
 
     function efficiencyLoading(batch) {
-        return batch.stage === 'NESTING'
-            ? pendingUsage.value === null
-            : batchEfficiency.value === null;
+        if (batch.stage === 'NESTING') {
+            //Nothing waiting, so no figure was asked for and none is coming - see onMounted()
+            return !isEmptyOpenBatch(batch) && pendingUsage.value === null;
+        }
+
+        return batchEfficiency.value === null;
     }
 
     /**
@@ -190,7 +233,7 @@
      * quietly inside it is a card you would scroll past looking for that job. Several names make a long
      * heading, so it truncates and the whole of it is on hover.
      *
-     * A batch with none of yours on it - which only the "Only my batches" switch can show you - is
+     * A batch with none of yours on it - which only the "Only my projects" switch can show you - is
      * headed by the oldest job on it instead, named with its manager. Every card then says what the
      * work is rather than what number it was given.
      *
@@ -459,6 +502,28 @@
     function addProject() {
         newProjectBomData.value = null;
         projectAfterUpload.value = null;
+        //Adding, not editing - the modal is the same component in both states
+        editProject.value = null;
+        showNewProjectModal.value = true;
+    }
+
+    /**
+     * Rename a job, or move the date its fabrication begins - the board's edit modal, opened here.
+     *
+     * The same component and the same PUT to projects.update, because it is the same job: a second
+     * rename form is a second place for the name rules to be half-applied. The one thing this page
+     * adds is where it is opened from, which is the point of the pencil - the fabrication date is what
+     * decides when this batch stops waiting and buys (see OrderByPill), and until now reading that
+     * date here meant going to the board to change it.
+     *
+     * The card's project is what the modal is handed, which is why those fields are on it - see
+     * NestingIndexController::projectCards(). Saving lands back on this page, so the heading, the
+     * hover list and the "Order by" date all redraw with the new values; there is nothing to reload.
+     */
+    function editProjectMode(project) {
+        newProjectBomData.value = null;
+        projectAfterUpload.value = null;
+        editProject.value = project;
         showNewProjectModal.value = true;
     }
 
@@ -490,8 +555,12 @@
     onMounted(() => {
         downloadEfficiency();
 
-        //Only when there is a card waiting for it - this one runs the nesting algorithm
-        if (props.batches.some(batch => batch.stage === 'NESTING')) {
+        /*
+         * Only when there is something to nest - this one runs the nesting algorithm. The open batch
+         * is on the page whether or not anything is waiting on it, and an empty one has no nest to
+         * ask about.
+         */
+        if (openBatch.value !== null && !isEmptyOpenBatch(openBatch.value)) {
             downloadPendingUsage();
         }
     });
@@ -532,7 +601,7 @@
                                 :class="onlyMine ? 'translate-x-[1.125rem]' : 'translate-x-0.5'"
                             ></span>
                         </span>
-                        Only my batches
+                        Only my projects
                     </button>
 
                     <!--
@@ -585,12 +654,49 @@
                                     The jobs on the batch, not its number - see headedProjects(). The
                                     full heading is on hover, because several of your own projects on
                                     one batch is a heading too long for the card.
+
+                                    A job at a time rather than one run of text, so each of them can
+                                    carry its own pencil. The commas are drawn between them, which is
+                                    what cardTitle() reads as on a card carrying several of yours.
                                 -->
                                 <span
                                     :title="cardTitle(batch)"
-                                    class="block text-sm font-semibold text-gray-800 truncate"
+                                    class="flex items-center min-w-0 text-sm font-semibold text-gray-800"
                                 >
-                                    {{ cardTitle(batch) }}
+                                    <template v-if="headedProjects(batch).length">
+                                        <span
+                                            v-for="(project, projectIndex) in headedProjects(batch)"
+                                            :key="project.id"
+                                            class="flex items-center min-w-0"
+                                        >
+                                            <span v-if="projectIndex > 0" class="mr-1">,</span>
+                                            <span class="truncate">{{ project.name }}</span>
+
+                                            <!--
+                                                Rename it, or move the fabrication date that decides
+                                                when this batch buys - the board's own modal, opened on
+                                                this project. Only on your own work: the server lets
+                                                nobody but the project manager past
+                                                (PrerequisiteConditions::editProject), so a pencil on a
+                                                colleague's job could only ever answer 403. Drawn as
+                                                nothing at all rather than greyed, because a card can
+                                                name a dozen jobs and a row of dead pencils is noise.
+                                            -->
+                                            <button
+                                                v-if="project.mine"
+                                                type="button"
+                                                :title="'Edit ' + project.name"
+                                                :aria-label="'Edit ' + project.name"
+                                                @click="editProjectMode(project)"
+                                                class="ml-1.5 shrink-0 text-gray-400 transition-colors duration-150 hover:text-blue-700"
+                                            >
+                                                <i class="fa-solid fa-pencil text-[11px]"></i>
+                                            </button>
+                                        </span>
+                                    </template>
+
+                                    <!-- The open batch, and a batch with no job on it at all -->
+                                    <span v-else class="truncate">{{ cardTitle(batch) }}</span>
                                 </span>
 
                                 <!-- Whose job that is, when it is not yours - see headingManager() -->
@@ -599,6 +705,19 @@
                                     class="block text-xs text-gray-500 truncate"
                                 >
                                     {{ headingManager(batch) }}'s
+                                </span>
+
+                                <!--
+                                    Or, on an open batch with nothing waiting on it, what it is for.
+                                    The card is drawn empty (see NestingIndexController), and a
+                                    heading with nothing under it reads as a card that failed to
+                                    load rather than as a batch waiting to be filled.
+                                -->
+                                <span
+                                    v-if="isEmptyOpenBatch(batch)"
+                                    class="block text-xs text-gray-400"
+                                >
+                                    Nothing waiting yet
                                 </span>
 
                                 <!--
@@ -614,21 +733,41 @@
                                         {{ otherProjectsLabel(batch) }}
                                     </span>
 
-                                    <span class="absolute left-0 z-20 hidden p-2 mt-1 bg-white border border-gray-200 shadow-lg pointer-events-none top-full rounded-lg w-max max-w-xs group-hover:block">
-                                        <span
-                                            v-for="project in otherProjects(batch)"
-                                            :key="project.id"
-                                            class="block text-xs text-gray-700 truncate"
-                                        >
-                                            {{ project.name }}
-                                            <!-- Named like the heading above: yours says so, a colleague's says who -->
-                                            <span class="text-gray-400">
-                                                ·
-                                                {{ project.mine
-                                                    ? 'you'
-                                                    : (project.manager
-                                                        ? shared.capitalizeWords(project.manager)
-                                                        : 'another project manager') }}
+                                    <!--
+                                        Hoverable, not just readable: your own jobs in here carry the
+                                        same pencil the heading does, and on the open batch card this
+                                        list is the only place they are named at all. Padded rather
+                                        than margined off the label, so the pointer crosses into it
+                                        without passing over a gap that would close it.
+                                    -->
+                                    <span class="absolute left-0 z-20 hidden pt-1 top-full w-max max-w-xs group-hover:block">
+                                        <span class="block p-2 bg-white border border-gray-200 shadow-lg rounded-lg">
+                                            <span
+                                                v-for="project in otherProjects(batch)"
+                                                :key="project.id"
+                                                class="flex items-center text-xs text-gray-700"
+                                            >
+                                                <span class="truncate">{{ project.name }}</span>
+                                                <!-- Named like the heading above: yours says so, a colleague's says who -->
+                                                <span class="ml-1 text-gray-400 shrink-0">
+                                                    ·
+                                                    {{ project.mine
+                                                        ? 'you'
+                                                        : (project.manager
+                                                            ? shared.capitalizeWords(project.manager)
+                                                            : 'another project manager') }}
+                                                </span>
+
+                                                <button
+                                                    v-if="project.mine"
+                                                    type="button"
+                                                    :title="'Edit ' + project.name"
+                                                    :aria-label="'Edit ' + project.name"
+                                                    @click="editProjectMode(project)"
+                                                    class="ml-1.5 shrink-0 text-gray-400 transition-colors duration-150 hover:text-blue-700"
+                                                >
+                                                    <i class="fa-solid fa-pencil text-[11px]"></i>
+                                                </button>
                                             </span>
                                         </span>
                                     </span>
@@ -636,21 +775,33 @@
                             </div>
 
                             <!--
-                                How far the batch has actually got - the last step it has passed, not the
-                                column it is sitting in. Coloured as the board and the dashboard colour
-                                that step - see StagePill and NestingIndexController::milestoneOf().
-                            -->
-                            <StagePill :stage="batch.stage" class="shrink-0" />
-
-                            <!--
-                                And, on the pending card only, the day it stops being pending. Only that
-                                card has one: the server sends null for every batch that has been nested,
-                                because the deadline it was waiting on is spent. See OrderByPill.
+                                On the pending card only, the day it stops being pending. Only that card
+                                has one: the server sends null for every batch that has been nested,
+                                because the deadline it was waiting on is spent. It stays beside the job
+                                names, being a fact about the work rather than about the batch's progress.
+                                See OrderByPill.
                             -->
                             <OrderByPill :date="batch.orderingTriggerDate" class="shrink-0" />
                         </div>
 
-                        <div class="flex items-center gap-2 shrink-0">
+                        <!--
+                            Wraps rather than squeezes, like the heading beside it: the pill joined this
+                            row and the three buttons have fixed widths, which on a phone is more than
+                            fits on one line. Right-aligned so what wraps stays against the card's edge.
+                        -->
+                        <div class="flex flex-wrap items-center justify-end gap-2">
+                            <!--
+                                How far the batch has actually got - the last step it has passed, not the
+                                column it is sitting in. Coloured as the board and the dashboard colour
+                                that step - see StagePill and NestingIndexController::milestoneOf().
+
+                                At the right-hand end with the buttons rather than after the heading: the
+                                pills then line up down the page, which is how a column of cards is read
+                                for "where is everything up to" - against a heading they started at a
+                                different place on every card.
+                            -->
+                            <StagePill :stage="batch.stage" class="mr-1 shrink-0" />
+
                             <!--
                                 Everything on the batch, read-only and across all of its projects.
                                 CardButtonYellow is itself the button, so the click goes straight on it.
@@ -658,7 +809,10 @@
                             <CardButtonYellow
                                 label="BOM"
                                 :sublabel="cutLabel(batch)"
-                                title="The material list for every project on this batch"
+                                :disabled="isEmptyOpenBatch(batch)"
+                                :title="isEmptyOpenBatch(batch)
+                                    ? 'Nothing is waiting on the open batch yet'
+                                    : 'The material list for every project on this batch'"
                                 class="w-28"
                                 @click="showBom(batch)"
                             />
@@ -667,7 +821,10 @@
                             <CardButtonYellow
                                 label="Order list"
                                 :sublabel="categoryLabel(batch)"
-                                title="The stock lengths this batch's nest needs, by supplier group"
+                                :disabled="isEmptyOpenBatch(batch)"
+                                :title="isEmptyOpenBatch(batch)
+                                    ? 'Nothing is waiting on the open batch yet'
+                                    : 'The stock lengths this batch\'s nest needs, by supplier group'"
                                 class="w-32"
                                 @click="showOrderList(batch)"
                             />
@@ -679,6 +836,7 @@
                                 nothing at all for a batch nested before the nest was saved against it.
                             -->
                             <Link
+                                v-if="!isEmptyOpenBatch(batch)"
                                 :href="nestingHref(batch)"
                                 class="w-28"
                                 @click="loadingBatchId = cardKey(batch)"
@@ -689,34 +847,53 @@
                                     :highlight="false"
                                 />
                             </Link>
+
+                            <!--
+                                And with nothing waiting, the same button with nowhere to go: the
+                                nesting screen would open on an empty nest. Not dropped from the row,
+                                which would leave the open batch's card a different shape from every
+                                other one on the page.
+                            -->
+                            <div v-else class="w-28">
+                                <CardButtonBlue
+                                    label="Nest"
+                                    :highlight="false"
+                                    disabled
+                                    title="Nothing is waiting on the open batch yet"
+                                />
+                            </div>
                         </div>
                     </div>
                 </template>
 
                 <!--
-                    Nothing live, which is also what a shop that has finished everything looks like -
-                    those batches are on /past-projects, so the message points there rather than
-                    claiming the business has never nested anything.
+                    Nothing live and nothing waiting, which is also what a shop that has finished
+                    everything looks like - those batches are on /past-projects, so the message points
+                    there rather than claiming the business has never nested anything. It reads under
+                    the empty open batch card, which is what it is explaining.
                 -->
                 <p
-                    v-if="batches.length === 0"
+                    v-if="nothingAnywhere"
                     class="px-4 py-6 text-sm text-center text-gray-500 bg-white border border-gray-200 border-dashed rounded-xl"
                 >
-                    Nothing to nest. Upload a material list, and what it is waiting on appears here -
-                    batches already delivered are under
+                    Nothing to nest yet. Upload a material list with "+ Materials" and it lands on the
+                    open batch above - batches already delivered are under
                     <Link :href="route('past.projects.index')" class="font-semibold text-blue-700 underline hover:text-blue-900">
                         Past projects
                     </Link>.
                 </p>
 
                 <!--
-                    Or: the business has batches and none of them are yours. Said apart from the message
-                    above, because the page is not empty - the switch is holding the rest back, and
-                    saying "nothing to nest" to somebody whose colleagues have a dozen jobs on would be
-                    a lie. It offers the way out rather than leaving the switch to be found.
+                    Or: the business has live batches and none of them are yours. Said apart from the
+                    message above, because the page is not empty - the switch is holding the rest back,
+                    and saying "nothing to nest" to somebody whose colleagues have a dozen jobs on would
+                    be a lie. It offers the way out rather than leaving the switch to be found.
+
+                    One card visible means the open batch and nothing else, that card never being
+                    filtered - so this is the switch having hidden every closed batch there is.
                 -->
                 <div
-                    v-else-if="visibleBatches.length === 0"
+                    v-else-if="onlyMine && visibleBatches.length === 1 && hiddenCount > 0"
                     class="px-4 py-6 text-sm text-center text-gray-500 bg-white border border-gray-200 border-dashed rounded-xl"
                 >
                     <p>
@@ -736,10 +913,12 @@
             <!--
                 And when the switch is hiding some but not all of them, it says so under the list: a
                 page that quietly drops a colleague's batch is how two people end up buying the same
-                steel. Nothing to say when the switch is off, or when it happens to be hiding nothing.
+                steel. Nothing to say when the switch is off, or when it happens to be hiding nothing -
+                and nothing here when it has hidden every closed batch, which the box above says at
+                more length.
             -->
             <p
-                v-if="onlyMine && hiddenCount > 0 && visibleBatches.length > 0"
+                v-if="onlyMine && hiddenCount > 0 && visibleBatches.length > 1"
                 class="mt-3 text-xs text-center text-gray-500"
             >
                 {{ hiddenCount }} {{ hiddenCount === 1 ? 'other batch' : 'other batches' }} in the business
@@ -780,6 +959,7 @@
         v-show="showNewProjectModal"
         :show="showNewProjectModal"
         width="550"
+        :editProject="editProject"
         :bomData="newProjectBomData"
         :refreshNewProject="refreshNewProject"
         :projectAfterUpload="projectAfterUpload"

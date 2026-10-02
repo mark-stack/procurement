@@ -79,6 +79,11 @@ function categoriesOf(Project $project): int
  * Mirrors NestingIndexController::projectCards(), because the assertions below compare a whole card -
  * the heading is the projects on the batch now, not its number, so the names and the ownership are the
  * card rather than a detail of it.
+ *
+ * The last four are what the pencil beside the name opens the board's edit modal on. Nothing draws
+ * them, so they are asserted here rather than nowhere: a card that stopped carrying them would draw
+ * the pencil exactly as it does now and open a form with the project's dates blank, offering to clear
+ * them.
  */
 function projectCard(Project $project, User $user): array
 {
@@ -87,6 +92,13 @@ function projectCard(Project $project, User $user): array
         'name' => $project->name,
         'manager' => $project->user->name,
         'mine' => $project->user_id === $user->id,
+        'reference' => $project->reference,
+        'date_materials_required' => $project->date_materials_required,
+        //Trimmed to the date part, the way the controller trims it - see projectCards()
+        'date_fabrication_begins' => $project->date_fabrication_begins
+            ? substr((string) $project->date_fabrication_begins, 0, 10)
+            : null,
+        'tentative' => $project->tentative,
     ];
 }
 
@@ -153,14 +165,16 @@ it('names the last step each batch has passed, down the three columns of live ba
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('NestingIndex')
-            ->has('batches', 2)
+            ->has('batches', 3)
+            //The open batch heads the page with nothing waiting on it - see the test below
+            ->where('batches.0', ['id' => null, 'stage' => 'NESTING', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false])
             /*
-             * Nothing to order by on any of them: a nested batch has spent the deadline it was waiting
-             * on. And none of them is "mine" - a batch with no project on it carries nobody's work,
-             * whoever created the row.
+             * Nothing to order by on either of the live ones: a nested batch has spent the deadline it
+             * was waiting on. And neither is "mine" - a batch with no project on it carries nobody's
+             * work, whoever created the row.
              */
-            ->where('batches.0', ['id' => $quoting->id, 'stage' => 'QUOTED', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false])
-            ->where('batches.1', ['id' => $delivering->id, 'stage' => 'ORDERED', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false])
+            ->where('batches.1', ['id' => $quoting->id, 'stage' => 'QUOTED', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false])
+            ->where('batches.2', ['id' => $delivering->id, 'stage' => 'ORDERED', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false])
         );
 });
 
@@ -196,12 +210,13 @@ it('says Delivered when the steel has turned up, not when the last order went ou
     $this->get(route('nesting.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->has('batches', 2)
+            //The open batch, which is always the first of them, and these two
+            ->has('batches', 3)
             //Latest first within the column, which is the batch created second
-            ->where('batches.0.id', $partlyArrived->id)
-            ->where('batches.0.stage', 'ORDERED')
-            ->where('batches.1.id', $arrived->id)
-            ->where('batches.1.stage', 'DELIVERED')
+            ->where('batches.1.id', $partlyArrived->id)
+            ->where('batches.1.stage', 'ORDERED')
+            ->where('batches.2.id', $arrived->id)
+            ->where('batches.2.stage', 'DELIVERED')
         );
 });
 
@@ -210,7 +225,7 @@ it('leaves a finished batch to /past-projects, however much of it is mine', func
      * There is nothing on a delivered batch left to nest or to buy, which is every button a card
      * carries, and that list only grows - it would bury the handful of batches somebody opened this page
      * to work on. Asserted with the batch carrying this user's own project, because that is the one a
-     * card would be most tempted to draw: it passes the "Only my batches" test and still has no business
+     * card would be most tempted to draw: it passes the "Only my projects" test and still has no business
      * here.
      */
     test()->actingAs(createUser(1, createBusiness('admin'), true, true));
@@ -228,8 +243,15 @@ it('leaves a finished batch to /past-projects, however much of it is mine', func
     $this->withoutExceptionHandling();
     $this->get(route('nesting.index'))
         ->assertOk()
-        //Not even a pending card: the project's material is on that batch, so none of it is waiting
-        ->assertInertia(fn (Assert $page) => $page->has('batches', 0));
+        ->assertInertia(fn (Assert $page) => $page
+            /*
+             * Nothing but the open batch, and nothing on that either: the project's material is on
+             * the finished batch, so none of it is waiting.
+             */
+            ->has('batches', 1)
+            ->where('batches.0.id', null)
+            ->where('batches.0.projects', [])
+        );
 });
 
 it('calls a batch Ordered off the material rows, not off the order being sent', function () {
@@ -262,8 +284,9 @@ it('calls a batch Ordered off the material rows, not off the order being sent', 
     $this->get(route('nesting.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->has('batches', 1)
-            ->where('batches.0', ['id' => $batch->id, 'stage' => 'ORDERED', 'orderingTriggerDate' => null, 'projects' => [projectCard($project, $user)], 'cutCount' => cutsOf($project), 'categoryCount' => categoriesOf($project), 'mine' => true])
+            //The open batch, with nothing waiting on it, and this one
+            ->has('batches', 2)
+            ->where('batches.1', ['id' => $batch->id, 'stage' => 'ORDERED', 'orderingTriggerDate' => null, 'projects' => [projectCard($project, $user)], 'cutCount' => cutsOf($project), 'categoryCount' => categoriesOf($project), 'mine' => true])
         );
 });
 
@@ -326,7 +349,16 @@ it('tells the pending card the day it stops being pending', function () {
         );
 });
 
-it('offers no pending card when there is nothing waiting to be nested', function () {
+it('cards the open batch with nothing waiting on it, rather than leaving it off the page', function () {
+    /*
+     * The open batch is the only one an upload can join, and the page's "+ Materials" button puts work
+     * on it - so it is the card somebody comes here to use, and the card they look at afterwards for
+     * what they just uploaded. Left off until something is waiting, it is missing exactly then: on a
+     * first upload, and for anybody whose colleagues' jobs have all been nested already.
+     *
+     * Empty, and empty the whole way down - the page greys its three buttons off this, there being no
+     * material list, no stock to buy and no nest behind an open batch with nothing on it.
+     */
     $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
@@ -338,7 +370,10 @@ it('offers no pending card when there is nothing waiting to be nested', function
     $this->withoutExceptionHandling();
     $this->get(route('nesting.index'))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->has('batches', 0));
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('batches', 1)
+            ->where('batches.0', ['id' => null, 'stage' => 'NESTING', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false])
+        );
 });
 
 it('lists a colleague\'s batches too, the way the board\'s columns do', function () {
@@ -355,16 +390,17 @@ it('lists a colleague\'s batches too, the way the board\'s columns do', function
     $this->get(route('nesting.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->has('batches', 2)
+            //The open batch, then both of theirs and mine
+            ->has('batches', 3)
             //Latest first within the column, which is the newer id
-            ->where('batches.0.id', $theirs->id)
-            ->where('batches.1.id', $mine->id)
+            ->where('batches.1.id', $theirs->id)
+            ->where('batches.2.id', $mine->id)
         );
 });
 
 it('calls a batch mine when it carries my project, whoever pressed the button', function () {
     /*
-     * What the "Only my batches" switch filters on. A batch is several jobs bought as one, and whoever
+     * What the "Only my projects" switch filters on. A batch is several jobs bought as one, and whoever
      * pressed "Start quoting" swept in everything that was waiting - colleagues' jobs included - so the
      * batch row's own user_id says nothing about whose work is on it. The test is the project manager of
      * a project on the batch, which is the same line the board draws when it floats your cards up a
@@ -393,13 +429,14 @@ it('calls a batch mine when it carries my project, whoever pressed the button', 
     $this->get(route('nesting.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            //Nothing left unbatched, so there is no pending card above these two
-            ->has('batches', 2)
+            //Nothing left unbatched, so the open card above these two is an empty one
+            ->has('batches', 3)
+            ->where('batches.0.projects', [])
             //Latest first within the column, which is the batch created second
-            ->where('batches.0.id', $myBatch->id)
-            ->where('batches.0.mine', false)
-            ->where('batches.1.id', $theirBatch->id)
-            ->where('batches.1.mine', true)
+            ->where('batches.1.id', $myBatch->id)
+            ->where('batches.1.mine', false)
+            ->where('batches.2.id', $theirBatch->id)
+            ->where('batches.2.mine', true)
         );
 });
 
@@ -474,14 +511,55 @@ it('says whose each job on a card is, so the heading can name a colleague\'s', f
     $this->get(route('nesting.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->has('batches', 1)
-            ->where('batches.0.projects', [
-                //The colleague's, created first, named with the manager the card would print
-                ['id' => $theirs->id, 'name' => 'Mezzanine', 'manager' => $colleague->name, 'mine' => false],
-                ['id' => $mine->id, 'name' => 'Warehouse frame', 'manager' => $user->name, 'mine' => true],
+            //The empty open batch, and the one both jobs were nested onto
+            ->has('batches', 2)
+            ->where('batches.1.projects', [
+                /*
+                 * The colleague's, created first, named with the manager the card would print - and
+                 * the whole card, the edit modal's four fields included, since this is the one
+                 * assertion that spells a project card out in full. The dates are null because
+                 * nestingPageProject() sets none; the reference and the tentative flag come off
+                 * createProject().
+                 */
+                ['id' => $theirs->id, 'name' => 'Mezzanine', 'manager' => $colleague->name, 'mine' => false, 'reference' => $theirs->reference, 'date_materials_required' => null, 'date_fabrication_begins' => null, 'tentative' => $theirs->tentative],
+                ['id' => $mine->id, 'name' => 'Warehouse frame', 'manager' => $user->name, 'mine' => true, 'reference' => $mine->reference, 'date_materials_required' => null, 'date_fabrication_begins' => null, 'tentative' => $mine->tentative],
             ])
             //A colleague nested it, and it is still mine: my job is on it
-            ->where('batches.0.mine', true)
+            ->where('batches.1.mine', true)
+        );
+});
+
+it('hands each card what the pencil beside a job name opens', function () {
+    /*
+     * The pencil opens the board's edit modal on the card's own project, so the card has to carry what
+     * that form opens on - the name, the reference, the two dates and the tentative flag. Nothing on
+     * the page draws them, which is exactly why they are asserted: they would go missing silently and
+     * the form would open offering to clear the dates it could not read.
+     *
+     * The fabrication date is the one with work in it. The column comes back from MySQL as
+     * "2026-11-02 00:00:00" through a model with no cast, and a date input draws nothing at all for a
+     * value it cannot parse - the same trimming ProjectResource does for the board.
+     */
+    test()->actingAs(createUser(1, createBusiness('admin'), true, true));
+    seedMasterMaterials();
+
+    $business = createBusiness('fabricator');
+    $user = createUser(1, $business, false, true);
+
+    $project = nestingPageProject($user, now()->addDays(20)->toDateString());
+
+    $this->actingAs($user);
+
+    $this->withoutExceptionHandling();
+    $this->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('batches.0.projects.0.id', $project->id)
+            ->where('batches.0.projects.0.reference', $project->reference)
+            ->where('batches.0.projects.0.tentative', $project->tentative)
+            ->where('batches.0.projects.0.date_materials_required', $project->date_materials_required)
+            //The date part alone, which is all a date input can read
+            ->where('batches.0.projects.0.date_fabrication_begins', now()->addDays(20)->toDateString())
         );
 });
 
@@ -818,5 +896,9 @@ it("would be a disaster if another business's batches were listed", function () 
     $this->withoutExceptionHandling();
     $this->get(route('nesting.index'))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->has('batches', 0));
+        //Its own open batch and nothing else - the other business's live batch is not a card here
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('batches', 1)
+            ->where('batches.0.id', null)
+        );
 });

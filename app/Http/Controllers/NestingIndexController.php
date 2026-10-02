@@ -31,7 +31,9 @@ class NestingIndexController extends Controller
      *
      * One card per column of the board, in the order the board runs: the Nesting column first, which is
      * a batch in waiting - everything ready to be nested, which "Start quoting" sweeps into one batch -
-     * then the three columns of live batches.
+     * then the three columns of live batches. That first card is always there, empty or not, because it
+     * is the only batch an upload can join; the page keeps it out of the "Only my projects" filter for
+     * the same reason.
      *
      * Finished batches are deliberately not here. They are nested, bought and delivered: there is
      * nothing left on them to nest or to buy, which is every button a card carries, and the list of them
@@ -44,7 +46,7 @@ class NestingIndexController extends Controller
      * and "done" is the one answer that keeps a batch off the page entirely. What the card's pill says
      * is a step further on; see milestoneOf().
      *
-     * Every one of them is sent whatever the "Only my batches" switch is set to, and each card says
+     * Every one of them is sent whatever the "Only my projects" switch is set to, and each card says
      * whether it is one of yours. The switch is a filter over a list the page already holds, so
      * flicking it costs nothing - and it is one more card per batch, not one more query per flick.
      */
@@ -75,6 +77,8 @@ class NestingIndexController extends Controller
          * The column before a batch exists. No id to print: there is no row until quoting starts, and
          * it carries the one thing a batch in waiting has that a real batch does not - the day it stops
          * waiting, read off the same method the board's card uses.
+         *
+         * Empty is a card too; see below.
          */
         $pendingProjects = $this->pendingBatchProjects($business)->sortBy('id');
 
@@ -86,19 +90,31 @@ class NestingIndexController extends Controller
          */
         $staffNames = $business->users()->pluck('name', 'id');
 
-        if ($pendingProjects->isNotEmpty()) {
-            $batches[] = [
-                'id' => null,
-                'stage' => 'NESTING',
-                'orderingTriggerDate' => (new KanbanFormatter)->orderingTriggerDate($pendingProjects),
-                //What "Start quoting" would sweep in, which is what this card stands for
-                'projects' => $this->projectCards($pendingProjects, $user->id, $staffNames),
-                'cutCount' => $this->pendingCutCount($pendingProjects->pluck('id')->all()),
-                'categoryCount' => $this->pendingCategoryCount($pendingProjects->pluck('id')->all(), $supplierGroups),
-                //Whether any of what is waiting is this user's own work - see projectCards()
-                'mine' => $pendingProjects->contains(fn (Project $project) => $project->user_id === $user->id),
-            ];
-        }
+        /*
+         * Sent whether or not anything is waiting on it, which is the one card on this page that is
+         * always drawn.
+         *
+         * It is the only batch an upload can still join - every other card is locked to further
+         * material lists - so it is where somebody goes to put work on, and where they look for the
+         * work they just put on. A card that appears only once there is something on it is missing
+         * exactly when it is being looked for: on a first upload, and for anybody whose colleagues'
+         * jobs are all already nested. The page's "+ Materials" button fills it, and an empty one says
+         * so on its face (NestingIndex.vue).
+         *
+         * Empty means empty, not zeroed by hand: the helpers below answer 0 for no projects, and the
+         * ordering date is null the way it is for projects with no fabrication date.
+         */
+        $batches[] = [
+            'id' => null,
+            'stage' => 'NESTING',
+            'orderingTriggerDate' => (new KanbanFormatter)->orderingTriggerDate($pendingProjects),
+            //What "Start quoting" would sweep in, which is what this card stands for
+            'projects' => $this->projectCards($pendingProjects, $user->id, $staffNames),
+            'cutCount' => $this->pendingCutCount($pendingProjects->pluck('id')->all()),
+            'categoryCount' => $this->pendingCategoryCount($pendingProjects->pluck('id')->all(), $supplierGroups),
+            //Whether any of what is waiting is this user's own work - see projectCards()
+            'mine' => $pendingProjects->contains(fn (Project $project) => $project->user_id === $user->id),
+        ];
 
         /*
          * Which of the fully ordered batches have had all their steel turn up, for the pill below.
@@ -156,7 +172,16 @@ class NestingIndexController extends Controller
             ->map(fn ($rows) => $rows->pluck('project_id')->all());
 
         $projects = Project::query()
-            ->select(['id', 'name', 'user_id'])
+            //The last four are the edit modal's, not the card's - see projectCards()
+            ->select([
+                'id',
+                'name',
+                'user_id',
+                'reference',
+                'date_materials_required',
+                'date_fabrication_begins',
+                'tentative',
+            ])
             ->whereIn('id', $projectIdsByBatch->flatten()->unique()->all())
             //Oldest first, which is the order the cards name them in
             ->orderBy('id')
@@ -181,7 +206,7 @@ class NestingIndexController extends Controller
             }
 
             /*
-             * The jobs on this batch, which answer both the card's heading and the "Only my batches"
+             * The jobs on this batch, which answer both the card's heading and the "Only my projects"
              * switch - see projectCards() for which of them counts as yours.
              */
             $batchProjects = $projects->whereIn('id', $projectIdsByBatch->get($batch['id'], []));
@@ -229,9 +254,17 @@ class NestingIndexController extends Controller
      * one place the page needs it is a job that is not yours. Null where the account has since gone,
      * which the card words the way the board's card does rather than leaving a blank.
      *
+     * The last four fields are not drawn anywhere. They are what the board's edit modal opens on - the
+     * page reuses that component rather than growing a second rename form, and it edits the project
+     * the card hands it (see NestingIndex.vue). Deliberately not ProjectResource, which is how the
+     * board feeds the same modal: that walks the material rows, the manager and the upload
+     * prerequisites of every project it draws, which is the cost this page was written to avoid.
+     * "mine" is the whole of the permission question - PrerequisiteConditions::editProject lets the
+     * project manager and nobody else rename a job - so the pencil is drawn off it.
+     *
      * @param  Collection<int, Project>  $projects
      * @param  Collection<int, string>  $staffNames
-     * @return array<int, array{id: int, name: string, manager: string|null, mine: bool}>
+     * @return array<int, array{id: int, name: string, manager: string|null, mine: bool, reference: string|null, date_materials_required: string|null, date_fabrication_begins: string|null, tentative: bool|null}>
      */
     private function projectCards(Collection $projects, int $userId, Collection $staffNames): array
     {
@@ -241,6 +274,18 @@ class NestingIndexController extends Controller
                 'name' => $project->name,
                 'manager' => $staffNames->get($project->user_id),
                 'mine' => $project->user_id === $userId,
+                'reference' => $project->reference,
+                'date_materials_required' => $project->date_materials_required,
+                /*
+                 * Trimmed to the date part, the way ProjectResource trims it and for the same reason:
+                 * the column comes back as "2026-11-02 00:00:00" through this cast-less model, and a
+                 * date input draws nothing at all for a value it cannot parse - so the modal would
+                 * open empty on a project that has a fabrication date and offer to clear it.
+                 */
+                'date_fabrication_begins' => $project->date_fabrication_begins
+                    ? substr((string) $project->date_fabrication_begins, 0, 10)
+                    : null,
+                'tentative' => $project->tentative,
             ])
             ->values()
             ->all();
@@ -394,12 +439,12 @@ class NestingIndexController extends Controller
     /**
      * What is waiting to be nested - the projects on the board's Nesting column.
      *
-     * Empty means no pending card. The same two calls the board makes, in the same order, because this
-     * card has to appear exactly when that column draws one: a project held at a price book
-     * clarification is excluded from projectsReadyForBatching() even though its matched pieces are
-     * unbatched, so the pieces alone would claim a pending batch the board is not offering. Restating
-     * that test here instead would be a second definition of "ready for nesting" to keep in step with
-     * the first.
+     * Empty means an empty card, not no card - see the card itself above. The same two calls the board
+     * makes, in the same order, because this card has to carry exactly what that column draws: a
+     * project held at a price book clarification is excluded from projectsReadyForBatching() even
+     * though its matched pieces are unbatched, so the pieces alone would put a job on the open batch
+     * that the board is not offering to nest. Restating that test here instead would be a second
+     * definition of "ready for nesting" to keep in step with the first.
      *
      * The projects themselves rather than a yes or no, because the card's "Order by" date is the
      * earliest fabrication date among them - see KanbanFormatter::orderingTriggerDate.
