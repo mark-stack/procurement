@@ -4,9 +4,9 @@ namespace App\Formatters;
 
 use App\Actions\Piece\AttachPiecesToQuote;
 use App\Enums\GoodsReceiptNonconformanceEnums;
-use App\Models\Bar;
 use App\Models\Batch;
 use App\Models\Business;
+use App\Models\MaterialCertificate;
 use App\Models\Order;
 use App\Models\Project;
 use App\Models\Quote;
@@ -185,8 +185,8 @@ class QuoteFormatter
                             'order_id' => $order->id,
                         ],
                         /*
-                         * The goods receipt: what the gate recorded, and - for an order that has been
-                         * placed but not yet booked in - the bars whose heat numbers it can record.
+                         * The goods receipt: what the gate recorded, and the mill certificates that
+                         * came with the load.
                          */
                         'goodsReceipt' => $this->goodsReceiptState($order),
                     ];
@@ -275,12 +275,13 @@ class QuoteFormatter
      * What this order's goods receipt says, and what it still needs.
      *
      * Three states, and the page draws a different thing for each: not sent (nothing to book in), sent
-     * and not received (the form, with this order's bars to put heat numbers against), and received
-     * (the record, read-only - a receipt is not a draft, so there is no edit).
+     * and not received (the form), and received (the record, read-only - a receipt is not a draft, so
+     * there is no edit).
      *
-     * The bars are only read for an order that has been placed and not yet received, which is the only
-     * state the form is drawn in. One supplier group has at most one sent order, so this is at most one
-     * extra query per group rather than one per supplier row.
+     * The certificates go out in every state the modal draws something in, because they are the one
+     * part of a delivery that is not a record of a moment: a merchant who emails the mill certs the
+     * morning after the truck came is normal, so the screen that books the steel in is also the screen
+     * that takes them whenever they turn up.
      *
      * @return array<string, mixed>
      */
@@ -300,7 +301,24 @@ class QuoteFormatter
              * and the page says so rather than drawing an empty receipt.
              */
             'deliveredWithoutReceipt' => $order->is_delivered && ! $received,
-            'bars' => [],
+            /*
+             * Whatever the merchant sent. The same rows the certs cell shows, because they are the same
+             * certificates - attaching one here and attaching one there is one action, and a delivery
+             * with the paperwork recorded twice in two places is a delivery nobody trusts either copy of.
+             *
+             * canAttach rather than canReceive: the files may still arrive after the receipt is written,
+             * and they cannot be taken back off once the order is placed (MaterialCertificate
+             * ::isDeletable), which is why this screen offers no Remove.
+             */
+            'canAttach' => $order->order_sent,
+            'certificates' => $order->materialCertificates
+                ->map(fn (MaterialCertificate $certificate) => [
+                    'id' => $certificate->id,
+                    'filename' => $certificate->original_filename,
+                    'size_bytes' => $certificate->size_bytes,
+                ])
+                ->values()
+                ->all(),
         ];
 
         if ($received) {
@@ -313,20 +331,6 @@ class QuoteFormatter
                 'nonconformance' => $order->receiptNonconformance()?->label(),
                 'note' => $order->receipt_note,
             ];
-        }
-
-        if ($state['canReceive']) {
-            $state['bars'] = $order->bars()
-                ->orderBy('id')
-                ->get(['id', 'product_derived_label', 'length', 'heat_number'])
-                ->map(fn (Bar $bar) => [
-                    'id' => $bar->id,
-                    'label' => $bar->product_derived_label,
-                    'length' => $bar->length,
-                    'heat_number' => $bar->heat_number,
-                ])
-                ->values()
-                ->all();
         }
 
         return $state;
