@@ -1,10 +1,15 @@
 <script setup>
+    /**
+     * The upload form, which is one section of the dashboard rather than a page of its own.
+     *
+     * It was Pages/MaterialListUpload.vue until the dashboard grew the two sections above it. Nothing
+     * about the form changed in the move: it still owns both uploads, both sets of limits and the
+     * confirmation of what the last one did, because that state belongs to the form and not to the
+     * page it sits on - see the preserveState notes in submitNewProject().
+     */
     //General Imports
-    import {Head, Link, useForm, usePage} from '@inertiajs/vue3';
+    import {Link, useForm, usePage} from '@inertiajs/vue3';
     import {computed, ref, watch} from 'vue';
-
-    //Component Imports
-    import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 
     //Shared methods
     import shared from '@/Shared/shared.js';
@@ -384,13 +389,11 @@
 </script>
 
 <template>
-    <Head title="Upload a material list"/>
-
-    <AuthenticatedLayout>
-        <div class="w-full max-w-2xl py-8 mx-auto">
-            <h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-100">
+    <section>
+        <div>
+            <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100">
                 Upload a material list
-            </h1>
+            </h2>
             <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
                 Attach the Excel bill of materials and we will extract it. A format we have not seen
                 before is read and saved the first time it arrives.
@@ -819,5 +822,5 @@
                 </form>
             </div>
         </div>
-    </AuthenticatedLayout>
+    </section>
 </template>

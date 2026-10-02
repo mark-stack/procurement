@@ -9,11 +9,11 @@ use Inertia\Testing\AssertableInertia as Assert;
 uses(RefreshDatabase::class);
 
 /**
- * /dashboard, which used to redirect at the projects board and is now the page that takes a
- * material list - either into a new project or into one that has not been nested yet.
+ * The upload half of /dashboard: the form that takes a material list, either into a new project or into
+ * one that has not been nested yet. The summary sections above it are DashboardPageTest's.
  *
  * The two uploads themselves are covered by ProjectUploadTest and the product upload tests; what is
- * asserted here is the one thing this page decides on its own, which is which projects it offers as
+ * asserted here is the one thing this form decides on its own, which is which projects it offers as
  * targets. Offering one the upload gate would refuse is offering a 403.
  */
 function eligibleProjectIds($response): array
@@ -31,7 +31,7 @@ it('renders the upload page rather than redirecting at the board', function () {
         ->get(route('dashboard'))
         ->assertStatus(200)
         ->assertInertia(fn (Assert $page) => $page
-            ->component('MaterialListUpload')
+            ->component('Dashboard')
             ->has('eligibleProjects')
         );
 });

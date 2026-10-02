@@ -146,16 +146,17 @@
 
                 <nav class="items-center hidden gap-1 lg:flex">
                     <!--
-                        First, because it is the first thing anybody does here and it is where
-                        login lands - see DashboardController. The route is still called
-                        "dashboard"; a dozen places point at the name.
+                        First, because it is where login lands - see DashboardController. It was
+                        labelled "Upload Materials" while uploading was all it did; it now carries
+                        what is outstanding and where every job stands as well, and a link that
+                        promises only the form would have people walking past the list of work.
                     -->
                     <Link
                         :href="route('dashboard')"
-                        title="Upload a material list"
+                        title="What needs doing, where your jobs stand, and upload a material list"
                         :class="[barLink, isActive(route('dashboard')) ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white']"
                     >
-                        Upload Materials
+                        Dashboard
                     </Link>
                     <Link
                         :href="route('projects.index')"
@@ -415,8 +416,8 @@
                                 :href="route('dashboard')"
                                 :class="[panelLink, isActive(route('dashboard')) ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-700']"
                             >
-                                <i class="w-4 text-center fa-solid fa-file-arrow-up"></i>
-                                <span>Upload Materials</span>
+                                <i class="w-4 text-center fa-solid fa-gauge-high"></i>
+                                <span>Dashboard</span>
                             </Link>
                             <Link
                                 :href="route('projects.index')"

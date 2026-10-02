@@ -87,7 +87,12 @@ class ProjectController extends Controller
             $piecesReadyForBatching,
         );
 
-        return Inertia::render('Dashboard', [
+        /*
+         * ProjectsBoard, which was called Dashboard until /dashboard became a page in its own right.
+         * The route name is still projects.index and the file is the same board; nothing was renamed
+         * but the component, and that only so the two screens stop sharing a name.
+         */
+        return Inertia::render('ProjectsBoard', [
             /*
              * The staff a new project can be created for, for the board's own new-project modal -
              * the same facility the upload page has, because the person with the spreadsheet is

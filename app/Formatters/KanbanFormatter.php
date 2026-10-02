@@ -5,12 +5,14 @@ namespace App\Formatters;
 use App\Enums\SupplierGroupEnums;
 use App\Http\Resources\ProjectResource;
 use App\Http\Resources\UnfinishedImportResource;
+use App\Models\Batch;
 use App\Models\Business;
 use App\Models\Offcut;
 use App\Models\Project;
 use App\Models\User;
 use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\BatchService;
+use App\Services\BatchStages;
 use App\Services\FabricationDeadlineQuoting;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -88,6 +90,10 @@ class KanbanFormatter
         $batchService = new BatchService;
 
         $quoted = [];
+        /*
+         * hasNoSentOrder() is BatchStages::QUOTING stated as a scope - the two have to keep saying the
+         * same thing, since the dashboard counts this column through BatchStages.
+         */
         $batchesForQuoting = $business->batches()
             ->hasNoSentOrder()
             ->active()
@@ -147,22 +153,18 @@ class KanbanFormatter
         $batchService = new BatchService;
 
         $ordered = [];
-        $batchesForOrdering = [];
-        foreach($business->batches()->active()->get() as $batch){
-            //Less than 100% order coverage
-            $all100Percent = true;
-            foreach($batch->projects() as $project){
-                if($project->percentageOfMaterialsOrdered() !== 100){
-                    $all100Percent = false;
-                }
-            }
-
-            $sentOrdersQty = $batch->orders()->where('order_sent', true)->count();
-            if(($sentOrdersQty > 0) && !$all100Percent){
-                $batchesForOrdering[] = $batch;
-            }
-        }
-        $batchesForOrdering = collect($batchesForOrdering);
+        /*
+         * "At least one order sent, and less than 100% order coverage" - now asked by BatchStages,
+         * which gives the same answer in two bounded queries rather than by loading every project of
+         * every active batch with its material/piece/order tree and counting rows. The Delivering
+         * column below asked the opposite half of the same question the same expensive way, so a
+         * board with batches on it ran that walk twice per render.
+         */
+        $batchesForOrdering = $business->batches()
+            ->active()
+            ->get()
+            ->filter(fn (Batch $batch) => (new BatchStages)->of($batch) === BatchStages::ORDERING)
+            ->values();
 
         //Sort
         $batchesForOrdering = $batchService->sortByUserAndLatest($batchesForOrdering, $business);
@@ -189,21 +191,12 @@ class KanbanFormatter
         $batchService = new BatchService;
 
         $delivered = [];
-        $batchesForDelivering = [];
-        foreach($business->batches()->active()->get() as $batch){
-            //100% order coverage
-            $all100Percent = true;
-            foreach($batch->projects() as $project){
-                if($project->percentageOfMaterialsOrdered() !== 100){
-                    $all100Percent = false;
-                }
-            }
-
-            if($all100Percent){
-                $batchesForDelivering[] = $batch;
-            }
-        }
-        $batchesForDelivering = collect($batchesForDelivering);
+        //100% order coverage - see the note in orderedColumn() above
+        $batchesForDelivering = $business->batches()
+            ->active()
+            ->get()
+            ->filter(fn (Batch $batch) => (new BatchStages)->of($batch) === BatchStages::DELIVERING)
+            ->values();
 
 
         //Sort
