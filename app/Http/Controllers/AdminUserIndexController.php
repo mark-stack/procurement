@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -52,6 +53,18 @@ class AdminUserIndexController extends Controller
                     'templates as templates_total',
                     'suppliers',
                 ]),
+            ])
+            /*
+             * How many emails this user has been sent, which is the one question about a signup that
+             * nothing on this platform could answer: the bell has its own table and mail had no
+             * record at all. withCount, not with(), for the same reason as the business above - the
+             * column renders a number and links to the list.
+             *
+             * The whole count, not the recent ones. "We have emailed them four times and they still
+             * have not verified" is the reading, and it does not survive a window.
+             */
+            ->withCount(['notificationDeliveries as emails_count' => fn (Builder $query) => $query
+                ->where('channel', 'mail'),
             ])
             /*
              * Newest first: this page exists to find new signups. It had no order at all,

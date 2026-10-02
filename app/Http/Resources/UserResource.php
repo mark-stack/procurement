@@ -56,6 +56,16 @@ class UserResource extends JsonResource
             'templates_count' => $business ? (int) $business->templates_count : 0,
             'templates_total' => $business ? (int) $business->templates_total : 0,
             'suppliers_count' => $business ? (int) $business->suppliers_count : 0,
+            /*
+             * On the user and not the business, unlike the two above: mail is addressed to a person.
+             * A business whose owner has had four emails and whose draftsman has had none is the
+             * normal case, and one number across the pair would hide exactly that.
+             *
+             * Never styled as a problem in the template, however low. Unlike templates - where 0
+             * means a customer cannot import - 0 emails is the ordinary state of a signup that has
+             * needed nothing sent to it.
+             */
+            'emails_count' => (int) ($this->emails_count ?? 0),
         ];
     }
 }

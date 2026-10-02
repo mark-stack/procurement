@@ -83,6 +83,7 @@
                                     <th scope="col">Business</th>
                                     <th scope="col">Templates</th>
                                     <th scope="col">Suppliers</th>
+                                    <th scope="col">Emails</th>
                                     <th scope="col">Access</th>
                                     <th scope="col">Created</th>
                                 </tr>
@@ -162,6 +163,27 @@
                                             {{user.suppliers_count}}
                                         </Link>
                                         <span v-else>&mdash;</span>
+                                    </td>
+                                    <td>
+                                        <!--
+                                            Every email this person has been sent. Links to the
+                                            notifications log filtered to the mail channel, where
+                                            the pills widen it to the bell as well.
+
+                                            Not coloured by its value, unlike Templates and
+                                            Suppliers: a user who has needed nothing sent to them
+                                            is not a problem to go and fix, so a red 0 here would
+                                            be an alarm with nothing behind it. It is a link at
+                                            zero all the same - "nothing was sent" is an answer,
+                                            and the page says so where a missing link could not.
+                                        -->
+                                        <Link
+                                            class="underline text-blue-500"
+                                            :href="route('admin.notifications.index',{channel:'mail',user:user.id})"
+                                            :title="`Every email sent to ${user.email}`"
+                                        >
+                                            {{user.emails_count}}
+                                        </Link>
                                     </td>
                                     <td>
                                         <!--
