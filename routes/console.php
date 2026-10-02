@@ -40,6 +40,20 @@ Schedule::job(new HourlyNotificationsJob)->$frequency();
 Schedule::command('quoting:fabrication-deadline')->$frequency();
 
 /*
+ * The far end of the board: a batch whose steel has all been booked in becomes a past project.
+ *
+ * Daily rather than hourly. The window is counted in days, nothing downstream is waiting on it, and
+ * the one thing this does cannot be undone by anything in the app - so the slowest cadence that still
+ * keeps the board tidy is the right one. Not run faster in test mode either, for the reason the sample
+ * prune below is not: a schedule whose job is closing a customer's batch is the wrong one to have
+ * firing every minute on a developer's machine.
+ *
+ * Idempotent: a closed batch is no longer in the Delivering column, so the next run finds nothing. See
+ * App\Services\DeliveredBatchArchiving for the four cases where it leaves a card alone instead.
+ */
+Schedule::command('batches:archive-delivered')->daily();
+
+/*
  * Trial expiry warnings. Idempotent - each business gets each reminder once, recorded in
  * notification_logs - so running it more often only makes the warnings more timely, never
  * duplicated. Hourly in test mode for the same reason the notifications job is.

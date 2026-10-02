@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Batch\MarkAsDone;
 use App\Models\Batch;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
@@ -21,25 +22,13 @@ class MarkAsPastProjectController extends Controller
         Gate::authorize('owned', $batch);
 
         /*
-         * "done" is written here and nowhere else, and nothing in the app sets it back, so the batch
-         * leaves the kanban for good. The two cards only offer "Move to done" once the deliveries are
-         * in, but that is the button's own state - a stale tab or a replayed post reached this with
-         * nothing to stop it.
-         *
-         * Read off the SENT orders rather than the kanban's own
-         * "delivered rows === unique supplier categories" sum: that compares two different units, and
-         * it reads 0 === 0 for a batch nested entirely out of offcuts - which places no order at all
-         * and still has to be closeable.
+         * Through the action, because App\Services\DeliveredBatchArchiving closes batches on this
+         * business's behalf five days after the last delivery and the two routes have to apply the one
+         * guard. False is that guard refusing: the card only offers "Move to done" once the deliveries
+         * are in, but that is the button's own state - a stale tab or a replayed post reaches this with
+         * nothing else to stop it.
          */
-        $hasUndeliveredOrder = $batch->orders()
-            ->where('order_sent', true)
-            ->where('is_delivered', false)
-            ->exists();
-
-        abort_if($hasUndeliveredOrder, 403, 'This batch still has materials out for delivery.');
-
-        $batch->done = true;
-        $batch->save();
+        abort_if(! MarkAsDone::run($batch), 403, 'This batch still has materials out for delivery.');
 
         //The card just disappears off the board otherwise, with nothing to say where it went
         return back()->with(

@@ -8,6 +8,7 @@ use App\Models\Business;
 use App\Models\Project;
 use App\Models\User;
 use App\Services\BatchStages;
+use App\Services\DeliveredBatchArchiving;
 use App\Services\FabricationDeadlineQuoting;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
@@ -508,12 +509,27 @@ class DashboardFormatter
                 continue;
             }
 
+            /*
+             * The one action on this page that may need nobody to do anything: DeliveredBatchArchiving
+             * closes a finished batch five days after its last delivery was booked in. Said here
+             * because a dashboard whose whole job is "what is waiting on somebody" must not imply this
+             * is waiting on them.
+             *
+             * Null where that sweep is holding off - in this branch only a delivery nobody dated, since
+             * outstanding deliveries and missing certs are the two cases above - and then the button
+             * really is the only way off the board.
+             */
+            $closesItself = (new DeliveredBatchArchiving)->archiveDueDate($batch);
+
             $actions[] = $this->batchAction(
                 $batch,
                 $live,
                 'move-to-done',
                 'Everything on this batch is in',
-                'Move it to done and its projects become past projects.',
+                $closesItself
+                    ? 'Move it to done, or leave it - it becomes a past project on '
+                        .$closesItself->format('j M').'.'
+                    : 'Move it to done and its projects become past projects.',
                 'Open the batch',
             );
         }
