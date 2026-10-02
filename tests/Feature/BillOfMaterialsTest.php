@@ -8,6 +8,7 @@ use App\Models\Batch;
 use App\Models\Order;
 use App\Models\Piece;
 use App\Models\Project;
+use App\Models\Quote;
 use App\Models\RawMaterialQuote;
 use App\Models\Supplier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -154,6 +155,95 @@ it('would be a disaster if ordered material could be deleted out from under its 
         ->assertRedirect();
 
     expect(RawMaterialQuote::find($row->id))->not->toBeNull();
+});
+
+it('would be a disaster if deleting a row reached a batch that has already been bought', function () {
+    /*
+     * Deleting material rows tidies up after itself: the pieces, the quotes left holding none, and
+     * then any batch of this business left with no materials on it at all
+     * (Actions/Batch/DeleteBatchesWithoutPieces). That last sweep is over EVERY empty batch the
+     * business has, not only the ones this request emptied - so a batch that was somehow left empty
+     * at some point in the past is swept by whatever row somebody deletes next, months later.
+     *
+     * This is the shape found in a live database: a batch with no pieces, a sent quote, and an order
+     * that has been sent and booked in as delivered. The steel was bought and it arrived. Deleting a
+     * row on an unrelated project tried to delete that batch, and what stopped it was the foreign key
+     * on orders.batch_id - the request died on "Cannot delete or update a parent row", which is a 500
+     * on a modal that was only deleting a BOM line, and it would have died on every subsequent delete
+     * too.
+     *
+     * The record is the thing to protect here. Had the orders been swept out of the way first, the
+     * constraint would not have fired and a delivered purchase would have been deleted silently.
+     */
+    $business = createBusiness('biz1');
+    $user = createUser(1, $business, false, true);
+    $project = createProject($user);
+
+    //The row being deleted: nothing quoted, nothing ordered, on no batch - deletable
+    $row = bomRowWithPiece($project);
+
+    $bought = Batch::factory()->forUser($user->id)->create(['done' => false]);
+    $supplier = Supplier::factory()->create();
+
+    $quote = Quote::create([
+        'user_id' => $user->id,
+        'batch_id' => $bought->id,
+        'supplier_id' => $supplier->id,
+        'supplier_category' => 'STEEL_MERCHANT',
+        'supplier_quote_reference' => null,
+        'quote_sent' => true,
+        'quoted_price' => null,
+        'quoted_lead_time' => null,
+    ]);
+
+    $order = Order::create([
+        'user_id' => $user->id,
+        'batch_id' => $bought->id,
+        'supplier_id' => $supplier->id,
+        'quote_id' => $quote->id,
+        'order_sent' => true,
+        'is_delivered' => true,
+    ]);
+
+    //No pieces on it, which is what brings the sweep looking
+    expect($bought->pieces()->count())->toBe(0);
+
+    $this->actingAs($user)
+        ->post(route('raw.material.quote.bulk.destroy'), [
+            'selectedRawMaterialQuoteIds' => [$row->id],
+        ])
+        ->assertRedirect();
+
+    //The row went, which is what was asked for
+    expect(RawMaterialQuote::find($row->id))->toBeNull();
+
+    //And the purchase is still there, every row of it
+    expect(Batch::find($bought->id))->not->toBeNull();
+    expect(Quote::find($quote->id))->not->toBeNull();
+    expect(Order::find($order->id))->not->toBeNull();
+});
+
+it('still clears away a batch left holding nothing at all', function () {
+    /*
+     * The other side of the test above: a batch with no pieces, no quotes and no orders is a shell
+     * nobody can reach - it draws a card on the board and on /nesting with nothing on it - and
+     * sweeping those is what DeleteBatchesWithoutPieces is for. The guard that saves a bought batch
+     * must not save these too.
+     */
+    $business = createBusiness('biz1');
+    $user = createUser(1, $business, false, true);
+    $project = createProject($user);
+    $row = bomRowWithPiece($project);
+
+    $shell = Batch::factory()->forUser($user->id)->create(['done' => false]);
+
+    $this->actingAs($user)
+        ->post(route('raw.material.quote.bulk.destroy'), [
+            'selectedRawMaterialQuoteIds' => [$row->id],
+        ])
+        ->assertRedirect();
+
+    expect(Batch::find($shell->id))->toBeNull();
 });
 
 it("would be a disaster if another business's rows could be deleted through clarifications", function () {
