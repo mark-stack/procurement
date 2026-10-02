@@ -27,9 +27,8 @@
 
     //Forms
     /*
-     * heat_numbers is keyed by bar id, which is what the controller scopes against the order's own
-     * bars. The three checks start as null rather than false: "nobody has answered" is a real state
-     * and the one every delivery starts in - see Order::receiptAccepted.
+     * The checks start as null rather than false: "nobody has answered" is a real state and the one
+     * every delivery starts in - see Order::receiptAccepted.
      */
     const form = useForm({
         docket_number: null,
@@ -37,15 +36,24 @@
         grade_verified: null,
         nonconformance: null,
         note: null,
-        heat_numbers: {},
+    });
+
+    /*
+     * The certificates post on their own, to their own route. They are rows rather than fields - a
+     * merchant sends however many it sends, and they often follow the truck by a day - so holding them
+     * until the receipt is saved would mean a file picked here and lost when the panel closed.
+     */
+    const formCertificates = useForm({
+        certificates: [],
     });
 
     //Variables
     const emit = defineEmits(['closeModal','refresh']);
+    const fileInput = ref(null);
 
     //Computed
     const receipt = computed(() => props.row?.goodsReceipt ?? null);
-    const bars = computed(() => receipt.value?.bars ?? []);
+    const certificates = computed(() => receipt.value?.certificates ?? []);
 
     const selectedReason = computed(
         () => props.nonconformanceOptions.find(option => option.value === form.nonconformance) ?? null
@@ -64,23 +72,61 @@
             && !!form.nonconformance
     );
 
-    const heatNumbersRecorded = computed(
-        () => bars.value.filter(bar => !!form.heat_numbers[bar.id]).length
-    );
-
     //Methods
     function resetFromRow(){
         form.reset();
         form.clearErrors();
 
-        /*
-         * Seeded from whatever is already on the bars. The form posts every bar whether or not it has
-         * been filled in, and the request drops the blanks - so a second visit shows what was typed
-         * the first time instead of a row of empty boxes that would look like nothing was recorded.
-         */
-        const heatNumbers = {};
-        bars.value.forEach(bar => heatNumbers[bar.id] = bar.heat_number ?? '');
-        form.heat_numbers = heatNumbers;
+        formCertificates.reset();
+        formCertificates.clearErrors();
+    }
+
+    function chooseCertificates(){
+        fileInput.value?.click();
+    }
+
+    /*
+     * Uploaded the moment they are picked, for the reason MaterialCertificatesModal does it: a file
+     * sitting in an unsubmitted input looks attached and is not, and this panel has a Save button of its
+     * own that does something else entirely.
+     */
+    function certificatesPicked(event){
+        const picked = Array.from(event.target.files ?? []);
+
+        if(picked.length === 0){
+            return;
+        }
+
+        formCertificates.certificates = picked;
+
+        formCertificates.post(route('material.certificates.store', receipt.value.order_id), {
+            preserveScroll: true,
+            forceFormData: true,
+            onSuccess: () => {
+                formCertificates.reset();
+                emit('refresh');
+            },
+            //Let the same file be picked again after a failure
+            onFinish: () => {
+                if(fileInput.value){
+                    fileInput.value.value = '';
+                }
+            },
+        });
+    }
+
+    function downloadCertificate(certificate){
+        window.open(route('material.certificates.download', certificate.id), '_blank');
+    }
+
+    function readableSize(bytes){
+        if(!bytes){
+            return '';
+        }
+
+        return bytes < 1024 * 1024
+            ? Math.max(1, Math.round(bytes / 1024)) + ' KB'
+            : (bytes / (1024 * 1024)).toFixed(1) + ' MB';
     }
 
     function answer(field, value){
@@ -115,8 +161,15 @@
     }
 
     //Watchers
-    //A fresh fetch replaces the row object, so the boxes have to be re-seeded from it
-    watch(() => props.row, () => resetFromRow(), {immediate: true});
+    /*
+     * Keyed on the order, not on the row object. Attaching a certificate re-fetches the batch and so
+     * replaces every row object on the board - watching the object itself would empty a half-filled
+     * docket and un-answer both checks the moment somebody attached the PDF they were holding.
+     *
+     * Nothing in this form is seeded from the server anyway: a receipt that has been written is
+     * read-only, and one that has not is blank.
+     */
+    watch(() => props.row?.goodsReceipt?.order_id, () => resetFromRow(), {immediate: true});
     watch(() => props.show, (isOpen) => {
         if(isOpen){
             resetFromRow();
@@ -341,47 +394,6 @@
                     </p>
                 </section>
 
-                <!--
-                    Heat numbers. The one place in the application where a part can be tied to the heat
-                    it was rolled from rather than to a list of certificates it might have come off -
-                    so it belongs on the screen that is open while the docket is in somebody's hand.
-                -->
-                <section v-if="bars.length > 0" class="mt-5">
-                    <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        Heat numbers
-                        <span class="ml-1 font-normal normal-case tracking-normal text-gray-400">
-                            {{ heatNumbersRecorded }} of {{ bars.length }} recorded
-                        </span>
-                    </h4>
-                    <p class="mt-1 text-xs text-gray-500">
-                        Off the mill certificate, one per bar. Optional — without them the trail still
-                        reports which certificates the steel could have come from, which is as far as
-                        it can go. With them, every cut off that bar names its own heat.
-                    </p>
-
-                    <ul class="mt-2.5 space-y-1.5">
-                        <li
-                            v-for="bar in bars"
-                            :key="bar.id"
-                            class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-2"
-                        >
-                            <span class="w-28 flex-none truncate text-sm text-gray-800" :title="bar.label">
-                                {{ bar.label }}
-                            </span>
-                            <span class="w-20 flex-none text-xs tabular-nums text-gray-400">
-                                {{ bar.length }}mm
-                            </span>
-                            <input
-                                v-model="form.heat_numbers[bar.id]"
-                                type="text"
-                                class="min-w-0 flex-1 rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                :placeholder="'Heat / cast number'"
-                                :aria-label="'Heat number for ' + bar.label + ' ' + bar.length + 'mm'"
-                            />
-                        </li>
-                    </ul>
-                </section>
-
                 <p
                     v-if="contradicts"
                     class="mt-4 flex gap-2 rounded-lg border border-orange-200 bg-orange-50 p-2.5 text-xs leading-relaxed text-orange-800"
@@ -393,6 +405,94 @@
                     </span>
                 </p>
             </template>
+
+            <!--
+                Mill certificates. Outside the three branches above on purpose: the receipt is a record
+                of a moment and closed once written, and the certificates are not - the merchant sends
+                however many it sends, whenever it sends them, so this section is here whether the load
+                is being booked in now, was booked in last week, or arrived before this screen existed.
+
+                This replaced a box per bar for the heat number. Forty bars is forty boxes to be typed
+                off a sheet of paper in a yard, so what actually happened was that none of them got
+                filled in - and the certificate itself, which is the document the auditor asks for, had
+                to be attached somewhere else afterwards anyway.
+            -->
+            <section v-if="receipt.canAttach" class="mt-5 border-t border-gray-200 pt-4">
+                <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Mill certificates
+                    <span v-if="certificates.length > 0" class="ml-1 font-normal normal-case tracking-normal text-gray-400">
+                        {{ certificates.length }} attached
+                    </span>
+                </h4>
+                <p class="mt-1 text-xs text-gray-500">
+                    Whatever came with the steel — attach them all, one file or a dozen. Stored against
+                    this order and downloadable by anyone in your business.
+                </p>
+
+                <!-- already attached -->
+                <ul v-if="certificates.length > 0" class="mt-2.5 space-y-1.5">
+                    <li
+                        v-for="certificate in certificates"
+                        :key="certificate.id"
+                        class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-2"
+                    >
+                        <i class="fa-regular fa-file-lines flex-none text-gray-400"></i>
+                        <button
+                            type="button"
+                            @click="downloadCertificate(certificate)"
+                            class="min-w-0 flex-1 truncate text-left text-sm text-blue-700 underline hover:text-blue-800"
+                            :title="'Download ' + certificate.filename"
+                        >
+                            {{ certificate.filename }}
+                        </button>
+                        <span class="flex-none text-xs tabular-nums text-gray-400">
+                            {{ readableSize(certificate.size_bytes) }}
+                        </span>
+                    </li>
+                </ul>
+
+                <input
+                    ref="fileInput"
+                    type="file"
+                    multiple
+                    accept=".pdf,.png,.jpg,.jpeg,.webp,.heic,.tif,.tiff"
+                    class="hidden"
+                    @change="certificatesPicked"
+                />
+                <button
+                    type="button"
+                    @click="chooseCertificates()"
+                    :disabled="formCertificates.processing"
+                    class="mt-2.5 inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-400"
+                >
+                    <i class="fa-solid fa-paperclip text-xs"></i>
+                    {{ formCertificates.processing
+                        ? 'Uploading...'
+                        : (certificates.length > 0 ? 'Attach more' : 'Attach certificates') }}
+                </button>
+                <p class="mt-1.5 text-xs text-gray-400">
+                    PDF or image, up to 20MB each. Attached as soon as you pick them — you do not need
+                    to save first.
+                </p>
+
+                <p v-if="formCertificates.errors.certificates" class="mt-1.5 text-xs font-medium text-red-600">
+                    {{ formCertificates.errors.certificates }}
+                </p>
+                <!-- Laravel keys per-file failures by index, so surface the first one -->
+                <p v-if="formCertificates.errors['certificates.0']" class="mt-1.5 text-xs font-medium text-red-600">
+                    {{ formCertificates.errors['certificates.0'] }}
+                </p>
+
+                <!--
+                    No Remove button, and the reason is worth saying rather than leaving somebody to
+                    discover it from an error: the order has been placed, so these are evidence behind
+                    steel that has been bought - see MaterialCertificate::isDeletable.
+                -->
+                <p v-if="certificates.length > 0" class="mt-2 text-xs text-gray-400">
+                    The order is placed, so these stay on the record. Attached the wrong file? Attach the
+                    right one — both show, and the trail reports both.
+                </p>
+            </section>
         </div>
 
         <template #footer>

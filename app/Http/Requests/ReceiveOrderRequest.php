@@ -15,10 +15,10 @@ use Illuminate\Validation\Validator;
  * silently as a pass. What is refused is a contradiction - a clean receipt that also names something
  * wrong with the load.
  *
- * The heat numbers ride along here rather than on a screen of their own. They arrive on the same
- * docket as the steel, read off the same piece of paper by the same person at the same moment, and a
- * separate form for them is a form that is filled in later, by somebody else, or never. See
- * App\Models\Bar::heat_number.
+ * No files here. The mill certificates belong to the same screen but not to the same request: they are
+ * rows of their own (App\Models\MaterialCertificate), they arrive a handful at a time and sometimes the
+ * morning after the steel, and uploading them through material.certificates.store keeps this a plain
+ * form post that a 20MB scan cannot fail.
  */
 class ReceiveOrderRequest extends FormRequest
 {
@@ -53,14 +53,6 @@ class ReceiveOrderRequest extends FormRequest
             'nonconformance' => ['nullable', Rule::enum(GoodsReceiptNonconformanceEnums::class)],
             //Long enough for "two bars short, Kev is chasing Monday's load", short enough to stay a note
             'note' => ['nullable', 'string', 'max:500'],
-
-            /*
-             * Heat numbers, keyed by the id of the bar they belong to. Which bars are actually this
-             * order's is checked in the controller - an id in a request body is not a claim this
-             * request can settle.
-             */
-            'heat_numbers' => ['nullable', 'array'],
-            'heat_numbers.*' => ['nullable', 'string', 'max:191'],
         ];
     }
 
@@ -127,33 +119,6 @@ class ReceiveOrderRequest extends FormRequest
     public function note(): ?string
     {
         return $this->trimmedOrNull('note');
-    }
-
-    /**
-     * The heat numbers, as bar id => number, with the blanks dropped.
-     *
-     * A blank means "not recorded" and never "clear what is there": the form posts every bar on the
-     * order whether or not it has been filled in, so an empty box on a second visit would wipe the
-     * number typed on the first. Removing one is not something this screen offers - a wrong heat
-     * number is corrected by typing the right one.
-     *
-     * @return array<int, string>
-     */
-    public function heatNumbers(): array
-    {
-        $heatNumbers = [];
-
-        foreach ((array) $this->validated('heat_numbers') as $barId => $heatNumber) {
-            $heatNumber = trim((string) $heatNumber);
-
-            if (! is_numeric($barId) || $heatNumber === '') {
-                continue;
-            }
-
-            $heatNumbers[(int) $barId] = $heatNumber;
-        }
-
-        return $heatNumbers;
     }
 
     private function trimmedOrNull(string $key): ?string

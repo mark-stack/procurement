@@ -5,10 +5,13 @@ use App\Formatters\NestingFormatter;
 use App\Models\Bar;
 use App\Models\Batch;
 use App\Models\Cut;
+use App\Models\MaterialCertificate;
 use App\Models\Offcut;
 use App\Models\Order;
 use App\Models\Piece;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
@@ -116,8 +119,8 @@ it('keeps identical bars consolidated even though every cut now names its piece'
 
 it('attaches the batch bars to the order that buys them, and lets go when it is undone', function () {
     /*
-     * The join between a cut and a certificate. Certificates hang off the order, the heat number is
-     * written on the bar, and the cuts hang off the bar - so without this column the chain has a hole
+     * The join between a cut and a certificate. The cuts hang off the bar, the bar names the order that
+     * bought it, and the certificates hang off that order - so without this column the chain has a hole
      * exactly where somebody asks about it.
      */
     [, $user, $batch] = nestedBatch([[2500, 5], [1500, 2]]);
@@ -153,64 +156,55 @@ it('would be a disaster if an order took bars belonging to another supplier grou
     expect(Bar::query()->where('order_id', $fastenerOrder->id)->count())->toBe(0);
 });
 
-it('names the heat a part was cut from once the delivery is booked in', function () {
+it('ties the parts a delivery was cut into to the certificates that came with it', function () {
     /*
-     * The whole chain, end to end: piece -> cut -> bar -> heat number. This is the question
-     * AS/NZS 5131 and EN 1090 ask, and the one this application could not answer - its best was the
-     * list of certificates the steel "could have come from".
+     * What a booked-in delivery answers now.
+     *
+     * The gate used to be asked for a heat number per bar, which on a forty bar load is forty boxes to
+     * be typed off a sheet of paper in a yard - so in practice none of them were, and the certificate
+     * the auditor actually asks for still had to be attached somewhere else afterwards. The receipt
+     * takes the mill certs themselves instead: however many the merchant sent, against the order that
+     * bought the bars every cut names.
      */
     [, $user, $batch] = nestedBatch([[2500, 5], [1500, 2]]);
 
     [, $order] = quoteAndOrder($user, $batch, quoteSent: true, orderSent: false);
 
+    //Faked after the nest, not before it: this is the default disk, and the master materials the nest
+    //needs are seeded off the real one
+    Storage::fake(MaterialCertificate::DISK);
+
     $this->actingAs($user);
     $this->post(route('order.sent', $batch), ['order_id' => $order->id]);
 
-    $bars = Bar::query()->where('order_id', $order->id)->orderBy('id')->get();
-
-    //Heat numbers off the docket, one per bar
-    $heatNumbers = [];
-    foreach ($bars as $index => $bar) {
-        $heatNumbers[$bar->id] = 'HEAT-'.(4471880 + $index);
-    }
+    //Two certs for one load, which is ordinary - a merchant ships off more than one heat
+    $this->post(route('material.certificates.store', $order), [
+        'certificates' => [
+            UploadedFile::fake()->create('heat-4471880.pdf', 10, 'application/pdf'),
+            UploadedFile::fake()->create('heat-4471881.pdf', 10, 'application/pdf'),
+        ],
+    ])->assertRedirect();
 
     $this->post(route('order.mark.delivered', $order), [
         'quantity_verified' => true,
         'grade_verified' => true,
-        'heat_numbers' => $heatNumbers,
     ])->assertRedirect();
 
-    //Every cut can now name its own heat, and they are not all the same one
+    //Every cut still names the bar it came off, and every one of those bars was bought by this order
     $cuts = Cut::query()->where('batch_id', $batch->id)->with('bar')->get();
 
+    expect($cuts)->toHaveCount(7);
+
     foreach ($cuts as $cut) {
-        expect($cut->heatNumber())->toBe($heatNumbers[$cut->bar_id]);
+        expect($cut->bar?->order_id)->toBe($order->id);
     }
 
-    expect($cuts->map(fn (Cut $cut) => $cut->heatNumber())->unique())->toHaveCount($bars->count());
-});
+    //So the trail behind them is this order's paperwork, both files of it
+    $trail = $batch->fresh()->newStockOrdersWithCertificates();
 
-it('would be a disaster if a heat number could be written onto another order\'s bar', function () {
-    /*
-     * The ids arrive in a request body. A bar that is not this order's is somebody else's steel, and
-     * writing a heat number onto it would put this delivery's paperwork against material that came off
-     * a different truck - at best a colleague's, at worst another business's.
-     */
-    [, $user, $batch] = nestedBatch([[2500, 5]]);
-
-    [, $order] = quoteAndOrder($user, $batch, quoteSent: true, orderSent: false);
-
-    $this->actingAs($user);
-    $this->post(route('order.sent', $batch), ['order_id' => $order->id]);
-
-    //A bar that belongs to nothing this order bought
-    $strangersBar = Bar::factory()->create(['heat_number' => null]);
-
-    $this->post(route('order.mark.delivered', $order), [
-        'heat_numbers' => [$strangersBar->id => 'HEAT-NOT-MINE'],
-    ])->assertRedirect();
-
-    expect($strangersBar->fresh()->heat_number)->toBeNull();
+    expect($trail)->toHaveCount(1)
+        ->and(collect($trail[0]['material_cert_files'])->pluck('filename')->sort()->values()->all())
+        ->toBe(['heat-4471880.pdf', 'heat-4471881.pdf']);
 });
 
 it('traces a cut taken off the rack back to the bar its steel was rolled as', function () {

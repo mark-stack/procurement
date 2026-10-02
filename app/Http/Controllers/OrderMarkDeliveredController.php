@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ReceiveOrderRequest;
-use App\Models\Bar;
 use App\Models\Order;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -60,42 +59,16 @@ class OrderMarkDeliveredController extends Controller
             $order->receipt_note = $request->note();
 
             $order->save();
-
-            $this->recordHeatNumbers($order, $request->heatNumbers());
         });
 
+        /*
+         * The mill certificates are not written here. The delivery screen attaches them through
+         * MaterialCertificateController as they are picked, which is what lets a load that arrived
+         * yesterday take the PDF the merchant emailed this morning - a receipt is finished, the
+         * paperwork behind it is not.
+         */
+
         return back()->with('success', $this->confirmation($order));
-    }
-
-    /**
-     * Write the heat numbers off the docket onto the bars this order bought.
-     *
-     * Scoped to the order's own bars by the query rather than by trusting the keys: the ids arrive in
-     * a request body, and a bar id that is not this order's is somebody else's steel - at best a
-     * colleague's, at worst another business's. Anything that does not match is dropped silently,
-     * because the only way to send one is to have tampered with the form.
-     *
-     * Updated one at a time rather than in a single upsert so that each write goes through the model
-     * and lands in the change log: a heat number is the last link in the traceability chain, and
-     * "somebody changed it afterwards" is precisely the question that gets asked about it.
-     *
-     * @param  array<int, string>  $heatNumbers
-     */
-    private function recordHeatNumbers(Order $order, array $heatNumbers): void
-    {
-        if ($heatNumbers === []) {
-            return;
-        }
-
-        $bars = Bar::query()
-            ->where('order_id', $order->id)
-            ->whereIn('id', array_keys($heatNumbers))
-            ->get();
-
-        foreach ($bars as $bar) {
-            $bar->heat_number = $heatNumbers[$bar->id];
-            $bar->save();
-        }
     }
 
     /**

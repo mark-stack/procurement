@@ -3,11 +3,35 @@
 use App\Enums\GoodsReceiptNonconformanceEnums;
 use App\Formatters\QuoteFormatter;
 use App\Models\Batch;
+use App\Models\MaterialCertificate;
 use App\Models\Order;
+use App\Models\User;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
+
+/**
+ * The receipt block the quotes/orders modal reads for one order, as the page gets it.
+ *
+ * @return array<string, mixed>|null
+ */
+function receiptStateFor(User $user, Batch $batch, Order $order): ?array
+{
+    $quotesData = (new QuoteFormatter)->quotesData($user->business, $batch->fresh(), $user);
+
+    foreach ($quotesData['supplierGroupCards'] as $card) {
+        foreach ($card['rows'] ?? [] as $row) {
+            if ($row['goodsReceipt']['order_id'] === $order->id) {
+                return $row['goodsReceipt'];
+            }
+        }
+    }
+
+    return null;
+}
 
 /**
  * A placed, undelivered steel merchant order - the state the goods receipt form is drawn in.
@@ -266,22 +290,8 @@ it('hands the page the receipt state for each supplier row', function () {
 
     $this->actingAs($user);
 
-    $rowFor = function (Order $order) use ($user, $batch) {
-        $quotesData = (new QuoteFormatter)->quotesData($user->business, $batch->fresh(), $user);
-
-        foreach ($quotesData['supplierGroupCards'] as $card) {
-            foreach ($card['rows'] ?? [] as $row) {
-                if ($row['goodsReceipt']['order_id'] === $order->id) {
-                    return $row['goodsReceipt'];
-                }
-            }
-        }
-
-        return null;
-    };
-
     //Placed and not yet received: the form is drawn
-    $receipt = $rowFor($order);
+    $receipt = receiptStateFor($user, $batch, $order);
     expect($receipt['canReceive'])->toBeTrue()
         ->and($receipt['received'])->toBeFalse()
         ->and($receipt['deliveredWithoutReceipt'])->toBeFalse();
@@ -293,10 +303,64 @@ it('hands the page the receipt state for each supplier row', function () {
     ]);
 
     //Received: the record is drawn, read-only
-    $receipt = $rowFor($order);
+    $receipt = receiptStateFor($user, $batch, $order);
     expect($receipt['received'])->toBeTrue()
         ->and($receipt['canReceive'])->toBeFalse()
         ->and($receipt['accepted'])->toBeTrue()
         ->and($receipt['docket_number'])->toBe('DN-884213')
         ->and($receipt['received_by'])->toBe($user->name);
+});
+
+it('takes the mill certificates on the delivery screen, and goes on taking them afterwards', function () {
+    /*
+     * What this screen asks for instead of a heat number per bar: the certificates themselves, however
+     * many of them the merchant sent.
+     *
+     * The second half is the part the old form could not do at all. A receipt is closed once written -
+     * it records what somebody saw at a particular moment - but the paperwork behind it is not, because
+     * the merchant who emails the mill certs the morning after the truck came is normal. So the panel
+     * keeps taking files after the steel is booked in, and they land on the same order.
+     */
+    [$business, $user, $batch] = nestedBatch([[2500, 5]]);
+
+    $supplier = supplierForGroup($business);
+
+    [, $order] = quoteAndOrder($user, $batch, supplier: $supplier, quoteSent: true, orderSent: true);
+
+    //Faked after the nest, not before it: this is the default disk, and the master materials the nest
+    //needs are seeded off the real one
+    Storage::fake(MaterialCertificate::DISK);
+
+    $this->actingAs($user);
+
+    //Two at once, while the docket is still in somebody's hand
+    $this->post(route('material.certificates.store', $order), [
+        'certificates' => [
+            UploadedFile::fake()->create('heat-4471880.pdf', 10, 'application/pdf'),
+            UploadedFile::fake()->create('heat-4471881.pdf', 10, 'application/pdf'),
+        ],
+    ])->assertRedirect();
+
+    $receipt = receiptStateFor($user, $batch, $order);
+
+    expect($receipt['canAttach'])->toBeTrue()
+        ->and($receipt['certificates'])->toHaveCount(2);
+
+    $this->post(route('order.mark.delivered', $order), [
+        'docket_number' => 'DN-884213',
+        'quantity_verified' => true,
+        'grade_verified' => true,
+    ])->assertRedirect();
+
+    //The one that turned up the next morning
+    $this->post(route('material.certificates.store', $order), [
+        'certificates' => [UploadedFile::fake()->create('late-cert.pdf', 10, 'application/pdf')],
+    ])->assertRedirect();
+
+    $receipt = receiptStateFor($user, $batch, $order);
+
+    expect($receipt['received'])->toBeTrue()
+        ->and($receipt['canAttach'])->toBeTrue()
+        ->and(collect($receipt['certificates'])->pluck('filename')->sort()->values()->all())
+        ->toBe(['heat-4471880.pdf', 'heat-4471881.pdf', 'late-cert.pdf']);
 });

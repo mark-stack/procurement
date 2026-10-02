@@ -20,8 +20,10 @@ class BarFactory extends Factory
      * A 9,000mm 200PFC, which is the section the nesting tests are written around - so a bar made here
      * matches the offcuts OffcutFactory and the pieces in Pest.php produce.
      *
-     * order_id and heat_number are null: a bar exists from the moment a batch is nested, and neither
-     * the purchase nor the heat is known until somebody places an order and books the steel in.
+     * order_id is null: a bar exists from the moment a batch is nested, and which merchant supplied it
+     * is not known until somebody places an order. So is heat_number, and now always - see
+     * Bar::hasHeatNumber for what the goods receipt asks for instead. withHeatNumber() below still sets
+     * one, because the deliveries typed in while it did are a record that has to go on reading back.
      *
      * @return array<string, mixed>
      */

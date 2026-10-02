@@ -59,6 +59,12 @@ class Bar extends Model
      * The heat number is the one-to-one answer. Without it the trail falls back to the certificates the
      * bar's order carries, which identifies the steel as one of several - enough for most purposes and
      * not enough for AS/NZS 5131 or EN 1090.
+     *
+     * Nothing writes one any more, and so this reads false for everything booked in from 2026-10-02 on.
+     * The goods receipt asked for a heat number per bar, which on a forty bar load is forty boxes to be
+     * typed off a sheet of paper in a yard - a form that gets abandoned, leaving neither the heats nor
+     * the certificate. It takes the mill certs themselves instead (see MaterialCertificate). The column
+     * stays because the deliveries that did get typed in are a record, and this is what reads them.
      */
     public function hasHeatNumber(): bool
     {

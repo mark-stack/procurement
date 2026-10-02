@@ -126,10 +126,10 @@ class Cut extends Model
      * ancestry - an offcut of an offcut of an offcut was never bought, so the purchase is several
      * generations back up the offcut_from_id chain, and the bar is what the first generation came off.
      *
-     * Null is a real answer and the honest one: heat numbers are typed in at the gate from a docket,
-     * plenty of deliveries arrive without one, and for those the set-level trail on the batch
-     * (Batch::offcutOrdersWithCertificates) remains the best available statement. What this adds is the
-     * exact answer when the yard has recorded it.
+     * Null is a real answer and, for anything booked in from 2026-10-02 on, the only one: the goods
+     * receipt stopped asking for a heat number per bar and takes the mill certificates instead, so the
+     * set-level trail on the batch (Batch::offcutOrdersWithCertificates) is the statement every delivery
+     * now gets. This reads the heats recorded while that form existed - see Bar::hasHeatNumber.
      */
     public function heatNumber(): ?string
     {

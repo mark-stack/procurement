@@ -341,7 +341,7 @@
             return 'Marked as arrived with no goods receipt recorded against it';
         }
 
-        return 'Record what came off the truck - docket, checks and heat numbers';
+        return 'Record what came off the truck - docket, checks and the mill certificates';
     }
 
     function undoOrderSent(row){
