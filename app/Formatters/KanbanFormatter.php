@@ -13,6 +13,7 @@ use App\Models\User;
 use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\BatchService;
 use App\Services\BatchStages;
+use App\Services\DeliveredBatchArchiving;
 use App\Services\FabricationDeadlineQuoting;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -241,6 +242,16 @@ class KanbanFormatter
                     'projects' => ProjectResource::collection($batch->projects()),
                     "allDelivered" => $allDelivered,
                     "steelMerchantDeliveredButNoCertsYet" => $steelMerchantDeliveredButNoCertsYet,
+                    /*
+                     * The day this card closes itself and becomes a past project.
+                     *
+                     * Read off DeliveredBatchArchiving rather than computed here, so the date the board
+                     * promises is the date the schedule keeps - and null wherever that sweep holds off:
+                     * a delivery still out, a receipt with no date behind it, or missing material certs.
+                     * The card says nothing in those cases, which is correct: it is not going anywhere
+                     * until somebody presses the button.
+                     */
+                    "archiveDueDate" => (new DeliveredBatchArchiving)->archiveDueDate($batch)?->toDateString(),
                 ],
             ];
         }

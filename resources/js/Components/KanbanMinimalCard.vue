@@ -72,6 +72,26 @@
         ? moment(props.orderingTriggerDate).startOf('day').diff(moment().startOf('day'),'days')
         : null);
 
+    /**
+     * The day this batch takes itself off the board, as a date and a countdown.
+     *
+     * Said out loud for the same reason the ordering trigger above is: a card that is about to
+     * disappear on its own should say so first. Nobody presses "Move to done" on the day the steel
+     * lands - there is nothing left to do by then - so the schedule does it five days after the last
+     * delivery was booked in, and the days in between are for chasing certs and querying dockets with
+     * the card still in front of you.
+     *
+     * Null where the sweep is holding off (DeliveredBatchArchiving::archiveDueDate), in which case the
+     * card genuinely is not going anywhere and promises nothing.
+     */
+    const archiveDueLabel = computed(() => props.batchInfo?.archiveDueDate
+        ? moment(props.batchInfo.archiveDueDate).format("D MMM YY")
+        : null);
+
+    const daysUntilArchive = computed(() => props.batchInfo?.archiveDueDate
+        ? moment(props.batchInfo.archiveDueDate).startOf('day').diff(moment().startOf('day'),'days')
+        : null);
+
     //Methods
     /**
      * Whose project this is. Every column here draws the whole business's work - the Nesting one
@@ -354,6 +374,33 @@
                     ({{ daysUntilOrderingTrigger }}d)
                 </span>
                 <span v-else class="font-medium opacity-75">(now)</span>
+            </span>
+
+            <!--
+                When this card takes itself off the board.
+
+                The last column's counterpart to the badge above. Everything on this batch is in and
+                the only thing left to do is admit it, which is not a job anybody remembers - so five
+                days after the last delivery was booked in the batch closes itself and its projects
+                become past projects. The days in between are for chasing the certs and querying the
+                docket, with the card still here to do it from.
+
+                Absent while the sweep is holding off - a delivery still out, a receipt nobody dated,
+                or missing material certs - because then nothing is going to happen on its own.
+            -->
+            <span
+                v-if="archiveDueLabel"
+                class="inline-flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-[11px] font-semibold text-gray-600 ring-1 ring-inset ring-gray-200"
+                :title="daysUntilArchive <= 0
+                    ? 'Everything on this batch is in - it moves to past projects on the next nightly run'
+                    : 'On this date this batch moves to past projects automatically. Close it sooner with Move to done, or add certs and query dockets before then.'"
+            >
+                <i class="fa-solid fa-box-archive text-[10px] text-gray-400"></i>
+                Closes {{ archiveDueLabel }}
+                <span v-if="daysUntilArchive > 0" class="font-medium opacity-75">
+                    ({{ daysUntilArchive }}d)
+                </span>
+                <span v-else class="font-medium opacity-75">(tonight)</span>
             </span>
 
             <span
