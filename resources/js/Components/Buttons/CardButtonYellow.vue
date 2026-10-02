@@ -11,11 +11,20 @@
         disabled: Boolean,
         //Optional - lets a disabled button say why it is disabled
         title: String,
+        /**
+         * A second line under the label, in smaller type - what this button is about to show you,
+         * rather than what it does. Optional: without one the button keeps its single-line height,
+         * which is what every board card draws.
+         */
+        sublabel: String,
     });
 
     //Methods
     function getClass(){
-        let getClass = "inline-flex h-8 items-center justify-center rounded-lg border px-2.5 text-xs font-semibold transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1";
+        let getClass = "inline-flex items-center justify-center rounded-lg border px-2.5 text-xs font-semibold transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1";
+
+        //Height: a second line needs the room, a single one keeps the row height the board sets
+        getClass = getClass + (props.sublabel ? " py-1" : " h-8");
 
         //Width
         if(props.fullWidth){
@@ -41,6 +50,11 @@
         :title="title"
         :class="getClass()"
     >
-        <span class="truncate">{{label}}</span>
+        <span class="min-w-0">
+            <span class="block truncate">{{label}}</span>
+            <span v-if="sublabel" class="block truncate text-[10px] font-medium opacity-70">
+                {{sublabel}}
+            </span>
+        </span>
     </button>
 </template>

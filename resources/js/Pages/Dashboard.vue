@@ -25,6 +25,7 @@
     //Component Imports
     import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
     import UploadMaterials from '@/Components/Dashboard/UploadMaterials.vue';
+    import StagePill from '@/Components/StagePill.vue';
 
     //Shared methods
     import shared from '@/Shared/shared.js';
@@ -92,31 +93,8 @@
     const hasLiveWork = computed(() => liveProjectCount.value > 0 || props.actions.length > 0);
 
     //Methods
-    /**
-     * The step a job is on, as the board words it.
-     */
-    function stageLabel(stage) {
-        return {
-            NESTING: 'Nesting',
-            QUOTING: 'Quoting',
-            ORDERING: 'Ordering',
-            DELIVERING: 'Delivering',
-        }[stage] ?? stage;
-    }
-
-    /**
-     * One colour per step, kept in the same order the board's columns run in so the two screens read
-     * as the same pipeline.
-     */
-    function stageClasses(stage) {
-        return {
-            NESTING: 'bg-gray-100 text-gray-700 ring-gray-300',
-            QUOTING: 'bg-blue-50 text-blue-800 ring-blue-200',
-            ORDERING: 'bg-indigo-50 text-indigo-800 ring-indigo-200',
-            DELIVERING: 'bg-teal-50 text-teal-800 ring-teal-200',
-        }[stage] ?? 'bg-gray-100 text-gray-700 ring-gray-300';
-    }
-
+    //The step a job is on, and its colour, are StagePill's - the Nesting page words the same steps as
+    //what the batch has passed rather than what it is on, and shares the colours
     function severityClasses(severity) {
         return {
             overdue: 'border-red-300 bg-red-50',
@@ -256,12 +234,7 @@
                                         </span>
                                     </td>
                                     <td class="px-4 py-2.5">
-                                        <span
-                                            :class="stageClasses(project.stage)"
-                                            class="inline-block px-2 py-0.5 text-xs font-semibold rounded-full ring-1"
-                                        >
-                                            {{ stageLabel(project.stage) }}
-                                        </span>
+                                        <StagePill :stage="project.stage" />
                                     </td>
                                     <td class="px-4 py-2.5 whitespace-nowrap">
                                         <template v-if="project.dateFabricationBegins">

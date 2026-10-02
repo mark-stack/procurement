@@ -166,6 +166,13 @@
                         Current Projects
                     </Link>
                     <Link
+                        :href="route('nesting.index')"
+                        title="Every live batch, and its nesting"
+                        :class="[barLink, isActive(route('nesting.index')) ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white']"
+                    >
+                        Nesting
+                    </Link>
+                    <Link
                         v-if="hasPastProjects"
                         :href="route('past.projects.index')"
                         title="Past Projects"
@@ -425,6 +432,13 @@
                             >
                                 <i class="w-4 text-center fa-solid fa-diagram-project"></i>
                                 <span>Current Projects</span>
+                            </Link>
+                            <Link
+                                :href="route('nesting.index')"
+                                :class="[panelLink, isActive(route('nesting.index')) ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-700']"
+                            >
+                                <i class="w-4 text-center fa-solid fa-bars-staggered"></i>
+                                <span>Nesting</span>
                             </Link>
                             <Link
                                 v-if="hasPastProjects"

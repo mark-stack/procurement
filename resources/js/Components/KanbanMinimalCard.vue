@@ -11,6 +11,8 @@
     import CardButtonYellow from "@/Components/Buttons/CardButtonYellow.vue";
     import CardButtonForward from "@/Components/Buttons/CardButtonForward.vue";
     import ConfirmModal from "@/Components/Modals/ConfirmModal.vue";
+    import OrderByPill from "@/Components/OrderByPill.vue";
+    import EfficiencyPill from "@/Components/EfficiencyPill.vue";
 
     //Props
     const props = defineProps({
@@ -56,21 +58,10 @@
         ? shared.atLeastOneProjectIsYours(props.batchInfo.projects.data,user.value.id)
         : true);
 
-    /**
-     * The day this column stops waiting and buys, as a date and as a countdown.
-     *
-     * Worth a line of its own on the header because it is the one thing about this column nobody
-     * can work out by looking at it: the card says "the longer you hold off the better the nest",
-     * and what it never said is when holding off stops being your decision. On that day the sweep
-     * nests everything here into one batch and emails whoever's deadline forced it.
+    /*
+     * The day this column stops waiting and buys is OrderByPill's, date and countdown both - the
+     * Nesting page draws the same deadline, and the pill's colour is a warning about it.
      */
-    const orderingTriggerLabel = computed(() => props.orderingTriggerDate
-        ? moment(props.orderingTriggerDate).format("D MMM YY")
-        : null);
-
-    const daysUntilOrderingTrigger = computed(() => props.orderingTriggerDate
-        ? moment(props.orderingTriggerDate).startOf('day').diff(moment().startOf('day'),'days')
-        : null);
 
     /**
      * The day this batch takes itself off the board, as a date and a countdown.
@@ -344,7 +335,7 @@
     >
         <!-- card header: batch identity on the left, efficiency on the right -->
         <div
-            v-if="batchInfo || orderingTriggerLabel || (usageStats && atLeastOneProjectIsYours)"
+            v-if="batchInfo || orderingTriggerDate || (usageStats && atLeastOneProjectIsYours)"
             class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 bg-gray-50 px-3 py-2"
         >
             <!--
@@ -356,25 +347,7 @@
                 deadline sweep nests everything in here into one batch, owned by whoever's job
                 starts first, and emails the rest of the business to say so.
             -->
-            <span
-                v-if="orderingTriggerLabel"
-                class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold ring-1 ring-inset"
-                :class="daysUntilOrderingTrigger <= 0
-                    ? 'bg-red-50 text-red-800 ring-red-200'
-                    : (daysUntilOrderingTrigger <= 2
-                        ? 'bg-amber-50 text-amber-900 ring-amber-200'
-                        : 'bg-white text-gray-600 ring-gray-200')"
-                :title="daysUntilOrderingTrigger <= 0
-                    ? 'This batch is due to be quoted now - the earliest fabrication date on this card is within the ordering window'
-                    : 'On this date these projects are nested into one batch automatically, so the materials can be quoted, ordered and delivered before fabrication starts'"
-            >
-                <i class="fa-solid fa-cart-shopping text-[10px] opacity-70"></i>
-                Order by {{ orderingTriggerLabel }}
-                <span v-if="daysUntilOrderingTrigger > 0" class="font-medium opacity-75">
-                    ({{ daysUntilOrderingTrigger }}d)
-                </span>
-                <span v-else class="font-medium opacity-75">(now)</span>
-            </span>
+            <OrderByPill :date="orderingTriggerDate" />
 
             <!--
                 When this card takes itself off the board.
@@ -410,22 +383,17 @@
                 <i class="fa-solid fa-layer-group text-[10px] text-gray-400"></i>
                 Batch {{ batchInfo.batch.id }}
             </span>
-            <template v-if="usageStats && atLeastOneProjectIsYours">
-                <span
-                    v-if="usageStats.METERAGE?.efficiency > 0"
-                    class="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2 py-1 text-[11px] font-semibold text-green-800 ring-1 ring-inset ring-green-200"
-                >
-                    <i class="fa-solid fa-arrow-trend-up text-[10px]"></i>
-                    {{usageStats.METERAGE.efficiency}}% efficiency
-                </span>
-                <span
-                    v-else
-                    class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2 py-1 text-[11px] font-medium text-gray-500 ring-1 ring-inset ring-gray-200"
-                >
-                    <i class="fa-solid fa-circle-notch fa-spin text-[10px]"></i>
-                    Calculating efficiency
-                </span>
-            </template>
+            <!--
+                Only once the usage request has answered, and only on a card with your own work on
+                it. "loading" is unconditional: on this board a figure of zero means the nest is
+                still settling, not that nothing was saved - see EfficiencyPill for the third state,
+                which the Nesting page uses for batches that have no saved nest at all.
+            -->
+            <EfficiencyPill
+                v-if="usageStats && atLeastOneProjectIsYours"
+                :efficiency="usageStats.METERAGE?.efficiency"
+                :loading="true"
+            />
         </div>
 
         <!--

@@ -2,11 +2,13 @@
 
 use App\Http\Controllers\BatchController;
 use App\Http\Controllers\BatchNestingController;
+use App\Http\Controllers\BatchOrderListController;
 use App\Http\Controllers\BillingCheckoutController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\BillingInvoiceController;
 use App\Http\Controllers\BillingPortalController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DownloadBatchBomController;
 use App\Http\Controllers\DownloadBomController;
 use App\Http\Controllers\DownloadMaterialCertificateController;
 use App\Http\Controllers\DownloadNesting;
@@ -15,6 +17,8 @@ use App\Http\Controllers\DownloadUsageController;
 use App\Http\Controllers\MarkAsPastProjectController;
 use App\Http\Controllers\MarkNotificationStatusController;
 use App\Http\Controllers\MaterialCertificateController;
+use App\Http\Controllers\NestingEfficiencyController;
+use App\Http\Controllers\NestingIndexController;
 use App\Http\Controllers\OffcutController;
 use App\Http\Controllers\OffcutRemoveController;
 use App\Http\Controllers\OffcutRestoreController;
@@ -112,6 +116,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('projects.products', ProductController::class)->only(['store']);
 
         Route::get('download-bom/{project}', DownloadBomController::class)->name('download.bom');
+
+        /*
+         * Every material row on a batch, for the read-only BOM the Nesting page's cards open. Optional
+         * batch: with none, it answers for the batch that has not been created yet - everything on the
+         * Nesting column - which is the one card on that page with no id to pass.
+         */
+        Route::get('download-batch-bom/{batch?}', DownloadBatchBomController::class)->name('download.batch.bom');
+
+        /*
+         * What to buy for a batch, a block per supplier group - the Nesting page's "Order list" modal.
+         * Optional batch for the same reason as the BOM above: with none, it answers for everything on
+         * the Nesting column, which has no batch to name yet.
+         */
+        Route::get('batch-order-list/{batch?}', BatchOrderListController::class)->name('batch.order.list');
 
         Route::get('download-nesting/{batch_id}', DownloadNesting::class)->name('download.nesting');
 
@@ -212,6 +230,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('material.certificates.destroy');
         Route::get('material-certificates/{materialCertificate}/download', DownloadMaterialCertificateController::class)
             ->name('material.certificates.download');
+
+        /*
+         * Nesting
+         *
+         * Every live batch in one list, which is the three batch columns of the board without the
+         * board. In this group with the rest of nesting: the only thing the page offers is a way into
+         * batch.nesting below, which is gated here.
+         */
+        Route::get('nesting', NestingIndexController::class)->name('nesting.index');
+
+        //How well each batch nested, fetched by that page once it has drawn - see the controller
+        Route::get('nesting-efficiency', NestingEfficiencyController::class)->name('nesting.efficiency');
 
         //Suggested Nesting
         Route::get('suggested-nesting', SuggestedNestingController::class)->name('suggested.nesting');
