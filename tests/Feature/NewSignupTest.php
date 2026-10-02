@@ -89,7 +89,7 @@ it('would be a disaster if a brand new company still had to wait for us', functi
     $this->actingAs($user)
         ->get(route('dashboard'))
         ->assertStatus(200)
-        ->assertInertia(fn ($page) => $page->component('MaterialListUpload'));
+        ->assertInertia(fn ($page) => $page->component('Dashboard'));
     $this->actingAs($user)->get(route('projects.index'))->assertStatus(200);
     $this->actingAs($user)->get(route('billing.index'))->assertStatus(200);
     $this->actingAs($user)->get(route('profile.edit'))->assertStatus(200);
@@ -118,7 +118,7 @@ it('would be a disaster if a colleague joining a working business had to wait fo
     $this->actingAs($joiner->fresh())
         ->get(route('dashboard'))
         ->assertStatus(200)
-        ->assertInertia(fn ($page) => $page->component('MaterialListUpload'));
+        ->assertInertia(fn ($page) => $page->component('Dashboard'));
 });
 
 it('warns every business on a trial, including one that has not recorded a template yet', function () {
