@@ -6,6 +6,7 @@ use App\Enums\MeasurementUnitEnums;
 use App\Enums\NestingEnums;
 use App\Formatters\NestingFormatter;
 use App\Models\Business;
+use App\Models\MaterialListFile;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
 use App\Models\Template;
@@ -67,8 +68,19 @@ class CsvService
             ->all();
     }
 
-    public function processTemplate(array $detectedTables, Project $project): void
-    {
+    /**
+     * @param  MaterialListFile|null  $materialListFile  The upload these tables were detected in, so
+     *                                                   every row it produces can be traced back to
+     *                                                   it and the whole file taken off again as one
+     *                                                   thing. Null only where there is no file to
+     *                                                   name - the example lists, and the tests that
+     *                                                   import an array directly.
+     */
+    public function processTemplate(
+        array $detectedTables,
+        Project $project,
+        ?MaterialListFile $materialListFile = null,
+    ): void {
         /**
          * Single purpose: extract the materials from all the tables detected
          */
@@ -127,6 +139,7 @@ class CsvService
                 $rowDataWithGeneralProductMatches,
                 $project,
                 $business,
+                $materialListFile,
             );
         }
     }
@@ -377,8 +390,12 @@ class CsvService
         return (float) $removeCurrencySymbols;
     }
 
-    public function saveRawMaterialQuoteData(array $rows, Project $project, Business $business): array
-    {
+    public function saveRawMaterialQuoteData(
+        array $rows,
+        Project $project,
+        Business $business,
+        ?MaterialListFile $materialListFile = null,
+    ): array {
         /**
          * Single purpose: save BOM row.
          * Note: "rows" at this point contains ALL rows imported
@@ -478,6 +495,8 @@ class CsvService
                     'width_required' => $widthRequired,
                     'sub_qty' => $subQty,
                     'project_id' => $project->id,
+                    //Which upload this line came off, so the whole file can be taken back off again
+                    'material_list_file_id' => $materialListFile?->id,
                     'general_product_matches' => serialize($row['generalProductMatches']),
                     'custom_product_matches' => serialize($row['customProductMatches']),
                     'assembly_mark' => $row['assembly_mark'] ?? '',

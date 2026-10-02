@@ -16,7 +16,7 @@ references:
   - 'https://github.com/mark-stack/procurement/pull/50'
 priority: high
 type: feature
-ordinal: 1000
+ordinal: 2000
 ---
 
 ## Description

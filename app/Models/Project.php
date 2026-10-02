@@ -103,6 +103,19 @@ class Project extends Model
         return $this->hasMany(RawMaterialQuote::class);
     }
 
+    /**
+     * The spreadsheets the material list was uploaded from.
+     *
+     * Cumulative, like the list itself: a job's steel often arrives over several files as the model
+     * is detailed. Empty for everything imported before uploads started being kept.
+     *
+     * @return HasMany<MaterialListFile, $this>
+     */
+    public function materialListFiles(): HasMany
+    {
+        return $this->hasMany(MaterialListFile::class);
+    }
+
     //Unimported BOM lines
     public function unimportedItems(): array
     {

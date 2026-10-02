@@ -1,43 +1,49 @@
 import moment from "moment";
 
 export default {
+    /**
+     * What to buy from one supplier group, a line per stock length.
+     *
+     * One definition, because two screens print it: the "Email tables" button on the quotes/orders
+     * modal, which writes these lines into a mail, and the Nesting page's Order list modal, which
+     * shows them. A merchant reading the email and the person reading the screen have to be looking
+     * at the same order.
+     *
+     * AREA and BUNDLE produce nothing yet - the nest has no order list for them - so they are left
+     * out rather than printed as empty lines.
+     */
+    orderListLines(batchGroup) {
+        const lines = [];
+
+        Object.values(batchGroup ?? {}).forEach(item => {
+            if(item.algo !== 'METERAGE'){
+                return;
+            }
+
+            const description = item.product_derived_label;
+
+            (item.nested?.orderList ?? []).forEach(bar => {
+                lines.push(" - " + description + ": " + bar.count + "x " + parseFloat(bar.result).toLocaleString() + "mm");
+            });
+        });
+
+        return lines;
+    },
     sendSupplierBatchEmail(batchGroup,supplierGroup) {
         // Email details
         const emailAddress = ""; //"example@example.com";
         const subject = ""; //todo
-        let materialList = ""; // Headers
+        const lines = this.orderListLines(batchGroup);
         let row3 = "";
 
-        Object.values(batchGroup).forEach(item => {
-            //Meterage
-            if(item.algo === 'METERAGE'){
-                //Description
-                let description = item.product_derived_label;
-
-                //Table
-                item.nested.orderList.forEach(bar => {
-                    let text = " - " + description + ": " + bar.count + "x " + parseFloat(bar.result).toLocaleString() + "mm"; // + item.nominal_units.toLowerCase();
-                    materialList += text + "\n"; // Rows
-                });
-
-                //Material certs
-                if(supplierGroup === 'STEEL_MERCHANT'){
-                    row3 = "Mill certificates will be required. Thank you.";
-                }
-            }
-            //Area
-            if(item.algo === 'AREA'){
-                //todo
-            }
-            //Bundle
-            if(item.algo === 'BUNDLE'){
-                //todo
-            }
-        });
+        //Material certs. Only worth asking for where there is steel on the list to ask about
+        if(supplierGroup === 'STEEL_MERCHANT' && lines.length > 0){
+            row3 = "Mill certificates will be required. Thank you.";
+        }
 
         // Create the mailto link
         let row1 = "Hi, I'm seeking a quote for the following:";
-        let row2 = materialList;
+        let row2 = lines.join("\n") + (lines.length > 0 ? "\n" : "");
 
         const body = encodeURIComponent(`${row1}\n\n${row2}\n\n${row3}`);
         const mailtoLink = `mailto:${emailAddress}?subject=${encodeURIComponent(subject)}&body=${body}`;

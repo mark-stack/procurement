@@ -68,9 +68,13 @@ class KanbanFormatter
      * created before the date was asked for (see the add_date_fabrication_begins migration), and a
      * card of those genuinely has no trigger: nothing will auto-quote them.
      *
+     * Public because the Nesting page prints the same deadline on its pending card
+     * (NestingIndexController), and a second subtraction of that constant somewhere else is exactly
+     * what this method exists to prevent.
+     *
      * @param  Collection<int, Project>  $projects
      */
-    private function orderingTriggerDate(Collection $projects): ?string
+    public function orderingTriggerDate(Collection $projects): ?string
     {
         $earliest = $projects
             ->pluck('date_fabrication_begins')
