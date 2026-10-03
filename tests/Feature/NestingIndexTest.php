@@ -827,6 +827,60 @@ it('answers the Order list button with the stock the saved nest needs, by suppli
     expect(array_keys($item))->toBe(['algo', 'product_derived_label', 'nested']);
 });
 
+it('says on the order list which supplier groups have been ordered, and under what PO number', function () {
+    /*
+     * The list is read while the buying is half done, so each block has to say whether that merchant
+     * is still waiting. Ordered is the sent order's question - a row provisioned by opening the
+     * quotes/orders modal is not a purchase - and the PO number comes off that same order.
+     */
+    [$business, $user, $batch] = nestedBatch([[2500, 5], [1500, 2]]);
+
+    [, $order] = quoteAndOrder($user, $batch, orderSent: true);
+    $order->update(['purchase_order_number' => 'PO-4471']);
+
+    $this->actingAs($user);
+
+    $this->withoutExceptionHandling();
+    $orderList = $this->getJson(route('batch.order.list', $batch))->assertOk()->json('orderList');
+
+    $steel = collect($orderList['groups'])->firstWhere('supplierGroup', 'STEEL_MERCHANT');
+
+    expect($steel['ordered'])->toBeTrue()
+        ->and($steel['purchaseOrderNumber'])->toBe('PO-4471');
+});
+
+it('calls a group ordered on the strength of the sent order, not the PO number somebody has yet to type', function () {
+    /*
+     * Two things the block must not get wrong. An order row exists for every supplier the moment
+     * somebody opens the quotes/orders modal, so an unsent one is not a purchase and the group is
+     * still waiting. And purchase_order_number is nullable - filled in afterwards, and plenty of
+     * merchants are ordered from without one - so a sent order with no number is still ordered.
+     */
+    [$business, $user, $batch] = nestedBatch([[2500, 5], [1500, 2]]);
+
+    [, $order] = quoteAndOrder($user, $batch, orderSent: false);
+
+    $this->actingAs($user);
+
+    $this->withoutExceptionHandling();
+    $orderList = $this->getJson(route('batch.order.list', $batch))->assertOk()->json('orderList');
+
+    $steel = collect($orderList['groups'])->firstWhere('supplierGroup', 'STEEL_MERCHANT');
+
+    expect($steel['ordered'])->toBeFalse()
+        ->and($steel['purchaseOrderNumber'])->toBeNull();
+
+    //Sent, with nobody having typed a number against it
+    $order->update(['order_sent' => true]);
+
+    $orderList = $this->getJson(route('batch.order.list', $batch))->assertOk()->json('orderList');
+
+    $steel = collect($orderList['groups'])->firstWhere('supplierGroup', 'STEEL_MERCHANT');
+
+    expect($steel['ordered'])->toBeTrue()
+        ->and($steel['purchaseOrderNumber'])->toBeNull();
+});
+
 it('offers an order list for the batch that does not exist yet', function () {
     /*
      * The pending card has no saved nest to read, so this is the suggestion - the same run the board's
