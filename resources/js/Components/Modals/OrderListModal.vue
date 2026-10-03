@@ -365,16 +365,26 @@
                             the list changes under anybody who acts on it. Over the lines rather than
                             beside them, because a note under a block of text that reads like an
                             order is a note nobody sees.
+
+                            Which is why the block is held open to the stamp's height on that card: a
+                            group can be one line long, and the stamp lies across it at an angle, so
+                            an unheld block cropped the warning to its middle two words. The height
+                            is the rotated stamp's, a word of slack either side, and it steps with
+                            the stamp's own breakpoint. Nothing holds a closed batch's list open -
+                            there is no stamp on it, and the lines are the whole of what it says.
                         -->
                         <div class="relative mt-3">
-                            <pre class="p-3 overflow-x-auto text-sm text-gray-800 rounded-lg bg-gray-50">{{ group.lines.join('\n') }}</pre>
+                            <pre
+                                :class="isOpenBatch ? 'min-h-[5.5rem] sm:min-h-[6.5rem]' : null"
+                                class="p-3 overflow-x-auto text-sm text-gray-800 rounded-lg bg-gray-50"
+                            >{{ group.lines.join('\n') }}</pre>
 
                             <div
                                 v-if="isOpenBatch"
                                 aria-hidden="true"
                                 class="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none"
                             >
-                                <span class="px-4 py-1 text-xl font-black tracking-widest uppercase -rotate-12 rounded text-red-600/30 ring-4 ring-red-600/20 sm:text-3xl">
+                                <span class="px-4 py-1 text-lg font-black tracking-widest uppercase -rotate-12 rounded text-red-600/30 ring-4 ring-red-600/20 sm:text-2xl">
                                     Do not order
                                 </span>
                             </div>
