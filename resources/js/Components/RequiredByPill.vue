@@ -32,13 +32,16 @@
         //Null on a card where no job names a fabrication date - there is no deadline to print
         date: String,
         /*
-         * The day this batch has to have moved on by, given where it has got to - not the day above.
+         * How far past its own deadline this batch already is, in working days - see
+         * NestingIndexController::daysBehindCriticalPath(). Positive is behind; zero or less is on
+         * track, and a card with nothing to chase answers zero.
          *
-         * Null where there is no required-by date to count one back from, which is a card on which no
-         * pill is drawn at all. The server also answers null for a batch whose steel is in, but the
-         * page does not draw one of those either - see below.
+         * Worked out server side rather than here, from a deadline date this no longer receives. Two
+         * things read it - this colour and the action footer under the card - and a page that counted
+         * it twice could draw a card that is green and tells you to go and do something about it.
+         * Moment also has no notion of a working day, which is the unit the lead times are in.
          */
-        deadline: String,
+        daysBehind: Number,
     });
 
     /*
@@ -118,20 +121,14 @@
     });
 
     /*
-     * And how far past its own deadline this batch is, which is what the colour reads.
-     *
-     * Positive is behind. A batch with no deadline left to miss is zero rather than null, so that the
-     * three below stay a plain comparison and the on-time colour is what anything unaccounted for
-     * falls to - a card is never coloured as late by a date the page could not work out.
-     */
-    const daysBehind = computed(() => props.deadline
-        ? moment().startOf('day').diff(moment(props.deadline).startOf('day'), 'days')
-        : 0);
-
-    /*
      * Anything at or under zero is on time and draws green, the deadline being the last day it may be
      * met rather than the first one missed. A day behind is amber, two or more red.
+     *
+     * Defaulted rather than read straight off the prop, so a card the server sent nothing for draws
+     * on time instead of being coloured late by a number that was never there.
      */
+    const daysBehind = computed(() => props.daysBehind ?? 0);
+
     const slipping = computed(() => daysBehind.value === 1);
     const late = computed(() => daysBehind.value >= 2);
 
@@ -145,11 +142,11 @@
         const required = `The material on this batch is wanted at the workshop on ${exactDate.value}`;
 
         if (late.value) {
-            return `${required}. This batch is ${daysBehind.value} days behind where it has to be to make that date`;
+            return `${required}. This batch is ${daysBehind.value} working days behind where it has to be to make that date`;
         }
 
         if (slipping.value) {
-            return `${required}. This batch is a day behind where it has to be to make that date`;
+            return `${required}. This batch is a working day behind where it has to be to make that date`;
         }
 
         return `${required}, and this batch is on track to make it`;
