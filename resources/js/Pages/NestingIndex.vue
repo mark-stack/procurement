@@ -326,12 +326,18 @@
      *  - NESTING has no batch to ask for yet, so suggested-nesting re-nests everything waiting.
      *  - A live batch opens its own saved nest, closing back to the board (KanbanMinimalCard).
      *
+     * Both the printable sheet, which is the "1" on the end of each: every card on this page is a
+     * batch read end to end - its material list, its order list, its nest - and the modal the board
+     * opens is a card-sized read of one batch in the middle of a board. The open batch's sheet is
+     * stamped DO NOT CUT, its nest being a suggestion until quoting saves one; see
+     * SuggestedNestingController.
+     *
      * Always "current", there being no finished batch on this page to close back to /past-projects -
      * those are read from /past-projects itself. See NestingIndexController.
      */
     function nestingHref(batch) {
         if (batch.stage === 'NESTING') {
-            return route('suggested.nesting');
+            return route('suggested.nesting', [1]);
         }
 
         return route('batch.nesting', [batch.id, 'current', 1]);

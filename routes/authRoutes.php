@@ -258,8 +258,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         //How well each batch nested, fetched by that page once it has drawn - see the controller
         Route::get('nesting-efficiency', NestingEfficiencyController::class)->name('nesting.efficiency');
 
-        //Suggested Nesting
-        Route::get('suggested-nesting', SuggestedNestingController::class)->name('suggested.nesting');
+        /*
+         * Suggested Nesting
+         *
+         * "print" picks the same two screens batch.nesting below picks between, and for the same
+         * reason: the open batch is read on the board as a modal and on /nesting as the printable
+         * sheet, so both have to be reachable. Optional and zero by default - the board asks for it
+         * without a parameter, and a nest nobody can buy yet should not default to a cutting sheet.
+         */
+        Route::get('suggested-nesting/{print?}', SuggestedNestingController::class)
+            ->whereNumber('print')
+            ->name('suggested.nesting');
 
         //Batch Nesting
         //"print" is typed int and "redirect" picks the close destination, so anything else is a 404, not a 500

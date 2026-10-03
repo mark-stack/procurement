@@ -8,7 +8,11 @@
     //Props
     const props = defineProps({
         item: Object,
-        batch: Object,
+        //Null on the open batch, which has no batch row to be numbered - see NestingPrintFriendly
+        batch: {
+            type: Object,
+            default: null,
+        },
         index: Number,
         qty: Number,
     });
@@ -42,7 +46,7 @@
             <b>{{shared.cropText(shared.capitalizeWords(item.product_derived_label),23)}}</b>{{subPageQty()}}
         </div>
         <div class="text-center">
-            Batch: {{batch.id}}
+            {{ batch ? 'Batch: ' + batch.id : 'Open batch - not yet quoted' }}
         </div>
         <div class="col-span-2 text-right">
             SteelNesting.com.au
