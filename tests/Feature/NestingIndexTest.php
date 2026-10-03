@@ -169,19 +169,20 @@ it('names the last step each batch has passed, down the three columns of live ba
             ->component('NestingIndex')
             ->has('batches', 3)
             //The open batch heads the page with nothing waiting on it - see the test below
-            ->where('batches.0', ['id' => null, 'stage' => 'NESTING', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false, 'prerequisiteUndoStartQuoting' => null, 'prerequisiteMarkQuoted' => null, 'prerequisiteMarkOrdered' => null, 'prerequisiteMarkDelivered' => null, 'prerequisiteMarkCut' => null, 'canAttachCertificates' => null])
+            ->where('batches.0', ['id' => null, 'stage' => 'NESTING', 'materialsRequiredDate' => null, 'criticalPathDeadline' => null, 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false, 'prerequisiteUndoStartQuoting' => null, 'prerequisiteMarkQuoted' => null, 'prerequisiteMarkOrdered' => null, 'prerequisiteMarkDelivered' => null, 'prerequisiteMarkCut' => null, 'canAttachCertificates' => null])
             /*
              * Nothing to order by on either of the live ones: a nested batch has spent the deadline it
-             * was waiting on. And neither is "mine" - a batch with no project on it carries nobody's
-             * work, whoever created the row.
+             * was waiting on. Nor anything to be required by - neither carries a project, so there is no
+             * fabrication date to work back from. And neither is "mine" - a batch with no project on it
+             * carries nobody's work, whoever created the row.
              *
              * The re-nest gate is asked of the one being quoted and of nothing else: past that column an
              * order has gone out and the answer is not a question the card can ask - which the open
              * batch's null above says for the other end of the page. False here because the gate
              * wants one of your own projects on the batch, and this one carries none at all.
              */
-            ->where('batches.1', ['id' => $quoting->id, 'stage' => 'QUOTING', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false, 'prerequisiteUndoStartQuoting' => false, 'prerequisiteMarkQuoted' => false, 'prerequisiteMarkOrdered' => false, 'prerequisiteMarkDelivered' => false, 'prerequisiteMarkCut' => null, 'canAttachCertificates' => null])
-            ->where('batches.2', ['id' => $delivering->id, 'stage' => 'ORDERED', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false, 'prerequisiteUndoStartQuoting' => null, 'prerequisiteMarkQuoted' => null, 'prerequisiteMarkOrdered' => null, 'prerequisiteMarkDelivered' => null, 'prerequisiteMarkCut' => null, 'canAttachCertificates' => null])
+            ->where('batches.1', ['id' => $quoting->id, 'stage' => 'QUOTING', 'materialsRequiredDate' => null, 'criticalPathDeadline' => null, 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false, 'prerequisiteUndoStartQuoting' => false, 'prerequisiteMarkQuoted' => false, 'prerequisiteMarkOrdered' => false, 'prerequisiteMarkDelivered' => false, 'prerequisiteMarkCut' => null, 'canAttachCertificates' => null])
+            ->where('batches.2', ['id' => $delivering->id, 'stage' => 'ORDERED', 'materialsRequiredDate' => null, 'criticalPathDeadline' => null, 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false, 'prerequisiteUndoStartQuoting' => null, 'prerequisiteMarkQuoted' => null, 'prerequisiteMarkOrdered' => null, 'prerequisiteMarkDelivered' => null, 'prerequisiteMarkCut' => null, 'canAttachCertificates' => null])
         );
 });
 
@@ -368,7 +369,7 @@ it('calls a batch Ordering while there is material on it nobody has bought', fun
         ->assertInertia(fn (Assert $page) => $page
             //The open batch, with nothing waiting on it, and this one
             ->has('batches', 2)
-            ->where('batches.1', ['id' => $batch->id, 'stage' => 'ORDERING', 'orderingTriggerDate' => null, 'projects' => [projectCard($project, $user)], 'cutCount' => cutsOf($project), 'categoryCount' => categoriesOf($project), 'mine' => true, 'prerequisiteUndoStartQuoting' => null, 'prerequisiteMarkQuoted' => null, 'prerequisiteMarkOrdered' => null, 'prerequisiteMarkDelivered' => null, 'prerequisiteMarkCut' => null, 'canAttachCertificates' => null])
+            ->where('batches.1', ['id' => $batch->id, 'stage' => 'ORDERING', 'materialsRequiredDate' => null, 'criticalPathDeadline' => null, 'orderingTriggerDate' => null, 'projects' => [projectCard($project, $user)], 'cutCount' => cutsOf($project), 'categoryCount' => categoriesOf($project), 'mine' => true, 'prerequisiteUndoStartQuoting' => null, 'prerequisiteMarkQuoted' => null, 'prerequisiteMarkOrdered' => null, 'prerequisiteMarkDelivered' => null, 'prerequisiteMarkCut' => null, 'canAttachCertificates' => null])
         );
 });
 
@@ -394,18 +395,21 @@ it('cards the batch that does not exist yet, ahead of the ones that do', functio
         ->assertInertia(fn (Assert $page) => $page
             ->has('batches', 2)
             //No fabrication date on the project, so there is no trigger - nothing will auto-quote it
-            ->where('batches.0', ['id' => null, 'stage' => 'NESTING', 'orderingTriggerDate' => null, 'projects' => [projectCard($waiting, $user)], 'cutCount' => cutsOf($waiting), 'categoryCount' => categoriesOf($waiting), 'mine' => true, 'prerequisiteUndoStartQuoting' => null, 'prerequisiteMarkQuoted' => null, 'prerequisiteMarkOrdered' => null, 'prerequisiteMarkDelivered' => null, 'prerequisiteMarkCut' => null, 'canAttachCertificates' => null])
-            ->where('batches.1', ['id' => $existing->id, 'stage' => 'QUOTING', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false, 'prerequisiteUndoStartQuoting' => false, 'prerequisiteMarkQuoted' => false, 'prerequisiteMarkOrdered' => false, 'prerequisiteMarkDelivered' => false, 'prerequisiteMarkCut' => null, 'canAttachCertificates' => null])
+            ->where('batches.0', ['id' => null, 'stage' => 'NESTING', 'materialsRequiredDate' => null, 'criticalPathDeadline' => null, 'orderingTriggerDate' => null, 'projects' => [projectCard($waiting, $user)], 'cutCount' => cutsOf($waiting), 'categoryCount' => categoriesOf($waiting), 'mine' => true, 'prerequisiteUndoStartQuoting' => null, 'prerequisiteMarkQuoted' => null, 'prerequisiteMarkOrdered' => null, 'prerequisiteMarkDelivered' => null, 'prerequisiteMarkCut' => null, 'canAttachCertificates' => null])
+            ->where('batches.1', ['id' => $existing->id, 'stage' => 'QUOTING', 'materialsRequiredDate' => null, 'criticalPathDeadline' => null, 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false, 'prerequisiteUndoStartQuoting' => false, 'prerequisiteMarkQuoted' => false, 'prerequisiteMarkOrdered' => false, 'prerequisiteMarkDelivered' => false, 'prerequisiteMarkCut' => null, 'canAttachCertificates' => null])
         );
 });
 
 it('tells the pending card the day it stops being pending', function () {
     /*
      * The "Order by" date, which only the Nesting column has: the day the fabrication deadline sweep
-     * nests everything waiting whether anybody presses the button or not. Read off
-     * KanbanFormatter::orderingTriggerDate, the way the board's card reads it, so the two screens
-     * cannot promise different days - and off the sweep's own constant, so neither of them promises a
-     * day the schedule has stopped keeping.
+     * warns that everything waiting has to be quoted. Read off KanbanFormatter::orderingTriggerDate,
+     * the way the board's card reads it, so the two screens cannot promise different days - and off
+     * the sweep's own constant, so neither of them promises a day the schedule has stopped keeping.
+     *
+     * This page no longer draws it - its cards print the day the material is wanted on site instead
+     * (see the test below) - but it is still sent, because the "Start quoting" dialog decides off it
+     * whether waiting for a bigger batch is advice or is now late.
      */
     test()->actingAs(createUser(1, createBusiness('admin'), true, true));
     seedMasterMaterials();
@@ -428,6 +432,300 @@ it('tells the pending card the day it stops being pending', function () {
             ->where('batches.0.orderingTriggerDate', now()
                 ->addDays(12 - FabricationDeadlineQuoting::DAYS_BEFORE_FABRICATION)
                 ->toDateString())
+        );
+});
+
+it('prints the day each card\'s material is wanted on site, a working day before fabrication', function () {
+    /*
+     * The "Delivery due" date, which every card on the page carries rather than only the one that has
+     * not been nested yet. It is a fact about the work, not about a batch's progress: the steel has to
+     * be in the shop before the saw starts, and that is as true of a batch already out with the
+     * merchants as of one still waiting.
+     *
+     * A working day before the earliest fabrication date among the jobs on the card, so a Monday start
+     * is wanted on the Friday - a date landing on the weekend would be promising a delivery on a day
+     * the yard is shut and nobody is there to take it. The dates below are written out rather than
+     * counted off today for that reason: which day of the week the answer lands on is the thing being
+     * asserted.
+     */
+    test()->actingAs(createUser(1, createBusiness('admin'), true, true));
+    seedMasterMaterials();
+
+    $business = createBusiness('fabricator');
+    $user = createUser(1, $business, false, true);
+
+    //Waiting to be nested: a Monday start, so the weekend has to be stepped over
+    nestingPageProject($user, '2026-11-02');
+
+    /*
+     * And one that has been nested, carrying two jobs - the earliest of them is what the card answers,
+     * the same way the open batch takes the earliest of what is waiting on it.
+     */
+    $nested = Batch::factory()->forUser($user->id)->create(['done' => false]);
+    $earlier = nestingPageProject($user, '2026-11-04');
+    $later = nestingPageProject($user, '2026-11-20');
+    Piece::query()
+        ->whereIn('project_id', [$earlier->id, $later->id])
+        ->update(['batch_id' => $nested->id]);
+
+    $this->actingAs($user);
+
+    $this->withoutExceptionHandling();
+    $this->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('batches', 2)
+            //Monday the 2nd, so the Friday before it rather than the Sunday
+            ->where('batches.0.stage', 'NESTING')
+            ->where('batches.0.materialsRequiredDate', '2026-10-30')
+            //And the Wednesday job on the nested batch, which is simply the day before
+            ->where('batches.1.id', $nested->id)
+            ->where('batches.1.materialsRequiredDate', '2026-11-03')
+        );
+});
+
+it('counts each card\'s deadline back from the work that card still has left to do', function () {
+    /*
+     * The colour of the "Delivery due" pill, which is the half of it that is not the same on every
+     * card. The date says when the steel is wanted; the deadline sent beside it says when *this*
+     * batch had to have reached the step it is on to still make that date, and the two are days apart
+     * because the step is read as the work in front of the batch rather than the work behind it.
+     *
+     * Asserted as dates rather than as a colour: the colour is the difference between this day and
+     * today, and a test that counted off today would pass tomorrow by saying nothing.
+     *
+     * Defaults here - 2 days to quote and 3 to deliver (Business::DEFAULT_*) - and the test below
+     * covers a business that has set its own. Whole days, unlike the required-by date above: only
+     * that date steps over a weekend, because only it names a delivery somebody has to take.
+     */
+    test()->actingAs(createUser(1, createBusiness('admin'), true, true));
+    seedMasterMaterials();
+
+    $business = createBusiness('fabricator');
+    $user = createUser(1, $business, false, true);
+
+    //A Wednesday start, so the steel is wanted on the Tuesday
+    nestingPageProject($user, '2026-11-04');
+
+    //And a batch out with the merchants, wanted on the same day
+    $quoting = Batch::factory()->forUser($user->id)->create(['done' => false]);
+    $outForPricing = nestingPageProject($user, '2026-11-04');
+    Piece::query()->where('project_id', $outForPricing->id)->update(['batch_id' => $quoting->id]);
+
+    $this->actingAs($user);
+
+    $this->withoutExceptionHandling();
+    $this->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('batches', 2)
+            /*
+             * Nothing priced yet, so the quoting and the delivery both still have to come out of the
+             * 3rd: five days back off it.
+             */
+            ->where('batches.0.stage', 'NESTING')
+            ->where('batches.0.materialsRequiredDate', '2026-11-03')
+            ->where('batches.0.criticalPathDeadline', '2026-10-29')
+            /*
+             * And the same five for a batch out with the merchants, which is the point of this pair:
+             * a batch being priced is doing the quoting now, so none of the quoting time is behind it
+             * and the card owes every day of the path that a batch still waiting owes.
+             */
+            ->where('batches.1.id', $quoting->id)
+            ->where('batches.1.stage', 'QUOTING')
+            ->where('batches.1.materialsRequiredDate', '2026-11-03')
+            ->where('batches.1.criticalPathDeadline', '2026-10-29')
+        );
+});
+
+it('drops the quoting time off the deadline once the prices are in, and not before', function () {
+    /*
+     * QUOTED is the first step with the quoting actually behind it - every merchant has priced, and
+     * what is left is to place the order and wait for the steel. So the deadline loses the quoting
+     * half of the path and keeps the delivery: three days back off the required-by date rather than
+     * five.
+     *
+     * The step either side of it is what gives this its edges. QUOTING still owes five (above),
+     * because a batch being priced has not finished being priced; ORDERED still owes three (below),
+     * because buying the steel is a press rather than a lead time.
+     */
+    test()->actingAs(createUser(1, createBusiness('admin'), true, true));
+    seedMasterMaterials();
+
+    $business = createBusiness('fabricator');
+    $user = createUser(1, $business, false, true);
+
+    $project = nestingPageProject($user, '2026-11-04');
+    //Marked quoted off the card menu, which is one of the two ways a card reads QUOTED - see milestoneOf()
+    $batch = Batch::factory()->forUser($user->id)->create(['done' => false, 'quoted_at' => now()]);
+    Piece::query()->where('project_id', $project->id)->update(['batch_id' => $batch->id]);
+
+    $this->actingAs($user);
+
+    $this->withoutExceptionHandling();
+    $this->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('batches.1.id', $batch->id)
+            ->where('batches.1.stage', 'QUOTED')
+            ->where('batches.1.materialsRequiredDate', '2026-11-03')
+            ->where('batches.1.criticalPathDeadline', '2026-10-31')
+        );
+});
+
+it('still owes the delivery on a batch that has been bought outright', function () {
+    /*
+     * ORDERED is bought and waiting, which is not the same as arrived: the steel still takes the
+     * delivery lead time to turn up, so the batch had to have been bought that many days before it
+     * is wanted. Holding it to the required-by date itself would have the card call a batch ordered
+     * the day before its steel is due on time, when it is two days late and nothing can be done.
+     */
+    test()->actingAs(createUser(1, createBusiness('admin'), true, true));
+    seedMasterMaterials();
+
+    $business = createBusiness('fabricator');
+    $user = createUser(1, $business, false, true);
+
+    $project = nestingPageProject($user, '2026-11-04');
+    //Marked bought off the card menu, which is what ORDERED is said of - see milestoneOf()
+    $batch = Batch::factory()->forUser($user->id)->create(['done' => false, 'ordered_at' => now()]);
+    Piece::query()->where('project_id', $project->id)->update(['batch_id' => $batch->id]);
+
+    $this->actingAs($user);
+
+    $this->withoutExceptionHandling();
+    $this->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('batches.1.id', $batch->id)
+            ->where('batches.1.stage', 'ORDERED')
+            ->where('batches.1.materialsRequiredDate', '2026-11-03')
+            ->where('batches.1.criticalPathDeadline', '2026-10-31')
+        );
+});
+
+it('chases a half-bought batch on the ordering deadline, not the delivery one', function () {
+    /*
+     * ORDERING is a batch with an order out and material on it nobody has bought yet. That material
+     * still needs the full delivery lead time after it goes in, so the batch is held to the day the
+     * buying has to be finished - the same deadline a batch still being priced has - rather than to
+     * the delivery date its bought half is already working to.
+     */
+    test()->actingAs(createUser(1, createBusiness('admin'), true, true));
+    seedMasterMaterials();
+
+    $business = createBusiness('fabricator');
+    $user = createUser(1, $business, false, true);
+
+    $project = nestingPageProject($user, '2026-11-04');
+    $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
+    Piece::query()->where('project_id', $project->id)->update(['batch_id' => $batch->id]);
+
+    //Sent, but nothing on the batch is attached to it - which is what BatchStages calls ORDERING
+    nestingPageSentOrder($user, $batch);
+
+    $this->actingAs($user);
+
+    $this->withoutExceptionHandling();
+    $this->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('batches.1.id', $batch->id)
+            ->where('batches.1.stage', 'ORDERING')
+            ->where('batches.1.materialsRequiredDate', '2026-11-03')
+            //Three days back off the 3rd, the way a batch still being priced is
+            ->where('batches.1.criticalPathDeadline', '2026-10-31')
+        );
+});
+
+it('stops holding a batch to a deadline once its steel is in', function () {
+    /*
+     * A delivered or cut batch has met its critical path, whatever today is. No deadline is sent, so
+     * the pill draws on time - it keeps its date, which is still what the job is working to, and
+     * stops being something the page chases. A red pill on one would be the page raising an alarm
+     * about a delivery that has already happened.
+     *
+     * The fabrication date here is deliberately in the past: the point is that it makes no
+     * difference.
+     */
+    test()->actingAs(createUser(1, createBusiness('admin'), true, true));
+    seedMasterMaterials();
+
+    $business = createBusiness('fabricator');
+    $user = createUser(1, $business, false, true);
+
+    $deliveredProject = nestingPageProject($user, '2020-01-08');
+    $delivered = Batch::factory()->forUser($user->id)->create(['done' => false, 'delivered_at' => now()]);
+    Piece::query()->where('project_id', $deliveredProject->id)->update(['batch_id' => $delivered->id]);
+
+    $cutProject = nestingPageProject($user, '2020-01-08');
+    $cut = Batch::factory()->forUser($user->id)->create(['done' => false, 'cut_at' => now()]);
+    Piece::query()->where('project_id', $cutProject->id)->update(['batch_id' => $cut->id]);
+
+    $this->actingAs($user);
+
+    $this->withoutExceptionHandling();
+    $this->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('batches', 3)
+            //Latest first by id within the column, so the cut batch is the one above
+            ->where('batches.1.id', $cut->id)
+            ->where('batches.1.stage', 'CUT')
+            ->where('batches.1.materialsRequiredDate', '2020-01-07')
+            ->where('batches.1.criticalPathDeadline', null)
+            ->where('batches.2.id', $delivered->id)
+            ->where('batches.2.stage', 'DELIVERED')
+            ->where('batches.2.materialsRequiredDate', '2020-01-07')
+            ->where('batches.2.criticalPathDeadline', null)
+        );
+});
+
+it('counts the deadline back from the business\'s own lead times, not the platform\'s', function () {
+    /*
+     * The critical path is the business's two figures, set in /profile under "Business preferences" -
+     * so a shop that gets prices back the same afternoon and collects off the merchant's rack is
+     * chased on its own schedule rather than on the platform's 2 and 3.
+     *
+     * One day to quote and none to deliver here, which is the shop that collects off the merchant's
+     * rack: a batch still being priced owes that single day, and one already priced owes nothing at
+     * all - its deadline is the required-by date itself, because it can be fetched the morning it is
+     * wanted. Both halves of the business's figures are read, and neither is the platform's 2 and 3.
+     */
+    test()->actingAs(createUser(1, createBusiness('admin'), true, true));
+    seedMasterMaterials();
+
+    $business = createBusiness('fabricator');
+    $business->update(['quoting_days' => 1, 'delivery_days' => 0]);
+
+    $user = createUser(1, $business, false, true);
+
+    nestingPageProject($user, '2026-11-04');
+
+    //Priced already, so it owes the delivery alone - which this business does not have
+    $quoted = Batch::factory()->forUser($user->id)->create(['done' => false, 'quoted_at' => now()]);
+    $priced = nestingPageProject($user, '2026-11-04');
+    Piece::query()->where('project_id', $priced->id)->update(['batch_id' => $quoted->id]);
+
+    //And still out for prices, so it owes the quoting day. Created second, so it cards first
+    $quoting = Batch::factory()->forUser($user->id)->create(['done' => false]);
+    $outForPricing = nestingPageProject($user, '2026-11-04');
+    Piece::query()->where('project_id', $outForPricing->id)->update(['batch_id' => $quoting->id]);
+
+    $this->actingAs($user);
+
+    $this->withoutExceptionHandling();
+    $this->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('batches.0.stage', 'NESTING')
+            ->where('batches.0.criticalPathDeadline', '2026-11-02')
+            ->where('batches.1.id', $quoting->id)
+            ->where('batches.1.stage', 'QUOTING')
+            ->where('batches.1.criticalPathDeadline', '2026-11-02')
+            ->where('batches.2.id', $quoted->id)
+            ->where('batches.2.stage', 'QUOTED')
+            ->where('batches.2.criticalPathDeadline', '2026-11-03')
         );
 });
 
@@ -454,7 +752,7 @@ it('cards the open batch with nothing waiting on it, rather than leaving it off 
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->has('batches', 1)
-            ->where('batches.0', ['id' => null, 'stage' => 'NESTING', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false, 'prerequisiteUndoStartQuoting' => null, 'prerequisiteMarkQuoted' => null, 'prerequisiteMarkOrdered' => null, 'prerequisiteMarkDelivered' => null, 'prerequisiteMarkCut' => null, 'canAttachCertificates' => null])
+            ->where('batches.0', ['id' => null, 'stage' => 'NESTING', 'materialsRequiredDate' => null, 'criticalPathDeadline' => null, 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false, 'prerequisiteUndoStartQuoting' => null, 'prerequisiteMarkQuoted' => null, 'prerequisiteMarkOrdered' => null, 'prerequisiteMarkDelivered' => null, 'prerequisiteMarkCut' => null, 'canAttachCertificates' => null])
         );
 });
 

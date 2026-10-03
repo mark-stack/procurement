@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Models\Business;
 use App\Models\User;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
@@ -21,9 +22,27 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
+        $business = $request->user()->business;
+
         return Inertia::render('Profile/Edit', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => session('status'),
+            /*
+             * The business's own settings, for the section of this page that is not about the person
+             * reading it - see BusinessPreferencesController.
+             *
+             * Sent here rather than read off the shared business prop, which carries identity and the
+             * one flag the modals branch on and is deliberately not the whole row (see
+             * HandleInertiaRequests::businessProp). The defaults stand in for a user with no business
+             * behind them, so the form draws the figures that are actually being applied rather than
+             * two empty boxes.
+             */
+            'businessPreferences' => [
+                'quoting_days' => (int) ($business->quoting_days ?? Business::DEFAULT_QUOTING_DAYS),
+                'delivery_days' => (int) ($business->delivery_days ?? Business::DEFAULT_DELIVERY_DAYS),
+            ],
+            //Whether there is a business to save them against at all - the form says so if there is not
+            'canEditBusinessPreferences' => $business !== null,
         ]);
     }
 

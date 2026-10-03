@@ -9,9 +9,10 @@
      * the last day pressing "Start quoting" is early enough. Nothing presses it for you; the
      * fabrication deadline warnings email and bell whoever's job starts first on the day.
      *
-     * One component because two screens draw it now - the board's Nesting card and the Nesting page -
-     * and the colour is a warning: a pill that turns red two days earlier on one screen than the other
-     * would be telling people different things about the same deadline.
+     * The board's Nesting card is the one place it is drawn. The Nesting page's cards print the
+     * deadline the work has instead - the day the steel is wanted on site, one working day before
+     * fabrication starts (DeliveryDuePill) - which is days later and about a different thing: this is
+     * the last day to press the button, that is the day the material has to be there.
      *
      * The date itself is always computed server side, off the constant the warnings actually use
      * (KanbanFormatter::orderingTriggerDate), so neither screen can promise a date nothing is keeping

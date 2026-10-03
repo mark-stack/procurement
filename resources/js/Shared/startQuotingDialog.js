@@ -1,3 +1,4 @@
+import moment from "moment";
 import shared from "@/Shared/shared.js";
 
 /**
@@ -11,9 +12,10 @@ import shared from "@/Shared/shared.js";
  *
  * @param {Array<{name: string, mine: boolean}>} projects Everything waiting, which is what gets nested
  * @param {function} onConfirmed Run once the user agrees
- * @returns {{title: string, message: string, note: string, confirmLabel: string, tone: string, onConfirmed: function}}
+ * @param {?string} orderingTriggerDate The batch's "Order by" day, which decides whether waiting is still advice
+ * @returns {{title: string, message: string, note: ?string, confirmLabel: string, tone: string, onConfirmed: function}}
  */
-export default function startQuotingDialog(projects, onConfirmed){
+export default function startQuotingDialog(projects, onConfirmed, orderingTriggerDate = null){
     const mine = projects.filter(project => project.mine);
     const theirs = projects.filter(project => !project.mine);
 
@@ -28,6 +30,20 @@ export default function startQuotingDialog(projects, onConfirmed){
             + `${theirs.length > 1 ? 'those projects' : 'that project'} too.`
         : `${nameList(mine)} will be nested into one batch and moved to Quoting.`;
 
+    /*
+     * How much longer this batch is allowed to sit there - the same day the board's Order by pill
+     * counts down to, read the same way it reads it (OrderByPill), so the dialog cannot say "wait"
+     * on a day the pill beside the button has already turned red. Deliberately not the Nesting
+     * page's "Delivery due" date, which is when the steel has to be on site rather than when it has
+     * to be bought: waiting until then is waiting several days too long.
+     *
+     * Null when no project on the batch has a fabrication date: nothing is chasing it, so there is
+     * no number of days to wait and no deadline to be early for.
+     */
+    const daysToOrderBy = orderingTriggerDate
+        ? moment(orderingTriggerDate).startOf('day').diff(moment().startOf('day'), 'days')
+        : null;
+
     return {
         title: theirs.length > 0 ? "Nest your colleagues' projects too?" : "Start quoting?",
         message: message,
@@ -37,10 +53,19 @@ export default function startQuotingDialog(projects, onConfirmed){
          * batch is cut cannot get any of that back, and nothing on either screen says so - the
          * button reads as the routine next step, not as the moment the batch closes. Its own
          * paragraph because it is advice, not what the button does.
+         *
+         * Only while there is still room to take it. On the Order by day and after it, waiting is
+         * not the cheaper choice any more - it is the one that puts the earliest job on this batch
+         * behind its fabrication date, and advice to wait sitting next to a pill reading "now" is
+         * the dialog arguing with the page. The days are named rather than implied, because "soon"
+         * is the whole question the presser is trying to answer.
          */
-        note: "Projects nested together share bars and offcuts, so each one costs less in material. "
-            + "If more projects are due in soon, it is worth waiting and nesting them all at once - "
-            + "the saving on a bigger batch is significant.",
+        note: daysToOrderBy > 0
+            ? "Projects nested together share bars and offcuts, so each one costs less in material. "
+                + `This batch has ${daysToOrderBy === 1 ? 'one more day' : daysToOrderBy + ' more days'} `
+                + "before it has to be quoted, so if more projects are due in soon it is worth waiting "
+                + "and nesting them all at once - the saving on a bigger batch is significant."
+            : null,
         confirmLabel: "Start quoting",
         tone: "primary",
         onConfirmed: onConfirmed,

@@ -226,6 +226,8 @@
                 emit('pageLoadingOn',null);
                 emit('quoteNow');
             },
+            //The day this card's own Order by pill is counting down to - see startQuotingDialog
+            props.orderingTriggerDate ?? null,
         ));
     }
 

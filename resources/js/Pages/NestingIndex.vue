@@ -10,7 +10,7 @@
     import CardButtonYellow from "@/Components/Buttons/CardButtonYellow.vue";
     import Dropdown from "@/Components/Dropdown.vue";
     import StagePill from "@/Components/StagePill.vue";
-    import OrderByPill from "@/Components/OrderByPill.vue";
+    import DeliveryDuePill from "@/Components/DeliveryDuePill.vue";
     import PageLoadingOverlay from "@/Components/PageLoadingOverlay.vue";
     import BatchBomModal from "@/Components/Modals/BatchBomModal.vue";
     import BatchCertificatesModal from "@/Components/Modals/BatchCertificatesModal.vue";
@@ -607,6 +607,13 @@
         askToConfirm(startQuotingDialog(
             openBatch.value?.projects ?? [],
             () => startQuoting(),
+            /*
+             * The day this batch has to stop waiting and be quoted, which is what decides whether
+             * the dialog's advice to wait for a bigger batch is still worth taking - see
+             * startQuotingDialog. Not the required-by date the card's pill prints: that one is when
+             * the steel has to be on site, which is days later and a different argument.
+             */
+            openBatch.value?.orderingTriggerDate ?? null,
         ));
     }
 
@@ -871,12 +878,12 @@
      * The same component and the same PUT to projects.update, because it is the same job: a second
      * rename form is a second place for the name rules to be half-applied. The one thing this page
      * adds is where it is opened from, which is the point of the pencil - the fabrication date is what
-     * decides when this batch has to stop waiting and be quoted (see OrderByPill), and until now
-     * reading that date here meant going to the board to change it.
+     * decides when this batch's steel has to be on site (see DeliveryDuePill) and when it has to stop
+     * waiting and be quoted, and until now reading that date here meant going to the board to change it.
      *
      * The card's project is what the modal is handed, which is why those fields are on it - see
      * NestingIndexController::projectCards(). Saving lands back on this page, so the heading, the
-     * hover list and the "Order by" date all redraw with the new values; there is nothing to reload.
+     * hover list and the "Delivery due" date all redraw with the new values; there is nothing to reload.
      */
     function editProjectMode(project) {
         newProjectBomData.value = null;
@@ -1127,13 +1134,27 @@
                             </div>
 
                             <!--
-                                On the pending card only, the day it stops being pending. Only that card
-                                has one: the server sends null for every batch that has been nested,
-                                because the deadline it was waiting on is spent. It stays beside the job
-                                names, being a fact about the work rather than about the batch's progress.
-                                See OrderByPill.
+                                The day this card's steel has to be on site - one working day before the
+                                earliest fabrication date on it. Every card carries one, the open batch
+                                included: it is a fact about the work rather than about the batch's
+                                progress, which is why it sits beside the job names and not with the
+                                stage pill and the buttons on the right.
+
+                                Its colour is the other half: whether this batch, where it has got to,
+                                is still going to make that date. The deadline it is held to depends on
+                                how much of the critical path it has left to spend - the server works
+                                that out off the business's lead times and sends it alongside. Green on
+                                track, amber a day behind, red two or more. See DeliveryDuePill.
+
+                                A delivered or cut batch keeps its date and reads green: its steel is
+                                in, so it is off the path rather than late for it.
                             -->
-                            <OrderByPill :date="batch.orderingTriggerDate" class="shrink-0" />
+                            <DeliveryDuePill
+                                :date="batch.materialsRequiredDate"
+                                :deadline="batch.criticalPathDeadline"
+                                :done="['DELIVERED', 'CUT'].includes(batch.stage)"
+                                class="shrink-0"
+                            />
                         </div>
 
                         <!--
@@ -1159,9 +1180,13 @@
                                 In a slot of its own width, because the pill's is its word: "Nesting" and
                                 "Delivered" are a dozen pixels apart, and with the row right-aligned that
                                 difference walked all three buttons sideways on every card.
+
+                                Not on the open batch: the rule above it already says what it is, and a
+                                batch that has not been quoted has no step behind it to report. The empty
+                                slot stays, so its buttons line up with every card below it.
                             -->
                             <div class="flex justify-end w-24 mr-1 shrink-0">
-                                <StagePill :stage="batch.stage" />
+                                <StagePill v-if="batch.id !== null" :stage="batch.stage" />
                             </div>
 
                             <!--

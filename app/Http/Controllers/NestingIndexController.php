@@ -14,6 +14,7 @@ use App\Models\Project;
 use App\Models\Quote;
 use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\BatchStages;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -121,11 +122,26 @@ class NestingIndexController extends Controller
          * so on its face (NestingIndex.vue).
          *
          * Empty means empty, not zeroed by hand: the helpers below answer 0 for no projects, and the
-         * ordering date is null the way it is for projects with no fabrication date.
+         * dates are null the way they are for projects with no fabrication date.
          */
+        $pendingRequiredDate = $this->materialsRequiredDate($pendingProjects);
+
         $batches[] = [
             'id' => null,
             'stage' => 'NESTING',
+            //The day this card's steel has to be on site by, which every card on the page carries
+            'materialsRequiredDate' => $pendingRequiredDate,
+            //And the day this card, where it has got to, has to move on by - see criticalPathDeadline()
+            'criticalPathDeadline' => $this->criticalPathDeadline($pendingRequiredDate, 'NESTING', $business),
+            /*
+             * And the day it has to stop waiting and be quoted, which only this card has - a batch
+             * that has been nested has spent that deadline.
+             *
+             * Not drawn any more: the pill beside the job names is the required-by date above, and
+             * the board's Nesting card is where the ordering deadline is read. It is still sent
+             * because the "Start quoting" dialog argues off it - whether waiting for a bigger batch
+             * is still advice or is now late (see startQuotingDialog).
+             */
             'orderingTriggerDate' => (new KanbanFormatter)->orderingTriggerDate($pendingProjects),
             //What "Start quoting" would sweep in, which is what this card stands for
             'projects' => $this->projectCards($pendingProjects, $user->id, $staffNames),
@@ -192,6 +208,9 @@ class NestingIndexController extends Controller
                 $batches[] = [
                     'id' => $batch->id,
                     'stage' => $milestone,
+                    //Filled below with the rest of what its projects answer - see the loop at the end
+                    'materialsRequiredDate' => null,
+                    'criticalPathDeadline' => null,
                     //Nothing to order by: this batch has been nested, so the deadline it had is spent
                     'orderingTriggerDate' => null,
                     'projects' => [],
@@ -339,6 +358,18 @@ class NestingIndexController extends Controller
             $batchProjects = $projects->whereIn('id', $projectIdsByBatch->get($batch['id'], []));
 
             $batches[$index]['projects'] = $this->projectCards($batchProjects, $user->id, $staffNames);
+            $batches[$index]['materialsRequiredDate'] = $this->materialsRequiredDate($batchProjects);
+            /*
+             * Read off the card's own pill rather than off the column it came out of, because the
+             * pill is the step the work has actually reached: a batch somebody marked "All ordered"
+             * from the card menu sits in the Quoting column and has been bought, and holding it to
+             * the day it should have stopped quoting would chase it for a job already done.
+             */
+            $batches[$index]['criticalPathDeadline'] = $this->criticalPathDeadline(
+                $batches[$index]['materialsRequiredDate'],
+                $batch['stage'],
+                $business,
+            );
             $batches[$index]['cutCount'] = (int) round((float) ($cuts->get($batch['id'])->cuts ?? 0));
             $batches[$index]['categoryCount'] = $this->supplierGroupCount(
                 $categoriesByBatch->get($batch['id'], []),
@@ -359,6 +390,107 @@ class NestingIndexController extends Controller
             //Whether the open batch card's menu can offer to nest what is waiting - see above
             'prerequisiteStartQuoting' => $prerequisiteStartQuoting,
         ]);
+    }
+
+    /**
+     * The day this card's material has to be on site by.
+     *
+     * The earliest fabrication start among the jobs on it, less one working day: the steel has to be
+     * in the shop before the saw starts, and a job starting on the Monday wants it there on the
+     * Friday - not on the Sunday, when the yard is shut and nobody is there to take a delivery.
+     * Carbon::subWeekdays is what steps over the weekend, so the date printed is always a day the
+     * business is open.
+     *
+     * Deliberately not KanbanFormatter::orderingTriggerDate, which is a different day about a
+     * different thing: that one is when the open batch has to stop waiting and be quoted, five days
+     * out, and it is what the fabrication deadline warnings chase. This is the deadline the work
+     * itself has rather than one about a batch's progress, which is why every card on the page
+     * carries it and not just the one that has not been nested yet.
+     *
+     * Null when no job on the card names a fabrication date. That is the open batch with nothing
+     * waiting on it, and projects created before the date was asked for (see the
+     * add_date_fabrication_begins migration) - a card of those has no deadline to print.
+     *
+     * @param  Collection<int, Project>  $projects
+     */
+    private function materialsRequiredDate(Collection $projects): ?string
+    {
+        $earliest = $projects
+            ->pluck('date_fabrication_begins')
+            ->filter()
+            ->map(fn ($date) => Carbon::parse($date))
+            ->min();
+
+        return $earliest
+            ?->subWeekdays(1)
+            ->toDateString();
+    }
+
+    /**
+     * The day this card had to have reached the step it is on, if it is to make its delivery date.
+     *
+     * The required-by date above is the end of the path and says the same thing to every card on the
+     * page. This is what that date means *here*: the work the card still owes, counted back off it.
+     * A batch being quoted owes the quoting time and the delivery time both - it is being priced now,
+     * so none of the quoting is behind it - where one already bought owes the delivery alone, and on
+     * the same required-by date those two are days apart. The pill is coloured off the difference
+     * between this day and today (DeliveryDuePill), so a column of cards reads as how each one is
+     * tracking against its own remaining work rather than as a row of dates all counting down to the
+     * same morning.
+     *
+     * The step is read as the work in front of it rather than the work behind it, which is what makes
+     * a card honest about being late while something can still be done. A batch out with the
+     * merchants two days before its steel is wanted, on a 2 + 3 path, is three days behind and has
+     * been since before anybody looked at it - reading QUOTING as "the quoting is done" would have
+     * the card calling that a day's slip.
+     *
+     * The business's own two figures, which is what the critical path has been since the lead times
+     * moved onto the business - see Project::quotingDays() and Project::longestDeliveryDays(). Read
+     * off the page's business rather than through those methods: every job on every card here belongs
+     * to this business, so the answer is the same for all of them, and asking per project is a walk
+     * back through each one's manager to the same two columns.
+     *
+     * Whole days rather than working days, matching Project's three deadlines, which are what the
+     * notifications count back from. Only the required-by date steps over the weekend, because it is
+     * the one of these dates that names a delivery somebody has to be at the yard to take.
+     *
+     * Null for a card with nothing left to chase, which draws on time:
+     *
+     *  - No required-by date, so there is no path to be behind on. The pill is not drawn at all.
+     *  - DELIVERED or CUT. The steel is in; the batch met its path, whatever today is.
+     */
+    private function criticalPathDeadline(?string $requiredDate, string $milestone, Business $business): ?string
+    {
+        if ($requiredDate === null) {
+            return null;
+        }
+
+        $daysStillToSpend = match ($milestone) {
+            /*
+             * Nothing is priced yet, so the whole critical path is still in front of it - the quoting
+             * and then the delivery. QUOTING sits here rather than with the steps below because a
+             * batch out with the merchants is being priced now: the quoting is the work in hand, not
+             * work it has finished, and the card has to owe it.
+             */
+            'NESTING', 'QUOTING' => (int) $business->quoting_days + (int) $business->delivery_days,
+            /*
+             * Priced, part way through being bought, or bought outright - and in all three the thing
+             * still to come is the delivery, which is the lead time the steel takes to turn up once
+             * it has been paid for. Placing the order is the press that sits between them and takes
+             * no lead time of its own, so the three owe the same.
+             */
+            'QUOTED', 'ORDERING', 'ORDERED' => (int) $business->delivery_days,
+            //DELIVERED, CUT, and anything a later milestone adds past them
+            default => null,
+        };
+
+        if ($daysStillToSpend === null) {
+            return null;
+        }
+
+        return Carbon::parse($requiredDate)
+            ->subDays($daysStillToSpend)
+            ->toDateString();
     }
 
     /**
