@@ -1159,9 +1159,13 @@
                                 In a slot of its own width, because the pill's is its word: "Nesting" and
                                 "Delivered" are a dozen pixels apart, and with the row right-aligned that
                                 difference walked all three buttons sideways on every card.
+
+                                Not on the open batch: the rule above it already says what it is, and a
+                                batch that has not been quoted has no step behind it to report. The empty
+                                slot stays, so its buttons line up with every card below it.
                             -->
                             <div class="flex justify-end w-24 mr-1 shrink-0">
-                                <StagePill :stage="batch.stage" />
+                                <StagePill v-if="batch.id !== null" :stage="batch.stage" />
                             </div>
 
                             <!--
