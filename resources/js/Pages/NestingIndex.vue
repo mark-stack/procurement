@@ -10,7 +10,7 @@
     import CardButtonYellow from "@/Components/Buttons/CardButtonYellow.vue";
     import Dropdown from "@/Components/Dropdown.vue";
     import StagePill from "@/Components/StagePill.vue";
-    import OrderByPill from "@/Components/OrderByPill.vue";
+    import RequiredByPill from "@/Components/RequiredByPill.vue";
     import PageLoadingOverlay from "@/Components/PageLoadingOverlay.vue";
     import BatchBomModal from "@/Components/Modals/BatchBomModal.vue";
     import BatchCertificatesModal from "@/Components/Modals/BatchCertificatesModal.vue";
@@ -607,7 +607,12 @@
         askToConfirm(startQuotingDialog(
             openBatch.value?.projects ?? [],
             () => startQuoting(),
-            //The day the card's own Order by pill is counting down to - see startQuotingDialog
+            /*
+             * The day this batch has to stop waiting and be quoted, which is what decides whether
+             * the dialog's advice to wait for a bigger batch is still worth taking - see
+             * startQuotingDialog. Not the required-by date the card's pill prints: that one is when
+             * the steel has to be on site, which is days later and a different argument.
+             */
             openBatch.value?.orderingTriggerDate ?? null,
         ));
     }
@@ -873,12 +878,12 @@
      * The same component and the same PUT to projects.update, because it is the same job: a second
      * rename form is a second place for the name rules to be half-applied. The one thing this page
      * adds is where it is opened from, which is the point of the pencil - the fabrication date is what
-     * decides when this batch has to stop waiting and be quoted (see OrderByPill), and until now
-     * reading that date here meant going to the board to change it.
+     * decides when this batch's steel has to be on site (see RequiredByPill) and when it has to stop
+     * waiting and be quoted, and until now reading that date here meant going to the board to change it.
      *
      * The card's project is what the modal is handed, which is why those fields are on it - see
      * NestingIndexController::projectCards(). Saving lands back on this page, so the heading, the
-     * hover list and the "Order by" date all redraw with the new values; there is nothing to reload.
+     * hover list and the "Required by" date all redraw with the new values; there is nothing to reload.
      */
     function editProjectMode(project) {
         newProjectBomData.value = null;
@@ -1129,13 +1134,21 @@
                             </div>
 
                             <!--
-                                On the pending card only, the day it stops being pending. Only that card
-                                has one: the server sends null for every batch that has been nested,
-                                because the deadline it was waiting on is spent. It stays beside the job
-                                names, being a fact about the work rather than about the batch's progress.
-                                See OrderByPill.
+                                The day this card's steel has to be on site - one working day before the
+                                earliest fabrication date on it. Every card carries one, the open batch
+                                included: it is a fact about the work rather than about the batch's
+                                progress, which is why it sits beside the job names and not with the
+                                stage pill and the buttons on the right.
+
+                                Drawn plain once the material is in, rather than dropped: a batch that
+                                has been delivered or cut cannot be late for its own delivery, and the
+                                date is still what the job is working to. See RequiredByPill.
                             -->
-                            <OrderByPill :date="batch.orderingTriggerDate" class="shrink-0" />
+                            <RequiredByPill
+                                :date="batch.materialsRequiredDate"
+                                :muted="['DELIVERED', 'CUT'].includes(batch.stage)"
+                                class="shrink-0"
+                            />
                         </div>
 
                         <!--

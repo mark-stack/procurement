@@ -14,6 +14,7 @@ use App\Models\Project;
 use App\Models\Quote;
 use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\BatchStages;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -121,11 +122,22 @@ class NestingIndexController extends Controller
          * so on its face (NestingIndex.vue).
          *
          * Empty means empty, not zeroed by hand: the helpers below answer 0 for no projects, and the
-         * ordering date is null the way it is for projects with no fabrication date.
+         * dates are null the way they are for projects with no fabrication date.
          */
         $batches[] = [
             'id' => null,
             'stage' => 'NESTING',
+            //The day this card's steel has to be on site by, which every card on the page carries
+            'materialsRequiredDate' => $this->materialsRequiredDate($pendingProjects),
+            /*
+             * And the day it has to stop waiting and be quoted, which only this card has - a batch
+             * that has been nested has spent that deadline.
+             *
+             * Not drawn any more: the pill beside the job names is the required-by date above, and
+             * the board's Nesting card is where the ordering deadline is read. It is still sent
+             * because the "Start quoting" dialog argues off it - whether waiting for a bigger batch
+             * is still advice or is now late (see startQuotingDialog).
+             */
             'orderingTriggerDate' => (new KanbanFormatter)->orderingTriggerDate($pendingProjects),
             //What "Start quoting" would sweep in, which is what this card stands for
             'projects' => $this->projectCards($pendingProjects, $user->id, $staffNames),
@@ -192,6 +204,8 @@ class NestingIndexController extends Controller
                 $batches[] = [
                     'id' => $batch->id,
                     'stage' => $milestone,
+                    //Filled below with the rest of what its projects answer - see the loop at the end
+                    'materialsRequiredDate' => null,
                     //Nothing to order by: this batch has been nested, so the deadline it had is spent
                     'orderingTriggerDate' => null,
                     'projects' => [],
@@ -339,6 +353,7 @@ class NestingIndexController extends Controller
             $batchProjects = $projects->whereIn('id', $projectIdsByBatch->get($batch['id'], []));
 
             $batches[$index]['projects'] = $this->projectCards($batchProjects, $user->id, $staffNames);
+            $batches[$index]['materialsRequiredDate'] = $this->materialsRequiredDate($batchProjects);
             $batches[$index]['cutCount'] = (int) round((float) ($cuts->get($batch['id'])->cuts ?? 0));
             $batches[$index]['categoryCount'] = $this->supplierGroupCount(
                 $categoriesByBatch->get($batch['id'], []),
@@ -359,6 +374,40 @@ class NestingIndexController extends Controller
             //Whether the open batch card's menu can offer to nest what is waiting - see above
             'prerequisiteStartQuoting' => $prerequisiteStartQuoting,
         ]);
+    }
+
+    /**
+     * The day this card's material has to be on site by.
+     *
+     * The earliest fabrication start among the jobs on it, less one working day: the steel has to be
+     * in the shop before the saw starts, and a job starting on the Monday wants it there on the
+     * Friday - not on the Sunday, when the yard is shut and nobody is there to take a delivery.
+     * Carbon::subWeekdays is what steps over the weekend, so the date printed is always a day the
+     * business is open.
+     *
+     * Deliberately not KanbanFormatter::orderingTriggerDate, which is a different day about a
+     * different thing: that one is when the open batch has to stop waiting and be quoted, five days
+     * out, and it is what the fabrication deadline warnings chase. This is the deadline the work
+     * itself has rather than one about a batch's progress, which is why every card on the page
+     * carries it and not just the one that has not been nested yet.
+     *
+     * Null when no job on the card names a fabrication date. That is the open batch with nothing
+     * waiting on it, and projects created before the date was asked for (see the
+     * add_date_fabrication_begins migration) - a card of those has no deadline to print.
+     *
+     * @param  Collection<int, Project>  $projects
+     */
+    private function materialsRequiredDate(Collection $projects): ?string
+    {
+        $earliest = $projects
+            ->pluck('date_fabrication_begins')
+            ->filter()
+            ->map(fn ($date) => Carbon::parse($date))
+            ->min();
+
+        return $earliest
+            ?->subWeekdays(1)
+            ->toDateString();
     }
 
     /**
