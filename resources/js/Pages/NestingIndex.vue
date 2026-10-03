@@ -10,7 +10,8 @@
     import CardButtonYellow from "@/Components/Buttons/CardButtonYellow.vue";
     import Dropdown from "@/Components/Dropdown.vue";
     import StagePill from "@/Components/StagePill.vue";
-    import DeliveryDuePill from "@/Components/DeliveryDuePill.vue";
+    import RequiredByPill from "@/Components/RequiredByPill.vue";
+    import ActionRequiredFooter from "@/Components/ActionRequiredFooter.vue";
     import PageLoadingOverlay from "@/Components/PageLoadingOverlay.vue";
     import BatchBomModal from "@/Components/Modals/BatchBomModal.vue";
     import BatchCertificatesModal from "@/Components/Modals/BatchCertificatesModal.vue";
@@ -200,6 +201,31 @@
      */
     function isEmptyOpenBatch(batch) {
         return batch.id === null && batch.projects.length === 0;
+    }
+
+    /*
+     * Whether this card has something outstanding on it, which is what puts a footer under it.
+     *
+     * Behind its own deadline, and on a step where being behind is somebody's to fix. Those are two
+     * different questions, and the second is the one that decides whether a footer is worth drawing.
+     *
+     * Three steps are late with nothing to be done about it. DELIVERED and CUT have their steel in,
+     * so there is no lateness left to act on at all. ORDERED is the one that matters: the material
+     * has been bought and the only thing between the batch and its date is a merchant's lorry.
+     * Telling somebody to chase it is not an instruction, it is a feeling - there is no press on this
+     * page that moves it, and a footer that cannot be cleared by doing what it says is the kind a
+     * reader learns to scroll past, taking the ones that can be cleared with it.
+     *
+     * The pill still goes red on those cards. That a bought batch is going to miss its date is worth
+     * knowing - it is what somebody rings the customer about - it is just not a job on this page.
+     *
+     * One working day behind is enough. The deadline is the last day the step could be finished and
+     * still leave time for everything after it, so a card that is past it has already lost time it
+     * cannot get back by working normally - which is the point at which somebody should be told.
+     */
+    function actionRequired(batch) {
+        return batch.daysBehindCriticalPath >= 1
+            && ! ['ORDERED', 'DELIVERED', 'CUT'].includes(batch.stage);
     }
 
     /**
@@ -611,7 +637,7 @@
              * The day this batch has to stop waiting and be quoted, which is what decides whether
              * the dialog's advice to wait for a bigger batch is still worth taking - see
              * startQuotingDialog. Not the required-by date the card's pill prints: that one is when
-             * the steel has to be on site, which is days later and a different argument.
+             * the steel has to be at the workshop, which is days later and a different argument.
              */
             openBatch.value?.orderingTriggerDate ?? null,
         ));
@@ -878,12 +904,12 @@
      * The same component and the same PUT to projects.update, because it is the same job: a second
      * rename form is a second place for the name rules to be half-applied. The one thing this page
      * adds is where it is opened from, which is the point of the pencil - the fabrication date is what
-     * decides when this batch's steel has to be on site (see DeliveryDuePill) and when it has to stop
+     * decides when this batch's steel has to be at the workshop (see RequiredByPill) and when it has to stop
      * waiting and be quoted, and until now reading that date here meant going to the board to change it.
      *
      * The card's project is what the modal is handed, which is why those fields are on it - see
      * NestingIndexController::projectCards(). Saving lands back on this page, so the heading, the
-     * hover list and the "Delivery due" date all redraw with the new values; there is nothing to reload.
+     * hover list and the "Required by" date all redraw with the new values; there is nothing to reload.
      */
     function editProjectMode(project) {
         newProjectBomData.value = null;
@@ -1003,11 +1029,30 @@
                         <span class="flex-1 h-px bg-gray-200"></span>
                     </div>
 
-                    <div
-                        class="flex items-center justify-between gap-4 px-4 py-3 bg-white border border-gray-200 shadow-sm rounded-xl"
-                    >
-                        <!-- Wraps rather than squeezes: three chips and a name do not fit a phone in one line -->
-                        <div class="flex flex-wrap items-center gap-x-3 gap-y-2 min-w-0">
+                    <!--
+                        The card is the box, and what was the card is now its top row - so that a batch
+                        which is behind can carry a footer saying what to do about it without that strip
+                        sitting inside the padding of the row above it or squaring off the bottom corners.
+                        See ActionRequiredFooter.
+
+                        Deliberately NOT overflow-hidden, which is the obvious way to keep the footer's
+                        background inside the card's rounded corners and the wrong one: the card menu
+                        hangs out of this box, and an ancestor that clips its overflow clips the menu
+                        with it however high the menu's z-index is. It came off the bottom of the page
+                        on the cards near the top. The footer rounds its own two corners instead -
+                        see the rounded-b-xl in ActionRequiredFooter.
+                    -->
+                    <div class="bg-white border border-gray-200 shadow-sm rounded-xl">
+                        <div
+                            class="flex items-center justify-between gap-4 px-4 py-3"
+                        >
+                            <!--
+                                The whole left half of the card: the job names, and under them the two pills
+                                that say where the batch is and when its steel is due. One column rather than
+                                the wrapping row this was, which held the heading and the date side by side -
+                                the date moved under the heading, and a flex row around a single child was
+                                left doing nothing but passing min-w-0 down to it.
+                            -->
                             <div class="min-w-0">
                                 <!--
                                     The jobs on the batch, not its number - see headedProjects(). The
@@ -1131,319 +1176,361 @@
                                         </span>
                                     </span>
                                 </span>
+
+                                <!--
+                                    Where this batch has got to, and whether it is going to make its
+                                    date - the two facts about the batch itself, under the names of the
+                                    jobs they are about.
+
+                                    Beneath the heading rather than across the card from it, because
+                                    they are read together: "Quoting" is only good or bad news next to
+                                    the day the steel is wanted, and a column of cards is scanned down
+                                    this left edge. The step comes first and the date second, which is
+                                    the order the sentence goes in.
+
+                                    Wraps on a narrow card, the two pills being a phone's width between
+                                    them once the step is a long word.
+
+                                    Drawn only when there is a pill to put in it. The open batch with
+                                    nothing waiting on it has neither - no step behind it, and no job
+                                    naming a fabrication date to want steel by - and an empty row would
+                                    still spend its top margin, leaving a gap under the heading of the
+                                    one card the page always draws.
+                                -->
+                                <div
+                                    v-if="batch.id !== null || batch.materialsRequiredDate"
+                                    class="flex flex-wrap items-center gap-2 mt-2"
+                                >
+                                    <!--
+                                        The last step the batch has passed, not the column it is sitting
+                                        in. Coloured as the board and the dashboard colour that step -
+                                        see StagePill and NestingIndexController::milestoneOf().
+
+                                        Not on the open batch: the rule above it already says what it
+                                        is, and a batch that has not been quoted has no step behind it
+                                        to report. Nothing holds its place now that the buttons no
+                                        longer line up against it - the row simply starts at the date.
+                                    -->
+                                    <StagePill v-if="batch.id !== null" :stage="batch.stage" />
+
+                                    <!--
+                                        The day this card's steel has to be at the workshop - one working
+                                        day before the earliest fabrication date on it. Every card carries
+                                        one, the open batch included.
+
+                                        Its colour is the other half: whether this batch, where it has got
+                                        to, is still going to make that date. The deadline it is held to
+                                        depends on how much of the critical path it has left to spend - the
+                                        server works that out off the business's lead times and sends it
+                                        alongside. Green on track, amber a day behind, red two or more.
+                                        See RequiredByPill.
+
+                                        A batch whose steel is in does not carry one at all. Delivered and
+                                        Cut both drew an on-time pill until now, on the reading that the
+                                        date was still what the job worked to - which put a run of green
+                                        down the bottom of the column saying nothing anybody had to act
+                                        on. The date is history on those cards rather than a deadline, and
+                                        the step pill beside it is already the whole of the news.
+                                    -->
+                                    <RequiredByPill
+                                        v-if="! ['DELIVERED', 'CUT'].includes(batch.stage)"
+                                        :date="batch.materialsRequiredDate"
+                                        :days-behind="batch.daysBehindCriticalPath"
+                                        class="shrink-0"
+                                    />
+                                </div>
                             </div>
 
                             <!--
-                                The day this card's steel has to be on site - one working day before the
-                                earliest fabrication date on it. Every card carries one, the open batch
-                                included: it is a fact about the work rather than about the batch's
-                                progress, which is why it sits beside the job names and not with the
-                                stage pill and the buttons on the right.
+                                Wraps rather than squeezes, like the heading beside it: the three buttons
+                                have fixed widths, which on a phone is more than fits on one line.
+                                Right-aligned so what wraps stays against the card's edge.
 
-                                Its colour is the other half: whether this batch, where it has got to,
-                                is still going to make that date. The deadline it is held to depends on
-                                how much of the critical path it has left to spend - the server works
-                                that out off the business's lead times and sends it alongside. Green on
-                                track, amber a day behind, red two or more. See DeliveryDuePill.
+                                Buttons only now. The stage pill used to sit at this end, in a slot of its
+                                own width so that "Nesting" and "Delivered" being a dozen pixels apart did
+                                not walk all three buttons sideways from card to card. It reads under the
+                                job names instead, beside the date it is only meaningful next to, and the
+                                slot that was holding its place went with it.
 
-                                A delivered or cut batch keeps its date and reads green: its steel is
-                                in, so it is off the path rather than late for it.
+                                Everything on the right of the card is in here, the menu included - the card
+                                is a justify-between of two halves, and a third child would leave this one
+                                floating in the middle of the gap rather than against the edge.
                             -->
-                            <DeliveryDuePill
-                                :date="batch.materialsRequiredDate"
-                                :deadline="batch.criticalPathDeadline"
-                                :done="['DELIVERED', 'CUT'].includes(batch.stage)"
-                                class="shrink-0"
-                            />
+                            <div class="flex flex-wrap items-center justify-end gap-2 shrink-0">
+                                <!--
+                                    Everything on the batch, read-only and across all of its projects.
+                                    CardButtonYellow is itself the button, so the click goes straight on it.
+                                -->
+                                <CardButtonYellow
+                                    label="BOM"
+                                    :sublabel="cutLabel(batch)"
+                                    :disabled="isEmptyOpenBatch(batch)"
+                                    :title="isEmptyOpenBatch(batch)
+                                        ? 'Nothing is waiting on the open batch yet'
+                                        : 'The material list for every project on this batch'"
+                                    class="w-28"
+                                    @click="showBom(batch)"
+                                />
+
+                                <!-- What to buy, the way the supplier emails word it - and how each order is going -->
+                                <CardButtonYellow
+                                    label="Material order"
+                                    :sublabel="categoryLabel(batch)"
+                                    :disabled="isEmptyOpenBatch(batch)"
+                                    :title="isEmptyOpenBatch(batch)
+                                        ? 'Nothing is waiting on the open batch yet'
+                                        : 'What this batch\'s nest needs from each merchant, with their certificates and deliveries'"
+                                    class="w-32"
+                                    @click="showOrderList(batch)"
+                                />
+
+                                <!--
+                                    How well it nested goes under the Nest button rather than beside it: it is
+                                    the result of pressing that button, not another label for the batch. It
+                                    arrives after the page does, so it says "calculating" to begin with, and
+                                    nothing at all for a batch nested before the nest was saved against it.
+                                -->
+                                <Link
+                                    v-if="!isEmptyOpenBatch(batch)"
+                                    :href="nestingHref(batch)"
+                                    class="w-28"
+                                    @click="loadingBatchId = cardKey(batch)"
+                                >
+                                    <CardButtonBlue
+                                        :label="loadingBatchId === cardKey(batch) ? 'Calculating...' : 'Nest'"
+                                        :sublabel="efficiencyLabel(batch)"
+                                        :highlight="false"
+                                    />
+                                </Link>
+
+                                <!--
+                                    And with nothing waiting, the same button with nowhere to go: the
+                                    nesting screen would open on an empty nest. Not dropped from the row,
+                                    which would leave the open batch's card a different shape from every
+                                    other one on the page.
+                                -->
+                                <div v-else class="w-28">
+                                    <CardButtonBlue
+                                        label="Nest"
+                                        :highlight="false"
+                                        disabled
+                                        title="Nothing is waiting on the open batch yet"
+                                    />
+                                </div>
+
+                                <!--
+                                    What this card can have done to it, past the three things its
+                                    buttons read. Kept out of the row of buttons because those are reads
+                                    - a list, an order list, a nest - and what is in here changes the
+                                    batch.
+
+                                    The space is held on every card and the dots are drawn only where
+                                    there is something behind them (see hasMenu), so a closed batch does
+                                    not open an empty box and the buttons still line up down the page.
+                                -->
+                                <div class="flex justify-end w-8 shrink-0">
+                                    <Dropdown v-if="hasMenu(batch)" align="right" width="48">
+                                        <template #trigger>
+                                            <button
+                                                type="button"
+                                                title="More actions for this batch"
+                                                aria-label="More actions for this batch"
+                                                class="inline-flex items-center justify-center w-8 h-8 text-gray-400 transition-colors duration-150 rounded-lg hover:bg-gray-100 hover:text-gray-700"
+                                            >
+                                                <i class="fa-solid fa-ellipsis-vertical"></i>
+                                            </button>
+                                        </template>
+
+                                        <template #content>
+                                            <!-- The open batch: what can be put on it, and the press that closes it -->
+                                            <template v-if="batch.id === null">
+                                                <!--
+                                                    The open batch is the only card new material can
+                                                    join, so the page's "+ Materials" is repeated here -
+                                                    same addProject(), same modal. Somebody reading this
+                                                    card is already looking at where the upload lands,
+                                                    and the button it duplicates is up at the top of the
+                                                    page.
+                                                -->
+                                                <button
+                                                    type="button"
+                                                    title="Upload a material list onto the open batch"
+                                                    @click="addProject()"
+                                                    class="flex items-center w-full gap-2 px-4 py-2 text-sm font-semibold text-left text-gray-700 transition-colors duration-150 hover:bg-gray-100"
+                                                >
+                                                    <i class="fa-solid fa-plus text-xs"></i>
+                                                    Materials
+                                                </button>
+
+                                                <!--
+                                                    The board's own "Start quoting", pressed from the
+                                                    card it acts on - see confirmStartQuoting(). Greyed
+                                                    rather than dropped when it cannot run, so the menu
+                                                    says why instead of being empty.
+                                                -->
+                                                <button
+                                                    type="button"
+                                                    :disabled="!canStartQuoting"
+                                                    :title="startQuotingTitle"
+                                                    @click="confirmStartQuoting()"
+                                                    class="flex items-center w-full gap-2 px-4 py-2 text-sm text-left transition-colors duration-150"
+                                                    :class="canStartQuoting
+                                                        ? 'font-semibold text-green-800 hover:bg-green-50'
+                                                        : 'text-gray-400 cursor-not-allowed'"
+                                                >
+                                                    <i class="fa-solid fa-circle-arrow-down text-xs"></i>
+                                                    Lock before quoting
+                                                </button>
+                                            </template>
+
+                                            <!--
+                                                And on a batch out with the suppliers, the three
+                                                presses it has: the way back, then the two steps it can
+                                                be moved on by without naming a supplier.
+                                            -->
+                                            <template v-else>
+                                                <!--
+                                                    The way back - the board's "Re-nest" (see
+                                                    confirmReNest). Red, because it destroys the quotes
+                                                    and draft orders on the batch and the offcuts it
+                                                    cut; greyed with the reason when the batch is past
+                                                    unpicking, which is what somebody opens this menu to
+                                                    find out. First, because it is the one people come
+                                                    to this menu for.
+                                                -->
+                                                <button
+                                                    type="button"
+                                                    :disabled="!batch.prerequisiteUndoStartQuoting"
+                                                    :title="reNestTitle(batch)"
+                                                    @click="confirmReNest(batch)"
+                                                    class="flex items-center w-full gap-2 px-4 py-2 text-sm text-left transition-colors duration-150"
+                                                    :class="batch.prerequisiteUndoStartQuoting
+                                                        ? 'font-semibold text-red-700 hover:bg-red-50'
+                                                        : 'text-gray-400 cursor-not-allowed'"
+                                                >
+                                                    <i class="fa-solid fa-circle-arrow-up text-xs"></i>
+                                                    Re-nest
+                                                </button>
+
+                                                <!--
+                                                    "All quoted" - the prices are in. Coloured with the
+                                                    Quoted pill it sets, so the menu item and the word
+                                                    it puts on the card read as the one step. See
+                                                    confirmMarkQuoted().
+                                                -->
+                                                <button
+                                                    v-if="batch.prerequisiteMarkQuoted !== null"
+                                                    type="button"
+                                                    :disabled="!batch.prerequisiteMarkQuoted"
+                                                    :title="markQuotedTitle(batch)"
+                                                    @click="confirmMarkQuoted(batch)"
+                                                    class="flex items-center w-full gap-2 px-4 py-2 text-sm text-left transition-colors duration-150"
+                                                    :class="batch.prerequisiteMarkQuoted
+                                                        ? 'font-semibold text-blue-800 hover:bg-blue-50'
+                                                        : 'text-gray-400 cursor-not-allowed'"
+                                                >
+                                                    <i class="fa-solid fa-tags text-xs"></i>
+                                                    All quoted
+                                                </button>
+
+                                                <!-- And "All ordered" - it has been bought. Same again, in the Ordered pill's colour -->
+                                                <button
+                                                    v-if="batch.prerequisiteMarkOrdered !== null"
+                                                    type="button"
+                                                    :disabled="!batch.prerequisiteMarkOrdered"
+                                                    :title="markOrderedTitle(batch)"
+                                                    @click="confirmMarkOrdered(batch)"
+                                                    class="flex items-center w-full gap-2 px-4 py-2 text-sm text-left transition-colors duration-150"
+                                                    :class="batch.prerequisiteMarkOrdered
+                                                        ? 'font-semibold text-indigo-800 hover:bg-indigo-50'
+                                                        : 'text-gray-400 cursor-not-allowed'"
+                                                >
+                                                    <i class="fa-solid fa-cart-shopping text-xs"></i>
+                                                    All ordered
+                                                </button>
+
+                                                <!--
+                                                    "All delivered" - the steel is in the rack. Opens
+                                                    the certificates modal rather than a confirm box,
+                                                    the press being in there with the paperwork it
+                                                    arrives with. See openCertificates().
+                                                -->
+                                                <button
+                                                    v-if="batch.prerequisiteMarkDelivered !== null"
+                                                    type="button"
+                                                    :disabled="!batch.prerequisiteMarkDelivered"
+                                                    :title="markDeliveredTitle(batch)"
+                                                    @click="openCertificates(batch)"
+                                                    class="flex items-center w-full gap-2 px-4 py-2 text-sm text-left transition-colors duration-150"
+                                                    :class="batch.prerequisiteMarkDelivered
+                                                        ? 'font-semibold text-teal-800 hover:bg-teal-50'
+                                                        : 'text-gray-400 cursor-not-allowed'"
+                                                >
+                                                    <i class="fa-solid fa-truck text-xs"></i>
+                                                    All delivered
+                                                </button>
+
+                                                <!--
+                                                    And "Cut". The one mark here that is not about
+                                                    buying, so the one a batch ordered the ordinary way
+                                                    is offered too - see confirmMarkCut().
+                                                -->
+                                                <button
+                                                    v-if="batch.prerequisiteMarkCut !== null"
+                                                    type="button"
+                                                    :disabled="!batch.prerequisiteMarkCut"
+                                                    :title="markCutTitle(batch)"
+                                                    @click="confirmMarkCut(batch)"
+                                                    class="flex items-center w-full gap-2 px-4 py-2 text-sm text-left transition-colors duration-150"
+                                                    :class="batch.prerequisiteMarkCut
+                                                        ? 'font-semibold text-emerald-800 hover:bg-emerald-50'
+                                                        : 'text-gray-400 cursor-not-allowed'"
+                                                >
+                                                    <i class="fa-solid fa-scissors text-xs"></i>
+                                                    Cut
+                                                </button>
+
+                                                <!--
+                                                    The same modal again on a batch already delivered,
+                                                    where there is no mark left to set and the files are
+                                                    the whole of it. Drawn only where certificates can
+                                                    still be attached, which is a live delivered batch -
+                                                    a closed one is its own record.
+                                                -->
+                                                <button
+                                                    v-if="batch.canAttachCertificates"
+                                                    type="button"
+                                                    title="Attach the mill certificates that came in with this batch"
+                                                    @click="openCertificates(batch)"
+                                                    class="flex items-center w-full gap-2 px-4 py-2 text-sm font-semibold text-left text-gray-700 transition-colors duration-150 hover:bg-gray-100"
+                                                >
+                                                    <i class="fa-solid fa-plus text-xs"></i>
+                                                    Certificates
+                                                </button>
+                                            </template>
+                                        </template>
+                                    </Dropdown>
+                                </div>
+                            </div>
                         </div>
 
                         <!--
-                            Wraps rather than squeezes, like the heading beside it: the pill joined this
-                            row and the three buttons have fixed widths, which on a phone is more than
-                            fits on one line. Right-aligned so what wraps stays against the card's edge.
+                            And, on a card that is behind, what to go and do about it.
 
-                            Everything on the right of the card is in here, the menu included - the card
-                            is a justify-between of two halves, and a third child would leave this one
-                            floating in the middle of the gap rather than against the edge.
+                            Only when the batch has actually slipped - see actionRequired(). A footer
+                            under every card would be a list of instructions to carry on as normal,
+                            and the two or three that need doing today would be lost in it.
+
+                            The step is what says which action it is: a batch that is late and still
+                            being priced is late at the quoting, whatever is due after that. See
+                            ActionRequiredFooter.
                         -->
-                        <div class="flex flex-wrap items-center justify-end gap-2 shrink-0">
-                            <!--
-                                How far the batch has actually got - the last step it has passed, not the
-                                column it is sitting in. Coloured as the board and the dashboard colour
-                                that step - see StagePill and NestingIndexController::milestoneOf().
-
-                                At the right-hand end with the buttons rather than after the heading: the
-                                pills then line up down the page, which is how a column of cards is read
-                                for "where is everything up to" - against a heading they started at a
-                                different place on every card.
-
-                                In a slot of its own width, because the pill's is its word: "Nesting" and
-                                "Delivered" are a dozen pixels apart, and with the row right-aligned that
-                                difference walked all three buttons sideways on every card.
-
-                                Not on the open batch: the rule above it already says what it is, and a
-                                batch that has not been quoted has no step behind it to report. The empty
-                                slot stays, so its buttons line up with every card below it.
-                            -->
-                            <div class="flex justify-end w-24 mr-1 shrink-0">
-                                <StagePill v-if="batch.id !== null" :stage="batch.stage" />
-                            </div>
-
-                            <!--
-                                Everything on the batch, read-only and across all of its projects.
-                                CardButtonYellow is itself the button, so the click goes straight on it.
-                            -->
-                            <CardButtonYellow
-                                label="BOM"
-                                :sublabel="cutLabel(batch)"
-                                :disabled="isEmptyOpenBatch(batch)"
-                                :title="isEmptyOpenBatch(batch)
-                                    ? 'Nothing is waiting on the open batch yet'
-                                    : 'The material list for every project on this batch'"
-                                class="w-28"
-                                @click="showBom(batch)"
-                            />
-
-                            <!-- What to buy, the way the supplier emails word it - and how each order is going -->
-                            <CardButtonYellow
-                                label="Material order"
-                                :sublabel="categoryLabel(batch)"
-                                :disabled="isEmptyOpenBatch(batch)"
-                                :title="isEmptyOpenBatch(batch)
-                                    ? 'Nothing is waiting on the open batch yet'
-                                    : 'What this batch\'s nest needs from each merchant, with their certificates and deliveries'"
-                                class="w-32"
-                                @click="showOrderList(batch)"
-                            />
-
-                            <!--
-                                How well it nested goes under the Nest button rather than beside it: it is
-                                the result of pressing that button, not another label for the batch. It
-                                arrives after the page does, so it says "calculating" to begin with, and
-                                nothing at all for a batch nested before the nest was saved against it.
-                            -->
-                            <Link
-                                v-if="!isEmptyOpenBatch(batch)"
-                                :href="nestingHref(batch)"
-                                class="w-28"
-                                @click="loadingBatchId = cardKey(batch)"
-                            >
-                                <CardButtonBlue
-                                    :label="loadingBatchId === cardKey(batch) ? 'Calculating...' : 'Nest'"
-                                    :sublabel="efficiencyLabel(batch)"
-                                    :highlight="false"
-                                />
-                            </Link>
-
-                            <!--
-                                And with nothing waiting, the same button with nowhere to go: the
-                                nesting screen would open on an empty nest. Not dropped from the row,
-                                which would leave the open batch's card a different shape from every
-                                other one on the page.
-                            -->
-                            <div v-else class="w-28">
-                                <CardButtonBlue
-                                    label="Nest"
-                                    :highlight="false"
-                                    disabled
-                                    title="Nothing is waiting on the open batch yet"
-                                />
-                            </div>
-
-                            <!--
-                                What this card can have done to it, past the three things its
-                                buttons read. Kept out of the row of buttons because those are reads
-                                - a list, an order list, a nest - and what is in here changes the
-                                batch.
-
-                                The space is held on every card and the dots are drawn only where
-                                there is something behind them (see hasMenu), so a closed batch does
-                                not open an empty box and the buttons still line up down the page.
-                            -->
-                            <div class="flex justify-end w-8 shrink-0">
-                                <Dropdown v-if="hasMenu(batch)" align="right" width="48">
-                                    <template #trigger>
-                                        <button
-                                            type="button"
-                                            title="More actions for this batch"
-                                            aria-label="More actions for this batch"
-                                            class="inline-flex items-center justify-center w-8 h-8 text-gray-400 transition-colors duration-150 rounded-lg hover:bg-gray-100 hover:text-gray-700"
-                                        >
-                                            <i class="fa-solid fa-ellipsis-vertical"></i>
-                                        </button>
-                                    </template>
-
-                                    <template #content>
-                                        <!-- The open batch: what can be put on it, and the press that closes it -->
-                                        <template v-if="batch.id === null">
-                                            <!--
-                                                The open batch is the only card new material can
-                                                join, so the page's "+ Materials" is repeated here -
-                                                same addProject(), same modal. Somebody reading this
-                                                card is already looking at where the upload lands,
-                                                and the button it duplicates is up at the top of the
-                                                page.
-                                            -->
-                                            <button
-                                                type="button"
-                                                title="Upload a material list onto the open batch"
-                                                @click="addProject()"
-                                                class="flex items-center w-full gap-2 px-4 py-2 text-sm font-semibold text-left text-gray-700 transition-colors duration-150 hover:bg-gray-100"
-                                            >
-                                                <i class="fa-solid fa-plus text-xs"></i>
-                                                Materials
-                                            </button>
-
-                                            <!--
-                                                The board's own "Start quoting", pressed from the
-                                                card it acts on - see confirmStartQuoting(). Greyed
-                                                rather than dropped when it cannot run, so the menu
-                                                says why instead of being empty.
-                                            -->
-                                            <button
-                                                type="button"
-                                                :disabled="!canStartQuoting"
-                                                :title="startQuotingTitle"
-                                                @click="confirmStartQuoting()"
-                                                class="flex items-center w-full gap-2 px-4 py-2 text-sm text-left transition-colors duration-150"
-                                                :class="canStartQuoting
-                                                    ? 'font-semibold text-green-800 hover:bg-green-50'
-                                                    : 'text-gray-400 cursor-not-allowed'"
-                                            >
-                                                <i class="fa-solid fa-circle-arrow-down text-xs"></i>
-                                                Lock before quoting
-                                            </button>
-                                        </template>
-
-                                        <!--
-                                            And on a batch out with the suppliers, the three
-                                            presses it has: the way back, then the two steps it can
-                                            be moved on by without naming a supplier.
-                                        -->
-                                        <template v-else>
-                                            <!--
-                                                The way back - the board's "Re-nest" (see
-                                                confirmReNest). Red, because it destroys the quotes
-                                                and draft orders on the batch and the offcuts it
-                                                cut; greyed with the reason when the batch is past
-                                                unpicking, which is what somebody opens this menu to
-                                                find out. First, because it is the one people come
-                                                to this menu for.
-                                            -->
-                                            <button
-                                                type="button"
-                                                :disabled="!batch.prerequisiteUndoStartQuoting"
-                                                :title="reNestTitle(batch)"
-                                                @click="confirmReNest(batch)"
-                                                class="flex items-center w-full gap-2 px-4 py-2 text-sm text-left transition-colors duration-150"
-                                                :class="batch.prerequisiteUndoStartQuoting
-                                                    ? 'font-semibold text-red-700 hover:bg-red-50'
-                                                    : 'text-gray-400 cursor-not-allowed'"
-                                            >
-                                                <i class="fa-solid fa-circle-arrow-up text-xs"></i>
-                                                Re-nest
-                                            </button>
-
-                                            <!--
-                                                "All quoted" - the prices are in. Coloured with the
-                                                Quoted pill it sets, so the menu item and the word
-                                                it puts on the card read as the one step. See
-                                                confirmMarkQuoted().
-                                            -->
-                                            <button
-                                                v-if="batch.prerequisiteMarkQuoted !== null"
-                                                type="button"
-                                                :disabled="!batch.prerequisiteMarkQuoted"
-                                                :title="markQuotedTitle(batch)"
-                                                @click="confirmMarkQuoted(batch)"
-                                                class="flex items-center w-full gap-2 px-4 py-2 text-sm text-left transition-colors duration-150"
-                                                :class="batch.prerequisiteMarkQuoted
-                                                    ? 'font-semibold text-blue-800 hover:bg-blue-50'
-                                                    : 'text-gray-400 cursor-not-allowed'"
-                                            >
-                                                <i class="fa-solid fa-tags text-xs"></i>
-                                                All quoted
-                                            </button>
-
-                                            <!-- And "All ordered" - it has been bought. Same again, in the Ordered pill's colour -->
-                                            <button
-                                                v-if="batch.prerequisiteMarkOrdered !== null"
-                                                type="button"
-                                                :disabled="!batch.prerequisiteMarkOrdered"
-                                                :title="markOrderedTitle(batch)"
-                                                @click="confirmMarkOrdered(batch)"
-                                                class="flex items-center w-full gap-2 px-4 py-2 text-sm text-left transition-colors duration-150"
-                                                :class="batch.prerequisiteMarkOrdered
-                                                    ? 'font-semibold text-indigo-800 hover:bg-indigo-50'
-                                                    : 'text-gray-400 cursor-not-allowed'"
-                                            >
-                                                <i class="fa-solid fa-cart-shopping text-xs"></i>
-                                                All ordered
-                                            </button>
-
-                                            <!--
-                                                "All delivered" - the steel is in the rack. Opens
-                                                the certificates modal rather than a confirm box,
-                                                the press being in there with the paperwork it
-                                                arrives with. See openCertificates().
-                                            -->
-                                            <button
-                                                v-if="batch.prerequisiteMarkDelivered !== null"
-                                                type="button"
-                                                :disabled="!batch.prerequisiteMarkDelivered"
-                                                :title="markDeliveredTitle(batch)"
-                                                @click="openCertificates(batch)"
-                                                class="flex items-center w-full gap-2 px-4 py-2 text-sm text-left transition-colors duration-150"
-                                                :class="batch.prerequisiteMarkDelivered
-                                                    ? 'font-semibold text-teal-800 hover:bg-teal-50'
-                                                    : 'text-gray-400 cursor-not-allowed'"
-                                            >
-                                                <i class="fa-solid fa-truck text-xs"></i>
-                                                All delivered
-                                            </button>
-
-                                            <!--
-                                                And "Cut". The one mark here that is not about
-                                                buying, so the one a batch ordered the ordinary way
-                                                is offered too - see confirmMarkCut().
-                                            -->
-                                            <button
-                                                v-if="batch.prerequisiteMarkCut !== null"
-                                                type="button"
-                                                :disabled="!batch.prerequisiteMarkCut"
-                                                :title="markCutTitle(batch)"
-                                                @click="confirmMarkCut(batch)"
-                                                class="flex items-center w-full gap-2 px-4 py-2 text-sm text-left transition-colors duration-150"
-                                                :class="batch.prerequisiteMarkCut
-                                                    ? 'font-semibold text-emerald-800 hover:bg-emerald-50'
-                                                    : 'text-gray-400 cursor-not-allowed'"
-                                            >
-                                                <i class="fa-solid fa-scissors text-xs"></i>
-                                                Cut
-                                            </button>
-
-                                            <!--
-                                                The same modal again on a batch already delivered,
-                                                where there is no mark left to set and the files are
-                                                the whole of it. Drawn only where certificates can
-                                                still be attached, which is a live delivered batch -
-                                                a closed one is its own record.
-                                            -->
-                                            <button
-                                                v-if="batch.canAttachCertificates"
-                                                type="button"
-                                                title="Attach the mill certificates that came in with this batch"
-                                                @click="openCertificates(batch)"
-                                                class="flex items-center w-full gap-2 px-4 py-2 text-sm font-semibold text-left text-gray-700 transition-colors duration-150 hover:bg-gray-100"
-                                            >
-                                                <i class="fa-solid fa-plus text-xs"></i>
-                                                Certificates
-                                            </button>
-                                        </template>
-                                    </template>
-                                </Dropdown>
-                            </div>
-                        </div>
+                        <ActionRequiredFooter
+                            v-if="actionRequired(batch)"
+                            :stage="batch.stage"
+                            :days-behind="batch.daysBehindCriticalPath"
+                            :deadline="batch.criticalPathDeadline"
+                        />
                     </div>
                 </template>
 

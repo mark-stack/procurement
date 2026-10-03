@@ -2,9 +2,9 @@
     /**
      * Where something has got to in the pipeline, worded as the screen asking words it.
      *
-     * One definition of the labels and their colours, because two screens print them - the dashboard's
-     * table of live jobs and the Nesting page's cards. A step that reads one colour on one screen and
-     * another colour on the next reads as two different pipelines.
+     * One definition of the labels, because two screens print them - the dashboard's table of live
+     * jobs and the Nesting page's cards. A step worded one way on one screen and another way on the
+     * next reads as two different pipelines.
      *
      * The two screens ask different questions of that pipeline, so there are two sets of words:
      *
@@ -18,7 +18,8 @@
      *    lorry is in the Delivering column, and has only got as far as ORDERED. See
      *    NestingIndexController::milestoneOf().
      *
-     * A step keeps its colour across both wordings, so the two still read as the one pipeline.
+     * Every step is drawn the same quiet blue, whichever of the two wordings it is in - see the
+     * classes below for why the colour is not the thing carrying the meaning here.
      */
     //Props
     const props = defineProps({
@@ -42,29 +43,25 @@
     }
 
     /*
-     * One colour per step, kept in the same order the board's columns run in so the screens read as
-     * the same pipeline - and shared by the two wordings of a step, which are the same place on it.
+     * One colour for every step, and the word is what says which step it is.
+     *
+     * This used to run a palette down the pipeline - grey for Nesting, blue for quoting, indigo for
+     * ordering, teal for delivering, emerald for Cut - so that a column could be read by colour
+     * without reading the words. What that actually produced was a page where nothing stood out,
+     * because everything was coloured: five hues down a list of cards is decoration, and a reader
+     * learning which of them means trouble has to learn five.
+     *
+     * There is one thing on these cards worth a colour, and it is not where the batch has got to -
+     * it is whether the batch is going to make its date, which the pill beside this one says in
+     * green, amber and red (RequiredByPill). Those three only carry while they are the only colours
+     * on the row. So the step is drawn in one quiet blue on every card and says its piece in words.
      */
-    function classes(stage) {
-        return {
-            NESTING: 'bg-gray-100 text-gray-700 ring-gray-300',
-            QUOTING: 'bg-blue-50 text-blue-800 ring-blue-200',
-            QUOTED: 'bg-blue-50 text-blue-800 ring-blue-200',
-            ORDERING: 'bg-indigo-50 text-indigo-800 ring-indigo-200',
-            ORDERED: 'bg-indigo-50 text-indigo-800 ring-indigo-200',
-            DELIVERING: 'bg-teal-50 text-teal-800 ring-teal-200',
-            DELIVERED: 'bg-teal-50 text-teal-800 ring-teal-200',
-            //The far end of the shop floor, and the last step before the batch is history
-            CUT: 'bg-emerald-50 text-emerald-800 ring-emerald-200',
-            //Closed, so it is deliberately the quietest of them - it is history, not work
-            COMPLETED: 'bg-gray-50 text-gray-500 ring-gray-200',
-        }[stage] ?? 'bg-gray-100 text-gray-700 ring-gray-300';
-    }
+    const PILL_CLASSES = 'bg-blue-50 text-blue-800 ring-blue-200';
 </script>
 
 <template>
     <span
-        :class="classes(stage)"
+        :class="PILL_CLASSES"
         class="inline-block px-2 py-0.5 text-xs font-semibold rounded-full ring-1"
     >
         {{ label(stage) }}

@@ -376,14 +376,28 @@ class Project extends Model
         return $this->criticalPathDeadline()->diffForHumans();
     }
 
-    //Datetime
+    /**
+     * Datetime
+     *
+     * The lead times are counted in working days, not calendar ones.
+     *
+     * A merchant does not price over the weekend and does not deliver on a Sunday, so two days to
+     * quote asked on a Friday means Tuesday - counting it as calendar days quietly spent the shop's
+     * weekend on the merchant's behalf and made every deadline two days optimistic once a week. The
+     * business sets whole working days in /profile, which is what somebody means when they say their
+     * merchant takes three days.
+     *
+     * Carbon::subWeekdays is what steps over the weekend. A figure of zero leaves the date alone -
+     * the shop that collects off the rack the morning it needs the steel - which is why these can be
+     * read off a date that is itself already a working day without being nudged off it.
+     */
     public function quotingDeadline(): Carbon
     {
         $materialQuotingDays = $this->quotingDays();
         $longestDeliveryDays = $this->longestDeliveryDays();
         $totalDays = $materialQuotingDays + $longestDeliveryDays;
 
-        return Carbon::parse($this->date_materials_required)->subDays($totalDays);
+        return Carbon::parse($this->date_materials_required)->subWeekdays($totalDays);
     }
 
     public function orderingDeadline(): Carbon
@@ -391,7 +405,7 @@ class Project extends Model
         $longestDeliveryDays = $this->longestDeliveryDays();
         $totalDays = $longestDeliveryDays;
 
-        return Carbon::parse($this->date_materials_required)->subDays($totalDays);
+        return Carbon::parse($this->date_materials_required)->subWeekdays($totalDays);
     }
 
     public function deliveryDeadline(): Carbon
@@ -410,9 +424,13 @@ class Project extends Model
         /**
          * Critical path = quoting time + delivery time
          * Between [critical path + 1 day] and [critical path] days before planned project material received date
+         *
+         * Working days, matching the deadlines above - the window this opens has to be the same
+         * window quotingDeadline() names, or the job that chases a project and the card that says
+         * whether it is late would be reading off two different critical paths.
          */
-        $startRange = Carbon::now()->addDays($this->criticalPathDays())->startOfDay();
-        $endRange = Carbon::now()->addDays($this->criticalPathDays() + 1)->endOfDay();
+        $startRange = Carbon::now()->addWeekdays($this->criticalPathDays())->startOfDay();
+        $endRange = Carbon::now()->addWeekdays($this->criticalPathDays() + 1)->endOfDay();
 
         $query->whereBetween('date_materials_required', [$startRange, $endRange]);
     }
@@ -448,9 +466,10 @@ class Project extends Model
          * run. Two reminders that contradict each other teach people to read neither.
          *
          * "<" against the same instant "due" opens on, so the boundary belongs to exactly one of them
-         * and there is no day in between that neither claims.
+         * and there is no day in between that neither claims. Working days on both sides, for the
+         * same reason: the boundary is only shared while the two count the same way.
          */
-        $deadline = Carbon::now()->addDays($this->criticalPathDays())->startOfDay();
+        $deadline = Carbon::now()->addWeekdays($this->criticalPathDays())->startOfDay();
 
         // Query the database
         $query->where('date_materials_required', '<', $deadline);

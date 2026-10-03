@@ -47,6 +47,9 @@ class Business extends Model
      * critical path (Project::criticalPathDays), which is what every deadline notification counts
      * back from.
      *
+     * Both are working days. A merchant does not price over the weekend and does not deliver on a
+     * Sunday, so every deadline counted off these steps over it - see Project::quotingDeadline().
+     *
      * Constants rather than two literals in $attributes, because Project falls back to them for a
      * model with no business behind it and the two have to be the same numbers. The column defaults
      * in the migration are the third copy and are deliberately written out there - a migration that

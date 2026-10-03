@@ -61,7 +61,7 @@
         return quoting + delivery;
     });
 
-    const dayWord = days => days === 1 ? 'day' : 'days';
+    const dayWord = days => days === 1 ? 'working day' : 'working days';
 </script>
 
 <template>
@@ -74,6 +74,16 @@
             <p class="mt-1 text-sm text-gray-600">
                 How long your business takes to get prices back, and how long its material takes to
                 arrive once it has been ordered. Every deadline reminder is counted back from these.
+            </p>
+
+            <!--
+                Said once here rather than left to the "working days" beside each box, because it is
+                the difference between a Friday deadline and a Tuesday one and somebody filling this
+                in is thinking about how their merchant actually behaves.
+            -->
+            <p class="mt-1 text-sm text-gray-600">
+                Weekends are not counted: a merchant who takes two days to price a Friday request is
+                giving you the numbers on the Tuesday.
             </p>
 
             <!--
@@ -106,7 +116,7 @@
                         required
                     />
 
-                    <span class="text-sm text-gray-600">days</span>
+                    <span class="text-sm text-gray-600">working days</span>
                 </div>
 
                 <p class="mt-1 text-sm text-gray-500">
@@ -132,7 +142,7 @@
                         required
                     />
 
-                    <span class="text-sm text-gray-600">days</span>
+                    <span class="text-sm text-gray-600">working days</span>
                 </div>
 
                 <p class="mt-1 text-sm text-gray-500">
@@ -150,7 +160,7 @@
             <p v-if="criticalPathDays !== null" class="text-sm text-gray-600">
                 A project is chased
                 <span class="font-semibold">{{ criticalPathDays }} {{ dayWord(criticalPathDays) }}</span>
-                before its material is needed on site.
+                before its material is needed at the workshop.
             </p>
 
             <div class="flex items-center gap-4">

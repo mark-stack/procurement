@@ -7,9 +7,11 @@ use Illuminate\Foundation\Http\FormRequest;
 /**
  * The two lead times a business runs on, submitted from /profile.
  *
- * Both are whole days, and both are allowed to be zero: a fabricator who gets prices back the same
- * afternoon, or who collects off the merchant's rack, has a lead time of none - and a floor of one
- * would have the deadline notifications warning them a day early for ever.
+ * Both are whole working days, and both are allowed to be zero: a fabricator who gets prices back the
+ * same afternoon, or who collects off the merchant's rack, has a lead time of none - and a floor of
+ * one would have the deadline notifications warning them a day early for ever. Zero is also the one
+ * figure that leaves a date untouched rather than stepping it to a weekday, which is what lets a
+ * same-day collection fall on the day the steel is wanted.
  *
  * Capped at a year, which is not a figure anybody will reach. It is there because these two are added
  * together and counted back from a materials date (Project::criticalPathDeadline), so a number with a
