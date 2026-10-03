@@ -151,24 +151,55 @@
                         </div>
 
                         <!--
-                            This group's lines, for pasting into a mail to that merchant. One button
-                            per group rather than one for the modal: the lists go to different
-                            suppliers, and nobody sends a timber merchant the steel.
+                            Wrapping, because a long purchase order number next to the button is more
+                            than the narrow screens have room for, and the pill dropping under it
+                            reads better than either one being squeezed.
                         -->
-                        <button
-                            type="button"
-                            @click="copyGroup(group)"
-                            :title="'Copy the ' + shared.supplierGroupLabel(group.supplierGroup) + ' list'"
-                            class="inline-flex items-center h-8 gap-1.5 px-2.5 text-xs font-semibold text-gray-600 transition-colors duration-150 bg-white border border-gray-300 rounded-lg shadow-sm shrink-0 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800"
-                        >
-                            <i
-                                :class="copiedGroup === group.supplierGroup
-                                    ? 'fa-solid fa-check text-green-600'
-                                    : 'fa-regular fa-copy'"
-                                class="text-[11px]"
-                            ></i>
-                            {{ copiedGroup === group.supplierGroup ? 'Copied' : 'Copy' }}
-                        </button>
+                        <div class="flex flex-wrap items-center justify-end gap-2 shrink-0">
+                            <!--
+                                Whether this merchant has been ordered from yet. Green carries the
+                                purchase order number where somebody has typed one in; an order
+                                placed with the number still blank is just as ordered, and says so
+                                rather than reading "Order: " with nothing after it.
+                            -->
+                            <p
+                                :class="group.ordered
+                                    ? 'text-green-800 bg-green-100'
+                                    : 'text-yellow-800 bg-yellow-100'"
+                                class="inline-flex items-center h-8 gap-1.5 px-2.5 text-xs font-semibold rounded-lg"
+                            >
+                                <i
+                                    :class="group.ordered ? 'fa-solid fa-check' : 'fa-regular fa-clock'"
+                                    class="text-[10px]"
+                                ></i>
+                                <template v-if="group.ordered">
+                                    {{ group.purchaseOrderNumber ? 'Order: ' + group.purchaseOrderNumber : 'Ordered' }}
+                                </template>
+                                <template v-else>
+                                    Not ordered
+                                </template>
+                            </p>
+
+                            <!--
+                                This group's lines, for pasting into a mail to that merchant. One
+                                button per group rather than one for the modal: the lists go to
+                                different suppliers, and nobody sends a timber merchant the steel.
+                            -->
+                            <button
+                                type="button"
+                                @click="copyGroup(group)"
+                                :title="'Copy the ' + shared.supplierGroupLabel(group.supplierGroup) + ' list'"
+                                class="inline-flex items-center h-8 gap-1.5 px-2.5 text-xs font-semibold text-gray-600 transition-colors duration-150 bg-white border border-gray-300 rounded-lg shadow-sm shrink-0 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800"
+                            >
+                                <i
+                                    :class="copiedGroup === group.supplierGroup
+                                        ? 'fa-solid fa-check text-green-600'
+                                        : 'fa-regular fa-copy'"
+                                    class="text-[11px]"
+                                ></i>
+                                {{ copiedGroup === group.supplierGroup ? 'Copied' : 'Copy' }}
+                            </button>
+                        </div>
                     </div>
 
                     <!--

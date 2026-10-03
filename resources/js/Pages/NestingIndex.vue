@@ -574,7 +574,7 @@
             <!-- Wraps rather than squeezes: the switch and the button do not fit a phone beside the title -->
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <h1 class="text-lg font-semibold text-gray-800">
-                    Nesting
+                    Nesting batches
                 </h1>
 
                 <div class="flex items-center gap-3">
