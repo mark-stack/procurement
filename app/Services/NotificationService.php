@@ -53,11 +53,13 @@ class NotificationService
             new NotificationColleagueOrderedImplementation,
 
             /*
-             * The fabrication deadline sweep, which presses "Start quoting" for a business whose shop
-             * is about to start cutting. Event-driven in the same sense as the three above - the
-             * service that creates the batch sends both of these at the time, and their hourlyCheck()
-             * is empty - except that the event is a schedule rather than a person. See
-             * App\Services\FabricationDeadlineQuoting and the quoting:fabrication-deadline command.
+             * The fabrication deadline warnings, for a business whose shop is about to start cutting
+             * with its materials still waiting to be nested. Driven by the
+             * quoting:fabrication-deadline command rather than by the hourly sweep - deciding whether
+             * there is a Nesting column at all means reading a business's unbatched pieces through
+             * its price book - so their hourlyCheck() is empty. They used to report the batch that
+             * command made on the business's behalf; it only asks now. See
+             * App\Services\FabricationDeadlineQuoting.
              */
             new NotificationBatchReadyToQuoteImplementation,
             new NotificationColleagueOrderingTodayImplementation,

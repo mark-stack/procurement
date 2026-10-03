@@ -1,20 +1,21 @@
 <script setup>
     /**
-     * The day the Nesting column stops waiting and buys.
+     * The day the Nesting column has to stop waiting and buy.
      *
      * The one thing about that column nobody can work out by looking at it: it tells you to hold off as
      * long as you can, because every day more material arrives is a better nest and a better price -
-     * and what it never said is when holding off stops being your decision. On this date the fabrication
-     * deadline sweep nests everything waiting into one batch, owned by whoever's job starts first, and
-     * emails the rest of the business to say so.
+     * and what it never said is when holding off starts costing the job its critical path. On this date
+     * the materials still have to be quoted, ordered and delivered before the saw starts, so this is
+     * the last day pressing "Start quoting" is early enough. Nothing presses it for you; the
+     * fabrication deadline warnings email and bell whoever's job starts first on the day.
      *
      * One component because two screens draw it now - the board's Nesting card and the Nesting page -
      * and the colour is a warning: a pill that turns red two days earlier on one screen than the other
      * would be telling people different things about the same deadline.
      *
-     * The date itself is always computed server side, off the constant the sweep actually uses
-     * (KanbanFormatter::orderingTriggerDate), so neither screen can promise a date the schedule has
-     * stopped keeping.
+     * The date itself is always computed server side, off the constant the warnings actually use
+     * (KanbanFormatter::orderingTriggerDate), so neither screen can promise a date nothing is keeping
+     * to.
      */
     //General Imports
     import {computed} from 'vue';
@@ -22,7 +23,7 @@
 
     //Props
     const props = defineProps({
-        //Null on a card where no project has a fabrication date - nothing will auto-quote it
+        //Null on a card where no project has a fabrication date - nothing will chase it
         date: String,
     });
 
@@ -47,7 +48,7 @@
                 : 'bg-white text-gray-600 ring-gray-200')"
         :title="days <= 0
             ? 'This batch is due to be quoted now - the earliest fabrication date on this card is within the ordering window'
-            : 'On this date these projects are nested into one batch automatically, so the materials can be quoted, ordered and delivered before fabrication starts'"
+            : 'Start quoting by this date, so the materials can be quoted, ordered and delivered before fabrication starts. You will be emailed on the day if the column is still waiting'"
     >
         <i class="fa-solid fa-cart-shopping text-[10px] opacity-70"></i>
         Order by {{ label }}

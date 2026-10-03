@@ -43,9 +43,11 @@ class QuoteController extends Controller
 
         try {
             /*
-             * The locking, the batch, the nesting and the order approvals all live in the action -
-             * App\Services\FabricationDeadlineQuoting presses this same button on a schedule, and the
-             * race it guards against does not care which of the two is running.
+             * The locking, the batch, the nesting and the order approvals all live in the action. It
+             * is this controller's alone again now that App\Services\FabricationDeadlineQuoting only
+             * warns rather than pressing this button on a schedule - but the race it guards against
+             * was never only about that: a double click, a second tab and a retried request all
+             * arrive here holding the same list of unbatched pieces.
              */
             $batch = StartQuoting::run($user, $business, $piecesReadyForBatching);
         } catch (Throwable $e) {

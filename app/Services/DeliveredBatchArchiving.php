@@ -65,8 +65,8 @@ class DeliveredBatchArchiving
             } catch (Throwable $e) {
                 /*
                  * One business's bad data does not stop the rest, for the reason the fabrication
-                 * sweep says: the businesses behind this one in the list would otherwise be taken
-                 * down with it, silently, on a schedule nobody is watching.
+                 * deadline warnings give: the businesses behind this one in the list would otherwise
+                 * be taken down with it, silently, on a schedule nobody is watching.
                  */
                 Log::error('Delivered batch archiving failed', [
                     'business_id' => $business->id,

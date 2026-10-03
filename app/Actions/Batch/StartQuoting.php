@@ -16,12 +16,12 @@ use RuntimeException;
 /**
  * Take every project in the Nesting column into one batch, owned by one user.
  *
- * This was the body of QuoteController::store, and it is here because there are two ways into it
- * now: the "Start quoting" button, and App\Services\FabricationDeadlineQuoting, which presses it on
- * the business's behalf when a project's fabrication start date gets close enough that waiting any
- * longer costs them the critical path. Both have to claim the steel the same way - the race this
- * guards against does not care which of the two is running, and a second copy of the locking would
- * be a second copy to get wrong.
+ * This was the body of QuoteController::store. There was a second way in for a while -
+ * App\Services\FabricationDeadlineQuoting pressed the button on the business's behalf when a
+ * project's fabrication start date got close enough - and it is still worth it being here on its
+ * own: this is the only place the steel is claimed, so the locking below exists once rather than
+ * once per caller. The schedule now warns instead of pressing, because creating a batch commits the
+ * business to a purchase.
  *
  * Returns null when somebody else got the pieces first. That is not an error - their batch is a
  * perfectly good batch - so the caller reports it as news rather than as a failure.
@@ -41,8 +41,8 @@ class StartQuoting
              *
              * Everything the caller reads happens outside this transaction, so two people pressing
              * "Start quoting" seconds apart - or one person double clicking, or a second tab, or a
-             * retried request, or the hourly sweep landing on the same second - both get here holding
-             * the same list of unbatched pieces. Nothing then stopped the second one: the batch was
+             * retried request - both get here holding the same list of unbatched pieces. Nothing
+             * then stopped the second one: the batch was
              * created first and the pieces were moved onto it by id, off whichever batch already had
              * them.
              *

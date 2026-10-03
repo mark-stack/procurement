@@ -519,8 +519,8 @@
      * The same component and the same PUT to projects.update, because it is the same job: a second
      * rename form is a second place for the name rules to be half-applied. The one thing this page
      * adds is where it is opened from, which is the point of the pencil - the fabrication date is what
-     * decides when this batch stops waiting and buys (see OrderByPill), and until now reading that
-     * date here meant going to the board to change it.
+     * decides when this batch has to stop waiting and be quoted (see OrderByPill), and until now
+     * reading that date here meant going to the board to change it.
      *
      * The card's project is what the modal is handed, which is why those fields are on it - see
      * NestingIndexController::projectCards(). Saving lands back on this page, so the heading, the

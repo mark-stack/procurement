@@ -22,10 +22,10 @@
         prerequisiteStartQuoting: Boolean,
         batchInfo: Object,
         /*
-         * The day this column stops waiting and buys - the earliest fabrication date on the card
-         * less the days the sweep holds off for. Computed server side off the one constant that
-         * decides it (KanbanFormatter::orderingTriggerDate), so the board cannot promise a date the
-         * schedule has stopped keeping. Null on a card where no project has a fabrication date.
+         * The day this column has to stop waiting and buy - the earliest fabrication date on the
+         * card less the days quoting and delivery take. Computed server side off the one constant
+         * that decides it (KanbanFormatter::orderingTriggerDate), so the board cannot promise a date
+         * the warnings are not keeping to. Null on a card where no project has a fabrication date.
          */
         orderingTriggerDate: String,
     });
@@ -59,8 +59,8 @@
         : true);
 
     /*
-     * The day this column stops waiting and buys is OrderByPill's, date and countdown both - the
-     * Nesting page draws the same deadline, and the pill's colour is a warning about it.
+     * The day this column has to stop waiting and buy is OrderByPill's, date and countdown both -
+     * the Nesting page draws the same deadline, and the pill's colour is a warning about it.
      */
 
     /**
@@ -339,13 +339,14 @@
             class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 bg-gray-50 px-3 py-2"
         >
             <!--
-                When this column stops waiting and buys.
+                When this column has to stop waiting and buy.
 
                 The column's own tooltip tells you to hold off as long as you can, because every day
                 more material arrives is a better nest and a better price - and until now nothing
-                said when holding off stops being your decision. On this date the fabrication
-                deadline sweep nests everything in here into one batch, owned by whoever's job
-                starts first, and emails the rest of the business to say so.
+                said when holding off starts costing the job its critical path. By this date the
+                materials still have to be quoted, ordered and delivered before the saw starts, so
+                it is the last day "Start quoting" is early enough. Nothing presses it for you - the
+                fabrication deadline warnings email and bell whoever's job starts first.
             -->
             <OrderByPill :date="orderingTriggerDate" />
 

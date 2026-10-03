@@ -73,10 +73,10 @@
     const unfinishedImports = computed(() => props.projects['READY_FOR_NESTING'].unfinishedImports?.data ?? []);
 
     /*
-     * The day this column stops waiting and buys for itself - the earliest fabrication date in it,
-     * less the days App\Services\FabricationDeadlineQuoting holds off for. Computed server side so
-     * that window is stated in exactly one place; null until some project in the column has a
-     * fabrication date.
+     * The day this column has to stop waiting and be quoted - the earliest fabrication date in it,
+     * less the days App\Services\FabricationDeadlineQuoting allows for quoting and delivery.
+     * Computed server side so that window is stated in exactly one place; null until some project in
+     * the column has a fabrication date.
      */
     const orderingTriggerDate = computed(() => props.projects['READY_FOR_NESTING'].orderingTriggerDate ?? null);
     const quotedBatches = computed(() => props.batches['QUOTED']);
@@ -392,11 +392,14 @@
     /**
      * Open Quotes / Orders straight away when the board was reached by a "?quotes=<batch>" link.
      *
-     * The fabrication deadline emails land here. They no longer carry the material tables - the
-     * modal generates a ready-addressed draft per supplier, and re-typing a list out of an email is
-     * the work this application exists to remove - so the email's whole value is getting the
-     * recipient to that modal in one tap. Dropping them on the board and leaving them to find the
-     * right card and press Quotes would waste most of it.
+     * The dashboard's batch actions land here (DashboardFormatter::batchAction). What those ask for
+     * is in the modal - it generates a ready-addressed draft per supplier, and re-typing a list out
+     * of a screen is the work this application exists to remove - so the action's whole value is
+     * getting the user to that modal in one tap. Dropping them on the board and leaving them to find
+     * the right card and press Quotes would waste most of it.
+     *
+     * The fabrication deadline emails used to come in this way too. They do not any more: there is
+     * no batch to open until somebody presses "Start quoting", which is what those now ask for.
      *
      * Only for a batch actually on this board. The id comes in off a URL anybody could edit, the
      * batch may have been re-nested since the email went out, and the fetch behind the modal answers

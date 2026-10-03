@@ -56,17 +56,17 @@ class KanbanFormatter
     }
 
     /**
-     * The day this column stops waiting and buys.
+     * The day this column has to stop waiting and buy.
      *
      * The earliest fabrication start date on the card, less the days
-     * App\Services\FabricationDeadlineQuoting waits before it presses "Start quoting" on the
-     * business's behalf. Computed here, off that same constant, rather than subtracting five in the
-     * template - the board would otherwise go on promising a date the schedule had stopped keeping
-     * the moment anybody changed the window.
+     * App\Services\FabricationDeadlineQuoting allows for quoting and delivery before it starts
+     * chasing the column's manager. Computed here, off that same constant, rather than subtracting
+     * five in the template - the board would otherwise go on promising a date the warnings had
+     * stopped keeping to the moment anybody changed the window.
      *
      * Null when no project in the column has a fabrication date. That is only possible for projects
      * created before the date was asked for (see the add_date_fabrication_begins migration), and a
-     * card of those genuinely has no trigger: nothing will auto-quote them.
+     * card of those genuinely has no deadline to print: nothing will come and chase them.
      *
      * Public because the Nesting page prints the same deadline on its pending card
      * (NestingIndexController), and a second subtraction of that constant somewhere else is exactly

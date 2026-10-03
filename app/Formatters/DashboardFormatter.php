@@ -304,12 +304,12 @@ class DashboardFormatter
         }
 
         /*
-         * A project that will wait in the Nesting column for good.
+         * A project that will wait in the Nesting column unnoticed.
          *
-         * Quoting starts five days before fabrication does (App\Services\FabricationDeadlineQuoting),
-         * and that is the only thing that moves a project along without somebody pressing the button -
-         * so one with no fabrication date is a job nothing will ever come and collect. Only possible
-         * for projects created before the date was asked for.
+         * The fabrication date is what the quoting deadline is counted back from
+         * (App\Services\FabricationDeadlineQuoting), and that is the only thing that comes and asks
+         * for this column to be quoted - so a project without one is a job nobody will ever be
+         * reminded about. Only possible for projects created before the date was asked for.
          */
         $nesting = $live->where('stage', self::NESTING)->pluck('project');
 
@@ -322,8 +322,9 @@ class DashboardFormatter
                 'key' => 'no-fabrication-date-'.$project->id,
                 'severity' => 'due',
                 'title' => '"'.$project->name.'" has no fabrication start date',
-                'detail' => 'Quoting starts automatically five days before fabrication begins, so without'
-                    .' a date this job waits in Nesting until somebody notices.',
+                'detail' => 'You are reminded to start quoting five days before fabrication begins, so'
+                    .' without a date nothing will ask - this job waits in Nesting until somebody'
+                    .' notices.',
                 'actionLabel' => 'Add the date',
                 'href' => $board,
             ];
@@ -332,11 +333,13 @@ class DashboardFormatter
         /*
          * The column is inside the window and still has not been batched.
          *
-         * The hourly sweep presses "Start quoting" for the business, so normally nobody sees this. It
-         * is here for when the sweep cannot: a read-only account, a trigger project whose manager has
-         * been deleted, or an hour that has not come round yet. Only shown to somebody who owns a
-         * project in the column, because PrerequisiteConditions::startQuoting refuses anybody else -
-         * see condition 2 - and an action that can only answer 403 is worse than none.
+         * This is the thing the fabrication deadline warnings ask for, said again where the user is
+         * already looking: the schedule emails and bells the column's manager, and nothing moves
+         * until somebody presses the button. It is on the dashboard rather than only in the bell
+         * because a notification can be dismissed and this cannot - it stays until the column is
+         * quoted. Only shown to somebody who owns a project in the column, because
+         * PrerequisiteConditions::startQuoting refuses anybody else - see condition 2 - and an action
+         * that can only answer 403 is worse than none.
          */
         $trigger = (new FabricationDeadlineQuoting)->triggerProject($nesting);
 
@@ -540,8 +543,8 @@ class DashboardFormatter
     /**
      * One action about one batch, labelled with the jobs on it and the nearest first cut.
      *
-     * The href opens the quotes and orders modal for this batch straight away - the same deep link the
-     * fabrication deadline emails use - so the action is one tap from the thing it asks for rather than
+     * The href opens the quotes and orders modal for this batch straight away - see the "?quotes="
+     * handling in ProjectsBoard.vue - so the action is one tap from the thing it asks for rather than
      * from a board the user then has to search.
      *
      * @param  Collection<int, array{project: Project, stage: string, batch: Batch|null}>  $live
