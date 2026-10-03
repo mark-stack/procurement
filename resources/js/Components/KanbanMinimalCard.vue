@@ -47,6 +47,8 @@
     //Shared methods
     import shared from "@/Shared/shared.js";
     import useConfirm from "@/Shared/useConfirm.js";
+    import startQuotingDialog from "@/Shared/startQuotingDialog.js";
+    import reNestDialog from "@/Shared/reNestDialog.js";
 
     //Confirmation
     const {confirmDialog, askToConfirm, confirmDialogAccepted, confirmDialogCancelled} = useConfirm();
@@ -213,60 +215,34 @@
      * grouping, their suppliers and their delivery dates. It fired on the click, with nothing
      * naming what it was about to take. Re-nest and "Move to done" either side of it both ask
      * first, and neither reaches across as far as this one does.
+     *
+     * The wording itself is shared with the open batch card on /nesting, which starts quoting the
+     * same way - see startQuotingDialog.
      */
     function confirmQuoteNow(){
-        const mine = props.projects.filter(project => isMine(project));
-        const theirs = props.projects.filter(project => !isMine(project));
-
-        const nameList = projects => projects
-            .map(project => shared.capitalizeWords(project.name))
-            .join(", ");
-
-        const message = theirs.length > 0
-            ? `${nameList(props.projects)} will be nested together into one batch. `
-                + `That includes ${nameList(theirs)}, which ${theirs.length > 1 ? 'are' : 'is'} not yours - `
-                + `nesting ${theirs.length > 1 ? 'them' : 'it'} now fixes the suppliers and delivery dates for `
-                + `${theirs.length > 1 ? 'those projects' : 'that project'} too.`
-            : `${nameList(mine)} will be nested into one batch and moved to Quoting.`;
-
-        askToConfirm({
-            title: theirs.length > 0 ? "Nest your colleagues' projects too?" : "Start quoting?",
-            message: message,
-            /*
-             * Steel is bought by the bar, so projects sharing a batch share the bars and the
-             * offcuts they leave, and every one of them pays less for material. Whatever is
-             * nested after this batch is cut cannot get any of that back, and nothing on the
-             * board said so - the button read as the routine next step, not the moment the
-             * batch closes. Its own paragraph because it is advice, not what the button does.
-             */
-            note: "Projects nested together share bars and offcuts, so each one costs less in material. "
-                + "If more projects are due in soon, it is worth waiting and nesting them all at once - "
-                + "the saving on a bigger batch is significant.",
-            confirmLabel: "Start quoting",
-            tone: "primary",
-            onConfirmed: () => {
+        askToConfirm(startQuotingDialog(
+            props.projects.map(project => ({name: project.name, mine: isMine(project)})),
+            () => {
                 emit('pageLoadingOn',null);
                 emit('quoteNow');
             },
-        });
+        ));
     }
 
     /**
      * Re-nesting is the most destructive button on the board and the label does not say so - it reads
-     * as "recalculate the nesting". It deletes the batch, every quote on it, every order, the order
-     * approvals, and the offcuts and bars it cut, and none of that comes back. "Move to done" below
-     * already asks before something one-way; this destroys far more and used to fire on the click.
+     * as "recalculate the nesting". "Move to done" below already asks before something one-way; this
+     * destroys far more and used to fire on the click.
+     *
+     * The wording is shared with the open menu on /nesting, which unpicks a batch the same way - see
+     * reNestDialog.
      */
     function confirmBreakBatch(){
-        const projectNames = props.projects.map(project => shared.capitalizeWords(project.name)).join(", ");
-
-        askToConfirm({
-            title: "Re-nest this batch?",
-            message: `Batch ${props.batchInfo.batch.id} (${projectNames}) goes back to Nesting. Its quotes, draft orders and the offcuts it produced are deleted. This cannot be undone.`,
-            confirmLabel: "Re-nest",
-            tone: "danger",
-            onConfirmed: () => breakBatch(),
-        });
+        askToConfirm(reNestDialog(
+            props.batchInfo.batch.id,
+            props.projects,
+            () => breakBatch(),
+        ));
     }
 
     function breakBatch(){
@@ -595,7 +571,7 @@
                 :back="true"
                 :title="batchInfo.prerequisiteUndoStartQuoting
                     ? 'Unpick this batch and send its projects back to nesting'
-                    : 'This batch can no longer be re-nested - an order has been sent, a project was archived, or a later batch has already used its offcuts'"
+                    : 'This batch can no longer be re-nested - it has been ordered, a project was archived, or a later batch has already used its offcuts'"
                 class="col-span-2"
                 :fullWidth="true"
                 :disabled="!batchInfo.prerequisiteUndoStartQuoting || formBreakBatch.processing"

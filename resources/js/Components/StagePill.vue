@@ -11,15 +11,18 @@
      *  - The dashboard says the step the work is ON, which is App\Services\BatchStages plus the two
      *    columns it does not cover: NESTING, where a batch is before it exists, and COMPLETED, where it
      *    goes after - a past project.
-     *  - The Nesting page says the last step the batch has PASSED - QUOTED, ORDERED, DELIVERED. Not the
-     *    same answer: a batch whose steel is all ordered and still on a lorry is in the Delivering
-     *    column, and has only got as far as ORDERED. See NestingIndexController::milestoneOf().
+     *  - The Nesting page says the last step the batch has PASSED, and uses both wordings to do it: the
+     *    ing-word while that step is half done (QUOTING is a batch still missing a price from one of
+     *    its merchants, ORDERING one with material nobody has bought yet) and the ed-word once it is
+     *    finished. Not the same answer as the column: a batch whose steel is all ordered and still on a
+     *    lorry is in the Delivering column, and has only got as far as ORDERED. See
+     *    NestingIndexController::milestoneOf().
      *
      * A step keeps its colour across both wordings, so the two still read as the one pipeline.
      */
     //Props
     const props = defineProps({
-        //NESTING | QUOTING | QUOTED | ORDERING | ORDERED | DELIVERING | DELIVERED | COMPLETED
+        //NESTING | QUOTING | QUOTED | ORDERING | ORDERED | DELIVERING | DELIVERED | CUT | COMPLETED
         stage: String,
     });
 
@@ -33,6 +36,7 @@
             ORDERED: 'Ordered',
             DELIVERING: 'Delivering',
             DELIVERED: 'Delivered',
+            CUT: 'Cut',
             COMPLETED: 'Completed',
         }[stage] ?? stage;
     }
@@ -50,6 +54,8 @@
             ORDERED: 'bg-indigo-50 text-indigo-800 ring-indigo-200',
             DELIVERING: 'bg-teal-50 text-teal-800 ring-teal-200',
             DELIVERED: 'bg-teal-50 text-teal-800 ring-teal-200',
+            //The far end of the shop floor, and the last step before the batch is history
+            CUT: 'bg-emerald-50 text-emerald-800 ring-emerald-200',
             //Closed, so it is deliberately the quietest of them - it is history, not work
             COMPLETED: 'bg-gray-50 text-gray-500 ring-gray-200',
         }[stage] ?? 'bg-gray-100 text-gray-700 ring-gray-300';

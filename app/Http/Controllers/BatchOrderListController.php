@@ -6,6 +6,7 @@ use App\Formatters\NestingFormatter;
 use App\Models\Batch;
 use App\Models\MaterialCertificate;
 use App\Models\Order;
+use App\PrerequisiteConditions\PrerequisiteConditions;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
@@ -64,6 +65,32 @@ class BatchOrderListController extends Controller
          */
         $certificateProductCategories = $nestingFormatter->getCertificateProductLabels();
 
+        /*
+         * The merchants on this batch somebody has already said they bought from off the application,
+         * and whether this user may say it of another one. Both asked once for the modal rather than
+         * per block: the gate is about the batch and the people on it, not about the group.
+         */
+        $markedGroups = $batch === null ? [] : ($batch->ordered_supplier_groups ?? []);
+
+        /*
+         * And the same claim made about the whole job rather than one merchant - "All ordered" on the
+         * Nesting card. Read here rather than written across the groups when that press lands: it is
+         * one fact about the batch, and copying it into a list of names would leave the two to drift
+         * apart the moment the batch's material changes.
+         */
+        $wholeBatchOrdered = $batch?->ordered_at !== null;
+        $canMarkOrdered = $batch === null
+            ? null
+            : (new PrerequisiteConditions)->markBatchGroupOrdered(auth()->user(), $batch);
+
+        /*
+         * And the certificates attached to the batch itself rather than to one of its orders, in one
+         * query for the modal. Empty for the pending card, which has no batch to hold any.
+         */
+        $batchCertificates = $batch === null
+            ? new EloquentCollection
+            : $batch->certificates()->get();
+
         $groups = [];
 
         foreach ($grouped['assigned'] as $supplierGroup => $pieces) {
@@ -87,19 +114,44 @@ class BatchOrderListController extends Controller
                  * waiting on an order. Sent and numbered are two questions: the PO number is a
                  * nullable column somebody types in afterwards, so an order can be placed with no
                  * number against it and the modal has to say "ordered" without inventing one.
+                 *
+                 * Three ways to be bought, and the block says the same word for all of them: a sent
+                 * order through the quotes screen, the mark somebody put on this block for a
+                 * merchant they rang (see BatchMarkGroupOrderedController), or the Nesting card's
+                 * "All ordered", which is that same claim made about the whole job at once and so
+                 * about every merchant on it. The mark is kept separate underneath because only one
+                 * of the three has an order behind it to show.
                  */
-                'ordered' => $order !== null,
+                'ordered' => $order !== null || $wholeBatchOrdered || in_array($supplierGroup, $markedGroups, true),
+                'orderedByMark' => $order === null
+                    && ($wholeBatchOrdered || in_array($supplierGroup, $markedGroups, true)),
                 'purchaseOrderNumber' => $order?->purchase_order_number,
+                /*
+                 * And whether this block may offer the mark. False where somebody else's job is on
+                 * the batch or it is closed, and null on the pending card, which has no batch to
+                 * carry a mark and nothing anybody should be buying from it yet.
+                 */
+                'canMarkOrdered' => $canMarkOrdered,
                 /*
                  * Whether this group's steel comes with a mill certificate at all, and the ones that
                  * have arrived. Asked of every order in the group rather than the sent one: a
                  * certificate can be attached before the order is placed, and a block that holds the
                  * file but shows "No mill cert" would send somebody chasing the merchant for it.
+                 *
+                 * Both kinds in the one list. A shop that buys through the quotes screen gets the
+                 * merchant's PDF against the order; a shop that rings the merchant attaches it to
+                 * the batch under this group's name, from the Nesting card (see
+                 * BatchCertificateController). They are the same evidence about the same steel, so
+                 * the block shows them together rather than making somebody know which screen the
+                 * file went in through.
                  */
                 'certificated' => $productCategories
                     ->intersect($certificateProductCategories)
                     ->isNotEmpty(),
-                'certificates' => $this->certificates($orders),
+                'certificates' => [
+                    ...$this->certificates($orders),
+                    ...$this->batchCertificates($batchCertificates, $supplierGroup),
+                ],
                 /*
                  * What came off the truck, where this group has been bought and the delivery booked
                  * in. Null for a group nobody has ordered from yet, which the block already says.
@@ -162,6 +214,28 @@ class BatchOrderListController extends Controller
     {
         return $orders
             ->flatMap(fn (Order $order) => $order->materialCertificates)
+            ->map(fn (MaterialCertificate $certificate) => [
+                'id' => $certificate->id,
+                'filename' => $certificate->original_filename,
+                'url' => route('material.certificates.download', $certificate),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * And the ones attached to the batch under this merchant's name.
+     *
+     * Same shape as the order-side list above, because the block draws one list: whoever is looking
+     * for a heat number wants the file, not an account of which screen it arrived through.
+     *
+     * @param  EloquentCollection<int, MaterialCertificate>  $certificates
+     * @return array<int, array<string, mixed>>
+     */
+    private function batchCertificates(EloquentCollection $certificates, string $supplierGroup): array
+    {
+        return $certificates
+            ->filter(fn (MaterialCertificate $certificate) => $certificate->supplier_group === $supplierGroup)
             ->map(fn (MaterialCertificate $certificate) => [
                 'id' => $certificate->id,
                 'filename' => $certificate->original_filename,
