@@ -607,6 +607,8 @@
         askToConfirm(startQuotingDialog(
             openBatch.value?.projects ?? [],
             () => startQuoting(),
+            //The day the card's own Order by pill is counting down to - see startQuotingDialog
+            openBatch.value?.orderingTriggerDate ?? null,
         ));
     }
 
