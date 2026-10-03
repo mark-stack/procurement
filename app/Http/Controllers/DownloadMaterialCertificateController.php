@@ -17,7 +17,13 @@ class DownloadMaterialCertificateController extends Controller
      */
     public function __invoke(MaterialCertificate $materialCertificate): StreamedResponse
     {
-        Gate::authorize('owned', $materialCertificate->order);
+        /*
+         * Whichever parent this one has. Both policies ask the same question - is this your
+         * business's work - and a certificate is exactly as private as the thing it is evidence for.
+         */
+        Gate::authorize('owned', $materialCertificate->batch_id !== null
+            ? $materialCertificate->batch
+            : $materialCertificate->order);
 
         //The row can outlive its file if the disk was cleared out from under it
         abort_unless($materialCertificate->disk()->exists($materialCertificate->path), 404);

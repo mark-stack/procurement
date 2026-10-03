@@ -35,6 +35,18 @@ class MaterialCertificate extends Model
         return $this->belongsTo(Order::class);
     }
 
+    /**
+     * The other parent, for a certificate that never had an order.
+     *
+     * A shop that buys over the phone attaches the merchant's PDF to the batch itself, from the
+     * Nesting card's "Delivered" - see the 2026_10_03_130000 migration. Exactly one of the two is
+     * set, so everything reading these rows asks the one that is there.
+     */
+    public function batch(): BelongsTo
+    {
+        return $this->belongsTo(Batch::class);
+    }
+
     //Optional - the uploader's account may since have been deleted
     public function user(): BelongsTo
     {
@@ -63,7 +75,17 @@ class MaterialCertificate extends Model
      */
     public function isDeletable(): bool
     {
-        //order_id is non-nullable, but a cert whose order has gone is not something to refuse over
+        /*
+         * One attached to a batch instead of an order (a shop that bought over the phone) is held to
+         * the same idea at the point that idea starts applying to it. There is no order to be sent,
+         * so the line is the batch closing: while it is live this is somebody tidying up a file they
+         * have just attached to their own open job, and once it is a past project it is the record.
+         */
+        if ($this->batch_id !== null) {
+            return $this->batch !== null && ! $this->batch->done;
+        }
+
+        //order_id was non-nullable here, but a cert whose order has gone is not something to refuse over
         return $this->order === null || ! $this->order->order_sent;
     }
 
@@ -81,8 +103,9 @@ class MaterialCertificate extends Model
     {
         if (! $this->isDeletable()) {
             throw new RuntimeException(
-                'Material certificate #'.$this->id.' belongs to an order that has been placed, so it '
-                .'is part of that order\'s record. Attach a replacement instead of removing it.',
+                'Material certificate #'.$this->id.' belongs to '
+                .($this->batch_id !== null ? 'a batch that has been closed' : 'an order that has been placed')
+                .', so it is part of that record. Attach a replacement instead of removing it.',
             );
         }
 

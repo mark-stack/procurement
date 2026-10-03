@@ -205,7 +205,13 @@
                     Uploaded files
                 </h4>
 
-                <ul class="mt-2 space-y-1.5">
+                <!--
+                    Two across, because a batch gathers a file per job and this list sits above the
+                    table it explains - a dozen uploads stacked one per row push the materials off
+                    the screen. One column on a narrow window, where the name and the line under it
+                    need the width.
+                -->
+                <ul class="grid gap-1.5 mt-2 sm:grid-cols-2">
                     <li
                         v-for="file in files"
                         :key="file.id"

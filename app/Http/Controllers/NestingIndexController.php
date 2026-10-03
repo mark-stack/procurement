@@ -5,11 +5,13 @@ namespace App\Http\Controllers;
 use App\Formatters\KanbanFormatter;
 use App\Formatters\NestingFormatter;
 use App\Formatters\SupplierFormatter;
+use App\Models\Batch;
 use App\Models\Business;
 use App\Models\Offcut;
 use App\Models\Order;
 use App\Models\Piece;
 use App\Models\Project;
+use App\Models\Quote;
 use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\BatchStages;
 use Illuminate\Support\Collection;
@@ -133,6 +135,13 @@ class NestingIndexController extends Controller
             'mine' => $pendingProjects->contains(fn (Project $project) => $project->user_id === $user->id),
             //Nothing to unpick: this batch has not been nested yet. See the loop below.
             'prerequisiteUndoStartQuoting' => null,
+            //And nothing to call quoted, bought, delivered or cut: there is no batch row to carry a mark
+            'prerequisiteMarkQuoted' => null,
+            'prerequisiteMarkOrdered' => null,
+            'prerequisiteMarkDelivered' => null,
+            'prerequisiteMarkCut' => null,
+            //Nor anything for a certificate to be evidence of - nothing here has been bought yet
+            'canAttachCertificates' => null,
         ];
 
         /*
@@ -156,11 +165,33 @@ class NestingIndexController extends Controller
          */
         $delivered = $this->fullyDeliveredBatchIds($staged[BatchStages::DELIVERING]);
 
+        /*
+         * And which of the batches out with the suppliers have a price in for every merchant they
+         * have to buy from, which is the difference between the QUOTING and QUOTED pills - see
+         * milestoneOf(). One query for the column, in the same way.
+         */
+        $fullyQuoted = $this->fullyQuotedBatchIds($staged[BatchStages::QUOTING], $supplierGroups);
+
+        /*
+         * And which of them have had every merchant marked ordered on the order list. The card's
+         * pill has to agree with that modal: a batch whose only block says "Ordered" is a batch that
+         * has been bought, and leaving it reading Quoting means the page contradicts itself.
+         */
+        $fullyMarkedOrdered = $this->fullyMarkedOrderedBatchIds($staged[BatchStages::QUOTING], $supplierGroups);
+
         foreach ([BatchStages::QUOTING, BatchStages::ORDERING, BatchStages::DELIVERING] as $stage) {
             foreach ($staged[$stage]->sortByDesc('id') as $batch) {
+                $milestone = $this->milestoneOf(
+                    $batch,
+                    $stage,
+                    in_array($batch->id, $delivered, true),
+                    in_array($batch->id, $fullyQuoted, true),
+                    in_array($batch->id, $fullyMarkedOrdered, true),
+                );
+
                 $batches[] = [
                     'id' => $batch->id,
-                    'stage' => $this->milestoneOf($stage, in_array($batch->id, $delivered, true)),
+                    'stage' => $milestone,
                     //Nothing to order by: this batch has been nested, so the deadline it had is spent
                     'orderingTriggerDate' => null,
                     'projects' => [],
@@ -172,19 +203,62 @@ class NestingIndexController extends Controller
                      * question the card can ask at all - which is the board's own convention for
                      * this flag (KanbanMinimalCard draws the button off it being set).
                      *
-                     * Only the batches being quoted: re-nesting deletes the quotes, the draft
-                     * orders and the offcuts the batch cut, and once an order has gone out the gate
-                     * refuses - which is every batch past this column. Drawn greyed rather than
-                     * dropped when it answers false, the way the board greys it, because "this
-                     * batch can no longer be re-nested" is the thing somebody came to the menu to
-                     * find out.
+                     * Read off the pill rather than off the column, because the pill is the honest
+                     * answer: re-nesting deletes the quotes, the draft orders and the offcuts the
+                     * batch cut, so it is offered while the batch is still only being priced -
+                     * QUOTING and QUOTED - and nowhere past that. Every batch in a later column has
+                     * a sent order behind it, and a batch somebody marked "All ordered" from this
+                     * menu has been bought off the application, where unpicking it here would strip
+                     * material that a merchant is already cutting.
+                     *
+                     * Drawn greyed rather than dropped when it answers false, the way the board
+                     * greys it, because "this batch can no longer be re-nested" is the thing
+                     * somebody came to the menu to find out.
                      */
-                    'prerequisiteUndoStartQuoting' => $stage === BatchStages::QUOTING
+                    'prerequisiteUndoStartQuoting' => in_array($milestone, ['QUOTING', 'QUOTED'], true)
                         ? (new PrerequisiteConditions)->undoStartQuoting(
                             $batch,
                             $user,
                             $offcutsByBatch->get($batch->id, collect()),
                         )
+                        : null,
+                    /*
+                     * And whether it may offer the two presses that move a batch on without naming a
+                     * supplier - "All quoted" and "All ordered". Same convention again: false is
+                     * greyed with the reason, null is a card that does not ask the question.
+                     *
+                     * The Quoting column alone, like the one above. Past it the batch has a sent
+                     * order behind it and what the pill says is read off the orders and their
+                     * deliveries - a mark set there could only contradict them, which is why the
+                     * gate refuses it too (PrerequisiteConditions::markBatchQuoted).
+                     */
+                    'prerequisiteMarkQuoted' => $stage === BatchStages::QUOTING
+                        ? (new PrerequisiteConditions)->markBatchQuoted($user, $batch)
+                        : null,
+                    'prerequisiteMarkOrdered' => $stage === BatchStages::QUOTING
+                        ? (new PrerequisiteConditions)->markBatchOrdered($user, $batch)
+                        : null,
+                    //And "Delivered", which is the same kind of mark: the steel turned up, nobody named
+                    'prerequisiteMarkDelivered' => $stage === BatchStages::QUOTING
+                        ? (new PrerequisiteConditions)->markBatchDelivered($user, $batch)
+                        : null,
+                    /*
+                     * "Cut" is the exception among the four. It is asked of a delivered batch however
+                     * that batch got delivered - the marks above, or real orders booked in on their
+                     * goods receipts - so it is drawn off the pill rather than the column, and the
+                     * pill is the answer the gate would otherwise go and work out again.
+                     */
+                    'prerequisiteMarkCut' => in_array($milestone, ['DELIVERED', 'CUT'], true)
+                        ? (new PrerequisiteConditions)->markBatchCut($user, $batch, true)
+                        : null,
+                    /*
+                     * And whether the card may offer to keep the merchant's paperwork against the
+                     * batch itself. The same cards as "Cut", for the same reason in reverse: a
+                     * certificate arrives with the steel, and a batch that has not been delivered has
+                     * nothing to show one for. A closed batch is its own record and takes no more.
+                     */
+                    'canAttachCertificates' => in_array($milestone, ['DELIVERED', 'CUT'], true)
+                        ? ! $batch->done
                         : null,
                 ];
             }
@@ -351,15 +425,27 @@ class NestingIndexController extends Controller
      *
      * Deliberately not the column it is in. The board's columns name the work in hand - "Ordering" is
      * a batch somebody is still buying - and this page's cards answer the other question: how far has
-     * this job got. So the words are what has been done to it, and two of them do not line up with a
-     * column:
+     * this job got. So the words are what has been done to it, and the halfway steps are the ing-words:
      *
-     *  - QUOTED: nested and out with the suppliers. No order has gone in (the Quoting column). Said of
-     *    a batch whose quote requests have not been sent either - the Quoting column does not
-     *    distinguish the two, and both are a batch whose next step is a price.
-     *  - ORDERED: an order has gone in. Either there is material on the job nobody has bought yet (the
-     *    Ordering column) or it is all bought and some of it has not arrived (the Delivering column).
+     *  - QUOTING: nested and out with the suppliers, with a price still missing for at least one of the
+     *    merchants it has to be bought from - including a batch nobody has sent a quote request for yet.
+     *  - QUOTED: every supplier group on the batch has a sent quote behind it, and no order has gone in.
+     *    Both of these are the Quoting column, which does not distinguish them.
+     *  - ORDERING: an order has gone in and there is material on the job nobody has bought yet, which
+     *    is the Ordering column.
+     *  - ORDERED: it is all bought, and some of it has not arrived (the Delivering column).
      *  - DELIVERED: it is all bought and every sent order has been booked in as delivered.
+     *
+     * The batch's own marks are read first, inside the Quoting column, and they say the same things
+     * for a shop that does not buy through the quotes modal at all: quoted_at is "the prices are in",
+     * ordered_at is "it has been bought", delivered_at is "it turned up", all set by hand from this
+     * page's card menu and none of them naming a supplier (see the 2026_10_03 migrations). They are
+     * read nowhere past that column, because past it there are real orders to read instead.
+     *
+     * "It has been bought" has a second spelling, and the pill has to accept it: the order list marks
+     * one merchant at a time, and a batch whose every merchant has been marked there is as bought as
+     * one somebody called bought in a single press. A card still reading Quoting over a modal whose
+     * only block says Ordered is the page disagreeing with itself.
      *
      * That last one is the whole reason this is not a relabelling of the columns. The Delivering column
      * means every material row points at a sent order, which is a statement about the paperwork going
@@ -370,17 +456,166 @@ class NestingIndexController extends Controller
      * (App\Services\DeliveredBatchArchiving), so DELIVERED is what a card says in that window, and for
      * as long as a hold on the archiving keeps it on the board.
      */
-    private function milestoneOf(string $stage, bool $everyOrderDelivered): string
-    {
+    private function milestoneOf(
+        Batch $batch,
+        string $stage,
+        bool $everyOrderDelivered,
+        bool $everyCategoryQuoted,
+        bool $everyGroupMarkedOrdered,
+    ): string {
+        /*
+         * Cut is the last step there is and the only one a batch can reach from either side of the
+         * board, so it is read before the column is: a batch bought over the phone and a batch
+         * ordered through the application are both cut in the same shop by the same people, and the
+         * card says so for whichever of them got there.
+         */
+        if ($batch->cut_at !== null) {
+            return 'CUT';
+        }
+
         if ($stage === BatchStages::QUOTING) {
-            return 'QUOTED';
+            if ($batch->delivered_at !== null) {
+                return 'DELIVERED';
+            }
+
+            if ($batch->ordered_at !== null || $everyGroupMarkedOrdered) {
+                return 'ORDERED';
+            }
+
+            return $everyCategoryQuoted || $batch->quoted_at !== null ? 'QUOTED' : 'QUOTING';
         }
 
-        if ($stage === BatchStages::DELIVERING && $everyOrderDelivered) {
-            return 'DELIVERED';
+        if ($stage === BatchStages::ORDERING) {
+            return 'ORDERING';
         }
 
-        return 'ORDERED';
+        return $everyOrderDelivered ? 'DELIVERED' : 'ORDERED';
+    }
+
+    /**
+     * Of the batches out with the suppliers, the ones with a price in for every merchant.
+     *
+     * "Every merchant" is the card's own Material order count - the supplier groups this batch's
+     * material falls into (see supplierGroupCount) - because that is the number the pill is read
+     * against: a card saying "Quoted" over "2 Categories" is claiming both of them are priced.
+     *
+     * A sent quote, not a quote row: QuoteFormatter::quotesData mints a quote per supplier the moment
+     * anybody opens the modal, so the rows exist long before anything was asked of anybody. Any one
+     * sent quote answers a group, the way Project::percentageOfMaterialsQuoted counts a row quoted -
+     * a business with two steel merchants has priced its steel once the first of them answers.
+     *
+     * A batch whose material belongs to no supplier group the business's plan covers can never answer
+     * yes, and says QUOTING for as long as it is in the column. That is the honest reading: there is
+     * nobody to get a price from, which is a batch somebody still has work to do on.
+     *
+     * @param  Collection<int, \App\Models\Batch>  $quoting
+     * @param  array<string, array<int, string>>  $supplierGroups
+     * @return array<int, int>
+     */
+    private function fullyQuotedBatchIds(Collection $quoting, array $supplierGroups): array
+    {
+        $batchIds = $quoting->pluck('id')->all();
+
+        if ($batchIds === []) {
+            return [];
+        }
+
+        //What each batch has to buy, and what has been priced - a handful of rows per batch either way
+        $categoriesByBatch = Piece::query()
+            ->select(['batch_id', 'product_category'])
+            ->whereIn('batch_id', $batchIds)
+            ->distinct()
+            ->get()
+            ->groupBy('batch_id')
+            ->map(fn ($rows) => $rows->pluck('product_category')->all());
+
+        $quotedGroupsByBatch = Quote::query()
+            ->select(['batch_id', 'supplier_category'])
+            ->whereIn('batch_id', $batchIds)
+            ->where('quote_sent', true)
+            ->distinct()
+            ->get()
+            ->groupBy('batch_id')
+            ->map(fn ($rows) => $rows->pluck('supplier_category')->all());
+
+        $fullyQuoted = [];
+
+        foreach ($batchIds as $batchId) {
+            $required = $this->supplierGroupsFor(
+                $categoriesByBatch->get($batchId, []),
+                $supplierGroups,
+            );
+
+            if ($required === []) {
+                continue;
+            }
+
+            $quoted = $quotedGroupsByBatch->get($batchId, []);
+
+            if (array_diff($required, $quoted) === []) {
+                $fullyQuoted[] = (int) $batchId;
+            }
+        }
+
+        return $fullyQuoted;
+    }
+
+    /**
+     * Of the batches out with the suppliers, the ones whose every merchant has been marked ordered.
+     *
+     * The order list marks one block at a time, for the shop that is half on the application and half
+     * on the phone (see BatchMarkGroupOrderedController). Those marks are about merchants, and this
+     * is the one question the card asks of them: is there a merchant left on this batch nobody has
+     * bought from? When there is not, the whole job has been bought, and the pill says ORDERED
+     * exactly as it does for the batch-wide mark.
+     *
+     * "Every merchant" is read the same way fullyQuotedBatchIds reads it - the supplier groups this
+     * batch's material falls into, which is the card's own Material order count - so the two pills
+     * are measured against the same list.
+     *
+     * A batch whose material belongs to no supplier group the business's plan covers answers no, the
+     * way it answers no to being fully quoted: there is nobody to have bought from, and an empty list
+     * must not read as a finished one.
+     *
+     * @param  Collection<int, \App\Models\Batch>  $quoting
+     * @param  array<string, array<int, string>>  $supplierGroups
+     * @return array<int, int>
+     */
+    private function fullyMarkedOrderedBatchIds(Collection $quoting, array $supplierGroups): array
+    {
+        //Only the batches somebody has marked something on - the rest cannot answer yes
+        $marked = $quoting->filter(fn (Batch $batch) => ($batch->ordered_supplier_groups ?? []) !== []);
+
+        if ($marked->isEmpty()) {
+            return [];
+        }
+
+        $categoriesByBatch = Piece::query()
+            ->select(['batch_id', 'product_category'])
+            ->whereIn('batch_id', $marked->pluck('id')->all())
+            ->distinct()
+            ->get()
+            ->groupBy('batch_id')
+            ->map(fn ($rows) => $rows->pluck('product_category')->all());
+
+        $fullyOrdered = [];
+
+        foreach ($marked as $batch) {
+            $required = $this->supplierGroupsFor(
+                $categoriesByBatch->get($batch->id, []),
+                $supplierGroups,
+            );
+
+            if ($required === []) {
+                continue;
+            }
+
+            if (array_diff($required, $batch->ordered_supplier_groups ?? []) === []) {
+                $fullyOrdered[] = (int) $batch->id;
+            }
+        }
+
+        return $fullyOrdered;
     }
 
     /**
@@ -458,11 +693,26 @@ class NestingIndexController extends Controller
      */
     private function supplierGroupCount(array $productCategories, array $supplierGroups): int
     {
-        $matched = 0;
+        return count($this->supplierGroupsFor($productCategories, $supplierGroups));
+    }
 
-        foreach ($supplierGroups as $includedProducts) {
+    /**
+     * Those groups by name, which is the same question the pill asks - see fullyQuotedBatchIds().
+     *
+     * The names are the keys of SupplierFormatter::supplierGroups, which is what a quote records in
+     * supplier_category, so the two lists can be compared directly.
+     *
+     * @param  array<int, string|null>  $productCategories
+     * @param  array<string, array<int, string>>  $supplierGroups
+     * @return array<int, string>
+     */
+    private function supplierGroupsFor(array $productCategories, array $supplierGroups): array
+    {
+        $matched = [];
+
+        foreach ($supplierGroups as $supplierGroup => $includedProducts) {
             if (array_intersect($productCategories, $includedProducts) !== []) {
-                $matched++;
+                $matched[] = (string) $supplierGroup;
             }
         }
 

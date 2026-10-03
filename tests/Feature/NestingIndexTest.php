@@ -143,7 +143,7 @@ it('names the last step each batch has passed, down the three columns of live ba
     $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
-    //Quoted: nested, and nothing ordered yet
+    //Quoting: nested, and nothing priced or ordered yet
     $quoting = Batch::factory()->forUser($user->id)->create(['done' => false]);
 
     /*
@@ -169,19 +169,91 @@ it('names the last step each batch has passed, down the three columns of live ba
             ->component('NestingIndex')
             ->has('batches', 3)
             //The open batch heads the page with nothing waiting on it - see the test below
-            ->where('batches.0', ['id' => null, 'stage' => 'NESTING', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false, 'prerequisiteUndoStartQuoting' => null])
+            ->where('batches.0', ['id' => null, 'stage' => 'NESTING', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false, 'prerequisiteUndoStartQuoting' => null, 'prerequisiteMarkQuoted' => null, 'prerequisiteMarkOrdered' => null, 'prerequisiteMarkDelivered' => null, 'prerequisiteMarkCut' => null, 'canAttachCertificates' => null])
             /*
              * Nothing to order by on either of the live ones: a nested batch has spent the deadline it
              * was waiting on. And neither is "mine" - a batch with no project on it carries nobody's
              * work, whoever created the row.
              *
-             * The re-nest gate is asked of the quoted one and of nothing else: past that column an
+             * The re-nest gate is asked of the one being quoted and of nothing else: past that column an
              * order has gone out and the answer is not a question the card can ask - which the open
              * batch's null above says for the other end of the page. False here because the gate
              * wants one of your own projects on the batch, and this one carries none at all.
              */
-            ->where('batches.1', ['id' => $quoting->id, 'stage' => 'QUOTED', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false, 'prerequisiteUndoStartQuoting' => false])
-            ->where('batches.2', ['id' => $delivering->id, 'stage' => 'ORDERED', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false, 'prerequisiteUndoStartQuoting' => null])
+            ->where('batches.1', ['id' => $quoting->id, 'stage' => 'QUOTING', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false, 'prerequisiteUndoStartQuoting' => false, 'prerequisiteMarkQuoted' => false, 'prerequisiteMarkOrdered' => false, 'prerequisiteMarkDelivered' => false, 'prerequisiteMarkCut' => null, 'canAttachCertificates' => null])
+            ->where('batches.2', ['id' => $delivering->id, 'stage' => 'ORDERED', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false, 'prerequisiteUndoStartQuoting' => null, 'prerequisiteMarkQuoted' => null, 'prerequisiteMarkOrdered' => null, 'prerequisiteMarkDelivered' => null, 'prerequisiteMarkCut' => null, 'canAttachCertificates' => null])
+        );
+});
+
+it('says Quoting until every merchant on the batch has priced it, and Quoted once they have', function () {
+    /*
+     * The two pills the Quoting column carries. The column cannot tell them apart - it means "no order
+     * has gone in" whichever it is - and the difference is the thing somebody reads the card for: are
+     * the prices in, or is one still being chased.
+     *
+     * Measured against the card's own Material order count, which is the supplier groups this batch's
+     * material falls into, and against SENT quotes: QuoteFormatter::quotesData mints a quote row per
+     * supplier the moment anybody opens the modal, so the rows exist long before anything was asked of
+     * anybody.
+     */
+    test()->actingAs(createUser(1, createBusiness('admin'), true, true));
+    seedMasterMaterials();
+
+    $business = createBusiness('fabricator');
+    $user = createUser(1, $business, false, true);
+
+    $project = nestingPageProject($user);
+    $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
+    Piece::query()->where('project_id', $project->id)->update(['batch_id' => $batch->id]);
+
+    //Steel and nothing else, so one price is the whole batch
+    expect(categoriesOf($project))->toBe(1);
+
+    //Drafted and not sent, which is what opening the modal leaves behind
+    $quote = Quote::create([
+        'user_id' => $user->id,
+        'batch_id' => $batch->id,
+        'supplier_id' => Supplier::factory()->create()->id,
+        'supplier_category' => 'STEEL_MERCHANT',
+        'supplier_quote_reference' => null,
+        'quote_sent' => false,
+        'quoted_price' => null,
+        'quoted_lead_time' => null,
+    ]);
+
+    /*
+     * And a sent one for a merchant this batch does not buy from. It is a price on the batch, and it
+     * prices none of what is on it - a card that counted sent quotes rather than covered groups would
+     * call this batch quoted.
+     */
+    Quote::create([
+        'user_id' => $user->id,
+        'batch_id' => $batch->id,
+        'supplier_id' => Supplier::factory()->create()->id,
+        'supplier_category' => 'TIMBER_MERCHANT',
+        'supplier_quote_reference' => null,
+        'quote_sent' => true,
+        'quoted_price' => null,
+        'quoted_lead_time' => null,
+    ]);
+
+    $this->actingAs($user);
+    $this->withoutExceptionHandling();
+
+    $this->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('batches.1.id', $batch->id)
+            ->where('batches.1.stage', 'QUOTING')
+        );
+
+    $quote->update(['quote_sent' => true]);
+
+    $this->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('batches.1.id', $batch->id)
+            ->where('batches.1.stage', 'QUOTED')
         );
 });
 
@@ -261,11 +333,14 @@ it('leaves a finished batch to /past-projects, however much of it is mine', func
         );
 });
 
-it('calls a batch Ordered off the material rows, not off the order being sent', function () {
+it('calls a batch Ordering while there is material on it nobody has bought', function () {
     /*
      * The column between the other two, and the one a card cannot guess at: an order has gone in and
      * there is still material on the job nobody has bought. The stage test is BatchStages', so this
      * builds the case it answers ORDERING to - pieces on the batch whose rows point at no sent order.
+     *
+     * Half-bought is the ing-word, the way half-quoted is: ORDERED is said of a batch with nothing
+     * left to buy, which is the Delivering column and the test below.
      */
     test()->actingAs(createUser(1, createBusiness('admin'), true, true));
     seedMasterMaterials();
@@ -293,7 +368,7 @@ it('calls a batch Ordered off the material rows, not off the order being sent', 
         ->assertInertia(fn (Assert $page) => $page
             //The open batch, with nothing waiting on it, and this one
             ->has('batches', 2)
-            ->where('batches.1', ['id' => $batch->id, 'stage' => 'ORDERED', 'orderingTriggerDate' => null, 'projects' => [projectCard($project, $user)], 'cutCount' => cutsOf($project), 'categoryCount' => categoriesOf($project), 'mine' => true, 'prerequisiteUndoStartQuoting' => null])
+            ->where('batches.1', ['id' => $batch->id, 'stage' => 'ORDERING', 'orderingTriggerDate' => null, 'projects' => [projectCard($project, $user)], 'cutCount' => cutsOf($project), 'categoryCount' => categoriesOf($project), 'mine' => true, 'prerequisiteUndoStartQuoting' => null, 'prerequisiteMarkQuoted' => null, 'prerequisiteMarkOrdered' => null, 'prerequisiteMarkDelivered' => null, 'prerequisiteMarkCut' => null, 'canAttachCertificates' => null])
         );
 });
 
@@ -319,8 +394,8 @@ it('cards the batch that does not exist yet, ahead of the ones that do', functio
         ->assertInertia(fn (Assert $page) => $page
             ->has('batches', 2)
             //No fabrication date on the project, so there is no trigger - nothing will auto-quote it
-            ->where('batches.0', ['id' => null, 'stage' => 'NESTING', 'orderingTriggerDate' => null, 'projects' => [projectCard($waiting, $user)], 'cutCount' => cutsOf($waiting), 'categoryCount' => categoriesOf($waiting), 'mine' => true, 'prerequisiteUndoStartQuoting' => null])
-            ->where('batches.1', ['id' => $existing->id, 'stage' => 'QUOTED', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false, 'prerequisiteUndoStartQuoting' => false])
+            ->where('batches.0', ['id' => null, 'stage' => 'NESTING', 'orderingTriggerDate' => null, 'projects' => [projectCard($waiting, $user)], 'cutCount' => cutsOf($waiting), 'categoryCount' => categoriesOf($waiting), 'mine' => true, 'prerequisiteUndoStartQuoting' => null, 'prerequisiteMarkQuoted' => null, 'prerequisiteMarkOrdered' => null, 'prerequisiteMarkDelivered' => null, 'prerequisiteMarkCut' => null, 'canAttachCertificates' => null])
+            ->where('batches.1', ['id' => $existing->id, 'stage' => 'QUOTING', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false, 'prerequisiteUndoStartQuoting' => false, 'prerequisiteMarkQuoted' => false, 'prerequisiteMarkOrdered' => false, 'prerequisiteMarkDelivered' => false, 'prerequisiteMarkCut' => null, 'canAttachCertificates' => null])
         );
 });
 
@@ -379,7 +454,7 @@ it('cards the open batch with nothing waiting on it, rather than leaving it off 
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->has('batches', 1)
-            ->where('batches.0', ['id' => null, 'stage' => 'NESTING', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false, 'prerequisiteUndoStartQuoting' => null])
+            ->where('batches.0', ['id' => null, 'stage' => 'NESTING', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false, 'prerequisiteUndoStartQuoting' => null, 'prerequisiteMarkQuoted' => null, 'prerequisiteMarkOrdered' => null, 'prerequisiteMarkDelivered' => null, 'prerequisiteMarkCut' => null, 'canAttachCertificates' => null])
         );
 });
 
@@ -729,7 +804,7 @@ it('offers a batch being quoted the way back, per batch', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('batches.1.id', $batch->id)
-            ->where('batches.1.stage', 'QUOTED')
+            ->where('batches.1.stage', 'QUOTING')
             ->where('batches.1.prerequisiteUndoStartQuoting', true)
         );
 });
@@ -763,6 +838,454 @@ it('would be a disaster if a card offered to unpick a batch that has been ordere
             ->where('batches.1.id', $batch->id)
             ->where('batches.1.prerequisiteUndoStartQuoting', null)
         );
+});
+
+it('calls a batch quoted on the press, with no supplier anywhere in the business', function () {
+    /*
+     * "All quoted" - the step for a shop that does not buy through the quotes and orders screen.
+     *
+     * Everything on that screen hangs off a supplier: a quote is a row per merchant, an order a row
+     * per quote. This business has entered none, so there is nothing to tick and nothing the pill can
+     * read - which is the case the mark exists for. Nothing is sent by it, so the test is the column
+     * on the batch and the word on the card.
+     */
+    test()->actingAs(createUser(1, createBusiness('admin'), true, true));
+    seedMasterMaterials();
+
+    $business = createBusiness('fabricator');
+    $user = createUser(1, $business, false, true);
+
+    $project = nestingPageProject($user);
+    $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
+    Piece::query()->where('project_id', $project->id)->update(['batch_id' => $batch->id]);
+
+    //Nobody to ask for a price, which is the whole point
+    expect($business->suppliers()->count())->toBe(0);
+
+    $this->actingAs($user);
+
+    $this->withoutExceptionHandling();
+    $this->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('batches.1.stage', 'QUOTING')
+            ->where('batches.1.prerequisiteMarkQuoted', true)
+            ->where('batches.1.prerequisiteMarkOrdered', true)
+        );
+
+    $this->post(route('batch.all.quoted', $batch->id))->assertRedirect();
+
+    $batch->refresh();
+
+    //Who said so, beside when - a claim about money with nobody's name on it is the one nobody can ask about
+    expect($batch->quoted_at)->not->toBeNull()
+        ->and($batch->quoted_by_user_id)->toBe($user->id)
+        //And nothing was invented to carry it
+        ->and($batch->quotes()->count())->toBe(0)
+        ->and($batch->orders()->count())->toBe(0);
+
+    $this->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('batches.1.stage', 'QUOTED')
+            //Said once: the item greys rather than offering to set a date that is already set
+            ->where('batches.1.prerequisiteMarkQuoted', false)
+            ->where('batches.1.prerequisiteMarkOrdered', true)
+        );
+});
+
+it('calls it ordered on the other press, and leaves the board column where it is', function () {
+    /*
+     * "All ordered", which is a claim that money has been spent and nothing more: no merchant is
+     * contacted, no order row is marked sent, no pieces or bars are attached to one - all of which
+     * OrderSentController does, because that one is a real order to a real supplier.
+     *
+     * So the batch does not move. The board's columns are built on sent orders and the goods receipts
+     * that follow them, and a batch bought off the application has neither - BatchStages still answers
+     * QUOTING, and the card is the only thing that says otherwise.
+     */
+    test()->actingAs(createUser(1, createBusiness('admin'), true, true));
+    seedMasterMaterials();
+
+    $business = createBusiness('fabricator');
+    $user = createUser(1, $business, false, true);
+
+    $project = nestingPageProject($user);
+    $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
+    Piece::query()->where('project_id', $project->id)->update(['batch_id' => $batch->id]);
+
+    $this->actingAs($user);
+
+    $this->withoutExceptionHandling();
+    $this->post(route('batch.all.ordered', $batch->id))->assertRedirect();
+
+    $batch->refresh();
+
+    expect($batch->ordered_at)->not->toBeNull()
+        ->and($batch->ordered_by_user_id)->toBe($user->id)
+        ->and($batch->orders()->count())->toBe(0)
+        //Still out for quote as far as every other screen is concerned
+        ->and((new BatchStages)->of($batch))->toBe(BatchStages::QUOTING);
+
+    $this->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('batches.1.stage', 'ORDERED')
+            /*
+             * Quoting is behind it now, so neither mark is on offer: one is spent and the other is a
+             * step this batch has passed.
+             */
+            ->where('batches.1.prerequisiteMarkQuoted', false)
+            ->where('batches.1.prerequisiteMarkOrdered', false)
+            /*
+             * And the way back has gone with it. The steel is being cut at a merchant this
+             * application never saw, so there is nothing to unpick it into - the card stops asking,
+             * the way it stops on a batch with a real sent order behind it.
+             */
+            ->where('batches.1.prerequisiteUndoStartQuoting', null)
+        );
+});
+
+it('would be a disaster if a batch bought off the application could still be re-nested', function () {
+    /*
+     * Re-nesting deletes the nest, the quotes and the offcuts the batch cut. The gate has always
+     * refused it once an order went out through the application - and a batch somebody marked "All
+     * ordered" has been bought just as hard, over the phone, with no order row here to show for it.
+     *
+     * So the mark closes the way back, on the page and at the gate: the card stops offering it and
+     * BatchController::destroy refuses the press that is no longer drawn.
+     */
+    test()->actingAs(createUser(1, createBusiness('admin'), true, true));
+    seedMasterMaterials();
+
+    $business = createBusiness('fabricator');
+    $user = createUser(1, $business, false, true);
+
+    $project = nestingPageProject($user);
+    $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
+    Piece::query()->where('project_id', $project->id)->update(['batch_id' => $batch->id]);
+
+    $this->actingAs($user);
+
+    //Priced, not yet bought: QUOTED still offers it, the prices having changed nothing about the nest
+    $this->post(route('batch.all.quoted', $batch->id))->assertRedirect();
+
+    $this->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('batches.1.stage', 'QUOTED')
+            ->where('batches.1.prerequisiteUndoStartQuoting', true)
+        );
+
+    $this->post(route('batch.all.ordered', $batch->id))->assertRedirect();
+
+    $this->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('batches.1.stage', 'ORDERED')
+            ->where('batches.1.prerequisiteUndoStartQuoting', null)
+        );
+
+    $this->delete(route('batches.destroy', $batch->id))->assertForbidden();
+
+    //Still nested, with its projects where they were
+    expect($batch->refresh()->pieces()->count())->toBeGreaterThan(0);
+});
+
+it('would be a disaster if a colleague with no job on the batch could call it bought', function () {
+    /*
+     * The same line the quotes screen draws row by row (PrerequisiteConditions::canChangeQuoteSentState):
+     * you have to be a project manager on the batch. A press that moves the whole batch on must not be
+     * the way round a gate the per-supplier screen applies - and "somebody else's steel has been
+     * bought" is the single worst thing a colleague could write onto a card.
+     */
+    test()->actingAs(createUser(1, createBusiness('admin'), true, true));
+    seedMasterMaterials();
+
+    $business = createBusiness('fabricator');
+    $owner = createUser(1, $business, false, true);
+    $colleague = createUser(2, $business, false, true);
+
+    $project = nestingPageProject($owner);
+    $batch = Batch::factory()->forUser($owner->id)->create(['done' => false]);
+    Piece::query()->where('project_id', $project->id)->update(['batch_id' => $batch->id]);
+
+    $this->actingAs($colleague);
+
+    $this->post(route('batch.all.quoted', $batch->id))->assertForbidden();
+    $this->post(route('batch.all.ordered', $batch->id))->assertForbidden();
+
+    expect($batch->refresh()->quoted_at)->toBeNull()
+        ->and($batch->ordered_at)->toBeNull();
+
+    //And the card says so rather than offering a press that 403s
+    $this->actingAs($colleague)
+        ->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('batches.1.prerequisiteMarkQuoted', false)
+            ->where('batches.1.prerequisiteMarkOrdered', false)
+        );
+});
+
+it('would be a disaster if another business could mark a batch quoted or ordered', function () {
+    test()->actingAs(createUser(1, createBusiness('admin'), true, true));
+    seedMasterMaterials();
+
+    $business = createBusiness('fabricator');
+    $user = createUser(1, $business, false, true);
+
+    $project = nestingPageProject($user);
+    $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
+    Piece::query()->where('project_id', $project->id)->update(['batch_id' => $batch->id]);
+
+    $stranger = createUser(1, createBusiness('somebody else'), false, true);
+
+    $this->actingAs($stranger);
+
+    $this->post(route('batch.all.quoted', $batch->id))->assertForbidden();
+    $this->post(route('batch.all.ordered', $batch->id))->assertForbidden();
+
+    expect($batch->refresh()->quoted_at)->toBeNull()
+        ->and($batch->ordered_at)->toBeNull();
+});
+
+it('stops offering either mark once a real order has gone out', function () {
+    /*
+     * Past the Quoting column the pill is read off the orders and the deliveries behind them, so a
+     * mark set there could only contradict them. Null rather than false, the way the re-nest gate
+     * answers past the same point: the question is not asked on those cards at all.
+     */
+    test()->actingAs(createUser(1, createBusiness('admin'), true, true));
+    seedMasterMaterials();
+
+    $business = createBusiness('fabricator');
+    $user = createUser(1, $business, false, true);
+
+    $project = nestingPageProject($user);
+    $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
+    Piece::query()->where('project_id', $project->id)->update(['batch_id' => $batch->id]);
+    nestingPageSentOrder($user, $batch);
+
+    $this->actingAs($user);
+
+    //Exception handling left on: the two presses below are refused, and a 403 is the assertion
+    $this->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('batches.1.prerequisiteMarkQuoted', null)
+            ->where('batches.1.prerequisiteMarkOrdered', null)
+        );
+
+    //And the endpoints refuse it too, a menu item being a suggestion rather than the decision
+    $this->post(route('batch.all.quoted', $batch->id))->assertForbidden();
+    $this->post(route('batch.all.ordered', $batch->id))->assertForbidden();
+    $this->post(route('batch.all.delivered', $batch->id))->assertForbidden();
+});
+
+it('carries a batch bought over the phone all the way to cut, without a supplier anywhere', function () {
+    /*
+     * The four marks end to end, which is the shop this application has been opening up to: no
+     * suppliers entered, nothing to tick on the quotes screen, and a job that is nevertheless quoted,
+     * bought, delivered and cut.
+     *
+     * Each one is a word on the card and nothing else - no quote, no order, no goods receipt - and
+     * the board never moves the batch, its columns being built on orders that really were sent.
+     */
+    test()->actingAs(createUser(1, createBusiness('admin'), true, true));
+    seedMasterMaterials();
+
+    $business = createBusiness('fabricator');
+    $user = createUser(1, $business, false, true);
+
+    $project = nestingPageProject($user);
+    $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
+    Piece::query()->where('project_id', $project->id)->update(['batch_id' => $batch->id]);
+
+    $this->actingAs($user);
+    $this->withoutExceptionHandling();
+
+    $this->post(route('batch.all.quoted', $batch->id))->assertRedirect();
+    $this->post(route('batch.all.ordered', $batch->id))->assertRedirect();
+
+    //Delivered is offered from Quoting, Quoted and Ordered alike - see PrerequisiteConditions
+    $this->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('batches.1.stage', 'ORDERED')
+            ->where('batches.1.prerequisiteMarkDelivered', true)
+            //Nothing to cut yet, and the card does not ask: the steel has not arrived
+            ->where('batches.1.prerequisiteMarkCut', null)
+            ->where('batches.1.canAttachCertificates', null)
+        );
+
+    $this->post(route('batch.all.delivered', $batch->id))->assertRedirect();
+
+    $this->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('batches.1.stage', 'DELIVERED')
+            //Now it can be cut, and now the merchant's paperwork has somewhere to go
+            ->where('batches.1.prerequisiteMarkCut', true)
+            ->where('batches.1.canAttachCertificates', true)
+            //Spent, every one of them, and greyed on the card rather than offered twice
+            ->where('batches.1.prerequisiteMarkQuoted', false)
+            ->where('batches.1.prerequisiteMarkOrdered', false)
+            ->where('batches.1.prerequisiteMarkDelivered', false)
+        );
+
+    $this->post(route('batch.cut', $batch->id))->assertRedirect();
+
+    $batch->refresh();
+
+    expect($batch->quoted_at)->not->toBeNull()
+        ->and($batch->ordered_at)->not->toBeNull()
+        ->and($batch->delivered_at)->not->toBeNull()
+        ->and($batch->cut_at)->not->toBeNull()
+        ->and($batch->cut_by_user_id)->toBe($user->id)
+        //Nothing was sent to anybody, and the board still has it out for quote
+        ->and($batch->orders()->count())->toBe(0)
+        ->and($batch->quotes()->count())->toBe(0)
+        ->and((new BatchStages)->of($batch))->toBe(BatchStages::QUOTING);
+
+    $this->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('batches.1.stage', 'CUT')
+            ->where('batches.1.prerequisiteMarkCut', false)
+        );
+});
+
+it('offers Cut on a batch delivered the ordinary way, which the other marks never touch', function () {
+    /*
+     * Cutting is the one step on that menu that is not about buying: a batch ordered through the
+     * quotes screen and booked in on its goods receipts gets cut in the same shop by the same people.
+     *
+     * So the three buying marks stay null on it - the orders and receipts are the answer there, and a
+     * mark could only contradict them - while Cut is offered, and the certificates can be added to
+     * what the orders already carry.
+     */
+    test()->actingAs(createUser(1, createBusiness('admin'), true, true));
+    seedMasterMaterials();
+
+    $business = createBusiness('fabricator');
+    $user = createUser(1, $business, false, true);
+
+    $project = nestingPageProject($user);
+    $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
+    Piece::query()->where('project_id', $project->id)->update(['batch_id' => $batch->id]);
+
+    $order = nestingPageSentOrder($user, $batch);
+
+    /*
+     * Every material line on the batch pointing at that sent order, which is what puts a batch in the
+     * Delivering column - see BatchStages::everyRowOrdered. Without it the batch is still Ordering,
+     * with material nobody has bought, and the delivered question does not arise.
+     */
+    Piece::query()->where('project_id', $project->id)->update(['order_id' => $order->id]);
+
+    $this->actingAs($user);
+    $this->withoutExceptionHandling();
+
+    //Ordered and still on the lorry: nothing to cut, and the card says so by not asking
+    $this->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('batches.1.prerequisiteMarkCut', null)
+        );
+
+    //Every sent order booked in, which is what the DELIVERED pill is read from
+    $order->update(['is_delivered' => true]);
+
+    $this->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('batches.1.stage', 'DELIVERED')
+            ->where('batches.1.prerequisiteMarkCut', true)
+            ->where('batches.1.canAttachCertificates', true)
+            //Still none of its business: this batch was bought through a merchant
+            ->where('batches.1.prerequisiteMarkQuoted', null)
+            ->where('batches.1.prerequisiteMarkOrdered', null)
+            ->where('batches.1.prerequisiteMarkDelivered', null)
+        );
+
+    $this->post(route('batch.cut', $batch->id))->assertRedirect();
+
+    expect($batch->refresh()->cut_at)->not->toBeNull();
+});
+
+it('would be a disaster if a batch could be called cut before its steel arrived', function () {
+    /*
+     * "Cut" over a batch nobody has delivered is a claim about parts that do not exist, and the
+     * offcuts the nest promised are the first thing somebody would go looking for. The card never
+     * draws it there - the gate is asked again on the press, because a card is a suggestion.
+     */
+    test()->actingAs(createUser(1, createBusiness('admin'), true, true));
+    seedMasterMaterials();
+
+    $business = createBusiness('fabricator');
+    $user = createUser(1, $business, false, true);
+
+    $project = nestingPageProject($user);
+    $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
+    Piece::query()->where('project_id', $project->id)->update(['batch_id' => $batch->id]);
+
+    $this->actingAs($user);
+
+    $this->post(route('batch.cut', $batch->id))->assertForbidden();
+
+    expect($batch->refresh()->cut_at)->toBeNull();
+});
+
+it('would be a disaster if a colleague with no job on the batch could call it delivered or cut', function () {
+    /*
+     * The same line every other press on a batch draws: you have to be a project manager on it. These
+     * two are claims about somebody else's steel arriving and somebody else's steel being cut, and a
+     * colleague is exactly who must not be able to make them.
+     */
+    test()->actingAs(createUser(1, createBusiness('admin'), true, true));
+    seedMasterMaterials();
+
+    $business = createBusiness('fabricator');
+    $owner = createUser(1, $business, false, true);
+    $colleague = createUser(2, $business, false, true);
+
+    $project = nestingPageProject($owner);
+    $batch = Batch::factory()->forUser($owner->id)->create(['done' => false, 'delivered_at' => now()]);
+    Piece::query()->where('project_id', $project->id)->update(['batch_id' => $batch->id]);
+
+    $this->actingAs($colleague);
+
+    $this->post(route('batch.all.delivered', $batch->id))->assertForbidden();
+    $this->post(route('batch.cut', $batch->id))->assertForbidden();
+
+    expect($batch->refresh()->cut_at)->toBeNull();
+
+    //And the card says so rather than offering a press that 403s
+    $this->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('batches.1.prerequisiteMarkCut', false)
+        );
+});
+
+it('would be a disaster if another business could mark a batch delivered or cut', function () {
+    test()->actingAs(createUser(1, createBusiness('admin'), true, true));
+    seedMasterMaterials();
+
+    $business = createBusiness('fabricator');
+    $user = createUser(1, $business, false, true);
+
+    $project = nestingPageProject($user);
+    $batch = Batch::factory()->forUser($user->id)->create(['done' => false, 'delivered_at' => now()]);
+    Piece::query()->where('project_id', $project->id)->update(['batch_id' => $batch->id]);
+
+    $this->actingAs(createUser(1, createBusiness('somebody else'), false, true));
+
+    $this->post(route('batch.all.delivered', $batch->id))->assertForbidden();
+    $this->post(route('batch.cut', $batch->id))->assertForbidden();
+
+    expect($batch->refresh()->cut_at)->toBeNull();
 });
 
 it('reports a batch efficiency off the nest that was saved against it', function () {

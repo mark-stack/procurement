@@ -6,12 +6,21 @@
      * Shared/shared.js, where they are built, so the merchant's copy and this one cannot word the
      * same order differently. This is for reading and copying: nothing here sends, quotes or orders.
      *
-     * Each block has three tabs, because an order is read at three different moments: the stock to
-     * buy, the certificates that came with it, and what happened when the truck arrived. They are one
-     * merchant's business either way, so they are one card rather than three places to look.
+     * Each block has the stock to buy, and - for the merchants whose material comes with one - the
+     * certificates that arrived with it. They are one merchant's business either way, so they are one
+     * card rather than two places to look.
+     *
+     * One block can also be marked ordered from here, for the merchant somebody rang rather than sent
+     * a quote request to - see markOrdered(). Nothing is placed by it.
+     *
+     * The open batch is the exception to all of it. That card is still taking material, its nest is a
+     * suggestion that changes with the next upload, and anything bought off it would be bought twice -
+     * so the list is drawn to be read and nothing else: no Copy, no Ordered, and the lines carry a
+     * watermark saying so.
      */
     //General Imports
     import {computed, onBeforeUnmount, ref} from "vue";
+    import {useForm} from "@inertiajs/vue3";
 
     //Component Imports
     import Modal from "@/Layouts/Modal.vue";
@@ -43,96 +52,37 @@
     const groups = computed(() => (props.orderList?.groups ?? [])
         .map(group => {
             const lines = shared.orderListLines(group.batchGroup);
-            const receipt = receiptState(group.goodsReceipt);
 
             return {
                 ...group,
                 lines,
-                receipt,
-                tabs: tabsFor(group, receipt),
+                tabs: tabsFor(group),
             };
         })
         .filter(group => group.lines.length > 0));
 
-    /**
-     * What this group's delivery amounts to: the icon the Delivery tab carries, and the line its panel
-     * opens with.
-     *
-     * Four states, and they are four different things to do about them. Booked in and accepted is
-     * finished. Booked in with a problem is somebody's phone call to the merchant. Booked in with the
-     * checks unanswered is a receipt that satisfies nobody's auditor. Ordered and not arrived is a
-     * delivery still owed. Null where no order has been placed, and then there is nothing to ask.
-     *
-     * The green/orange/grey reading of accepted is the quotes/orders receipt panel's, so the same
-     * colours mean the same things on both screens.
+    /*
+     * The card with no batch row behind it - the one everything waiting is sitting on. Its nest is a
+     * suggestion rather than a decision: the next upload changes it, and "Start quoting" is what turns
+     * it into a batch worth buying. So the list is readable and nothing more. See the template.
      */
-    function receiptState(receipt) {
-        if (!receipt) {
-            return null;
-        }
-
-        if (receipt.received) {
-            if (receipt.accepted === true) {
-                return {
-                    icon: 'fa-solid fa-circle-check',
-                    iconClass: 'text-green-600',
-                    statusClass: 'border-green-200 bg-green-50 text-green-800',
-                    statusLine: 'Checked and accepted.',
-                };
-            }
-
-            if (receipt.accepted === false) {
-                return {
-                    icon: 'fa-solid fa-triangle-exclamation',
-                    iconClass: 'text-orange-500',
-                    statusClass: 'border-orange-200 bg-orange-50 text-orange-800',
-                    statusLine: 'Booked in with a problem recorded. The steel counts as delivered and '
-                        + 'the nest will use it — chase this with the supplier separately.',
-                };
-            }
-
-            return {
-                icon: 'fa-regular fa-circle-question',
-                iconClass: 'text-gray-400',
-                statusClass: 'border-gray-200 bg-gray-50 text-gray-700',
-                statusLine: 'Booked in, and the checks were not answered.',
-            };
-        }
-
-        /*
-         * Arrived with nothing behind it, which is how every delivery marked before the goods receipt
-         * existed reads. Not an error state: it is an honest "arrived, unverified", and the tab says
-         * so rather than opening an empty record.
-         */
-        if (receipt.deliveredWithoutReceipt) {
-            return {
-                icon: 'fa-solid fa-triangle-exclamation',
-                iconClass: 'text-amber-500',
-                statusClass: 'border-amber-200 bg-amber-50 text-amber-800',
-                statusLine: 'Marked as arrived, with no goods receipt recorded against it — no date, '
-                    + "nobody's name, and no record of the load being checked. It cannot be filled in "
-                    + 'after the fact.',
-            };
-        }
-
-        return {
-            icon: 'fa-regular fa-clock',
-            iconClass: 'text-yellow-600',
-            statusClass: 'border-yellow-200 bg-yellow-50 text-yellow-800',
-            statusLine: 'Ordered, and nothing has been booked in yet.',
-        };
-    }
+    const isOpenBatch = computed(() => (props.orderList?.batch_id ?? null) === null);
 
     /**
-     * The three tabs of one block, and which of them have anything behind them.
+     * The tabs of one block, and whether each has anything behind it.
      *
-     * A tab with nothing to show is disabled rather than hidden, and that is the point of it: a
-     * greyed-out Certificates says the paperwork has not come in, where a tab that simply was not
-     * drawn says nothing at all and leaves three blocks on the screen with three different shapes.
-     * The title on each says why it is dead, since a disabled button cannot explain itself.
+     * Materials is every block's. Certificates belongs only to the merchants whose products come
+     * with one - products.certificates, the same flag the BOM's certificate column reads - because
+     * timber and fasteners are never going to have a mill certificate and a tab offering theirs is
+     * a question about paperwork that does not exist.
+     *
+     * Where it is drawn and nothing has arrived it is disabled rather than hidden, and that is the
+     * point of it: a greyed-out Certificates on the steel says the paperwork is still outstanding,
+     * which is a thing somebody needs to know. The title says why it is dead, since a disabled
+     * button cannot explain itself.
      */
-    function tabsFor(group, receipt) {
-        return [
+    function tabsFor(group) {
+        const tabs = [
             {
                 key: 'materials',
                 label: 'Materials',
@@ -141,49 +91,33 @@
                 available: true,
                 title: 'The stock lengths this merchant has to supply',
             },
-            {
+        ];
+
+        if (group.certificated) {
+            tabs.push({
                 key: 'certificates',
                 label: 'Certificates',
                 icon: 'fa-solid fa-file-lines',
                 badge: group.certificates.length > 0 ? String(group.certificates.length) : null,
                 available: group.certificates.length > 0,
-                title: certificatesTitle(group),
-            },
-            {
-                key: 'delivery',
-                label: 'Delivery',
-                //The state's own icon, so the tab says how the delivery went before it is opened
-                icon: receipt?.icon ?? 'fa-solid fa-truck',
-                iconClass: receipt?.iconClass,
-                /*
-                 * Available on a placed order, not on a received one. "Ordered and still owed" is an
-                 * answer worth reading, and so is "arrived with no receipt" - what cannot be asked is
-                 * how a delivery went for a merchant nobody has ordered from.
-                 */
-                available: receipt !== null,
-                title: receipt?.statusLine ?? 'Nothing has been ordered from this merchant yet',
-            },
-        ];
-    }
-
-    /**
-     * Why the Certificates tab is dead, in the words that match the reason.
-     *
-     * Two different nothings: a group whose products never come with a mill certificate (timber,
-     * fasteners - products.certificates, the same flag the BOM reads) is not waiting on anything,
-     * while a steel group with none attached is.
-     */
-    function certificatesTitle(group) {
-        if (group.certificates.length > 0) {
-            return 'The mill certificates that have come in for this order';
+                title: group.certificates.length > 0
+                    ? 'The mill certificates that have come in for this order'
+                    : 'No mill certificate has come in for this group yet',
+            });
         }
 
-        return group.certificated
-            ? 'No mill certificate has come in for this group yet'
-            : "This group's products do not come with a mill certificate";
+        return tabs;
     }
 
+    //Forms
+    //The one press this modal has - see markOrdered()
+    const formMarkOrdered = useForm({
+        supplier_group: null,
+    });
+
     //Variables
+    const emit = defineEmits(['closeModal', 'refresh']);
+
     //Which group was just copied, so only that button says so. Cleared on a timer
     const copiedGroup = ref(null);
     let copiedTimer = null;
@@ -208,18 +142,30 @@
     }
 
     /**
-     * A tri-state check, in words.
+     * "Ordered" on one block - this merchant has been bought from, somewhere other than here.
      *
-     * "Not checked" rather than "No": an unanswered check is not a failed one, and the column is
-     * nullable precisely so the two can be told apart - see the goods receipt panel, which says the
-     * same three words.
+     * The batch-wide mark on the Nesting card said of a single merchant, and for the shop that is
+     * half on the application and half on the phone: the steel went through the quotes screen and the
+     * timber did not, and until now the timber block read "Not ordered" for ever.
+     *
+     * It places nothing. No order is written, no merchant is contacted - see
+     * BatchMarkGroupOrderedController - which is what the button's title says before it is pressed.
+     *
+     * The answer comes back as a page visit, so the modal refetches rather than editing the block in
+     * place: the list behind it is an axios payload, and a mark that only lived in this component
+     * would be gone on the next open.
      */
-    function checkLabel(value) {
-        if (value === true) {
-            return 'Yes';
+    function markOrdered(group) {
+        if (formMarkOrdered.processing) {
+            return;
         }
 
-        return value === false ? 'No' : 'Not checked';
+        formMarkOrdered.supplier_group = group.supplierGroup;
+
+        formMarkOrdered.post(route('batch.group.ordered', props.orderList.batch_id), {
+            preserveScroll: true,
+            onSuccess: () => emit('refresh'),
+        });
     }
 
     /**
@@ -332,23 +278,51 @@
                             A pill rather than a fourth tab: it is one fact, and a tab holding one
                             line would be a click to read what fits on the heading.
                         -->
-                        <p
-                            :class="group.ordered
-                                ? 'text-green-800 bg-green-100'
-                                : 'text-yellow-800 bg-yellow-100'"
-                            class="inline-flex items-center h-8 gap-1.5 px-2.5 text-xs font-semibold rounded-lg shrink-0"
-                        >
-                            <i
-                                :class="group.ordered ? 'fa-solid fa-check' : 'fa-regular fa-clock'"
-                                class="text-[10px]"
-                            ></i>
-                            <template v-if="group.ordered">
-                                {{ group.purchaseOrderNumber ? 'Order: ' + group.purchaseOrderNumber : 'Ordered' }}
-                            </template>
-                            <template v-else>
-                                Not ordered
-                            </template>
-                        </p>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <!--
+                                The press for a merchant somebody rang. Beside the pill it changes
+                                rather than down in the tab, because it is the answer to the word
+                                that pill is showing - and it says "Mark as", because nothing is
+                                bought by pressing it. See markOrdered().
+
+                                Only where there is something to say: a group with an order behind it
+                                is already ordered, and the open batch must not be ordered from at
+                                all. Hidden rather than greyed, unlike the card menu's marks - this
+                                is a block in a list of blocks, and a dead button on each of them
+                                would be the loudest thing in the modal.
+                            -->
+                            <button
+                                v-if="!group.ordered && group.canMarkOrdered && !isOpenBatch"
+                                type="button"
+                                @click="markOrdered(group)"
+                                :disabled="formMarkOrdered.processing"
+                                :title="'Record that you have ordered the '
+                                    + shared.supplierGroupLabel(group.supplierGroup)
+                                    + ' material, without placing an order here'"
+                                class="inline-flex items-center h-8 gap-1.5 px-2.5 text-xs font-semibold text-indigo-800 transition-colors duration-150 bg-white border border-indigo-300 rounded-lg shadow-sm hover:bg-indigo-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400"
+                            >
+                                <i class="fa-solid fa-cart-shopping text-[10px]"></i>
+                                Mark as ordered
+                            </button>
+
+                            <p
+                                :class="group.ordered
+                                    ? 'text-green-800 bg-green-100'
+                                    : 'text-yellow-800 bg-yellow-100'"
+                                class="inline-flex items-center h-8 gap-1.5 px-2.5 text-xs font-semibold rounded-lg shrink-0"
+                            >
+                                <i
+                                    :class="group.ordered ? 'fa-solid fa-check' : 'fa-regular fa-clock'"
+                                    class="text-[10px]"
+                                ></i>
+                                <template v-if="group.ordered">
+                                    {{ group.purchaseOrderNumber ? 'Order: ' + group.purchaseOrderNumber : 'Ordered' }}
+                                </template>
+                                <template v-else>
+                                    Not ordered
+                                </template>
+                            </p>
+                        </div>
                     </div>
 
                     <!-- The three questions asked of one merchant's order -->
@@ -384,20 +358,43 @@
                         <!--
                             Monospaced and preserved, because this is text somebody copies into a mail
                             or reads down a column: proportional type puts the quantities out of line.
+
+                            On the open batch it carries a watermark instead of a Copy button. The
+                            lines are real - this is what the nest would need if it were bought today
+                            - and that is exactly the danger: the card is still taking uploads, so
+                            the list changes under anybody who acts on it. Over the lines rather than
+                            beside them, because a note under a block of text that reads like an
+                            order is a note nobody sees.
                         -->
-                        <pre class="p-3 mt-3 overflow-x-auto text-sm text-gray-800 rounded-lg bg-gray-50">{{ group.lines.join('\n') }}</pre>
+                        <div class="relative mt-3">
+                            <pre class="p-3 overflow-x-auto text-sm text-gray-800 rounded-lg bg-gray-50">{{ group.lines.join('\n') }}</pre>
+
+                            <div
+                                v-if="isOpenBatch"
+                                aria-hidden="true"
+                                class="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none"
+                            >
+                                <span class="px-4 py-1 text-xl font-black tracking-widest uppercase -rotate-12 rounded text-red-600/30 ring-4 ring-red-600/20 sm:text-3xl">
+                                    Do not order
+                                </span>
+                            </div>
+                        </div>
 
                         <!--
                             Under the lines it copies, rather than in the heading: this is the one tab
-                            whose contents go into a mail, and a Copy button sitting beside a goods
-                            receipt invites somebody to think it copies that.
+                            whose contents go into a mail, and a Copy button sitting beside a list of
+                            certificates invites somebody to think it copies those.
 
                             One button per group rather than one for the modal - the lists go to
                             different suppliers, and nobody sends a timber merchant the steel. Below
                             rather than over the lines, which scroll sideways: a bar section and its
                             grade is a long line, and a button floating on top of it hides the end.
+
+                            Not drawn on the open batch at all. Copying is how this list leaves the
+                            screen and reaches a merchant, and that card's nest is a suggestion that
+                            the next upload changes.
                         -->
-                        <div class="flex justify-end mt-2">
+                        <div v-if="!isOpenBatch" class="flex justify-end mt-2">
                             <button
                                 type="button"
                                 @click="copyGroup(group)"
@@ -435,57 +432,6 @@
                         </a>
                     </div>
 
-                    <!--
-                        What came off the truck, as somebody at the gate saw it. The same fields the
-                        quotes/orders receipt panel shows, read-only here and read-only there - a
-                        receipt records a moment, so there is nothing on it to edit from either screen.
-
-                        The line above the record is there whether or not a receipt was written, and
-                        says which of the four states this delivery is in.
-                    -->
-                    <div v-else-if="activeTab(group) === 'delivery'" class="mt-3">
-                        <p
-                            :class="group.receipt.statusClass"
-                            class="flex gap-2 p-2.5 text-xs leading-relaxed border rounded-lg"
-                        >
-                            <i :class="[group.receipt.icon, group.receipt.iconClass]" class="mt-0.5 flex-none"></i>
-                            <span>{{ group.receipt.statusLine }}</span>
-                        </p>
-
-                        <!--
-                            Docket and name can both be blank on a receipt saved in a hurry, and the
-                            dash is deliberate: an empty row still says the question was asked.
-                        -->
-                        <dl
-                            v-if="group.goodsReceipt.received"
-                            class="grid grid-cols-[auto,1fr] gap-x-4 gap-y-2 p-3 mt-2 text-sm border border-gray-200 rounded-lg bg-gray-50"
-                        >
-                            <dt class="text-gray-500">Received</dt>
-                            <dd class="text-gray-900">{{ group.goodsReceipt.received_at }}</dd>
-
-                            <dt class="text-gray-500">By</dt>
-                            <dd class="text-gray-900">{{ group.goodsReceipt.received_by ?? '—' }}</dd>
-
-                            <dt class="text-gray-500">Docket</dt>
-                            <dd class="text-gray-900">{{ group.goodsReceipt.docket_number ?? '—' }}</dd>
-
-                            <dt class="text-gray-500">Quantity correct</dt>
-                            <dd class="text-gray-900">{{ checkLabel(group.goodsReceipt.quantity_verified) }}</dd>
-
-                            <dt class="text-gray-500">Grade correct</dt>
-                            <dd class="text-gray-900">{{ checkLabel(group.goodsReceipt.grade_verified) }}</dd>
-
-                            <template v-if="group.goodsReceipt.nonconformance">
-                                <dt class="text-gray-500">Problem</dt>
-                                <dd class="text-gray-900">{{ group.goodsReceipt.nonconformance }}</dd>
-                            </template>
-
-                            <template v-if="group.goodsReceipt.note">
-                                <dt class="text-gray-500">Note</dt>
-                                <dd class="text-gray-900 whitespace-pre-line">{{ group.goodsReceipt.note }}</dd>
-                            </template>
-                        </dl>
-                    </div>
                 </div>
             </div>
         </div>

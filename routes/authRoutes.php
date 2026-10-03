@@ -1,6 +1,12 @@
 <?php
 
 use App\Http\Controllers\BatchController;
+use App\Http\Controllers\BatchCertificateController;
+use App\Http\Controllers\BatchMarkCutController;
+use App\Http\Controllers\BatchMarkDeliveredController;
+use App\Http\Controllers\BatchMarkGroupOrderedController;
+use App\Http\Controllers\BatchMarkOrderedController;
+use App\Http\Controllers\BatchMarkQuotedController;
 use App\Http\Controllers\BatchNestingController;
 use App\Http\Controllers\BatchOrderListController;
 use App\Http\Controllers\BillingCheckoutController;
@@ -236,8 +242,34 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post("order-mark-delivered/{order}", OrderMarkDeliveredController::class)->name("order.mark.delivered");
 
         /*
+         * The same steps said of the whole batch, naming no supplier - the Nesting page's "All
+         * quoted", "All ordered" and "Delivered".
+         *
+         * Beside the per-supplier routes above because they record the same facts, and apart from them
+         * because they do none of the work: nothing is sent, no quote, order or goods receipt row is
+         * touched and the batch does not change column. They are for a shop that buys off the
+         * application entirely, which has no supplier rows to tick - see BatchMarkQuotedController.
+         *
+         * "Cut" is the odd one in the list. It records the step after delivery, which happens on every
+         * job however the steel was bought, so it is the one of these offered on an order-driven batch
+         * too - see BatchMarkCutController.
+         */
+        Route::post('batch-all-quoted/{batch}', BatchMarkQuotedController::class)->name('batch.all.quoted');
+        Route::post('batch-all-ordered/{batch}', BatchMarkOrderedController::class)->name('batch.all.ordered');
+        Route::post('batch-all-delivered/{batch}', BatchMarkDeliveredController::class)->name('batch.all.delivered');
+        Route::post('batch-cut/{batch}', BatchMarkCutController::class)->name('batch.cut');
+        //The ordered mark said of one merchant rather than the whole batch - the order list's own
+        Route::post('batch-group-ordered/{batch}', BatchMarkGroupOrderedController::class)->name('batch.group.ordered');
+
+        /*
          * Material certificates - the file half of them. The written reference is a column on the
          * order and is saved through orders.update with everything else.
+         *
+         * Two ways in, one table: against an order, which is where a merchant's PDF lands for a shop
+         * that buys through the quotes screen, and against a batch, which is where it lands for a shop
+         * that rings the merchant and has no order row at all. The two writing routes are separate
+         * because the thing being authorised is different; removing and downloading are shared,
+         * because by then it is one row either way.
          */
         Route::post('orders/{order}/material-certificates', [MaterialCertificateController::class, 'store'])
             ->name('material.certificates.store');
@@ -245,6 +277,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('material.certificates.destroy');
         Route::get('material-certificates/{materialCertificate}/download', DownloadMaterialCertificateController::class)
             ->name('material.certificates.download');
+        Route::get('batches/{batch}/material-certificates', [BatchCertificateController::class, 'index'])
+            ->name('batch.certificates.index');
+        Route::post('batches/{batch}/material-certificates', [BatchCertificateController::class, 'store'])
+            ->name('batch.certificates.store');
 
         /*
          * Nesting

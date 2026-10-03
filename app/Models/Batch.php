@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Casts\NestedState;
 use App\Formatters\SupplierFormatter;
 use App\Models\Concerns\BelongsToSandbox;
+use App\Services\BatchStages;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -17,6 +18,11 @@ use Illuminate\Support\Collection;
  * @property array<string, array<int, object>> $nested_state The saved nesting, keyed by nesting algo
  * @property array<int, string>|null $letters_project_array The project letters stamped on that nesting
  * @property int|null $sandbox_user_id The user whose test mode nested this, or null for a real batch
+ * @property \Illuminate\Support\Carbon|null $quoted_at When somebody called this batch quoted outright
+ * @property \Illuminate\Support\Carbon|null $ordered_at When somebody called it bought outright
+ * @property \Illuminate\Support\Carbon|null $delivered_at When somebody called its material arrived
+ * @property \Illuminate\Support\Carbon|null $cut_at When somebody recorded that it has been cut
+ * @property array<int, string>|null $ordered_supplier_groups The groups bought off the application
  */
 class Batch extends Model
 {
@@ -45,6 +51,22 @@ class Batch extends Model
         return [
             'nested_state' => NestedState::class,
             'letters_project_array' => 'array',
+            /*
+             * The supplier-free marks the Nesting page's card menu sets - "All quoted", "All
+             * ordered", "Delivered" and "Cut". Dates rather than flags, because the question asked of
+             * them afterwards is when somebody said so, and a boolean cannot answer it. See the
+             * 2026_10_03 migrations.
+             */
+            'quoted_at' => 'datetime',
+            'ordered_at' => 'datetime',
+            'delivered_at' => 'datetime',
+            'cut_at' => 'datetime',
+            /*
+             * And the same answer one merchant at a time - the supplier groups on this batch that
+             * were bought somewhere other than through the quotes screen. Names, because a supplier
+             * group is computed rather than stored; see the 2026_10_03_140000 migration.
+             */
+            'ordered_supplier_groups' => 'array',
         ];
     }
 
@@ -110,6 +132,9 @@ class Batch extends Model
             ->get();
     }
 
+    /**
+     * @return EloquentCollection<int, Project>
+     */
     public function projectApprovalFlags(): EloquentCollection
     {
         /*
@@ -313,6 +338,48 @@ class Batch extends Model
             'used_offcuts' => true,
             'certificates' => array_values($certificates),
         ];
+    }
+
+    /**
+     * The mill certificates attached to the batch itself rather than to one of its orders.
+     *
+     * Only a shop buying off the application has these - there is no order for the merchant's PDF to
+     * hang off, so it hangs here. See the 2026_10_03_130000 migration.
+     *
+     * @return HasMany<MaterialCertificate, $this>
+     */
+    public function certificates(): HasMany
+    {
+        return $this->hasMany(MaterialCertificate::class);
+    }
+
+    /**
+     * Whether the steel on this batch is in the rack, however the shop got it there.
+     *
+     * Two ways to be delivered, because there are two ways to buy. A batch ordered through the
+     * application is delivered when every sent order on it has been booked in and nothing on the job
+     * is still unbought - the same test the Nesting page's DELIVERED pill is drawn from (see
+     * NestingIndexController::fullyDeliveredBatchIds). A batch bought over the phone has no order to
+     * book in and says so with the mark instead.
+     *
+     * Asked of one batch, so it runs BatchStages::of rather than the page's grouped query: the pages
+     * that draw a card per batch already know the answer and pass it in. This is for the press -
+     * BatchMarkCutController - which has one batch and must not take the card's word for it.
+     */
+    public function isDelivered(): bool
+    {
+        if ($this->delivered_at !== null) {
+            return true;
+        }
+
+        if ((new BatchStages)->of($this) !== BatchStages::DELIVERING) {
+            return false;
+        }
+
+        return $this->orders()
+            ->where('order_sent', true)
+            ->where('is_delivered', false)
+            ->doesntExist();
     }
 
     //Local scope

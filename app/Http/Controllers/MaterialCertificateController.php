@@ -65,8 +65,10 @@ class MaterialCertificateController extends Controller
      */
     public function destroy(MaterialCertificate $materialCertificate): RedirectResponse
     {
-        //The certificate has no owner of its own - it is as private as the order it hangs off
-        Gate::authorize('owned', $materialCertificate->order);
+        //The certificate has no owner of its own - it is as private as the thing it hangs off
+        Gate::authorize('owned', $materialCertificate->batch_id !== null
+            ? $materialCertificate->batch
+            : $materialCertificate->order);
 
         /*
          * Refused once the order has been placed - see MaterialCertificate::isDeletable for why, and
@@ -76,8 +78,11 @@ class MaterialCertificateController extends Controller
          */
         if (! $materialCertificate->isDeletable()) {
             return back()->withErrors([
-                'certificate' => 'This certificate belongs to an order that has already been placed, '
-                    .'so it is part of that order\'s record and cannot be removed. Attach the correct '
+                'certificate' => 'This certificate belongs to '
+                    .($materialCertificate->batch_id !== null
+                        ? 'a batch that has been closed'
+                        : 'an order that has already been placed')
+                    .', so it is part of that record and cannot be removed. Attach the correct '
                     .'certificate instead - both will show, and the traceability trail will report '
                     .'both.',
             ]);

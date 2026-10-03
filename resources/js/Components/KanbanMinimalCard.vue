@@ -571,7 +571,7 @@
                 :back="true"
                 :title="batchInfo.prerequisiteUndoStartQuoting
                     ? 'Unpick this batch and send its projects back to nesting'
-                    : 'This batch can no longer be re-nested - an order has been sent, a project was archived, or a later batch has already used its offcuts'"
+                    : 'This batch can no longer be re-nested - it has been ordered, a project was archived, or a later batch has already used its offcuts'"
                 class="col-span-2"
                 :fullWidth="true"
                 :disabled="!batchInfo.prerequisiteUndoStartQuoting || formBreakBatch.processing"

@@ -207,7 +207,6 @@ class ProjectController extends Controller
          * threw: the customer is told we have it and are dealing with it, which is true - the attempt
          * is recorded and an admin has been emailed.
          */
-        $learnedNames = [];
         $unlearnable = [];
 
         foreach($read['unmatched'] as $index => $name){
@@ -218,8 +217,6 @@ class ProjectController extends Controller
 
                 continue;
             }
-
-            $learnedNames[] = $learning->template->name;
 
             $detected = $csvService->detectTables(
                 Excel::toArray(new ExcelImport, $files[$index])[0],
@@ -319,18 +316,12 @@ class ProjectController extends Controller
             $project->recordUnimportedItems([], [], $notImported);
         }
 
-        return back()
-            ->with('project', $project)
-            /*
-             * Only when a format we had never seen now works. The customer has no idea anything
-             * happened - the file simply imported - and the name is the only place the template we
-             * wrote for them is ever mentioned to them.
-             */
-            ->with($learnedNames === [] ? [] : [
-                'success' => count($learnedNames) === 1
-                    ? sprintf('We had not seen that spreadsheet format before. It has been read, checked and saved as "%s" - uploads of it will import straight away from now on.', $learnedNames[0])
-                    : sprintf('We had not seen %d of those spreadsheet formats before. They have been read, checked and saved as %s - uploads of them will import straight away from now on.', count($learnedNames), implode(', ', array_map(fn (string $name) => '"'.$name.'"', $learnedNames))),
-            ]);
+        /*
+         * Nothing is said about a template having been written: from the customer's side the file
+         * simply imported, which is the whole point of writing one. The template itself is the
+         * record - see TemplateLearningService - and an admin reviews it there.
+         */
+        return back()->with('project', $project);
     }
 
     public function update(UpdateProjectRequest $request, Project $project): RedirectResponse
