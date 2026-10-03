@@ -2,7 +2,6 @@
 
 namespace App\Services\NotificationImplementations;
 
-use App\Models\Batch;
 use App\Models\Project;
 use App\Models\User;
 use App\Notifications\BatchReadyToQuoteEmail;
@@ -12,84 +11,99 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Notifications\DatabaseNotification;
 
 /**
- * "Your fabrication date is close, so this batch has been moved to Quoting."
+ * "Your fabrication date is close, so this column has to be quoted today."
  *
- * Addressed to the manager of the project that triggered the move, and only to them -
- * NotificationColleagueOrderingTodayImplementation is what the other project managers on the batch
+ * Addressed to the manager of the project whose fabrication date ran out of room, and only to them -
+ * NotificationColleagueOrderingTodayImplementation is what the other project managers in the column
  * get. See App\Services\FabricationDeadlineQuoting for which project triggers it and why.
  *
- * hourlyCheck() is empty on purpose, the same way the colleague notifications' is. The moment being
- * reported is a batch being created, and the service that creates it says so at the time; there is no
- * column that reads "this batch was auto-quoted and nobody has been told". The sweep itself runs off
- * its own scheduled command rather than the hourly notifications job, because it writes batches - a
- * notification pass that can also nest a business's steel is not a notification pass.
+ * It used to report a batch this application had already created on the recipient's behalf, and it
+ * carried that batch's id. It does not any more: nothing is quoted until somebody presses "Start
+ * quoting", so this asks rather than announces. The notification class name is unchanged on purpose -
+ * it is the `type` column of every row already sitting in somebody's bell, and renaming it would
+ * leave those rendered by nobody (see NotificationService::implementations).
+ *
+ * hourlyCheck() is empty on purpose. Working out whether a business even has a Nesting column means
+ * reading its unbatched pieces through the price book, which is not what the hourly notifications job
+ * does, so this one is driven by the quoting:fabrication-deadline command instead.
  */
 class NotificationBatchReadyToQuoteImplementation implements NotificationInterface
 {
+    /**
+     * How far back hasBeenNotified() looks. Minutes in test mode, as the hourly reminders do, so a
+     * window measured in days can be walked through in a test without travelling a day.
+     */
+    public string $subInterval;
+
+    public function __construct()
+    {
+        $this->subInterval = config('env.test_mode') ? 'subMinutes' : 'subDays';
+    }
+
     public function hourlyCheck(): void
     {
         //See the class docblock - the sweep is App\Services\FabricationDeadlineQuoting
     }
 
     /**
-     * Tell the project manager whose fabrication date forced this batch.
+     * Ask the project manager whose fabrication date has run out of room to start quoting.
      */
-    public function notifyTrigger(Project $project, Batch $batch, User $recipient): void
+    public function notifyTrigger(Project $project, User $recipient): void
     {
-        if ($this->hasBeenNotifiedAbout($recipient, $project->id, $batch->id)) {
+        if ($this->hasBeenNotified($recipient, $project->id)) {
             return;
         }
 
+        /*
+         * Yesterday's copy, superseded. Without this the bell would hold one unread row per day of
+         * the window, all saying the same thing about the same project with a different date on it.
+         */
+        $this->markPreviousAsRead($recipient, $project);
+
         $recipient->notify(new BatchReadyToQuoteEmail(
             $project,
-            $batch,
             $recipient,
             $this->message($this->fabricationDate($project), $project->name),
         ));
     }
 
     /**
-     * Once per project per batch. The sweep is idempotent on its own - once the Nesting column is
-     * emptied there is nothing left to batch - but a batch that is broken open and re-made would
-     * otherwise chase the same person about the same project twice.
+     * Once a day per project, not once ever.
+     *
+     * The old answer was "once per project per batch", which worked because the sweep emptied the
+     * column: the thing being reported had happened, and could not happen again. Nothing happens now
+     * until somebody acts, so the condition is still true an hour later and still true tomorrow -
+     * this is what makes an hourly command send once a day, and what keeps asking while the column
+     * sits there. The same window the hourly quoting reminders use.
      */
-    protected function hasBeenNotifiedAbout(User $recipient, int $projectId, int $batchId): bool
-    {
-        return $recipient->notifications()
-            ->where('type', $this->notificationClassWithPath())
-            ->where('notifiable_type', "App\Models\User")
-            ->where('data->project_id', $projectId)
-            ->where('data->batch_id', $batchId)
-            ->exists();
-    }
-
     public function hasBeenNotified(object $recipient, int $uniqueModelId): bool
     {
-        /*
-         * The interface's single-id version cannot express "this project on this batch". Answering by
-         * project alone is the safe reading of it: it never sends a second time.
-         */
+        $subInterval = $this->subInterval;
+
         return $recipient->notifications()
             ->where('type', $this->notificationClassWithPath())
             ->where('notifiable_type', "App\Models\User")
             ->where('data->project_id', $uniqueModelId)
+            ->whereBetween('created_at', [Carbon::now()->$subInterval(1), Carbon::now()])
             ->exists();
     }
 
     public function sendNotification(object $recipient, object $otherObject): void
     {
         /*
-         * Not used. This needs three objects - project, batch and recipient - so notifyTrigger() is
-         * the way in.
+         * Not used. This needs the wording built from the project as well as the recipient, so
+         * notifyTrigger() is the way in.
          */
     }
 
     public function checkProjectChanges(Project $project): void
     {
         /*
-         * Nothing an edit can do makes this untrue: it reports something that happened. Pushing the
-         * fabrication date out does not un-nest the batch. Archiving the project does clear it, via
-         * NotificationService::clearProjectNotifications and the project_id this carries.
+         * Nothing to do here. Pushing the fabrication date out does make this untrue - which is
+         * exactly what FabricationDeadlineQuoting::clearWarningsNoLongerDue clears on the next run,
+         * off the one list that knows which columns are still inside the window. Archiving the
+         * project clears it too, via NotificationService::clearProjectNotifications and the
+         * project_id this carries.
          */
     }
 
@@ -100,7 +114,11 @@ class NotificationBatchReadyToQuoteImplementation implements NotificationInterfa
 
     public function markPreviousAsRead(object $recipient, object $otherObject): void
     {
-        //One per project per batch, so there is never a previous one to supersede
+        $recipient->notifications()
+            ->where('type', $this->notificationClassWithPath())
+            ->where('notifiable_type', "App\Models\User")
+            ->where('data->project_id', $otherObject->id)
+            ->update(['read_at' => now()]);
     }
 
     public function trafficLight(DatabaseNotification $notification, string $status): ?RedirectResponse
@@ -118,7 +136,7 @@ class NotificationBatchReadyToQuoteImplementation implements NotificationInterfa
 
     public function markGreen(DatabaseNotification $notification): RedirectResponse
     {
-        //"Quote it" - the board is where the batch and its quotes are
+        //"Start quoting" - the board is where that button is
         $notification->markAsRead();
 
         return redirect()->route('projects.index');
@@ -126,7 +144,7 @@ class NotificationBatchReadyToQuoteImplementation implements NotificationInterfa
 
     public function markRed(DatabaseNotification $notification): RedirectResponse
     {
-        //Nothing to refuse. The batch exists; this only reports it
+        //Nothing to refuse. Waiting is still an option, and the board goes on saying so
         return $this->markYellow($notification);
     }
 
@@ -164,7 +182,7 @@ class NotificationBatchReadyToQuoteImplementation implements NotificationInterfa
             ),
             'timestamp' => $notification->created_at->diffForHumans(),
             'trafficLights' => [
-                'green' => ['Quote it', '(Go to board)'],
+                'green' => ['Start quoting', '(Go to board)'],
                 'yellow' => ['Ok', '(Dismiss)'],
                 'red' => null,
             ],
@@ -177,8 +195,8 @@ class NotificationBatchReadyToQuoteImplementation implements NotificationInterfa
         $projectName = $string_2;
 
         return 'Fabrication on "'.$projectName.'" begins '.$fabricationDate
-            .', so its materials have been moved into Quoting with everything else that was waiting to'
-            .' be nested. This batch needs to be quoted today.';
+            .', and its materials are still waiting to be nested. Start quoting to take them into a'
+            .' batch with everything else in the column - this one needs to go out to suppliers today.';
     }
 
     protected function notificationClassWithPath(): string

@@ -2,7 +2,6 @@
 
 namespace App\Notifications;
 
-use App\Models\Batch;
 use App\Models\Project;
 use App\Models\User;
 use App\Notifications\Concerns\SignsInByLink;
@@ -14,18 +13,23 @@ use Illuminate\Notifications\Notification;
 use MagicLink\Actions\LoginAction;
 
 /**
- * Your project is in a batch somebody else is ordering today.
+ * Your project is in a column a colleague has to quote today.
  *
- * The other half of App\Services\FabricationDeadlineQuoting. The sweep takes the whole Nesting column
- * into one batch owned by one colleague - the manager of the project whose fabrication date forced
- * it - so everybody else on that batch loses Edit, Archive and BOM upload on their own project the
- * moment its pieces are nested, and the suppliers and delivery dates become that colleague's call.
+ * The other half of App\Services\FabricationDeadlineQuoting. Starting quoting takes the whole Nesting
+ * column into one batch owned by one colleague - the manager of the project whose fabrication date
+ * forced it - so everybody else in the column loses Edit, Archive and BOM upload on their own project
+ * the moment it happens, and the suppliers and delivery dates become that colleague's call.
  *
- * ColleagueQuotedYourMaterials says the same thing about the button being pressed, and is bell only
- * because the press is somebody's deliberate decision that the owner can go and talk to them about.
- * This one is mailed as well, because nobody decided anything: a colleague's deadline moved the
- * recipient's materials, today, and the last chance to say "wait, that BOM is not final" is before
- * the order goes out.
+ * It now warns before that rather than reporting it afterwards, because the schedule stopped pressing
+ * the button: the press is somebody's decision again, and the last chance to say "wait, that BOM is
+ * not final" is before it. ColleagueQuotedYourMaterials is what reports the press itself, from
+ * QuoteController, as it does for any other.
+ *
+ * Mailed as well as belled, like the warning to the colleague being asked to press it. The owner of a
+ * project about to be swept into somebody else's batch has less time to react than anybody, and no
+ * reason to be looking at the board today.
+ *
+ * The class name is kept as it is: it is the `type` column of every row already in somebody's bell.
  */
 class ColleagueOrderingBatchTodayEmail extends Notification implements ShouldQueue
 {
@@ -33,7 +37,7 @@ class ColleagueOrderingBatchTodayEmail extends Notification implements ShouldQue
 
     public function __construct(
         public Project $project,
-        public Batch $batch,
+        public Project $trigger,
         public User $colleague,
     ) {}
 
@@ -47,9 +51,9 @@ class ColleagueOrderingBatchTodayEmail extends Notification implements ShouldQue
 
     public function toMail(object $notifiable): MailMessage
     {
-        //Straight into Quotes / Orders for the batch the button names, not just the board
+        //The board, where the column is. There is no batch to deep link into until somebody presses
         $action = new LoginAction($notifiable);
-        $action->response(redirect()->route('projects.index', ['quotes' => $this->batch->id]));
+        $action->response(redirect()->route('projects.index'));
         $magicLinkUrl = $this->loginLinkFor($action);
 
         /*
@@ -61,13 +65,13 @@ class ColleagueOrderingBatchTodayEmail extends Notification implements ShouldQue
             ->message($this->colleague->name, $this->project->name);
 
         return (new MailMessage)
-            ->subject($this->colleague->name.' is ordering materials for your project today')
+            ->subject($this->colleague->name.' has to quote materials for your project today')
             ->line($message)
-            ->line('Quotes / Orders on this batch has the suppliers and, beside each one, an "Email'
-                .' tables" button that opens an email already written with that supplier\'s material'
-                .' order list. '.$this->colleague->name.' is placing the orders, so anything that still'
-                .' needs changing on this project has to be raised with them today.')
-            ->action('Open Quotes for this batch', $magicLinkUrl);
+            ->line('Fabrication on "'.$this->trigger->name.'" is what forces it. Once '
+                .$this->colleague->name.' starts quoting, the batch fixes this project\'s suppliers'
+                .' and delivery dates and you can no longer edit it or upload to it - so anything'
+                .' that still needs changing has to be raised with them today.')
+            ->action('Open the board', $magicLinkUrl);
     }
 
     /**
@@ -78,7 +82,6 @@ class ColleagueOrderingBatchTodayEmail extends Notification implements ShouldQue
         return [
             'project_id' => $this->project->id,
             'project_name' => $this->project->name,
-            'batch_id' => $this->batch->id,
             'colleague_name' => $this->colleague->name,
         ];
     }

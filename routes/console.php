@@ -26,16 +26,20 @@ $frequency = $testMode ? 'everyMinute' : 'hourly';
 Schedule::job(new HourlyNotificationsJob)->$frequency();
 
 /*
- * The Nesting column, moved into Quoting when the shop is about to start cutting.
+ * The Nesting column, told to get itself quoted when the shop is about to start cutting.
  *
- * Its own schedule rather than a line in the hourly job above, because this is not a reminder: it
- * creates a batch, saves a nest and consumes offcut inventory on the business's behalf. Hourly
- * because the window is counted in days and a few hours either side of the fifth day costs nobody
- * anything - and because a schedule that can spend money is one to run at the slowest cadence that
- * still works.
+ * It used to do the quoting too. It does not any more - creating a batch nests steel, consumes
+ * offcut inventory and commits the business to a purchase, so it waits for somebody to press "Start
+ * quoting" - and all that is scheduled here is the warning.
  *
- * Idempotent by construction: a swept column has no unbatched pieces left, so the next run finds
- * nothing to do. See App\Services\FabricationDeadlineQuoting.
+ * Still its own schedule rather than a line in the hourly job above, because deciding whether there
+ * is a column at all means reading a business's unbatched pieces through its price book, which is
+ * nothing like the per-project date checks that job does. Hourly because the window is counted in
+ * days, so a few hours either side of the fifth day costs nobody anything.
+ *
+ * No longer idempotent by construction either: nothing empties the column now, so the condition is
+ * still true an hour later. Each notification holds itself to once a day instead - see
+ * App\Services\FabricationDeadlineQuoting.
  */
 Schedule::command('quoting:fabrication-deadline')->$frequency();
 

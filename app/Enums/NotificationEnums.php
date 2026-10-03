@@ -60,10 +60,16 @@ enum NotificationEnums: string
     case A_COLLEAGUE_QUOTED_YOUR_MATERIALS = 'A_COLLEAGUE_QUOTED_YOUR_MATERIALS';
 
     /*
-     * The fabrication deadline sweep: a project in the Nesting column is close enough to its
+     * The fabrication deadline warnings: a project in the Nesting column is close enough to its
      * fabrication start date that waiting any longer costs it the critical path, so the whole column
-     * was taken into one batch. The first goes to the manager of the project that forced it, with the
-     * material tables; the second to every other project manager on the batch.
+     * has to be taken into one batch today. The first goes to the manager of the project that forces
+     * it, who is the one who can press "Start quoting"; the second to every other project manager in
+     * the column, whose work goes with it.
+     *
+     * Both case names are the tense these were written in, when the schedule pressed the button
+     * itself. It only asks now - see App\Services\FabricationDeadlineQuoting - and the names are left
+     * alone because the notification class names they shadow are the `type` column of every row
+     * already sitting in somebody's bell.
      */
     case BATCH_READY_TO_QUOTE = 'BATCH_READY_TO_QUOTE';
 
