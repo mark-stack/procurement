@@ -41,9 +41,16 @@ class DatabaseSeeder extends Seeder
          * Admin
          */
         //User
+        /*
+         * is_admin is what User::isAdmin() reads, and it has to be set here. The 2026_09_30
+         * migration backfills the flag from ADMIN_EMAIL, but it only sees rows that already exist
+         * when it runs - on a fresh database it matches nothing, and this user is created after it.
+         * Seeding on the address alone left a local install with no admin at all.
+         */
         $adminUser = User::factory()->create([
             'name' => 'Mark',
             'email' => config('env.admin_email'),
+            'is_admin' => true,
             "password" => bcrypt("Password123#")
         ]);
         //Business
