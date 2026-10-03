@@ -301,14 +301,63 @@ class Project extends Model
         return $orderable > 0 && $ordered === $orderable;
     }
 
+    /**
+     * How long this job's business takes to get prices back from its merchants.
+     *
+     * Was 2 for every business on the platform. It is a business's own figure now - the one it set in
+     * /profile under "Business preferences" - because a fabricator who rings three merchants and gets
+     * numbers the same afternoon and one who waits a week for a formal quotation were being chased on
+     * the same schedule, and only one of them was being told the truth.
+     *
+     * Falls back to the platform default where there is no business to ask. That is a Project built
+     * in memory rather than read from the database - `(new Project)->criticalPathDays()` is how the
+     * notification tests ask what the window is - and a project whose manager's account has gone.
+     */
     public function quotingDays(): int
     {
-        return 2;
+        $business = $this->leadTimeBusiness();
+
+        if ($business === null) {
+            return Business::DEFAULT_QUOTING_DAYS;
+        }
+
+        return (int) $business->quoting_days;
     }
 
+    /**
+     * And how long the longest-lead material on it takes to turn up once it has been bought.
+     *
+     * Still the business's one figure rather than the material's - the todo that stood here asking for
+     * it to be derived from the actual materials is unchanged by this, and a per-product lead time is
+     * what would settle it. What has changed is that the figure is no longer the platform's: a mill
+     * rolling and a merchant with the section on the rack are weeks apart, and the business knows
+     * which of the two it buys from.
+     */
     public function longestDeliveryDays(): int
     {
-        return 4; //todo derive from actual materials. Fallback = 3 days
+        $business = $this->leadTimeBusiness();
+
+        if ($business === null) {
+            return Business::DEFAULT_DELIVERY_DAYS;
+        }
+
+        //todo derive from actual materials, rather than from the business's longest
+        return (int) $business->delivery_days;
+    }
+
+    /**
+     * Whose lead times the two above are: this project's manager's business.
+     *
+     * A method rather than the chain written out at each call site, because the chain is nullable in
+     * two places that static analysis cannot see. projects.user_id is a restricting foreign key and
+     * users.business_id is nullable, and neither relation is loaded at all on a Project built in
+     * memory - `(new Project)->criticalPathDays()` is how the notification tests ask what the window
+     * is. Declaring the nullability here is what lets the callers fall back honestly instead of
+     * reading a property off null the first time one of those holds.
+     */
+    private function leadTimeBusiness(): ?Business
+    {
+        return $this->user?->business;
     }
 
     public function criticalPathDays(): int

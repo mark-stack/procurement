@@ -13,6 +13,7 @@ use App\Http\Controllers\BillingCheckoutController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\BillingInvoiceController;
 use App\Http\Controllers\BillingPortalController;
+use App\Http\Controllers\BusinessPreferencesController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DownloadBatchBomController;
 use App\Http\Controllers\DownloadBomController;
@@ -111,6 +112,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
      * wait for and nothing to hold.
      */
     Route::middleware([BillingWriteAccessMiddleware::class])->group(function () {
+        /*
+         * Business preferences - the quoting and delivery lead times, set from /profile.
+         *
+         * In here rather than beside the profile routes above, which are deliberately outside this
+         * gate: those are the person's own name, email and password, and a lapsed account still has
+         * to be able to sign in and fix its card. These two numbers are the business's configuration
+         * and they move every deadline on the board, which is a write like any other.
+         */
+        Route::patch('business-preferences', [BusinessPreferencesController::class, 'update'])
+            ->name('business.preferences.update');
+
         //Current Projects
         //Create/show/edit were unimplemented stubs - the dashboard modals cover them
         Route::resource('projects', ProjectController::class)->only(['index', 'store', 'update', 'destroy']);

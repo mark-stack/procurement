@@ -42,10 +42,18 @@ class FabricationDeadlineQuoting
     /**
      * How close the first cut has to be before the waiting stops.
      *
-     * Five days is the figure asked for, and it sits just outside the critical path the rest of the
-     * board is measured against - Project::criticalPathDays() is quoting time plus delivery time,
-     * two plus four - so a column quoted today has a day in hand before the deadline reminders would
-     * start calling it late.
+     * Five days is the figure asked for. It used to sit just outside the critical path the rest of
+     * the board is measured against - Project::criticalPathDays() was quoting time plus delivery
+     * time, a fixed two plus four - so a column quoted today had a day in hand before the deadline
+     * reminders would start calling it late.
+     *
+     * Those two are the business's own figures now, set in /profile under "Business preferences",
+     * and they default to two plus three. So this constant is no longer reliably outside the critical
+     * path: on the defaults the two are the same five days, and a business that sets longer lead
+     * times is warned by this sweep after its own critical path has already passed. Left as a
+     * constant deliberately - it is the day the *column* stops waiting, which is a decision about
+     * batching rather than about any one project's deadline - but it is the next thing to make a
+     * preference if a business asks for it.
      */
     public const int DAYS_BEFORE_FABRICATION = 5;
 

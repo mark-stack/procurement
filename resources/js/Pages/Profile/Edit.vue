@@ -7,6 +7,7 @@
     import DeleteUserForm from './Partials/DeleteUserForm.vue';
     import UpdatePasswordForm from './Partials/UpdatePasswordForm.vue';
     import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm.vue';
+    import UpdateBusinessPreferencesForm from './Partials/UpdateBusinessPreferencesForm.vue';
 
     //Props
     defineProps({
@@ -15,6 +16,13 @@
         },
         status: {
             type: String,
+        },
+        //The business's own settings, which are not this user's - see UpdateBusinessPreferencesForm
+        businessPreferences: {
+            type: Object,
+        },
+        canEditBusinessPreferences: {
+            type: Boolean,
         },
     });
 
@@ -58,6 +66,20 @@
                     class="bg-white p-4 shadow sm:rounded-lg sm:p-8"
                 >
                     <UpdatePasswordForm class="max-w-xl" />
+                </div>
+
+                <!--
+                    The business's settings rather than this user's, which is why it is last and says
+                    as much in its own heading - see UpdateBusinessPreferencesForm.
+                -->
+                <div
+                    class="bg-white p-4 shadow sm:rounded-lg sm:p-8"
+                >
+                    <UpdateBusinessPreferencesForm
+                        :business-preferences="businessPreferences"
+                        :can-edit-business-preferences="canEditBusinessPreferences"
+                        class="max-w-xl"
+                    />
                 </div>
 
 <!--                <div-->

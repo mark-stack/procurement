@@ -40,6 +40,23 @@ class Business extends Model
     use Billable;
 
     /**
+     * The lead times a business runs on until somebody sets its own.
+     *
+     * Quoting is how long it takes to get prices back from the merchants; delivery is how long the
+     * longest-lead material on a job takes to turn up once it is bought. Added together they are the
+     * critical path (Project::criticalPathDays), which is what every deadline notification counts
+     * back from.
+     *
+     * Constants rather than two literals in $attributes, because Project falls back to them for a
+     * model with no business behind it and the two have to be the same numbers. The column defaults
+     * in the migration are the third copy and are deliberately written out there - a migration that
+     * reads a constant changes what it did to existing rows the day somebody edits the constant.
+     */
+    public const int DEFAULT_QUOTING_DAYS = 2;
+
+    public const int DEFAULT_DELIVERY_DAYS = 3;
+
+    /**
      * Everything is mass assignable except what decides whether this business has paid.
      *
      * No route mass assigns a business today - there is no businesses.update - so this is a fence
@@ -129,6 +146,9 @@ class Business extends Model
         'move_minutes_per_tonne' => 15.0,
         'offcut_retention_cap' => 0.6,
         'purchase_cost_weight' => 1.0,
+        //The two halves of the critical path - see the constants above
+        'quoting_days' => self::DEFAULT_QUOTING_DAYS,
+        'delivery_days' => self::DEFAULT_DELIVERY_DAYS,
     ];
 
     /*
