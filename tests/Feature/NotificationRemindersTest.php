@@ -20,7 +20,7 @@ function projectDueForQuoting(App\Models\User $user): Project
     $project = createProject($user);
 
     $project->update([
-        'date_materials_required' => now()->addDays((new Project)->criticalPathDays())->addHours(2),
+        'date_materials_required' => now()->addWeekdays((new Project)->criticalPathDays())->addHours(2),
     ]);
 
     return $project;
@@ -108,7 +108,7 @@ it('would be a disaster if one project got both "due to quote" and "deadline has
     $project = createProject($user);
     $project->update([
         //The boundary both windows used to claim
-        'date_materials_required' => now()->addDays((new Project)->criticalPathDays())->startOfDay(),
+        'date_materials_required' => now()->addWeekdays((new Project)->criticalPathDays())->startOfDay(),
     ]);
 
     Notification::fake();
@@ -132,7 +132,7 @@ it('would be a disaster if the day before the critical path went unchased by eit
 
     $project = createProject($user);
     $project->update([
-        'date_materials_required' => now()->addDays((new Project)->criticalPathDays() - 1)->endOfDay(),
+        'date_materials_required' => now()->addWeekdays((new Project)->criticalPathDays() - 1)->endOfDay(),
     ]);
 
     Notification::fake();

@@ -56,7 +56,7 @@ function sandboxProjectDueForQuoting(User $user): Project
     $project = createProject($user);
 
     $project->update([
-        'date_materials_required' => now()->addDays((new Project)->criticalPathDays())->addHours(2),
+        'date_materials_required' => now()->addWeekdays((new Project)->criticalPathDays())->addHours(2),
     ]);
 
     return $project;

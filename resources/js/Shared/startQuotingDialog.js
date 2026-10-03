@@ -34,7 +34,7 @@ export default function startQuotingDialog(projects, onConfirmed, orderingTrigge
      * How much longer this batch is allowed to sit there - the same day the board's Order by pill
      * counts down to, read the same way it reads it (OrderByPill), so the dialog cannot say "wait"
      * on a day the pill beside the button has already turned red. Deliberately not the Nesting
-     * page's "Delivery due" date, which is when the steel has to be on site rather than when it has
+     * page's "Required by" date, which is when the steel has to be at the workshop rather than when it has
      * to be bought: waiting until then is waiting several days too long.
      *
      * Null when no project on the batch has a fabrication date: nothing is chasing it, so there is

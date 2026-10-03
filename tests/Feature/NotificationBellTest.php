@@ -255,7 +255,7 @@ it('fills the bell without emailing anybody, unless asked to', function () {
 
     $project = createProject($user);
     $project->update([
-        'date_materials_required' => now()->addDays((new Project)->criticalPathDays())->addHours(2),
+        'date_materials_required' => now()->addWeekdays((new Project)->criticalPathDays())->addHours(2),
     ]);
 
     config(['notifications.mail_reminders' => false]);

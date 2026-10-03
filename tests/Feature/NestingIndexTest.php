@@ -437,7 +437,7 @@ it('tells the pending card the day it stops being pending', function () {
 
 it('prints the day each card\'s material is wanted on site, a working day before fabrication', function () {
     /*
-     * The "Delivery due" date, which every card on the page carries rather than only the one that has
+     * The "Required by" date, which every card on the page carries rather than only the one that has
      * not been nested yet. It is a fact about the work, not about a batch's progress: the steel has to
      * be in the shop before the saw starts, and that is as true of a batch already out with the
      * merchants as of one still waiting.
@@ -486,7 +486,7 @@ it('prints the day each card\'s material is wanted on site, a working day before
 
 it('counts each card\'s deadline back from the work that card still has left to do', function () {
     /*
-     * The colour of the "Delivery due" pill, which is the half of it that is not the same on every
+     * The colour of the "Required by" pill, which is the half of it that is not the same on every
      * card. The date says when the steel is wanted; the deadline sent beside it says when *this*
      * batch had to have reached the step it is on to still make that date, and the two are days apart
      * because the step is read as the work in front of the batch rather than the work behind it.
@@ -495,8 +495,13 @@ it('counts each card\'s deadline back from the work that card still has left to 
      * today, and a test that counted off today would pass tomorrow by saying nothing.
      *
      * Defaults here - 2 days to quote and 3 to deliver (Business::DEFAULT_*) - and the test below
-     * covers a business that has set its own. Whole days, unlike the required-by date above: only
-     * that date steps over a weekend, because only it names a delivery somebody has to take.
+     * covers a business that has set its own.
+     *
+     * Working days, which is what the dates below are chosen to prove. The 3rd is a Tuesday, so five
+     * working days back is the Tuesday before it and not the Thursday a calendar count would give -
+     * the weekend in between is not time the merchant was pricing anything. Written out rather than
+     * counted off today for that reason: which days the answer steps over is the thing being
+     * asserted.
      */
     test()->actingAs(createUser(1, createBusiness('admin'), true, true));
     seedMasterMaterials();
@@ -525,7 +530,7 @@ it('counts each card\'s deadline back from the work that card still has left to 
              */
             ->where('batches.0.stage', 'NESTING')
             ->where('batches.0.materialsRequiredDate', '2026-11-03')
-            ->where('batches.0.criticalPathDeadline', '2026-10-29')
+            ->where('batches.0.criticalPathDeadline', '2026-10-27')
             /*
              * And the same five for a batch out with the merchants, which is the point of this pair:
              * a batch being priced is doing the quoting now, so none of the quoting time is behind it
@@ -534,7 +539,7 @@ it('counts each card\'s deadline back from the work that card still has left to 
             ->where('batches.1.id', $quoting->id)
             ->where('batches.1.stage', 'QUOTING')
             ->where('batches.1.materialsRequiredDate', '2026-11-03')
-            ->where('batches.1.criticalPathDeadline', '2026-10-29')
+            ->where('batches.1.criticalPathDeadline', '2026-10-27')
         );
 });
 
@@ -569,7 +574,7 @@ it('drops the quoting time off the deadline once the prices are in, and not befo
             ->where('batches.1.id', $batch->id)
             ->where('batches.1.stage', 'QUOTED')
             ->where('batches.1.materialsRequiredDate', '2026-11-03')
-            ->where('batches.1.criticalPathDeadline', '2026-10-31')
+            ->where('batches.1.criticalPathDeadline', '2026-10-29')
         );
 });
 
@@ -600,7 +605,7 @@ it('still owes the delivery on a batch that has been bought outright', function 
             ->where('batches.1.id', $batch->id)
             ->where('batches.1.stage', 'ORDERED')
             ->where('batches.1.materialsRequiredDate', '2026-11-03')
-            ->where('batches.1.criticalPathDeadline', '2026-10-31')
+            ->where('batches.1.criticalPathDeadline', '2026-10-29')
         );
 });
 
@@ -634,7 +639,7 @@ it('chases a half-bought batch on the ordering deadline, not the delivery one', 
             ->where('batches.1.stage', 'ORDERING')
             ->where('batches.1.materialsRequiredDate', '2026-11-03')
             //Three days back off the 3rd, the way a batch still being priced is
-            ->where('batches.1.criticalPathDeadline', '2026-10-31')
+            ->where('batches.1.criticalPathDeadline', '2026-10-29')
         );
 });
 

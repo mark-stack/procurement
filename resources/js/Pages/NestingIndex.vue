@@ -10,7 +10,7 @@
     import CardButtonYellow from "@/Components/Buttons/CardButtonYellow.vue";
     import Dropdown from "@/Components/Dropdown.vue";
     import StagePill from "@/Components/StagePill.vue";
-    import DeliveryDuePill from "@/Components/DeliveryDuePill.vue";
+    import RequiredByPill from "@/Components/RequiredByPill.vue";
     import PageLoadingOverlay from "@/Components/PageLoadingOverlay.vue";
     import BatchBomModal from "@/Components/Modals/BatchBomModal.vue";
     import BatchCertificatesModal from "@/Components/Modals/BatchCertificatesModal.vue";
@@ -611,7 +611,7 @@
              * The day this batch has to stop waiting and be quoted, which is what decides whether
              * the dialog's advice to wait for a bigger batch is still worth taking - see
              * startQuotingDialog. Not the required-by date the card's pill prints: that one is when
-             * the steel has to be on site, which is days later and a different argument.
+             * the steel has to be at the workshop, which is days later and a different argument.
              */
             openBatch.value?.orderingTriggerDate ?? null,
         ));
@@ -878,12 +878,12 @@
      * The same component and the same PUT to projects.update, because it is the same job: a second
      * rename form is a second place for the name rules to be half-applied. The one thing this page
      * adds is where it is opened from, which is the point of the pencil - the fabrication date is what
-     * decides when this batch's steel has to be on site (see DeliveryDuePill) and when it has to stop
+     * decides when this batch's steel has to be at the workshop (see RequiredByPill) and when it has to stop
      * waiting and be quoted, and until now reading that date here meant going to the board to change it.
      *
      * The card's project is what the modal is handed, which is why those fields are on it - see
      * NestingIndexController::projectCards(). Saving lands back on this page, so the heading, the
-     * hover list and the "Delivery due" date all redraw with the new values; there is nothing to reload.
+     * hover list and the "Required by" date all redraw with the new values; there is nothing to reload.
      */
     function editProjectMode(project) {
         newProjectBomData.value = null;
@@ -1006,41 +1006,122 @@
                     <div
                         class="flex items-center justify-between gap-4 px-4 py-3 bg-white border border-gray-200 shadow-sm rounded-xl"
                     >
-                        <!-- Wraps rather than squeezes: three chips and a name do not fit a phone in one line -->
-                        <div class="flex flex-wrap items-center gap-x-3 gap-y-2 min-w-0">
-                            <div class="min-w-0">
-                                <!--
-                                    The jobs on the batch, not its number - see headedProjects(). The
-                                    full heading is on hover, because several of your own projects on
-                                    one batch is a heading too long for the card.
+                        <!--
+                            The whole left half of the card: the job names, and under them the two pills
+                            that say where the batch is and when its steel is due. One column rather than
+                            the wrapping row this was, which held the heading and the date side by side -
+                            the date moved under the heading, and a flex row around a single child was
+                            left doing nothing but passing min-w-0 down to it.
+                        -->
+                        <div class="min-w-0">
+                            <!--
+                                The jobs on the batch, not its number - see headedProjects(). The
+                                full heading is on hover, because several of your own projects on
+                                one batch is a heading too long for the card.
 
-                                    A job at a time rather than one run of text, so each of them can
-                                    carry its own pencil. The commas are drawn between them, which is
-                                    what cardTitle() reads as on a card carrying several of yours.
-                                -->
-                                <span
-                                    :title="cardTitle(batch)"
-                                    class="flex items-center min-w-0 text-sm font-semibold text-gray-800"
-                                >
-                                    <template v-if="headedProjects(batch).length">
-                                        <span
-                                            v-for="(project, projectIndex) in headedProjects(batch)"
-                                            :key="project.id"
-                                            class="flex items-center min-w-0"
+                                A job at a time rather than one run of text, so each of them can
+                                carry its own pencil. The commas are drawn between them, which is
+                                what cardTitle() reads as on a card carrying several of yours.
+                            -->
+                            <span
+                                :title="cardTitle(batch)"
+                                class="flex items-center min-w-0 text-sm font-semibold text-gray-800"
+                            >
+                                <template v-if="headedProjects(batch).length">
+                                    <span
+                                        v-for="(project, projectIndex) in headedProjects(batch)"
+                                        :key="project.id"
+                                        class="flex items-center min-w-0"
+                                    >
+                                        <span v-if="projectIndex > 0" class="mr-1">,</span>
+                                        <span class="truncate">{{ project.name }}</span>
+
+                                        <!--
+                                            Rename it, or move the fabrication date that decides
+                                            when this batch buys - the board's own modal, opened on
+                                            this project. Only on your own work: the server lets
+                                            nobody but the project manager past
+                                            (PrerequisiteConditions::editProject), so a pencil on a
+                                            colleague's job could only ever answer 403. Drawn as
+                                            nothing at all rather than greyed, because a card can
+                                            name a dozen jobs and a row of dead pencils is noise.
+                                        -->
+                                        <button
+                                            v-if="project.mine"
+                                            type="button"
+                                            :title="'Edit ' + project.name"
+                                            :aria-label="'Edit ' + project.name"
+                                            @click="editProjectMode(project)"
+                                            class="ml-1.5 shrink-0 text-gray-400 transition-colors duration-150 hover:text-blue-700"
                                         >
-                                            <span v-if="projectIndex > 0" class="mr-1">,</span>
-                                            <span class="truncate">{{ project.name }}</span>
+                                            <i class="fa-solid fa-pencil text-[11px]"></i>
+                                        </button>
+                                    </span>
+                                </template>
 
-                                            <!--
-                                                Rename it, or move the fabrication date that decides
-                                                when this batch buys - the board's own modal, opened on
-                                                this project. Only on your own work: the server lets
-                                                nobody but the project manager past
-                                                (PrerequisiteConditions::editProject), so a pencil on a
-                                                colleague's job could only ever answer 403. Drawn as
-                                                nothing at all rather than greyed, because a card can
-                                                name a dozen jobs and a row of dead pencils is noise.
-                                            -->
+                                <!-- The open batch, and a batch with no job on it at all -->
+                                <span v-else class="truncate">{{ cardTitle(batch) }}</span>
+                            </span>
+
+                            <!-- Whose job that is, when it is not yours - see headingManager() -->
+                            <span
+                                v-if="headingManager(batch)"
+                                class="block text-xs text-gray-500 truncate"
+                            >
+                                {{ headingManager(batch) }}'s
+                            </span>
+
+                            <!--
+                                Or, on an open batch with nothing waiting on it, what it is for.
+                                The card is drawn empty (see NestingIndexController), and a
+                                heading with nothing under it reads as a card that failed to
+                                load rather than as a batch waiting to be filled.
+                            -->
+                            <span
+                                v-if="isEmptyOpenBatch(batch)"
+                                class="block text-xs text-gray-400"
+                            >
+                                Nothing waiting yet
+                            </span>
+
+                            <!--
+                                And the rest of the batch. A count rather than the names, because a
+                                batch is bought as one and can carry a dozen jobs - with the names
+                                on hover, so finding out which they are is not a page away.
+                            -->
+                            <span
+                                v-if="otherProjects(batch).length"
+                                class="relative block w-fit group"
+                            >
+                                <span class="text-xs text-gray-500 underline cursor-help decoration-dotted">
+                                    {{ otherProjectsLabel(batch) }}
+                                </span>
+
+                                <!--
+                                    Hoverable, not just readable: your own jobs in here carry the
+                                    same pencil the heading does, and on the open batch card this
+                                    list is the only place they are named at all. Padded rather
+                                    than margined off the label, so the pointer crosses into it
+                                    without passing over a gap that would close it.
+                                -->
+                                <span class="absolute left-0 z-20 hidden pt-1 top-full w-max max-w-xs group-hover:block">
+                                    <span class="block p-2 bg-white border border-gray-200 shadow-lg rounded-lg">
+                                        <span
+                                            v-for="project in otherProjects(batch)"
+                                            :key="project.id"
+                                            class="flex items-center text-xs text-gray-700"
+                                        >
+                                            <span class="truncate">{{ project.name }}</span>
+                                            <!-- Named like the heading above: yours says so, a colleague's says who -->
+                                            <span class="ml-1 text-gray-400 shrink-0">
+                                                ·
+                                                {{ project.mine
+                                                    ? 'you'
+                                                    : (project.manager
+                                                        ? shared.capitalizeWords(project.manager)
+                                                        : 'another project manager') }}
+                                            </span>
+
                                             <button
                                                 v-if="project.mine"
                                                 type="button"
@@ -1052,143 +1133,90 @@
                                                 <i class="fa-solid fa-pencil text-[11px]"></i>
                                             </button>
                                         </span>
-                                    </template>
-
-                                    <!-- The open batch, and a batch with no job on it at all -->
-                                    <span v-else class="truncate">{{ cardTitle(batch) }}</span>
-                                </span>
-
-                                <!-- Whose job that is, when it is not yours - see headingManager() -->
-                                <span
-                                    v-if="headingManager(batch)"
-                                    class="block text-xs text-gray-500 truncate"
-                                >
-                                    {{ headingManager(batch) }}'s
-                                </span>
-
-                                <!--
-                                    Or, on an open batch with nothing waiting on it, what it is for.
-                                    The card is drawn empty (see NestingIndexController), and a
-                                    heading with nothing under it reads as a card that failed to
-                                    load rather than as a batch waiting to be filled.
-                                -->
-                                <span
-                                    v-if="isEmptyOpenBatch(batch)"
-                                    class="block text-xs text-gray-400"
-                                >
-                                    Nothing waiting yet
-                                </span>
-
-                                <!--
-                                    And the rest of the batch. A count rather than the names, because a
-                                    batch is bought as one and can carry a dozen jobs - with the names
-                                    on hover, so finding out which they are is not a page away.
-                                -->
-                                <span
-                                    v-if="otherProjects(batch).length"
-                                    class="relative block w-fit group"
-                                >
-                                    <span class="text-xs text-gray-500 underline cursor-help decoration-dotted">
-                                        {{ otherProjectsLabel(batch) }}
-                                    </span>
-
-                                    <!--
-                                        Hoverable, not just readable: your own jobs in here carry the
-                                        same pencil the heading does, and on the open batch card this
-                                        list is the only place they are named at all. Padded rather
-                                        than margined off the label, so the pointer crosses into it
-                                        without passing over a gap that would close it.
-                                    -->
-                                    <span class="absolute left-0 z-20 hidden pt-1 top-full w-max max-w-xs group-hover:block">
-                                        <span class="block p-2 bg-white border border-gray-200 shadow-lg rounded-lg">
-                                            <span
-                                                v-for="project in otherProjects(batch)"
-                                                :key="project.id"
-                                                class="flex items-center text-xs text-gray-700"
-                                            >
-                                                <span class="truncate">{{ project.name }}</span>
-                                                <!-- Named like the heading above: yours says so, a colleague's says who -->
-                                                <span class="ml-1 text-gray-400 shrink-0">
-                                                    ·
-                                                    {{ project.mine
-                                                        ? 'you'
-                                                        : (project.manager
-                                                            ? shared.capitalizeWords(project.manager)
-                                                            : 'another project manager') }}
-                                                </span>
-
-                                                <button
-                                                    v-if="project.mine"
-                                                    type="button"
-                                                    :title="'Edit ' + project.name"
-                                                    :aria-label="'Edit ' + project.name"
-                                                    @click="editProjectMode(project)"
-                                                    class="ml-1.5 shrink-0 text-gray-400 transition-colors duration-150 hover:text-blue-700"
-                                                >
-                                                    <i class="fa-solid fa-pencil text-[11px]"></i>
-                                                </button>
-                                            </span>
-                                        </span>
                                     </span>
                                 </span>
-                            </div>
+                            </span>
 
                             <!--
-                                The day this card's steel has to be on site - one working day before the
-                                earliest fabrication date on it. Every card carries one, the open batch
-                                included: it is a fact about the work rather than about the batch's
-                                progress, which is why it sits beside the job names and not with the
-                                stage pill and the buttons on the right.
+                                Where this batch has got to, and whether it is going to make its
+                                date - the two facts about the batch itself, under the names of the
+                                jobs they are about.
 
-                                Its colour is the other half: whether this batch, where it has got to,
-                                is still going to make that date. The deadline it is held to depends on
-                                how much of the critical path it has left to spend - the server works
-                                that out off the business's lead times and sends it alongside. Green on
-                                track, amber a day behind, red two or more. See DeliveryDuePill.
+                                Beneath the heading rather than across the card from it, because
+                                they are read together: "Quoting" is only good or bad news next to
+                                the day the steel is wanted, and a column of cards is scanned down
+                                this left edge. The step comes first and the date second, which is
+                                the order the sentence goes in.
 
-                                A delivered or cut batch keeps its date and reads green: its steel is
-                                in, so it is off the path rather than late for it.
+                                Wraps on a narrow card, the two pills being a phone's width between
+                                them once the step is a long word.
+
+                                Drawn only when there is a pill to put in it. The open batch with
+                                nothing waiting on it has neither - no step behind it, and no job
+                                naming a fabrication date to want steel by - and an empty row would
+                                still spend its top margin, leaving a gap under the heading of the
+                                one card the page always draws.
                             -->
-                            <DeliveryDuePill
-                                :date="batch.materialsRequiredDate"
-                                :deadline="batch.criticalPathDeadline"
-                                :done="['DELIVERED', 'CUT'].includes(batch.stage)"
-                                class="shrink-0"
-                            />
+                            <div
+                                v-if="batch.id !== null || batch.materialsRequiredDate"
+                                class="flex flex-wrap items-center gap-2 mt-2"
+                            >
+                                <!--
+                                    The last step the batch has passed, not the column it is sitting
+                                    in. Coloured as the board and the dashboard colour that step -
+                                    see StagePill and NestingIndexController::milestoneOf().
+
+                                    Not on the open batch: the rule above it already says what it
+                                    is, and a batch that has not been quoted has no step behind it
+                                    to report. Nothing holds its place now that the buttons no
+                                    longer line up against it - the row simply starts at the date.
+                                -->
+                                <StagePill v-if="batch.id !== null" :stage="batch.stage" />
+
+                                <!--
+                                    The day this card's steel has to be at the workshop - one working
+                                    day before the earliest fabrication date on it. Every card carries
+                                    one, the open batch included.
+
+                                    Its colour is the other half: whether this batch, where it has got
+                                    to, is still going to make that date. The deadline it is held to
+                                    depends on how much of the critical path it has left to spend - the
+                                    server works that out off the business's lead times and sends it
+                                    alongside. Green on track, amber a day behind, red two or more.
+                                    See RequiredByPill.
+
+                                    A batch whose steel is in does not carry one at all. Delivered and
+                                    Cut both drew an on-time pill until now, on the reading that the
+                                    date was still what the job worked to - which put a run of green
+                                    down the bottom of the column saying nothing anybody had to act
+                                    on. The date is history on those cards rather than a deadline, and
+                                    the step pill beside it is already the whole of the news.
+                                -->
+                                <RequiredByPill
+                                    v-if="! ['DELIVERED', 'CUT'].includes(batch.stage)"
+                                    :date="batch.materialsRequiredDate"
+                                    :deadline="batch.criticalPathDeadline"
+                                    class="shrink-0"
+                                />
+                            </div>
                         </div>
 
                         <!--
-                            Wraps rather than squeezes, like the heading beside it: the pill joined this
-                            row and the three buttons have fixed widths, which on a phone is more than
-                            fits on one line. Right-aligned so what wraps stays against the card's edge.
+                            Wraps rather than squeezes, like the heading beside it: the three buttons
+                            have fixed widths, which on a phone is more than fits on one line.
+                            Right-aligned so what wraps stays against the card's edge.
+
+                            Buttons only now. The stage pill used to sit at this end, in a slot of its
+                            own width so that "Nesting" and "Delivered" being a dozen pixels apart did
+                            not walk all three buttons sideways from card to card. It reads under the
+                            job names instead, beside the date it is only meaningful next to, and the
+                            slot that was holding its place went with it.
 
                             Everything on the right of the card is in here, the menu included - the card
                             is a justify-between of two halves, and a third child would leave this one
                             floating in the middle of the gap rather than against the edge.
                         -->
                         <div class="flex flex-wrap items-center justify-end gap-2 shrink-0">
-                            <!--
-                                How far the batch has actually got - the last step it has passed, not the
-                                column it is sitting in. Coloured as the board and the dashboard colour
-                                that step - see StagePill and NestingIndexController::milestoneOf().
-
-                                At the right-hand end with the buttons rather than after the heading: the
-                                pills then line up down the page, which is how a column of cards is read
-                                for "where is everything up to" - against a heading they started at a
-                                different place on every card.
-
-                                In a slot of its own width, because the pill's is its word: "Nesting" and
-                                "Delivered" are a dozen pixels apart, and with the row right-aligned that
-                                difference walked all three buttons sideways on every card.
-
-                                Not on the open batch: the rule above it already says what it is, and a
-                                batch that has not been quoted has no step behind it to report. The empty
-                                slot stays, so its buttons line up with every card below it.
-                            -->
-                            <div class="flex justify-end w-24 mr-1 shrink-0">
-                                <StagePill v-if="batch.id !== null" :stage="batch.stage" />
-                            </div>
-
                             <!--
                                 Everything on the batch, read-only and across all of its projects.
                                 CardButtonYellow is itself the button, so the click goes straight on it.

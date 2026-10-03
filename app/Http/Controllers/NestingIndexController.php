@@ -129,7 +129,7 @@ class NestingIndexController extends Controller
         $batches[] = [
             'id' => null,
             'stage' => 'NESTING',
-            //The day this card's steel has to be on site by, which every card on the page carries
+            //The day this card's steel has to be at the workshop, which every card on the page carries
             'materialsRequiredDate' => $pendingRequiredDate,
             //And the day this card, where it has got to, has to move on by - see criticalPathDeadline()
             'criticalPathDeadline' => $this->criticalPathDeadline($pendingRequiredDate, 'NESTING', $business),
@@ -393,7 +393,7 @@ class NestingIndexController extends Controller
     }
 
     /**
-     * The day this card's material has to be on site by.
+     * The day this card's material has to be at the workshop.
      *
      * The earliest fabrication start among the jobs on it, less one working day: the steel has to be
      * in the shop before the saw starts, and a job starting on the Monday wants it there on the
@@ -434,7 +434,7 @@ class NestingIndexController extends Controller
      * A batch being quoted owes the quoting time and the delivery time both - it is being priced now,
      * so none of the quoting is behind it - where one already bought owes the delivery alone, and on
      * the same required-by date those two are days apart. The pill is coloured off the difference
-     * between this day and today (DeliveryDuePill), so a column of cards reads as how each one is
+     * between this day and today (RequiredByPill), so a column of cards reads as how each one is
      * tracking against its own remaining work rather than as a row of dates all counting down to the
      * same morning.
      *
@@ -450,9 +450,11 @@ class NestingIndexController extends Controller
      * to this business, so the answer is the same for all of them, and asking per project is a walk
      * back through each one's manager to the same two columns.
      *
-     * Whole days rather than working days, matching Project's three deadlines, which are what the
-     * notifications count back from. Only the required-by date steps over the weekend, because it is
-     * the one of these dates that names a delivery somebody has to be at the yard to take.
+     * Working days, matching Project's deadlines and the required-by date this counts back from. A
+     * merchant does not price over the weekend and does not deliver on a Sunday, so counting these
+     * as calendar days spent the shop's weekend on the merchant's behalf and made every card two
+     * days optimistic once a week. Carbon::subWeekdays steps over it; a figure of zero leaves the
+     * date alone, which is the shop that collects off the rack the morning it needs the steel.
      *
      * Null for a card with nothing left to chase, which draws on time:
      *
@@ -489,7 +491,7 @@ class NestingIndexController extends Controller
         }
 
         return Carbon::parse($requiredDate)
-            ->subDays($daysStillToSpend)
+            ->subWeekdays($daysStillToSpend)
             ->toDateString();
     }
 

@@ -10,8 +10,8 @@
      * fabrication deadline warnings email and bell whoever's job starts first on the day.
      *
      * The board's Nesting card is the one place it is drawn. The Nesting page's cards print the
-     * deadline the work has instead - the day the steel is wanted on site, one working day before
-     * fabrication starts (DeliveryDuePill) - which is days later and about a different thing: this is
+     * deadline the work has instead - the day the steel is wanted at the workshop, one working day before
+     * fabrication starts (RequiredByPill) - which is days later and about a different thing: this is
      * the last day to press the button, that is the day the material has to be there.
      *
      * The date itself is always computed server side, off the constant the warnings actually use
