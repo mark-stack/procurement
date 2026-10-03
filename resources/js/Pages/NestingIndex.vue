@@ -216,7 +216,7 @@
     }
 
     /*
-     * The Order list button's second line: how many blocks that list comes in.
+     * The Material order button's second line: how many blocks that list comes in.
      *
      * Supplier categories - steel merchant, timber merchant, fasteners - not the product categories
      * inside them, because each block is a different merchant to send a list to, and that is the work
@@ -272,7 +272,7 @@
         /*
          * A batch with no job on it at all falls back to its number. Nothing in the app makes one -
          * every batch is nested out of projects - but a card has to say something, and a blank heading
-         * on a card carrying BOM and Order list buttons would read as a broken page.
+         * on a card carrying BOM and Material order buttons would read as a broken page.
          */
         return projectNames(headedProjects(batch)) || ('Batch #' + batch.id);
     }
@@ -326,12 +326,18 @@
      *  - NESTING has no batch to ask for yet, so suggested-nesting re-nests everything waiting.
      *  - A live batch opens its own saved nest, closing back to the board (KanbanMinimalCard).
      *
+     * Both the printable sheet, which is the "1" on the end of each: every card on this page is a
+     * batch read end to end - its material list, its order list, its nest - and the modal the board
+     * opens is a card-sized read of one batch in the middle of a board. The open batch's sheet is
+     * stamped DO NOT CUT, its nest being a suggestion until quoting saves one; see
+     * SuggestedNestingController.
+     *
      * Always "current", there being no finished batch on this page to close back to /past-projects -
      * those are read from /past-projects itself. See NestingIndexController.
      */
     function nestingHref(batch) {
         if (batch.stage === 'NESTING') {
-            return route('suggested.nesting');
+            return route('suggested.nesting', [1]);
         }
 
         return route('batch.nesting', [batch.id, 'current', 1]);
@@ -817,14 +823,14 @@
                                 @click="showBom(batch)"
                             />
 
-                            <!-- What to buy, the way the supplier emails word it -->
+                            <!-- What to buy, the way the supplier emails word it - and how each order is going -->
                             <CardButtonYellow
-                                label="Order list"
+                                label="Material order"
                                 :sublabel="categoryLabel(batch)"
                                 :disabled="isEmptyOpenBatch(batch)"
                                 :title="isEmptyOpenBatch(batch)
                                     ? 'Nothing is waiting on the open batch yet'
-                                    : 'The stock lengths this batch\'s nest needs, by supplier group'"
+                                    : 'What this batch\'s nest needs from each merchant, with their certificates and deliveries'"
                                 class="w-32"
                                 @click="showOrderList(batch)"
                             />

@@ -320,21 +320,21 @@ CHS 1050nb (Ø1067.0x12.7) 9m,CHS,PLAIN_CARBON_STEEL,GR350,NONE,METERAGE,TRUE,MI
 CHS 1050nb (Ø1067.0x12.7) 12m,CHS,PLAIN_CARBON_STEEL,GR350,NONE,METERAGE,TRUE,MILLIMETERS,12000,,1050,1067.0,,,12.7,1,,,330.19,
 ,,,,,,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,
-LVL 11 H2 100x63 termiSPAN Bearer,LVL,TIMBER,,TREATED_H2,METERAGE,TRUE,MILLIMETERS,3000,,63,,100,,,1,,,,https://canterburytimbers.com.au/buy/lvl-11-h2-100x63-termispan-bearer/
-LVL 11 H2 100x63 termiSPAN Bearer,LVL,TIMBER,,TREATED_H2,METERAGE,TRUE,MILLIMETERS,3600,,63,,100,,,1,,,,https://canterburytimbers.com.au/buy/lvl-11-h2-100x63-termispan-bearer/
-LVL 11 H2 100x63 termiSPAN Bearer,LVL,TIMBER,,TREATED_H2,METERAGE,TRUE,MILLIMETERS,4200,,63,,100,,,1,,,,https://canterburytimbers.com.au/buy/lvl-11-h2-100x63-termispan-bearer/
-LVL 11 H2 100x63 termiSPAN Bearer,LVL,TIMBER,,TREATED_H2,METERAGE,TRUE,MILLIMETERS,4800,,63,,100,,,1,,,,https://canterburytimbers.com.au/buy/lvl-11-h2-100x63-termispan-bearer/
-LVL 11 H2 100x63 termiSPAN Bearer,LVL,TIMBER,,TREATED_H2,METERAGE,TRUE,MILLIMETERS,5400,,63,,100,,,1,,,,https://canterburytimbers.com.au/buy/lvl-11-h2-100x63-termispan-bearer/
-LVL 11 H2 100x63 termiSPAN Bearer,LVL,TIMBER,,TREATED_H2,METERAGE,TRUE,MILLIMETERS,6000,,63,,100,,,1,,,,https://canterburytimbers.com.au/buy/lvl-11-h2-100x63-termispan-bearer/
-LVL 11 H2 100x63 termiSPAN Bearer,LVL,TIMBER,,TREATED_H2,METERAGE,TRUE,MILLIMETERS,7200,,63,,100,,,1,,,,https://canterburytimbers.com.au/buy/lvl-11-h2-100x63-termispan-bearer/
+LVL 11 H2 100x63 termiSPAN Bearer,LVL,TIMBER,,TREATED_H2,METERAGE,FALSE,MILLIMETERS,3000,,63,,100,,,1,,,,https://canterburytimbers.com.au/buy/lvl-11-h2-100x63-termispan-bearer/
+LVL 11 H2 100x63 termiSPAN Bearer,LVL,TIMBER,,TREATED_H2,METERAGE,FALSE,MILLIMETERS,3600,,63,,100,,,1,,,,https://canterburytimbers.com.au/buy/lvl-11-h2-100x63-termispan-bearer/
+LVL 11 H2 100x63 termiSPAN Bearer,LVL,TIMBER,,TREATED_H2,METERAGE,FALSE,MILLIMETERS,4200,,63,,100,,,1,,,,https://canterburytimbers.com.au/buy/lvl-11-h2-100x63-termispan-bearer/
+LVL 11 H2 100x63 termiSPAN Bearer,LVL,TIMBER,,TREATED_H2,METERAGE,FALSE,MILLIMETERS,4800,,63,,100,,,1,,,,https://canterburytimbers.com.au/buy/lvl-11-h2-100x63-termispan-bearer/
+LVL 11 H2 100x63 termiSPAN Bearer,LVL,TIMBER,,TREATED_H2,METERAGE,FALSE,MILLIMETERS,5400,,63,,100,,,1,,,,https://canterburytimbers.com.au/buy/lvl-11-h2-100x63-termispan-bearer/
+LVL 11 H2 100x63 termiSPAN Bearer,LVL,TIMBER,,TREATED_H2,METERAGE,FALSE,MILLIMETERS,6000,,63,,100,,,1,,,,https://canterburytimbers.com.au/buy/lvl-11-h2-100x63-termispan-bearer/
+LVL 11 H2 100x63 termiSPAN Bearer,LVL,TIMBER,,TREATED_H2,METERAGE,FALSE,MILLIMETERS,7200,,63,,100,,,1,,,,https://canterburytimbers.com.au/buy/lvl-11-h2-100x63-termispan-bearer/
 ,,,,,,,,,,,,,,,,,,,
-LVL E13 90X63 h2 3m,LVL,TIMBER,E13,TREATED_H2,METERAGE,TRUE,MILLIMETERS,3000,,63,,90,,,1,,,,https://canterburytimbers.com.au/buy/lvl-e13-90x63-h2/
-LVL E13 90X63 h2 3.6m,LVL,TIMBER,E13,TREATED_H2,METERAGE,TRUE,MILLIMETERS,3600,,63,,90,,,1,,,,https://canterburytimbers.com.au/buy/lvl-e13-90x63-h2/
-LVL E13 90X63 h2 4.2m,LVL,TIMBER,E13,TREATED_H2,METERAGE,TRUE,MILLIMETERS,4200,,63,,90,,,1,,,,https://canterburytimbers.com.au/buy/lvl-e13-90x63-h2/
-LVL E13 90X63 h2 4.8m,LVL,TIMBER,E13,TREATED_H2,METERAGE,TRUE,MILLIMETERS,4800,,63,,90,,,1,,,,https://canterburytimbers.com.au/buy/lvl-e13-90x63-h2/
-LVL E13 90X63 h2 5.4m,LVL,TIMBER,E13,TREATED_H2,METERAGE,TRUE,MILLIMETERS,5400,,63,,90,,,1,,,,https://canterburytimbers.com.au/buy/lvl-e13-90x63-h2/
-LVL E13 90X63 h2 6m,LVL,TIMBER,E13,TREATED_H2,METERAGE,TRUE,MILLIMETERS,6000,,63,,90,,,1,,,,https://canterburytimbers.com.au/buy/lvl-e13-90x63-h2/
-LVL E13 90X63 h2 7.2,LVL,TIMBER,E13,TREATED_H2,METERAGE,TRUE,MILLIMETERS,7200,,63,,90,,,1,,,,https://canterburytimbers.com.au/buy/lvl-e13-90x63-h2/
+LVL E13 90X63 h2 3m,LVL,TIMBER,E13,TREATED_H2,METERAGE,FALSE,MILLIMETERS,3000,,63,,90,,,1,,,,https://canterburytimbers.com.au/buy/lvl-e13-90x63-h2/
+LVL E13 90X63 h2 3.6m,LVL,TIMBER,E13,TREATED_H2,METERAGE,FALSE,MILLIMETERS,3600,,63,,90,,,1,,,,https://canterburytimbers.com.au/buy/lvl-e13-90x63-h2/
+LVL E13 90X63 h2 4.2m,LVL,TIMBER,E13,TREATED_H2,METERAGE,FALSE,MILLIMETERS,4200,,63,,90,,,1,,,,https://canterburytimbers.com.au/buy/lvl-e13-90x63-h2/
+LVL E13 90X63 h2 4.8m,LVL,TIMBER,E13,TREATED_H2,METERAGE,FALSE,MILLIMETERS,4800,,63,,90,,,1,,,,https://canterburytimbers.com.au/buy/lvl-e13-90x63-h2/
+LVL E13 90X63 h2 5.4m,LVL,TIMBER,E13,TREATED_H2,METERAGE,FALSE,MILLIMETERS,5400,,63,,90,,,1,,,,https://canterburytimbers.com.au/buy/lvl-e13-90x63-h2/
+LVL E13 90X63 h2 6m,LVL,TIMBER,E13,TREATED_H2,METERAGE,FALSE,MILLIMETERS,6000,,63,,90,,,1,,,,https://canterburytimbers.com.au/buy/lvl-e13-90x63-h2/
+LVL E13 90X63 h2 7.2,LVL,TIMBER,E13,TREATED_H2,METERAGE,FALSE,MILLIMETERS,7200,,63,,90,,,1,,,,https://canterburytimbers.com.au/buy/lvl-e13-90x63-h2/
 ,,,,,,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,,,
 6PL 2400x6000 GR250,PLATE,PLAIN_CARBON_STEEL,GR250,NONE,AREA,TRUE,MILLIMETERS,6000,,2400,,6,,,1,,,47.1,https://www.southernsteel.com.au/wp-content/uploads/2023/03/Southern-Steel-Supplies-Steel-Reference-Guide-Apr-2023-Rev-4.pdf

@@ -302,6 +302,39 @@ it('would be a disaster if a batch containing bolts took the print friendly page
         ->and($bolts['nested'])->not->toHaveKey('bestResultOffcuts');
 });
 
+it('would be a disaster if the open batch\'s nesting sheet did not say it must not be cut', function () {
+    /**
+     * /nesting opens every card's nest on the printable sheet, the open batch included. That nest is
+     * worked out again on every load and is thrown away when quoting saves its own, so a sheet off
+     * that page taken to the saw would be cutting to a plan that no longer exists - hence the stamp.
+     *
+     * The board asks for the same nest without a "print" and still gets the modal, which is what the
+     * optional parameter is protecting.
+     */
+    $business = createBusiness('biz');
+    $user = createUser(1, $business, false, true);
+    $this->actingAs($user);
+
+    //The board's way in
+    $this->get(route('suggested.nesting'))
+        ->assertStatus(200)
+        ->assertInertia(fn (Assert $page) => $page->component('QuoteIndex'));
+
+    //And /nesting's, which is the sheet a live batch prints
+    $this->get(route('suggested.nesting', [1]))
+        ->assertStatus(200)
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('NestingPrintFriendly')
+            //No batch row behind it: no number to print, nobody generated it, nothing bought against it
+            ->where('batch', null)
+            ->where('watermark', 'Do not cut')
+            ->etc()
+        );
+
+    //And anything else in that slot is a 404, not a 500
+    $this->get('/suggested-nesting/abc')->assertStatus(404);
+});
+
 it('would be a disaster if a mistyped batch nesting url returned a 500 instead of a 404', function () {
     $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);

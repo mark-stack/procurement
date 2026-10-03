@@ -1,8 +1,10 @@
 <?php
 
+use App\Enums\GoodsReceiptNonconformanceEnums;
 use App\Formatters\NestingFormatter;
 use App\Formatters\SupplierFormatter;
 use App\Models\Batch;
+use App\Models\MaterialCertificate;
 use App\Models\Order;
 use App\Models\Piece;
 use App\Models\Project;
@@ -847,6 +849,196 @@ it('says on the order list which supplier groups have been ordered, and under wh
 
     expect($steel['ordered'])->toBeTrue()
         ->and($steel['purchaseOrderNumber'])->toBe('PO-4471');
+});
+
+it("hands the order list each group's mill certificates, and says which groups come with one at all", function () {
+    /*
+     * The block's third pill. Whether a group is certificated is products.certificates - the flag the
+     * BOM's certificate column already reads - so timber and fasteners show nothing rather than a pill
+     * that will never be satisfied. The files are links, not contents: they live on the private disk.
+     */
+    [$business, $user, $batch] = nestedBatch([[2500, 5], [1500, 2]]);
+
+    [, $order] = quoteAndOrder($user, $batch, orderSent: true);
+
+    $this->actingAs($user);
+
+    $this->withoutExceptionHandling();
+    $orderList = $this->getJson(route('batch.order.list', $batch))->assertOk()->json('orderList');
+
+    $steel = collect($orderList['groups'])->firstWhere('supplierGroup', 'STEEL_MERCHANT');
+
+    expect($steel['certificated'])->toBeTrue()
+        ->and($steel['certificates'])->toBe([]);
+
+    $certificate = MaterialCertificate::factory()->forOrder($order->id)->create([
+        'user_id' => $user->id,
+        'original_filename' => 'heat-74412.pdf',
+    ]);
+
+    $orderList = $this->getJson(route('batch.order.list', $batch))->assertOk()->json('orderList');
+
+    $steel = collect($orderList['groups'])->firstWhere('supplierGroup', 'STEEL_MERCHANT');
+
+    expect($steel['certificates'])->toHaveCount(1)
+        ->and($steel['certificates'][0]['filename'])->toBe('heat-74412.pdf')
+        ->and($steel['certificates'][0]['url'])
+        ->toBe(route('material.certificates.download', $certificate));
+});
+
+it('shows the certificate a buyer attached before placing the order', function () {
+    /*
+     * Ordered and certificated are different questions asked of different rows. A certificate can go
+     * on while the order is still a draft, and a block that holds the file but says "No mill cert"
+     * sends somebody chasing the merchant for something already filed.
+     */
+    [$business, $user, $batch] = nestedBatch([[2500, 5], [1500, 2]]);
+
+    [, $order] = quoteAndOrder($user, $batch, orderSent: false);
+
+    MaterialCertificate::factory()->forOrder($order->id)->create(['user_id' => $user->id]);
+
+    $this->actingAs($user);
+
+    $this->withoutExceptionHandling();
+    $orderList = $this->getJson(route('batch.order.list', $batch))->assertOk()->json('orderList');
+
+    $steel = collect($orderList['groups'])->firstWhere('supplierGroup', 'STEEL_MERCHANT');
+
+    expect($steel['ordered'])->toBeFalse()
+        ->and($steel['certificates'])->toHaveCount(1);
+});
+
+it("says on the order list what the goods receipt recorded, and whether the load was accepted", function () {
+    /*
+     * The block's fourth pill, and the record behind it. Ordering is only half of buying: the question
+     * read off this list a week later is whether the steel turned up and whether anybody looked at it,
+     * which is what ISO 9001 8.6 asks and what the quotes/orders receipt panel writes.
+     *
+     * Accepted is not the two checks on their own - a recorded nonconformance fails the delivery
+     * whatever they say, because steel can be the right grade and the right count and still arrive bent.
+     */
+    [$business, $user, $batch] = nestedBatch([[2500, 5], [1500, 2]]);
+
+    [, $order] = quoteAndOrder($user, $batch, orderSent: true);
+
+    $this->actingAs($user);
+
+    $this->withoutExceptionHandling();
+    $orderList = $this->getJson(route('batch.order.list', $batch))->assertOk()->json('orderList');
+
+    $steel = collect($orderList['groups'])->firstWhere('supplierGroup', 'STEEL_MERCHANT');
+
+    //Ordered and still owed: nothing booked in, and nothing pretending to have been
+    expect($steel['goodsReceipt']['received'])->toBeFalse()
+        ->and($steel['goodsReceipt']['deliveredWithoutReceipt'])->toBeFalse()
+        ->and($steel['goodsReceipt'])->not->toHaveKey('received_at');
+
+    $order->update([
+        'is_delivered' => true,
+        'received_at' => now(),
+        'received_by_user_id' => $user->id,
+        'delivery_docket_number' => 'DN-884213',
+        'quantity_verified' => true,
+        'grade_verified' => false,
+        'receipt_nonconformance' => GoodsReceiptNonconformanceEnums::WRONG_GRADE->value,
+        'receipt_note' => 'GR250 came instead of GR300',
+    ]);
+
+    $orderList = $this->getJson(route('batch.order.list', $batch))->assertOk()->json('orderList');
+
+    $steel = collect($orderList['groups'])->firstWhere('supplierGroup', 'STEEL_MERCHANT');
+
+    expect($steel['goodsReceipt']['received'])->toBeTrue()
+        ->and($steel['goodsReceipt']['accepted'])->toBeFalse()
+        ->and($steel['goodsReceipt']['received_at'])->not->toBeNull()
+        ->and($steel['goodsReceipt']['received_by'])->toBe($user->name)
+        ->and($steel['goodsReceipt']['docket_number'])->toBe('DN-884213')
+        ->and($steel['goodsReceipt']['quantity_verified'])->toBeTrue()
+        ->and($steel['goodsReceipt']['grade_verified'])->toBeFalse()
+        //The enum's label rather than its stored value: this is read, not matched on
+        ->and($steel['goodsReceipt']['nonconformance'])->toBe('Wrong grade or material')
+        ->and($steel['goodsReceipt']['note'])->toBe('GR250 came instead of GR300');
+});
+
+it('tells a delivery nobody checked apart from one marked as arrived with no receipt at all', function () {
+    /*
+     * Two states that both fall short of an accepted delivery and are not the same thing. A receipt
+     * with the checks unanswered is a record somebody wrote; a delivery ticked before the receipt
+     * columns existed has no date, no name and nothing to open - and it cannot be filled in afterwards,
+     * so the list says so rather than drawing an empty receipt.
+     */
+    [$business, $user, $batch] = nestedBatch([[2500, 5], [1500, 2]]);
+
+    [, $order] = quoteAndOrder($user, $batch, orderSent: true);
+
+    //Booked in, with neither check answered
+    $order->update([
+        'is_delivered' => true,
+        'received_at' => now(),
+        'received_by_user_id' => $user->id,
+    ]);
+
+    $this->actingAs($user);
+
+    $this->withoutExceptionHandling();
+    $orderList = $this->getJson(route('batch.order.list', $batch))->assertOk()->json('orderList');
+
+    $steel = collect($orderList['groups'])->firstWhere('supplierGroup', 'STEEL_MERCHANT');
+
+    expect($steel['goodsReceipt']['received'])->toBeTrue()
+        //Null, not false: an unanswered check is not a failed one
+        ->and($steel['goodsReceipt']['accepted'])->toBeNull()
+        ->and($steel['goodsReceipt']['quantity_verified'])->toBeNull()
+        ->and($steel['goodsReceipt']['deliveredWithoutReceipt'])->toBeFalse();
+
+    //The old way: the flag on its own
+    $order->update(['received_at' => null, 'received_by_user_id' => null]);
+
+    $orderList = $this->getJson(route('batch.order.list', $batch))->assertOk()->json('orderList');
+
+    $steel = collect($orderList['groups'])->firstWhere('supplierGroup', 'STEEL_MERCHANT');
+
+    expect($steel['goodsReceipt']['received'])->toBeFalse()
+        ->and($steel['goodsReceipt']['deliveredWithoutReceipt'])->toBeTrue()
+        ->and($steel['goodsReceipt']['accepted'])->toBeNull();
+});
+
+it('has no goods receipt to show for a merchant nobody has ordered from', function () {
+    /*
+     * A receipt can only be written against a placed order, so the unsent row that exists because
+     * somebody opened the quotes/orders modal has nothing to say about a delivery - and "not received"
+     * beside "Not ordered" is the same sentence twice. The certificates are the other way round, and
+     * deliberately: one can be attached before the order goes out.
+     */
+    [$business, $user, $batch] = nestedBatch([[2500, 5], [1500, 2]]);
+
+    quoteAndOrder($user, $batch, orderSent: false);
+
+    $this->actingAs($user);
+
+    $this->withoutExceptionHandling();
+    $orderList = $this->getJson(route('batch.order.list', $batch))->assertOk()->json('orderList');
+
+    $steel = collect($orderList['groups'])->firstWhere('supplierGroup', 'STEEL_MERCHANT');
+
+    expect($steel['ordered'])->toBeFalse()
+        ->and($steel['goodsReceipt'])->toBeNull();
+});
+
+it('does not ask a timber merchant for a mill certificate', function () {
+    /*
+     * LVL arrived from the spreadsheet flagged for certificates along with every other meterage
+     * product. Timber does not come with a mill cert, so the flag was wrong, and this is what stops it
+     * coming back - the Order list and the BOM both read it.
+     */
+    test()->actingAs(createUser(1, createBusiness('admin'), true, true));
+    seedMasterMaterials();
+
+    $certificated = (new NestingFormatter)->getCertificateProductLabels();
+
+    expect($certificated)->toContain('UB')
+        ->and($certificated)->not->toContain('LVL');
 });
 
 it('calls a group ordered on the strength of the sent order, not the PO number somebody has yet to type', function () {
