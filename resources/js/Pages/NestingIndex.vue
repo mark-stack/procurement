@@ -10,7 +10,7 @@
     import CardButtonYellow from "@/Components/Buttons/CardButtonYellow.vue";
     import Dropdown from "@/Components/Dropdown.vue";
     import StagePill from "@/Components/StagePill.vue";
-    import RequiredByPill from "@/Components/RequiredByPill.vue";
+    import DeliveryDuePill from "@/Components/DeliveryDuePill.vue";
     import PageLoadingOverlay from "@/Components/PageLoadingOverlay.vue";
     import BatchBomModal from "@/Components/Modals/BatchBomModal.vue";
     import BatchCertificatesModal from "@/Components/Modals/BatchCertificatesModal.vue";
@@ -878,12 +878,12 @@
      * The same component and the same PUT to projects.update, because it is the same job: a second
      * rename form is a second place for the name rules to be half-applied. The one thing this page
      * adds is where it is opened from, which is the point of the pencil - the fabrication date is what
-     * decides when this batch's steel has to be on site (see RequiredByPill) and when it has to stop
+     * decides when this batch's steel has to be on site (see DeliveryDuePill) and when it has to stop
      * waiting and be quoted, and until now reading that date here meant going to the board to change it.
      *
      * The card's project is what the modal is handed, which is why those fields are on it - see
      * NestingIndexController::projectCards(). Saving lands back on this page, so the heading, the
-     * hover list and the "Required by" date all redraw with the new values; there is nothing to reload.
+     * hover list and the "Delivery due" date all redraw with the new values; there is nothing to reload.
      */
     function editProjectMode(project) {
         newProjectBomData.value = null;
@@ -1144,12 +1144,12 @@
                                 is still going to make that date. The deadline it is held to depends on
                                 how much of the critical path it has left to spend - the server works
                                 that out off the business's lead times and sends it alongside. Green on
-                                track, amber a day behind, red two or more. See RequiredByPill.
+                                track, amber a day behind, red two or more. See DeliveryDuePill.
 
                                 A delivered or cut batch keeps its date and reads green: its steel is
                                 in, so it is off the path rather than late for it.
                             -->
-                            <RequiredByPill
+                            <DeliveryDuePill
                                 :date="batch.materialsRequiredDate"
                                 :deadline="batch.criticalPathDeadline"
                                 :done="['DELIVERED', 'CUT'].includes(batch.stage)"

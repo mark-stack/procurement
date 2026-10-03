@@ -437,7 +437,7 @@ it('tells the pending card the day it stops being pending', function () {
 
 it('prints the day each card\'s material is wanted on site, a working day before fabrication', function () {
     /*
-     * The "Required by" date, which every card on the page carries rather than only the one that has
+     * The "Delivery due" date, which every card on the page carries rather than only the one that has
      * not been nested yet. It is a fact about the work, not about a batch's progress: the steel has to
      * be in the shop before the saw starts, and that is as true of a batch already out with the
      * merchants as of one still waiting.
@@ -486,11 +486,10 @@ it('prints the day each card\'s material is wanted on site, a working day before
 
 it('counts each card\'s deadline back from the work that card still has left to do', function () {
     /*
-     * The colour of the "Required by" pill, which is the half of it that is not the same on every
+     * The colour of the "Delivery due" pill, which is the half of it that is not the same on every
      * card. The date says when the steel is wanted; the deadline sent beside it says when *this*
-     * batch has to have moved on to still make that date, and the two are days apart because a batch
-     * still waiting to be quoted owes the whole critical path and one already bought owes only the
-     * delivery half of it.
+     * batch had to have reached the step it is on to still make that date, and the two are days apart
+     * because the step is read as the work in front of the batch rather than the work behind it.
      *
      * Asserted as dates rather than as a colour: the colour is the difference between this day and
      * today, and a test that counted off today would pass tomorrow by saying nothing.
@@ -521,26 +520,65 @@ it('counts each card\'s deadline back from the work that card still has left to 
         ->assertInertia(fn (Assert $page) => $page
             ->has('batches', 2)
             /*
-             * Nothing done yet, so the quoting and the delivery both still have to come out of the
+             * Nothing priced yet, so the quoting and the delivery both still have to come out of the
              * 3rd: five days back off it.
              */
             ->where('batches.0.stage', 'NESTING')
             ->where('batches.0.materialsRequiredDate', '2026-11-03')
             ->where('batches.0.criticalPathDeadline', '2026-10-29')
-            //Already out for prices, so only the delivery is left to find: three days back
+            /*
+             * And the same five for a batch out with the merchants, which is the point of this pair:
+             * a batch being priced is doing the quoting now, so none of the quoting time is behind it
+             * and the card owes every day of the path that a batch still waiting owes.
+             */
             ->where('batches.1.id', $quoting->id)
             ->where('batches.1.stage', 'QUOTING')
+            ->where('batches.1.materialsRequiredDate', '2026-11-03')
+            ->where('batches.1.criticalPathDeadline', '2026-10-29')
+        );
+});
+
+it('drops the quoting time off the deadline once the prices are in, and not before', function () {
+    /*
+     * QUOTED is the first step with the quoting actually behind it - every merchant has priced, and
+     * what is left is to place the order and wait for the steel. So the deadline loses the quoting
+     * half of the path and keeps the delivery: three days back off the required-by date rather than
+     * five.
+     *
+     * The step either side of it is what gives this its edges. QUOTING still owes five (above),
+     * because a batch being priced has not finished being priced; ORDERED still owes three (below),
+     * because buying the steel is a press rather than a lead time.
+     */
+    test()->actingAs(createUser(1, createBusiness('admin'), true, true));
+    seedMasterMaterials();
+
+    $business = createBusiness('fabricator');
+    $user = createUser(1, $business, false, true);
+
+    $project = nestingPageProject($user, '2026-11-04');
+    //Marked quoted off the card menu, which is one of the two ways a card reads QUOTED - see milestoneOf()
+    $batch = Batch::factory()->forUser($user->id)->create(['done' => false, 'quoted_at' => now()]);
+    Piece::query()->where('project_id', $project->id)->update(['batch_id' => $batch->id]);
+
+    $this->actingAs($user);
+
+    $this->withoutExceptionHandling();
+    $this->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('batches.1.id', $batch->id)
+            ->where('batches.1.stage', 'QUOTED')
             ->where('batches.1.materialsRequiredDate', '2026-11-03')
             ->where('batches.1.criticalPathDeadline', '2026-10-31')
         );
 });
 
-it('holds a batch that has been bought outright to the day the steel is wanted', function () {
+it('still owes the delivery on a batch that has been bought outright', function () {
     /*
-     * ORDERED is the last step with a deadline left on it. There is nothing to do but wait for the
-     * delivery, so the day it owes is the required-by date itself rather than any day short of it -
-     * and a bought batch reads green right up to the morning the steel is due, which is the honest
-     * answer: nobody can make it come sooner.
+     * ORDERED is bought and waiting, which is not the same as arrived: the steel still takes the
+     * delivery lead time to turn up, so the batch had to have been bought that many days before it
+     * is wanted. Holding it to the required-by date itself would have the card call a batch ordered
+     * the day before its steel is due on time, when it is two days late and nothing can be done.
      */
     test()->actingAs(createUser(1, createBusiness('admin'), true, true));
     seedMasterMaterials();
@@ -562,7 +600,7 @@ it('holds a batch that has been bought outright to the day the steel is wanted',
             ->where('batches.1.id', $batch->id)
             ->where('batches.1.stage', 'ORDERED')
             ->where('batches.1.materialsRequiredDate', '2026-11-03')
-            ->where('batches.1.criticalPathDeadline', '2026-11-03')
+            ->where('batches.1.criticalPathDeadline', '2026-10-31')
         );
 });
 
@@ -649,9 +687,10 @@ it('counts the deadline back from the business\'s own lead times, not the platfo
      * so a shop that gets prices back the same afternoon and collects off the merchant's rack is
      * chased on its own schedule rather than on the platform's 2 and 3.
      *
-     * One day to quote and none to deliver here, which is the shop that collects: the open batch owes
-     * a single day, and a batch already out for prices owes nothing - its deadline is the required-by
-     * date itself.
+     * One day to quote and none to deliver here, which is the shop that collects off the merchant's
+     * rack: a batch still being priced owes that single day, and one already priced owes nothing at
+     * all - its deadline is the required-by date itself, because it can be fetched the morning it is
+     * wanted. Both halves of the business's figures are read, and neither is the platform's 2 and 3.
      */
     test()->actingAs(createUser(1, createBusiness('admin'), true, true));
     seedMasterMaterials();
@@ -663,6 +702,12 @@ it('counts the deadline back from the business\'s own lead times, not the platfo
 
     nestingPageProject($user, '2026-11-04');
 
+    //Priced already, so it owes the delivery alone - which this business does not have
+    $quoted = Batch::factory()->forUser($user->id)->create(['done' => false, 'quoted_at' => now()]);
+    $priced = nestingPageProject($user, '2026-11-04');
+    Piece::query()->where('project_id', $priced->id)->update(['batch_id' => $quoted->id]);
+
+    //And still out for prices, so it owes the quoting day. Created second, so it cards first
     $quoting = Batch::factory()->forUser($user->id)->create(['done' => false]);
     $outForPricing = nestingPageProject($user, '2026-11-04');
     Piece::query()->where('project_id', $outForPricing->id)->update(['batch_id' => $quoting->id]);
@@ -677,7 +722,10 @@ it('counts the deadline back from the business\'s own lead times, not the platfo
             ->where('batches.0.criticalPathDeadline', '2026-11-02')
             ->where('batches.1.id', $quoting->id)
             ->where('batches.1.stage', 'QUOTING')
-            ->where('batches.1.criticalPathDeadline', '2026-11-03')
+            ->where('batches.1.criticalPathDeadline', '2026-11-02')
+            ->where('batches.2.id', $quoted->id)
+            ->where('batches.2.stage', 'QUOTED')
+            ->where('batches.2.criticalPathDeadline', '2026-11-03')
         );
 });
 

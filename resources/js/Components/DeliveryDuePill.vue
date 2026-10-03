@@ -16,8 +16,10 @@
      *
      * The date is the same fact on every card. The colour is not: it is how this batch is tracking
      * against the work it still owes, which is the critical path less whatever it has already done.
-     * A batch still waiting to be quoted has the quoting time and the delivery time to find, one
-     * already bought has only the delivery time, and on the same required-by date those two are days
+     * A batch that has not been priced yet has the quoting time and the delivery time still to find -
+     * one being priced right now included, the quoting being its work in hand rather than work behind
+     * it - where a batch already priced has only the delivery, and on the same required-by date those
+     * two are days
      * apart - so the card still waiting goes red first, and does so while there is still time to do
      * something about it. The deadline each is held to is worked out server side, off the business's
      * own lead times; see NestingIndexController::criticalPathDeadline().
@@ -48,16 +50,6 @@
     });
 
     //Variables
-    /**
-     * The short day names the pill prints, indexed the way moment numbers the days (Sunday is 0).
-     *
-     * Written out here rather than taken from moment's 'ddd', which abbreviates every day to three
-     * letters flat and so spells Thursday "Thu" - which is not how anybody writing on a job sheet
-     * shortens it. Spelling it is cheaper than re-registering moment's locale, which would change
-     * every other date on the application to suit this one pill.
-     */
-    const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thurs', 'Fri', 'Sat'];
-
     //The date spelled out, which the pill no longer prints but its tooltip always does - see title
     const exactDate = computed(() => props.date
         ? moment(props.date).format("D MMM YY")
@@ -69,16 +61,20 @@
         : null);
 
     /**
-     * That day said the way somebody in the shop would say it: "next Wed" rather than "14 Oct 26".
+     * That day said the way somebody in the shop would say it: "next Thursday", not "14 Oct 26".
      *
      * A card is read to decide what to do this week, and a calendar date has to be worked out before
      * it answers that - "14 Oct 26 (10d)" was the page printing the arithmetic and leaving the
      * reading to whoever was looking. The day name is the thing being asked for.
      *
+     * Written out in full rather than abbreviated. The pill carries one short line and has the room,
+     * and a day is read quicker whole than as three letters somebody has to expand - moment's own
+     * abbreviations would also spell Thursday "Thu", which is not how it is written on a job sheet.
+     *
      * Counted in days rather than off week boundaries, which is what keeps it unambiguous: each
      * weekday name falls exactly once in any seven-day window, so the coming Wednesday is the only
-     * Wednesday "Wed" can mean and the one after it the only "next Wed" - whatever day of the week
-     * it happens to be read on, and without depending on which day moment's locale starts a week on.
+     * Wednesday "Wednesday" can mean and the one after it the only "next Wednesday" - whatever day
+     * it is read on, and without depending on the day moment's locale starts a week on.
      *
      * Past a fortnight either way the day name stops helping - nobody counts three Wednesdays ahead -
      * so it falls back to the date, with the year on it only when it is not this one.
@@ -103,15 +99,15 @@
         }
 
         if (days.value >= 2 && days.value <= 6) {
-            return DAY_NAMES[day.day()];
+            return day.format('dddd');
         }
 
         if (days.value >= 7 && days.value <= 13) {
-            return `next ${DAY_NAMES[day.day()]}`;
+            return `next ${day.format('dddd')}`;
         }
 
         if (days.value <= -2 && days.value >= -6) {
-            return `last ${DAY_NAMES[day.day()]}`;
+            return `last ${day.format('dddd')}`;
         }
 
         return day.year() === moment().year()
@@ -140,8 +136,8 @@
     /*
      * The tooltip spells the date out, the pill having stopped doing so.
      *
-     * "next Wed" is the right thing to read at a glance and the wrong thing to write a delivery date
-     * into an order off, so the day it actually means is always one hover away.
+     * "next Thursday" is the right thing to read at a glance and the wrong thing to write a delivery
+     * date into an order off, so the day it actually means is always one hover away.
      */
     const title = computed(() => {
         const required = `The material on this batch is wanted on site on ${exactDate.value}`;
@@ -175,9 +171,9 @@
     >
         <i class="fa-solid fa-truck text-[10px] opacity-70"></i>
         <!--
-            No countdown beside it any more: "next Wed" is the countdown, said in the units the shop
-            works in, and "(10d)" next to it was the same fact twice. See label.
+            No countdown beside it any more: "next Thursday" is the countdown, said in the units the
+            shop works in, and "(10d)" next to it was the same fact twice. See label.
         -->
-        Required by {{ label }}
+        Delivery due {{ label }}
     </span>
 </template>

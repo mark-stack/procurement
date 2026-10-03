@@ -427,14 +427,22 @@ class NestingIndexController extends Controller
     }
 
     /**
-     * The day this card has to have moved on by, given where on the critical path it has got to.
+     * The day this card had to have reached the step it is on, if it is to make its delivery date.
      *
      * The required-by date above is the end of the path and says the same thing to every card on the
-     * page. This is what that date means *here*: a batch still waiting to be quoted has to spend the
-     * quoting time and the delivery time out of it, one already bought has only the delivery time
-     * left, and the two are days apart. The pill is coloured off the difference between this day and
-     * today (RequiredByPill), so a column of cards reads as how each one is tracking against its own
-     * remaining work rather than as a row of dates all counting down to the same morning.
+     * page. This is what that date means *here*: the work the card still owes, counted back off it.
+     * A batch being quoted owes the quoting time and the delivery time both - it is being priced now,
+     * so none of the quoting is behind it - where one already bought owes the delivery alone, and on
+     * the same required-by date those two are days apart. The pill is coloured off the difference
+     * between this day and today (DeliveryDuePill), so a column of cards reads as how each one is
+     * tracking against its own remaining work rather than as a row of dates all counting down to the
+     * same morning.
+     *
+     * The step is read as the work in front of it rather than the work behind it, which is what makes
+     * a card honest about being late while something can still be done. A batch out with the
+     * merchants two days before its steel is wanted, on a 2 + 3 path, is three days behind and has
+     * been since before anybody looked at it - reading QUOTING as "the quoting is done" would have
+     * the card calling that a day's slip.
      *
      * The business's own two figures, which is what the critical path has been since the lead times
      * moved onto the business - see Project::quotingDays() and Project::longestDeliveryDays(). Read
@@ -458,17 +466,20 @@ class NestingIndexController extends Controller
         }
 
         $daysStillToSpend = match ($milestone) {
-            //Not nested yet, so the whole path is still ahead of it
-            'NESTING' => (int) $business->quoting_days + (int) $business->delivery_days,
             /*
-             * Out with the merchants, or part way through being bought: the next thing it owes is a
-             * complete order, and whatever is not on one yet still needs the full delivery lead time
-             * after it goes in. ORDERING sits here rather than with ORDERED for that reason - some of
-             * its material has not been bought at all.
+             * Nothing is priced yet, so the whole critical path is still in front of it - the quoting
+             * and then the delivery. QUOTING sits here rather than with the steps below because a
+             * batch out with the merchants is being priced now: the quoting is the work in hand, not
+             * work it has finished, and the card has to owe it.
              */
-            'QUOTING', 'QUOTED', 'ORDERING' => (int) $business->delivery_days,
-            //Bought outright, and now owed on the day itself
-            'ORDERED' => 0,
+            'NESTING', 'QUOTING' => (int) $business->quoting_days + (int) $business->delivery_days,
+            /*
+             * Priced, part way through being bought, or bought outright - and in all three the thing
+             * still to come is the delivery, which is the lead time the steel takes to turn up once
+             * it has been paid for. Placing the order is the press that sits between them and takes
+             * no lead time of its own, so the three owe the same.
+             */
+            'QUOTED', 'ORDERING', 'ORDERED' => (int) $business->delivery_days,
             //DELIVERED, CUT, and anything a later milestone adds past them
             default => null,
         };
