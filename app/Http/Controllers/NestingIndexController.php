@@ -124,11 +124,15 @@ class NestingIndexController extends Controller
          * Empty means empty, not zeroed by hand: the helpers below answer 0 for no projects, and the
          * dates are null the way they are for projects with no fabrication date.
          */
+        $pendingRequiredDate = $this->materialsRequiredDate($pendingProjects);
+
         $batches[] = [
             'id' => null,
             'stage' => 'NESTING',
             //The day this card's steel has to be on site by, which every card on the page carries
-            'materialsRequiredDate' => $this->materialsRequiredDate($pendingProjects),
+            'materialsRequiredDate' => $pendingRequiredDate,
+            //And the day this card, where it has got to, has to move on by - see criticalPathDeadline()
+            'criticalPathDeadline' => $this->criticalPathDeadline($pendingRequiredDate, 'NESTING', $business),
             /*
              * And the day it has to stop waiting and be quoted, which only this card has - a batch
              * that has been nested has spent that deadline.
@@ -206,6 +210,7 @@ class NestingIndexController extends Controller
                     'stage' => $milestone,
                     //Filled below with the rest of what its projects answer - see the loop at the end
                     'materialsRequiredDate' => null,
+                    'criticalPathDeadline' => null,
                     //Nothing to order by: this batch has been nested, so the deadline it had is spent
                     'orderingTriggerDate' => null,
                     'projects' => [],
@@ -354,6 +359,17 @@ class NestingIndexController extends Controller
 
             $batches[$index]['projects'] = $this->projectCards($batchProjects, $user->id, $staffNames);
             $batches[$index]['materialsRequiredDate'] = $this->materialsRequiredDate($batchProjects);
+            /*
+             * Read off the card's own pill rather than off the column it came out of, because the
+             * pill is the step the work has actually reached: a batch somebody marked "All ordered"
+             * from the card menu sits in the Quoting column and has been bought, and holding it to
+             * the day it should have stopped quoting would chase it for a job already done.
+             */
+            $batches[$index]['criticalPathDeadline'] = $this->criticalPathDeadline(
+                $batches[$index]['materialsRequiredDate'],
+                $batch['stage'],
+                $business,
+            );
             $batches[$index]['cutCount'] = (int) round((float) ($cuts->get($batch['id'])->cuts ?? 0));
             $batches[$index]['categoryCount'] = $this->supplierGroupCount(
                 $categoriesByBatch->get($batch['id'], []),
@@ -407,6 +423,62 @@ class NestingIndexController extends Controller
 
         return $earliest
             ?->subWeekdays(1)
+            ->toDateString();
+    }
+
+    /**
+     * The day this card has to have moved on by, given where on the critical path it has got to.
+     *
+     * The required-by date above is the end of the path and says the same thing to every card on the
+     * page. This is what that date means *here*: a batch still waiting to be quoted has to spend the
+     * quoting time and the delivery time out of it, one already bought has only the delivery time
+     * left, and the two are days apart. The pill is coloured off the difference between this day and
+     * today (RequiredByPill), so a column of cards reads as how each one is tracking against its own
+     * remaining work rather than as a row of dates all counting down to the same morning.
+     *
+     * The business's own two figures, which is what the critical path has been since the lead times
+     * moved onto the business - see Project::quotingDays() and Project::longestDeliveryDays(). Read
+     * off the page's business rather than through those methods: every job on every card here belongs
+     * to this business, so the answer is the same for all of them, and asking per project is a walk
+     * back through each one's manager to the same two columns.
+     *
+     * Whole days rather than working days, matching Project's three deadlines, which are what the
+     * notifications count back from. Only the required-by date steps over the weekend, because it is
+     * the one of these dates that names a delivery somebody has to be at the yard to take.
+     *
+     * Null for a card with nothing left to chase, which draws on time:
+     *
+     *  - No required-by date, so there is no path to be behind on. The pill is not drawn at all.
+     *  - DELIVERED or CUT. The steel is in; the batch met its path, whatever today is.
+     */
+    private function criticalPathDeadline(?string $requiredDate, string $milestone, Business $business): ?string
+    {
+        if ($requiredDate === null) {
+            return null;
+        }
+
+        $daysStillToSpend = match ($milestone) {
+            //Not nested yet, so the whole path is still ahead of it
+            'NESTING' => (int) $business->quoting_days + (int) $business->delivery_days,
+            /*
+             * Out with the merchants, or part way through being bought: the next thing it owes is a
+             * complete order, and whatever is not on one yet still needs the full delivery lead time
+             * after it goes in. ORDERING sits here rather than with ORDERED for that reason - some of
+             * its material has not been bought at all.
+             */
+            'QUOTING', 'QUOTED', 'ORDERING' => (int) $business->delivery_days,
+            //Bought outright, and now owed on the day itself
+            'ORDERED' => 0,
+            //DELIVERED, CUT, and anything a later milestone adds past them
+            default => null,
+        };
+
+        if ($daysStillToSpend === null) {
+            return null;
+        }
+
+        return Carbon::parse($requiredDate)
+            ->subDays($daysStillToSpend)
             ->toDateString();
     }
 

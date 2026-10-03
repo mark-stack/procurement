@@ -1140,13 +1140,19 @@
                                 progress, which is why it sits beside the job names and not with the
                                 stage pill and the buttons on the right.
 
-                                Drawn plain once the material is in, rather than dropped: a batch that
-                                has been delivered or cut cannot be late for its own delivery, and the
-                                date is still what the job is working to. See RequiredByPill.
+                                Its colour is the other half: whether this batch, where it has got to,
+                                is still going to make that date. The deadline it is held to depends on
+                                how much of the critical path it has left to spend - the server works
+                                that out off the business's lead times and sends it alongside. Green on
+                                track, amber a day behind, red two or more. See RequiredByPill.
+
+                                A delivered or cut batch keeps its date and reads green: its steel is
+                                in, so it is off the path rather than late for it.
                             -->
                             <RequiredByPill
                                 :date="batch.materialsRequiredDate"
-                                :muted="['DELIVERED', 'CUT'].includes(batch.stage)"
+                                :deadline="batch.criticalPathDeadline"
+                                :done="['DELIVERED', 'CUT'].includes(batch.stage)"
                                 class="shrink-0"
                             />
                         </div>
