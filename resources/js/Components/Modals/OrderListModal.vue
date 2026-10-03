@@ -48,7 +48,16 @@
     const copiedGroup = ref(null);
     let copiedTimer = null;
 
+    //Which group has its certificate list open. One at a time: two lists open is two lists to read past
+    const openCertificates = ref(null);
+
     //Methods
+    function toggleCertificates(group) {
+        openCertificates.value = openCertificates.value === group.supplierGroup
+            ? null
+            : group.supplierGroup;
+    }
+
     /**
      * This group's lines, onto the clipboard, to be pasted into a mail to that merchant.
      *
@@ -180,6 +189,54 @@
                                 </template>
                             </p>
 
+            <!--
+                                The mill certificates, where this group's steel comes with any.
+                                Groups the flag says never carry one, timber and fasteners among
+                                them, show nothing rather than a pill that will stay grey.
+
+                                One pill whatever the count. A load can arrive under ten heats and
+                                ten certificates with it, and a pill each would push the Copy button
+                                off the row - so several open a list underneath instead. A single
+                                certificate is the link itself: nothing to choose between.
+                            -->
+                            <template v-if="group.certificated">
+                                <a
+                                    v-if="group.certificates.length === 1"
+                                    :href="group.certificates[0].url"
+                                    :title="group.certificates[0].filename"
+                                    class="inline-flex items-center h-8 gap-1.5 px-2.5 text-xs font-semibold text-green-800 transition-colors duration-150 bg-green-100 rounded-lg hover:bg-green-200"
+                                >
+                                    <i class="fa-solid fa-file-arrow-down text-[10px]"></i>
+                                    Mill cert
+                                </a>
+
+                                <button
+                                    v-else-if="group.certificates.length > 1"
+                                    type="button"
+                                    @click="toggleCertificates(group)"
+                                    :aria-expanded="openCertificates === group.supplierGroup"
+                                    :title="group.certificates.length + ' mill certificates on this order'"
+                                    class="inline-flex items-center h-8 gap-1.5 px-2.5 text-xs font-semibold text-green-800 transition-colors duration-150 bg-green-100 rounded-lg hover:bg-green-200"
+                                >
+                                    <i class="fa-solid fa-file-arrow-down text-[10px]"></i>
+                                    Mill certs ({{ group.certificates.length }})
+                                    <i
+                                        :class="openCertificates === group.supplierGroup
+                                            ? 'fa-chevron-up'
+                                            : 'fa-chevron-down'"
+                                        class="fa-solid text-[9px]"
+                                    ></i>
+                                </button>
+
+                                <p
+                                    v-else
+                                    class="inline-flex items-center h-8 gap-1.5 px-2.5 text-xs font-semibold text-gray-600 bg-gray-100 rounded-lg"
+                                >
+                                    <i class="fa-regular fa-file text-[10px]"></i>
+                                    No mill cert
+                                </p>
+                            </template>
+
                             <!--
                                 This group's lines, for pasting into a mail to that merchant. One
                                 button per group rather than one for the modal: the lists go to
@@ -200,6 +257,27 @@
                                 {{ copiedGroup === group.supplierGroup ? 'Copied' : 'Copy' }}
                             </button>
                         </div>
+                    </div>
+
+                    <!--
+                        The certificates behind the pill, by the name the file arrived under - a heat
+                        number is how somebody picks the one they are after. In the card rather than a
+                        floating menu: the modal panel clips what overflows it, and ten rows hanging
+                        off a pill on the last block would be cut in half.
+                    -->
+                    <div
+                        v-if="openCertificates === group.supplierGroup"
+                        class="mt-3 overflow-hidden border border-green-200 divide-y divide-green-100 rounded-lg"
+                    >
+                        <a
+                            v-for="certificate in group.certificates"
+                            :key="certificate.id"
+                            :href="certificate.url"
+                            class="flex items-center gap-2 px-3 py-2 text-xs font-medium text-green-900 transition-colors duration-150 bg-green-50 hover:bg-green-100"
+                        >
+                            <i class="fa-solid fa-file-arrow-down text-[11px] shrink-0"></i>
+                            <span class="truncate">{{ certificate.filename }}</span>
+                        </a>
                     </div>
 
                     <!--

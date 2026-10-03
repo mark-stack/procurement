@@ -3,6 +3,7 @@
 use App\Formatters\NestingFormatter;
 use App\Formatters\SupplierFormatter;
 use App\Models\Batch;
+use App\Models\MaterialCertificate;
 use App\Models\Order;
 use App\Models\Piece;
 use App\Models\Project;
@@ -847,6 +848,79 @@ it('says on the order list which supplier groups have been ordered, and under wh
 
     expect($steel['ordered'])->toBeTrue()
         ->and($steel['purchaseOrderNumber'])->toBe('PO-4471');
+});
+
+it("hands the order list each group's mill certificates, and says which groups come with one at all", function () {
+    /*
+     * The block's third pill. Whether a group is certificated is products.certificates - the flag the
+     * BOM's certificate column already reads - so timber and fasteners show nothing rather than a pill
+     * that will never be satisfied. The files are links, not contents: they live on the private disk.
+     */
+    [$business, $user, $batch] = nestedBatch([[2500, 5], [1500, 2]]);
+
+    [, $order] = quoteAndOrder($user, $batch, orderSent: true);
+
+    $this->actingAs($user);
+
+    $this->withoutExceptionHandling();
+    $orderList = $this->getJson(route('batch.order.list', $batch))->assertOk()->json('orderList');
+
+    $steel = collect($orderList['groups'])->firstWhere('supplierGroup', 'STEEL_MERCHANT');
+
+    expect($steel['certificated'])->toBeTrue()
+        ->and($steel['certificates'])->toBe([]);
+
+    $certificate = MaterialCertificate::factory()->forOrder($order->id)->create([
+        'user_id' => $user->id,
+        'original_filename' => 'heat-74412.pdf',
+    ]);
+
+    $orderList = $this->getJson(route('batch.order.list', $batch))->assertOk()->json('orderList');
+
+    $steel = collect($orderList['groups'])->firstWhere('supplierGroup', 'STEEL_MERCHANT');
+
+    expect($steel['certificates'])->toHaveCount(1)
+        ->and($steel['certificates'][0]['filename'])->toBe('heat-74412.pdf')
+        ->and($steel['certificates'][0]['url'])
+        ->toBe(route('material.certificates.download', $certificate));
+});
+
+it('shows the certificate a buyer attached before placing the order', function () {
+    /*
+     * Ordered and certificated are different questions asked of different rows. A certificate can go
+     * on while the order is still a draft, and a block that holds the file but says "No mill cert"
+     * sends somebody chasing the merchant for something already filed.
+     */
+    [$business, $user, $batch] = nestedBatch([[2500, 5], [1500, 2]]);
+
+    [, $order] = quoteAndOrder($user, $batch, orderSent: false);
+
+    MaterialCertificate::factory()->forOrder($order->id)->create(['user_id' => $user->id]);
+
+    $this->actingAs($user);
+
+    $this->withoutExceptionHandling();
+    $orderList = $this->getJson(route('batch.order.list', $batch))->assertOk()->json('orderList');
+
+    $steel = collect($orderList['groups'])->firstWhere('supplierGroup', 'STEEL_MERCHANT');
+
+    expect($steel['ordered'])->toBeFalse()
+        ->and($steel['certificates'])->toHaveCount(1);
+});
+
+it('does not ask a timber merchant for a mill certificate', function () {
+    /*
+     * LVL arrived from the spreadsheet flagged for certificates along with every other meterage
+     * product. Timber does not come with a mill cert, so the flag was wrong, and this is what stops it
+     * coming back - the Order list and the BOM both read it.
+     */
+    test()->actingAs(createUser(1, createBusiness('admin'), true, true));
+    seedMasterMaterials();
+
+    $certificated = (new NestingFormatter)->getCertificateProductLabels();
+
+    expect($certificated)->toContain('UB')
+        ->and($certificated)->not->toContain('LVL');
 });
 
 it('calls a group ordered on the strength of the sent order, not the PO number somebody has yet to type', function () {

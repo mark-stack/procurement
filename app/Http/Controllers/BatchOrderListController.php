@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Formatters\NestingFormatter;
 use App\Models\Batch;
+use App\Models\MaterialCertificate;
 use App\Models\Order;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
 
@@ -52,22 +54,34 @@ class BatchOrderListController extends Controller
         }
 
         $grouped = $nestingFormatter->piecesGroupedBySupplierGroup($piecesNested, $business);
-        $sentOrders = $this->sentOrdersBySupplierGroup($batch);
+        $ordersByGroup = $this->ordersBySupplierGroup($batch);
+
+        /*
+         * Which product categories come with a mill certificate, off products.certificates - the same
+         * flag the BOM's certificate column reads (see DownloadBomController). A fastener group has
+         * no certificate to chase and neither does timber, and a block asking for one it will never
+         * get reads as paperwork somebody has lost.
+         */
+        $certificateProductCategories = $nestingFormatter->getCertificateProductLabels();
 
         $groups = [];
 
         foreach ($grouped['assigned'] as $supplierGroup => $pieces) {
-            $order = $sentOrders[$supplierGroup] ?? null;
+            $orders = $ordersByGroup[$supplierGroup] ?? new EloquentCollection;
+            //First wins where a group somehow has two sent orders, as on the quotes/orders card
+            $order = $orders->firstWhere('order_sent', true);
+
+            $productCategories = collect($pieces)
+                ->pluck('product_category')
+                ->filter()
+                ->unique()
+                ->sort()
+                ->values();
 
             $groups[] = [
                 'supplierGroup' => $supplierGroup,
                 //What is in this group on this batch, rather than everything the group could cover
-                'includedProducts' => collect($pieces)
-                    ->pluck('product_category')
-                    ->filter()
-                    ->unique()
-                    ->sort()
-                    ->implode(', '),
+                'includedProducts' => $productCategories->implode(', '),
                 /*
                  * Whether this group has been bought, so the list says which merchants are still
                  * waiting on an order. Sent and numbered are two questions: the PO number is a
@@ -76,6 +90,16 @@ class BatchOrderListController extends Controller
                  */
                 'ordered' => $order !== null,
                 'purchaseOrderNumber' => $order?->purchase_order_number,
+                /*
+                 * Whether this group's steel comes with a mill certificate at all, and the ones that
+                 * have arrived. Asked of every order in the group rather than the sent one: a
+                 * certificate can be attached before the order is placed, and a block that holds the
+                 * file but shows "No mill cert" would send somebody chasing the merchant for it.
+                 */
+                'certificated' => $productCategories
+                    ->intersect($certificateProductCategories)
+                    ->isNotEmpty(),
+                'certificates' => $this->certificates($orders),
                 'batchGroup' => $this->batchGroup($pieces),
             ];
         }
@@ -90,31 +114,55 @@ class BatchOrderListController extends Controller
     }
 
     /**
-     * The sent order of each supplier group on this batch, keyed by group.
+     * The orders of each supplier group on this batch, keyed by group.
      *
      * Which group an order belongs to is a fact about its quote, not the order - the same join the
      * quotes/orders card reads its PO number through, so the two screens cannot disagree about who
-     * has been ordered from. Only sent orders count: opening that modal provisions an order row per
-     * supplier whether or not anybody buys anything, and a provisioned row is not a purchase.
+     * has been ordered from.
+     *
+     * Unsent orders are kept, and the caller asks each question of the rows it applies to. Only a
+     * sent order is a purchase - opening the quotes/orders modal provisions a row per supplier
+     * whether or not anybody buys anything - but a certificate hangs off whichever row it was
+     * attached to, placed or not.
      *
      * Empty for the pending card, which has no batch and therefore nothing ordered against it.
      *
-     * @return array<string, Order>
+     * @return array<string, EloquentCollection<int, Order>>
      */
-    private function sentOrdersBySupplierGroup(?Batch $batch): array
+    private function ordersBySupplierGroup(?Batch $batch): array
     {
         if ($batch === null) {
             return [];
         }
 
         return $batch->orders()
-            ->where('order_sent', true)
-            ->with('quote')
+            ->with(['quote', 'materialCertificates'])
             ->get()
             ->filter(fn (Order $order) => $order->quote?->supplier_category !== null)
             ->groupBy(fn (Order $order) => $order->quote->supplier_category)
-            //First wins where a group somehow has two sent orders, as on the quotes/orders card
-            ->map(fn ($orders) => $orders->first())
+            ->all();
+    }
+
+    /**
+     * The mill certificates attached to this group's orders.
+     *
+     * A download link rather than the file: they live on the private disk, and the only way to read
+     * one is the route, which checks the certificate's order belongs to you (see
+     * DownloadMaterialCertificateController).
+     *
+     * @param  EloquentCollection<int, Order>  $orders
+     * @return array<int, array<string, mixed>>
+     */
+    private function certificates(EloquentCollection $orders): array
+    {
+        return $orders
+            ->flatMap(fn (Order $order) => $order->materialCertificates)
+            ->map(fn (MaterialCertificate $certificate) => [
+                'id' => $certificate->id,
+                'filename' => $certificate->original_filename,
+                'url' => route('material.certificates.download', $certificate),
+            ])
+            ->values()
             ->all();
     }
 
