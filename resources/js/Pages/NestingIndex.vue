@@ -216,7 +216,7 @@
     }
 
     /*
-     * The Order list button's second line: how many blocks that list comes in.
+     * The Material order button's second line: how many blocks that list comes in.
      *
      * Supplier categories - steel merchant, timber merchant, fasteners - not the product categories
      * inside them, because each block is a different merchant to send a list to, and that is the work
@@ -272,7 +272,7 @@
         /*
          * A batch with no job on it at all falls back to its number. Nothing in the app makes one -
          * every batch is nested out of projects - but a card has to say something, and a blank heading
-         * on a card carrying BOM and Order list buttons would read as a broken page.
+         * on a card carrying BOM and Material order buttons would read as a broken page.
          */
         return projectNames(headedProjects(batch)) || ('Batch #' + batch.id);
     }
@@ -823,14 +823,14 @@
                                 @click="showBom(batch)"
                             />
 
-                            <!-- What to buy, the way the supplier emails word it -->
+                            <!-- What to buy, the way the supplier emails word it - and how each order is going -->
                             <CardButtonYellow
-                                label="Order list"
+                                label="Material order"
                                 :sublabel="categoryLabel(batch)"
                                 :disabled="isEmptyOpenBatch(batch)"
                                 :title="isEmptyOpenBatch(batch)
                                     ? 'Nothing is waiting on the open batch yet'
-                                    : 'The stock lengths this batch\'s nest needs, by supplier group'"
+                                    : 'What this batch\'s nest needs from each merchant, with their certificates and deliveries'"
                                 class="w-32"
                                 @click="showOrderList(batch)"
                             />

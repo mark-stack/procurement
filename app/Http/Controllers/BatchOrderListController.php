@@ -100,6 +100,11 @@ class BatchOrderListController extends Controller
                     ->intersect($certificateProductCategories)
                     ->isNotEmpty(),
                 'certificates' => $this->certificates($orders),
+                /*
+                 * What came off the truck, where this group has been bought and the delivery booked
+                 * in. Null for a group nobody has ordered from yet, which the block already says.
+                 */
+                'goodsReceipt' => $this->goodsReceipt($order),
                 'batchGroup' => $this->batchGroup($pieces),
             ];
         }
@@ -136,7 +141,7 @@ class BatchOrderListController extends Controller
         }
 
         return $batch->orders()
-            ->with(['quote', 'materialCertificates'])
+            ->with(['quote', 'materialCertificates', 'receivedBy'])
             ->get()
             ->filter(fn (Order $order) => $order->quote?->supplier_category !== null)
             ->groupBy(fn (Order $order) => $order->quote->supplier_category)
@@ -164,6 +169,59 @@ class BatchOrderListController extends Controller
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * What the goods receipt against this group's order says.
+     *
+     * The same record the quotes/orders modal draws - see QuoteFormatter::goodsReceiptState, and
+     * deliberately under the same key names, because it is the same delivery read on a second screen
+     * and two spellings of received_at would be two things to keep in step. What is missing is
+     * everything to do with writing one: this modal is for reading, and nothing here books steel in.
+     *
+     * Asked of the sent order alone, unlike the certificates. A receipt is only ever written against a
+     * placed order (the panel offers it on order_sent && ! is_delivered), so the row that exists merely
+     * because somebody opened the quotes/orders modal has nothing to say about a delivery.
+     *
+     * Null where the group has not been ordered from, and the block then shows no pill at all: "not
+     * received" next to "Not ordered" is the same sentence twice.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function goodsReceipt(?Order $order): ?array
+    {
+        if ($order === null) {
+            return null;
+        }
+
+        $received = $order->hasReceiptRecord();
+
+        $receipt = [
+            'received' => $received,
+            //True, false, or null for "booked in, and nobody answered the checks"
+            'accepted' => $order->receiptAccepted(),
+            /*
+             * Ticked as arrived with no receipt behind it, which is what every delivery marked before
+             * the receipt columns existed looks like. Not an error state: it reads as "arrived, and
+             * nobody recorded a check", it is true, and it cannot be filled in after the fact.
+             */
+            'deliveredWithoutReceipt' => $order->is_delivered && ! $received,
+        ];
+
+        if (! $received) {
+            return $receipt;
+        }
+
+        return $receipt + [
+            'received_at' => $order->received_at?->toDateTimeString(),
+            //Nullable, and stays so once the account is gone - the receipt outlives whoever wrote it
+            'received_by' => $order->receivedBy?->name,
+            'docket_number' => $order->delivery_docket_number,
+            'quantity_verified' => $order->quantity_verified,
+            'grade_verified' => $order->grade_verified,
+            'nonconformance' => $order->receiptNonconformance()?->label(),
+            'note' => $order->receipt_note,
+        ];
     }
 
     /**
