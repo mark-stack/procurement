@@ -329,9 +329,6 @@
                                 <th scope="col" class="px-4 py-3.5 text-sm font-normal text-left text-gray-500">
                                     Reference
                                 </th>
-                                <th scope="col" class="px-4 py-3.5 text-sm font-normal text-left text-gray-500">
-                                    Status
-                                </th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
@@ -359,9 +356,6 @@
                                 </td>
                                 <td class="px-4 py-4 text-sm italic font-medium text-gray-800 whitespace-nowrap">
                                     {{ row.assembly_mark ? ('"'+row.assembly_mark+'"') : '' }}
-                                </td>
-                                <td class="px-4 py-4 text-sm italic font-medium text-gray-800 whitespace-nowrap">
-                                    {{ row.status }}
                                 </td>
                             </tr>
                         </tbody>
