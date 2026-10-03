@@ -6,9 +6,11 @@ use App\Formatters\KanbanFormatter;
 use App\Formatters\NestingFormatter;
 use App\Formatters\SupplierFormatter;
 use App\Models\Business;
+use App\Models\Offcut;
 use App\Models\Order;
 use App\Models\Piece;
 use App\Models\Project;
+use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\BatchStages;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
@@ -80,7 +82,22 @@ class NestingIndexController extends Controller
          *
          * Empty is a card too; see below.
          */
-        $pendingProjects = $this->pendingBatchProjects($business)->sortBy('id');
+        $pending = $this->pendingBatch($business);
+        $pendingProjects = $pending['projects']->sortBy('id');
+
+        /*
+         * And whether this user may close it, which is what the open batch card's menu offers.
+         *
+         * The same gate the board draws its own "Start quoting" button from, asked of the same two
+         * collections - QuoteController::store asks it again and aborts 403, so a menu item
+         * drawn off anything else could only ever lead to a dead end. Unsorted, the gate caring who
+         * owns the projects rather than what order they are in.
+         */
+        $prerequisiteStartQuoting = (new PrerequisiteConditions)->startQuoting(
+            $user,
+            $pending['projects'],
+            $pending['pieces'],
+        );
 
         /*
          * The staff of this business by id, for naming the manager of a job that is not yours - which
@@ -114,7 +131,24 @@ class NestingIndexController extends Controller
             'categoryCount' => $this->pendingCategoryCount($pendingProjects->pluck('id')->all(), $supplierGroups),
             //Whether any of what is waiting is this user's own work - see projectCards()
             'mine' => $pendingProjects->contains(fn (Project $project) => $project->user_id === $user->id),
+            //Nothing to unpick: this batch has not been nested yet. See the loop below.
+            'prerequisiteUndoStartQuoting' => null,
         ];
+
+        /*
+         * The offcuts each batch being quoted was given, which is half of what deciding "can this
+         * still be unpicked" takes - an offcut that has since been cut into cannot be handed back.
+         *
+         * One query for the column rather than one per card, which is how the board asks it
+         * (KanbanFormatter::quotingColumn). Asked only of the batches that can be re-nested at all:
+         * the gate is the most expensive thing on this page after the nesting itself, and a batch
+         * with an order out is past the point of answering yes.
+         */
+        $offcutsByBatch = Offcut::query()
+            ->whereIn('batch_to_id', $staged[BatchStages::QUOTING]->pluck('id')->all())
+            ->get()
+            //Keyed by hand, the column having no cast on it - a string key would miss every lookup
+            ->groupBy(fn (Offcut $offcut) => (int) $offcut->batch_to_id);
 
         /*
          * Which of the fully ordered batches have had all their steel turn up, for the pill below.
@@ -133,6 +167,25 @@ class NestingIndexController extends Controller
                     'cutCount' => 0,
                     'categoryCount' => 0,
                     'mine' => false,
+                    /*
+                     * Whether the card's menu may offer to unpick it, and null where that is not a
+                     * question the card can ask at all - which is the board's own convention for
+                     * this flag (KanbanMinimalCard draws the button off it being set).
+                     *
+                     * Only the batches being quoted: re-nesting deletes the quotes, the draft
+                     * orders and the offcuts the batch cut, and once an order has gone out the gate
+                     * refuses - which is every batch past this column. Drawn greyed rather than
+                     * dropped when it answers false, the way the board greys it, because "this
+                     * batch can no longer be re-nested" is the thing somebody came to the menu to
+                     * find out.
+                     */
+                    'prerequisiteUndoStartQuoting' => $stage === BatchStages::QUOTING
+                        ? (new PrerequisiteConditions)->undoStartQuoting(
+                            $batch,
+                            $user,
+                            $offcutsByBatch->get($batch->id, collect()),
+                        )
+                        : null,
                 ];
             }
         }
@@ -229,6 +282,8 @@ class NestingIndexController extends Controller
              * spreadsheet is often not the person running the job. See User::colleagueOptions.
              */
             'colleagues' => $user->colleagueOptions(),
+            //Whether the open batch card's menu can offer to nest what is waiting - see above
+            'prerequisiteStartQuoting' => $prerequisiteStartQuoting,
         ]);
     }
 
@@ -447,22 +502,28 @@ class NestingIndexController extends Controller
      * definition of "ready for nesting" to keep in step with the first.
      *
      * The projects themselves rather than a yes or no, because the card's "Order by" date is the
-     * earliest fabrication date among them - see KanbanFormatter::orderingTriggerDate.
+     * earliest fabrication date among them - see KanbanFormatter::orderingTriggerDate. The pieces
+     * come back beside them because the "Start quoting" gate is asked of both, and asking
+     * piecesReadyForBatching a second time for it would be the most expensive read on the page run
+     * twice.
      *
      * The empty check first, as App\Services\FabricationDeadlineQuoting does it: with nothing
      * unbatched there is no pending batch whatever the clarifications say, and that skips a
      * price book match per material row of every project the business has ever had.
      *
-     * @return Collection<int, \App\Models\Project>
+     * @return array{pieces: Collection<int, Piece>, projects: Collection<int, Project>}
      */
-    private function pendingBatchProjects(Business $business): Collection
+    private function pendingBatch(Business $business): array
     {
         $piecesReadyForBatching = (new NestingFormatter)->piecesReadyForBatching($business);
 
         if ($piecesReadyForBatching->isEmpty()) {
-            return collect();
+            return ['pieces' => $piecesReadyForBatching, 'projects' => collect()];
         }
 
-        return $business->projectsReadyForBatching($piecesReadyForBatching);
+        return [
+            'pieces' => $piecesReadyForBatching,
+            'projects' => $business->projectsReadyForBatching($piecesReadyForBatching),
+        ];
     }
 }

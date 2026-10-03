@@ -1,21 +1,27 @@
 <script setup>
     //General Imports
     import {computed, onMounted, ref} from "vue";
-    import {Head, Link} from "@inertiajs/vue3";
+    import {Head, Link, useForm} from "@inertiajs/vue3";
     import axios from "axios";
 
     //Component Imports
     import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
     import CardButtonBlue from "@/Components/Buttons/CardButtonBlue.vue";
     import CardButtonYellow from "@/Components/Buttons/CardButtonYellow.vue";
+    import Dropdown from "@/Components/Dropdown.vue";
     import StagePill from "@/Components/StagePill.vue";
     import OrderByPill from "@/Components/OrderByPill.vue";
+    import PageLoadingOverlay from "@/Components/PageLoadingOverlay.vue";
     import BatchBomModal from "@/Components/Modals/BatchBomModal.vue";
+    import ConfirmModal from "@/Components/Modals/ConfirmModal.vue";
     import OrderListModal from "@/Components/Modals/OrderListModal.vue";
     import NewProjectModal from "@/Components/Modals/NewProjectModal.vue";
 
     //Shared methods
     import shared from "@/Shared/shared.js";
+    import useConfirm from "@/Shared/useConfirm.js";
+    import startQuotingDialog from "@/Shared/startQuotingDialog.js";
+    import reNestDialog from "@/Shared/reNestDialog.js";
 
     //Props
     const props = defineProps({
@@ -25,7 +31,20 @@
             type: Array,
             default: () => [],
         },
+        /*
+         * Whether the open batch card's menu may offer "Start quoting" - the same gate the board
+         * draws its own button from, and the one QuoteController::store aborts 403 on. See
+         * NestingIndexController.
+         */
+        prerequisiteStartQuoting: Boolean,
     });
+
+    //Forms
+    const formQuoteStore = useForm({});
+    const formBreakBatch = useForm({});
+
+    //Confirmation
+    const {confirmDialog, askToConfirm, confirmDialogAccepted, confirmDialogCancelled} = useConfirm();
 
     //Variables
     /*
@@ -34,6 +53,14 @@
      * alone - a shared flag would relabel every button on the page at once.
      */
     const loadingBatchId = ref(null);
+
+    /*
+     * Held over "Start quoting", which nests everything waiting into one batch - the slowest write in
+     * the app, and the one that moves work off this page. A full-page overlay rather than a label on
+     * the menu item, the way the board holds the same press: the menu closes on the click, so there
+     * is nothing left on screen to say the page is busy.
+     */
+    const pageLoading = ref(false);
 
     /*
      * How well each batch nested, keyed by batch id, and the pending card's own figure.
@@ -91,6 +118,31 @@
     const nothingAnywhere = computed(() => props.batches.length === 1
         && openBatch.value !== null
         && openBatch.value.projects.length === 0);
+
+    /*
+     * Whether the open batch can be closed and quoted from here. The server's gate, and the two
+     * things it cannot know: the card has to exist and have something on it.
+     */
+    const canStartQuoting = computed(() => openBatch.value !== null
+        && !isEmptyOpenBatch(openBatch.value)
+        && props.prerequisiteStartQuoting);
+
+    /*
+     * And why not, when it cannot. A greyed item saying nothing is a dead end somebody hovers twice
+     * and then goes to the board to find out about - the gate turns on whose work is waiting, which
+     * is a fact this page is otherwise careful to print on every card.
+     */
+    const startQuotingTitle = computed(() => {
+        if (openBatch.value === null || isEmptyOpenBatch(openBatch.value)) {
+            return 'Nothing is waiting on the open batch yet';
+        }
+
+        if (!props.prerequisiteStartQuoting) {
+            return 'None of the projects waiting are yours - their project manager starts quoting them';
+        }
+
+        return 'Nest everything waiting into one batch and move it to Quoting';
+    });
 
     //BOM modal
     const showBomModal = ref(false);
@@ -344,6 +396,144 @@
     }
 
     /**
+     * Whether this card has a menu behind its three dots - which is to say, whether it has anything
+     * in it.
+     *
+     * Two cards do. The open batch can be closed and quoted, and a batch being quoted can be
+     * unpicked again; past that the batch is bought, and nothing in the menu applies. The dots are
+     * drawn on those cards alone rather than on every card over an empty box - the rest keep the
+     * space, so the row of buttons still lines up down the page.
+     *
+     * The second one is read off the server's gate rather than off the card's pill. The pill says
+     * the last step the batch has passed, which is not the same question - see
+     * NestingIndexController::milestoneOf() - and it is the gate BatchController::destroy aborts
+     * 403 on, so anything else could draw an item leading nowhere.
+     */
+    function hasMenu(batch) {
+        return batch.id === null || batch.prerequisiteUndoStartQuoting !== null;
+    }
+
+    /**
+     * Unpick a batch and send its projects back to the open one - the board's "Re-nest", pressed
+     * from here.
+     *
+     * The same DELETE to the same place, because it is the same thing, and the most destructive
+     * press either screen offers: the batch, its quotes, its draft orders and the offcuts and bars
+     * it cut all go, and none of it comes back. It asks first in the words the board asks in - see
+     * reNestDialog.
+     */
+    function confirmReNest(batch) {
+        askToConfirm(reNestDialog(
+            batch.id,
+            batch.projects,
+            () => reNest(batch),
+        ));
+    }
+
+    function reNest(batch) {
+        //A queued second click posts again against a batch that is already gone
+        if (formBreakBatch.processing) {
+            return;
+        }
+
+        pageLoading.value = true;
+
+        formBreakBatch.delete(route('batches.destroy', batch.id), {
+            preserveScroll: true,
+            /*
+             * The projects are back on the open batch and the card that held them has gone, so both
+             * figures were fetched for a page that no longer exists - see downloadEfficiencies().
+             */
+            onSuccess: () => {
+                downloadEfficiencies();
+            },
+            /*
+             * onFinish, not onSuccess/onError. The prerequisite gate aborts 403 and a second click
+             * 404s, and Inertia calls onError for neither - so the overlay would stay up with
+             * nothing left to dismiss it.
+             */
+            onFinish: () => {
+                pageLoading.value = false;
+            },
+        });
+    }
+
+    /**
+     * What the Re-nest item says when it cannot run, which is the board's own wording: the gate
+     * turns on things that have happened to the batch since it was nested, and none of them are
+     * visible on the card.
+     */
+    function reNestTitle(batch) {
+        return batch.prerequisiteUndoStartQuoting
+            ? 'Unpick this batch and send its projects back to nesting'
+            : 'This batch can no longer be re-nested - an order has been sent, a project was archived, or a later batch has already used its offcuts';
+    }
+
+    /**
+     * Close the open batch and go and buy it - the board's "Start quoting", pressed from here.
+     *
+     * The same post to the same place, because it is the same thing: everything waiting is nested
+     * into one batch under your name, which settles the material grouping, the suppliers and the
+     * delivery dates for every job on it, a colleague's included. It asks first for that reason, in
+     * the words the board asks in - see startQuotingDialog.
+     *
+     * It belongs on this card and nowhere else on the page: the open batch is what it sweeps up, and
+     * from the moment it runs that batch takes no more material.
+     */
+    function confirmStartQuoting() {
+        askToConfirm(startQuotingDialog(
+            openBatch.value?.projects ?? [],
+            () => startQuoting(),
+        ));
+    }
+
+    function startQuoting() {
+        //A queued second click posts again against pieces the first one has already batched
+        if (formQuoteStore.processing) {
+            return;
+        }
+
+        pageLoading.value = true;
+
+        formQuoteStore.post(route('quotes.store'), {
+            preserveScroll: true,
+            /*
+             * The page redraws either way, so a rolled back "start quoting" would otherwise look
+             * exactly like a successful one: the overlay clears, nothing moves off the open batch,
+             * no reason given. Worded by the server - it is the one that knows whether the nesting
+             * failed or a colleague simply got there first.
+             */
+            onError: errors => {
+                console.error('Error starting quoting:', errors);
+
+                askToConfirm({
+                    title: "Could not start quoting",
+                    message: errors.batch ?? "Something went wrong and the nesting was not saved, so nothing has changed. Please try again.",
+                    confirmLabel: "OK",
+                    tone: "danger",
+                    acknowledgeOnly: true,
+                    onConfirmed: () => {},
+                });
+            },
+            /*
+             * The new batch is on the page but none of the percentages are: one card has appeared
+             * and the open batch has emptied, and both figures were fetched for a page that no
+             * longer exists. Asked again off the props Inertia has already applied by now.
+             */
+            onSuccess: () => {
+                downloadEfficiencies();
+            },
+            /*
+             * onFinish, not onSuccess/onError - the prerequisite gate aborts 403 and Inertia calls
+             * neither for that, which would leave the overlay up with nothing to dismiss it.
+             */
+            onFinish: () => {
+                pageLoading.value = false;
+            },
+        });
+    }
+
+    /**
      * The batch's material list, across every project on it.
      *
      * The modal opens straight away on its own spinner rather than behind a full-page overlay - the
@@ -464,6 +654,30 @@
      * A failure leaves the button saying "calculating" rather than saying something wrong about a
      * nest. The console carries the reason, as it does for the board's own usage request.
      */
+    /**
+     * Both of those, from a clean slate - what the page asks for when it draws, and again when
+     * "Start quoting" has rearranged what is on it.
+     *
+     * Nulled first, because null is what the buttons read as "calculating" and a stale figure
+     * against a card that has just changed is worse than no figure: the open batch's percentage was
+     * the suggestion for work that is now a batch of its own.
+     */
+    function downloadEfficiencies() {
+        batchEfficiency.value = null;
+        pendingUsage.value = null;
+
+        downloadEfficiency();
+
+        /*
+         * Only when there is something to nest - this one runs the nesting algorithm. The open batch
+         * is on the page whether or not anything is waiting on it, and an empty one has no nest to
+         * ask about.
+         */
+        if (openBatch.value !== null && !isEmptyOpenBatch(openBatch.value)) {
+            downloadPendingUsage();
+        }
+    }
+
     async function downloadEfficiency() {
         try {
             const response = await axios.get(route("nesting.efficiency"));
@@ -559,16 +773,7 @@
 
     //Lifecycle
     onMounted(() => {
-        downloadEfficiency();
-
-        /*
-         * Only when there is something to nest - this one runs the nesting algorithm. The open batch
-         * is on the page whether or not anything is waiting on it, and an empty one has no nest to
-         * ask about.
-         */
-        if (openBatch.value !== null && !isEmptyOpenBatch(openBatch.value)) {
-            downloadPendingUsage();
-        }
+        downloadEfficiencies();
     });
 </script>
 
@@ -576,6 +781,9 @@
     <Head title="Nesting" />
 
     <AuthenticatedLayout>
+        <!-- Held over "Start quoting" alone, which is the one press on this page that writes - see startQuoting() -->
+        <PageLoadingOverlay v-if="pageLoading" />
+
         <section class="container max-w-4xl px-4 mx-auto py-6">
             <!-- Wraps rather than squeezes: the switch and the button do not fit a phone beside the title -->
             <div class="flex flex-wrap items-center justify-between gap-3">
@@ -794,8 +1002,12 @@
                             Wraps rather than squeezes, like the heading beside it: the pill joined this
                             row and the three buttons have fixed widths, which on a phone is more than
                             fits on one line. Right-aligned so what wraps stays against the card's edge.
+
+                            Everything on the right of the card is in here, the menu included - the card
+                            is a justify-between of two halves, and a third child would leave this one
+                            floating in the middle of the gap rather than against the edge.
                         -->
-                        <div class="flex flex-wrap items-center justify-end gap-2">
+                        <div class="flex flex-wrap items-center justify-end gap-2 shrink-0">
                             <!--
                                 How far the batch has actually got - the last step it has passed, not the
                                 column it is sitting in. Coloured as the board and the dashboard colour
@@ -805,8 +1017,14 @@
                                 pills then line up down the page, which is how a column of cards is read
                                 for "where is everything up to" - against a heading they started at a
                                 different place on every card.
+
+                                In a slot of its own width, because the pill's is its word: "Nesting" and
+                                "Delivered" are a dozen pixels apart, and with the row right-aligned that
+                                difference walked all three buttons sideways on every card.
                             -->
-                            <StagePill :stage="batch.stage" class="mr-1 shrink-0" />
+                            <div class="flex justify-end w-24 mr-1 shrink-0">
+                                <StagePill :stage="batch.stage" />
+                            </div>
 
                             <!--
                                 Everything on the batch, read-only and across all of its projects.
@@ -867,6 +1085,77 @@
                                     disabled
                                     title="Nothing is waiting on the open batch yet"
                                 />
+                            </div>
+
+                            <!--
+                                What this card can have done to it, past the three things its
+                                buttons read. Kept out of the row of buttons because those are reads
+                                - a list, an order list, a nest - and what is in here changes the
+                                batch.
+
+                                The space is held on every card and the dots are drawn only where
+                                there is something behind them (see hasMenu), so a closed batch does
+                                not open an empty box and the buttons still line up down the page.
+                            -->
+                            <div class="flex justify-end w-8 shrink-0">
+                                <Dropdown v-if="hasMenu(batch)" align="right" width="48">
+                                    <template #trigger>
+                                        <button
+                                            type="button"
+                                            title="More actions for this batch"
+                                            aria-label="More actions for this batch"
+                                            class="inline-flex items-center justify-center w-8 h-8 text-gray-400 transition-colors duration-150 rounded-lg hover:bg-gray-100 hover:text-gray-700"
+                                        >
+                                            <i class="fa-solid fa-ellipsis-vertical"></i>
+                                        </button>
+                                    </template>
+
+                                    <template #content>
+                                        <!--
+                                            The board's own "Start quoting", pressed from the card
+                                            it acts on - see confirmStartQuoting(). Greyed rather
+                                            than dropped when it cannot run, so the menu says why
+                                            instead of being empty.
+                                        -->
+                                        <button
+                                            v-if="batch.id === null"
+                                            type="button"
+                                            :disabled="!canStartQuoting"
+                                            :title="startQuotingTitle"
+                                            @click="confirmStartQuoting()"
+                                            class="flex items-center w-full gap-2 px-4 py-2 text-sm text-left transition-colors duration-150"
+                                            :class="canStartQuoting
+                                                ? 'font-semibold text-green-800 hover:bg-green-50'
+                                                : 'text-gray-400 cursor-not-allowed'"
+                                        >
+                                            <i class="fa-solid fa-circle-arrow-right text-xs"></i>
+                                            Start quoting
+                                        </button>
+
+                                        <!--
+                                            And on a batch out with the suppliers, the way back -
+                                            the board's "Re-nest" (see confirmReNest). Red, because
+                                            it destroys the quotes and draft orders on the batch and
+                                            the offcuts it cut; greyed with the reason when the
+                                            batch is past unpicking, which is what somebody opens
+                                            this menu to find out.
+                                        -->
+                                        <button
+                                            v-else
+                                            type="button"
+                                            :disabled="!batch.prerequisiteUndoStartQuoting"
+                                            :title="reNestTitle(batch)"
+                                            @click="confirmReNest(batch)"
+                                            class="flex items-center w-full gap-2 px-4 py-2 text-sm text-left transition-colors duration-150"
+                                            :class="batch.prerequisiteUndoStartQuoting
+                                                ? 'font-semibold text-red-700 hover:bg-red-50'
+                                                : 'text-gray-400 cursor-not-allowed'"
+                                        >
+                                            <i class="fa-solid fa-circle-arrow-left text-xs"></i>
+                                            Re-nest
+                                        </button>
+                                    </template>
+                                </Dropdown>
                             </div>
                         </div>
                     </div>
@@ -938,6 +1227,19 @@
             </p>
         </section>
     </AuthenticatedLayout>
+
+    <!-- What "Start quoting" is about to take, and whose - see confirmStartQuoting() -->
+    <ConfirmModal
+        v-if="confirmDialog"
+        :title="confirmDialog.title"
+        :message="confirmDialog.message"
+        :note="confirmDialog.note"
+        :confirmLabel="confirmDialog.confirmLabel"
+        :tone="confirmDialog.tone"
+        :acknowledgeOnly="confirmDialog.acknowledgeOnly ?? false"
+        @confirm="confirmDialogAccepted()"
+        @cancel="confirmDialogCancelled()"
+    />
 
     <BatchBomModal
         v-if="showBomModal"

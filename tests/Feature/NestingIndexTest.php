@@ -169,14 +169,19 @@ it('names the last step each batch has passed, down the three columns of live ba
             ->component('NestingIndex')
             ->has('batches', 3)
             //The open batch heads the page with nothing waiting on it - see the test below
-            ->where('batches.0', ['id' => null, 'stage' => 'NESTING', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false])
+            ->where('batches.0', ['id' => null, 'stage' => 'NESTING', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false, 'prerequisiteUndoStartQuoting' => null])
             /*
              * Nothing to order by on either of the live ones: a nested batch has spent the deadline it
              * was waiting on. And neither is "mine" - a batch with no project on it carries nobody's
              * work, whoever created the row.
+             *
+             * The re-nest gate is asked of the quoted one and of nothing else: past that column an
+             * order has gone out and the answer is not a question the card can ask - which the open
+             * batch's null above says for the other end of the page. False here because the gate
+             * wants one of your own projects on the batch, and this one carries none at all.
              */
-            ->where('batches.1', ['id' => $quoting->id, 'stage' => 'QUOTED', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false])
-            ->where('batches.2', ['id' => $delivering->id, 'stage' => 'ORDERED', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false])
+            ->where('batches.1', ['id' => $quoting->id, 'stage' => 'QUOTED', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false, 'prerequisiteUndoStartQuoting' => false])
+            ->where('batches.2', ['id' => $delivering->id, 'stage' => 'ORDERED', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false, 'prerequisiteUndoStartQuoting' => null])
         );
 });
 
@@ -288,7 +293,7 @@ it('calls a batch Ordered off the material rows, not off the order being sent', 
         ->assertInertia(fn (Assert $page) => $page
             //The open batch, with nothing waiting on it, and this one
             ->has('batches', 2)
-            ->where('batches.1', ['id' => $batch->id, 'stage' => 'ORDERED', 'orderingTriggerDate' => null, 'projects' => [projectCard($project, $user)], 'cutCount' => cutsOf($project), 'categoryCount' => categoriesOf($project), 'mine' => true])
+            ->where('batches.1', ['id' => $batch->id, 'stage' => 'ORDERED', 'orderingTriggerDate' => null, 'projects' => [projectCard($project, $user)], 'cutCount' => cutsOf($project), 'categoryCount' => categoriesOf($project), 'mine' => true, 'prerequisiteUndoStartQuoting' => null])
         );
 });
 
@@ -314,8 +319,8 @@ it('cards the batch that does not exist yet, ahead of the ones that do', functio
         ->assertInertia(fn (Assert $page) => $page
             ->has('batches', 2)
             //No fabrication date on the project, so there is no trigger - nothing will auto-quote it
-            ->where('batches.0', ['id' => null, 'stage' => 'NESTING', 'orderingTriggerDate' => null, 'projects' => [projectCard($waiting, $user)], 'cutCount' => cutsOf($waiting), 'categoryCount' => categoriesOf($waiting), 'mine' => true])
-            ->where('batches.1', ['id' => $existing->id, 'stage' => 'QUOTED', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false])
+            ->where('batches.0', ['id' => null, 'stage' => 'NESTING', 'orderingTriggerDate' => null, 'projects' => [projectCard($waiting, $user)], 'cutCount' => cutsOf($waiting), 'categoryCount' => categoriesOf($waiting), 'mine' => true, 'prerequisiteUndoStartQuoting' => null])
+            ->where('batches.1', ['id' => $existing->id, 'stage' => 'QUOTED', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false, 'prerequisiteUndoStartQuoting' => false])
         );
 });
 
@@ -374,7 +379,7 @@ it('cards the open batch with nothing waiting on it, rather than leaving it off 
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->has('batches', 1)
-            ->where('batches.0', ['id' => null, 'stage' => 'NESTING', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false])
+            ->where('batches.0', ['id' => null, 'stage' => 'NESTING', 'orderingTriggerDate' => null, 'projects' => [], 'cutCount' => 0, 'categoryCount' => 0, 'mine' => false, 'prerequisiteUndoStartQuoting' => null])
         );
 });
 
@@ -636,6 +641,127 @@ it('names the jobs on each card, a batch being several projects bought as one', 
              * counts - both projects' rows, since both are on this batch.
              */
             ->where('batches.1.cutCount', cutsOf($first) + cutsOf($second))
+        );
+});
+
+it('offers the open batch the press that closes it, on the board\'s own gate', function () {
+    /*
+     * The page's three-dot menu reaches the two presses that change a batch, and both are drawn off a
+     * server gate rather than off anything the card can see - the controllers behind them abort 403,
+     * so a menu drawn any other way offers a dead end.
+     *
+     * This is the first of them. "Start quoting" nests everything waiting into one batch under your
+     * name, settling the suppliers and the delivery dates for every job it sweeps in, and the gate is
+     * PrerequisiteConditions::startQuoting - the same one the board's Nesting card draws its button
+     * from, so the two screens cannot disagree about whether the press is available.
+     */
+    test()->actingAs(createUser(1, createBusiness('admin'), true, true));
+    seedMasterMaterials();
+
+    $business = createBusiness('fabricator');
+    $user = createUser(1, $business, false, true);
+
+    nestingPageProject($user);
+
+    $this->actingAs($user);
+
+    $this->withoutExceptionHandling();
+    $this->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('prerequisiteStartQuoting', true));
+});
+
+it('refuses the open batch that press when the work waiting is a colleague\'s', function () {
+    /*
+     * The gate wants one of your own projects in what is about to be nested. A page that offered the
+     * press anyway would be offering to take a colleague's job into a batch under your name and then
+     * answer 403 - so the menu greys the item and says whose work it is instead.
+     */
+    test()->actingAs(createUser(1, createBusiness('admin'), true, true));
+    seedMasterMaterials();
+
+    $business = createBusiness('fabricator');
+    $user = createUser(1, $business, false, true);
+    $colleague = createUser(2, $business, false, true);
+
+    nestingPageProject($colleague);
+
+    $this->actingAs($user);
+
+    $this->withoutExceptionHandling();
+    $this->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            //There is work waiting, and it is on the card - it is only the press that is refused
+            ->has('batches.0.projects', 1)
+            ->where('batches.0.mine', false)
+            ->where('prerequisiteStartQuoting', false)
+        );
+});
+
+it('offers a batch being quoted the way back, per batch', function () {
+    /*
+     * The second of the two presses: "Re-nest", which unpicks the batch and sends its projects back to
+     * the open one. It deletes the quotes, the draft orders and the offcuts the batch cut, so it is
+     * drawn off PrerequisiteConditions::undoStartQuoting - the gate BatchController::destroy aborts
+     * 403 on, and the one the board's Quoting card greys its own button with.
+     *
+     * Per batch rather than per page, unlike the gate above: it is asked about one batch, and two
+     * batches side by side in the same column can answer differently.
+     */
+    test()->actingAs(createUser(1, createBusiness('admin'), true, true));
+    seedMasterMaterials();
+
+    $business = createBusiness('fabricator');
+    $user = createUser(1, $business, false, true);
+
+    $project = nestingPageProject($user);
+
+    $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
+    Piece::query()->where('project_id', $project->id)->update(['batch_id' => $batch->id]);
+
+    expect((new BatchStages)->of($batch))->toBe(BatchStages::QUOTING);
+
+    $this->actingAs($user);
+
+    $this->withoutExceptionHandling();
+    $this->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('batches.1.id', $batch->id)
+            ->where('batches.1.stage', 'QUOTED')
+            ->where('batches.1.prerequisiteUndoStartQuoting', true)
+        );
+});
+
+it('would be a disaster if a card offered to unpick a batch that has been ordered', function () {
+    /*
+     * Re-nesting deletes the batch's orders, and the gate refuses once one of them has been sent -
+     * which is the whole reason it exists. Past the Quoting column the question is not asked at all,
+     * and the card says so with null rather than false: the board uses the same convention, drawing
+     * the button only where the flag is set, so a card that started answering false here would put a
+     * greyed "Re-nest" on every ordered and delivered batch on the page.
+     */
+    test()->actingAs(createUser(1, createBusiness('admin'), true, true));
+    seedMasterMaterials();
+
+    $business = createBusiness('fabricator');
+    $user = createUser(1, $business, false, true);
+
+    $project = nestingPageProject($user);
+
+    $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
+    Piece::query()->where('project_id', $project->id)->update(['batch_id' => $batch->id]);
+    nestingPageSentOrder($user, $batch);
+
+    $this->actingAs($user);
+
+    $this->withoutExceptionHandling();
+    $this->get(route('nesting.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('batches.1.id', $batch->id)
+            ->where('batches.1.prerequisiteUndoStartQuoting', null)
         );
 });
 
