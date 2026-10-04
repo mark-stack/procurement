@@ -30,7 +30,7 @@ class PastProjectsController extends Controller
         $ordersQtyByBatch = $this->ordersQtyByBatch($batchIds);
 
         /*
-         * This is the archive, so it only ever grows - the per-batch lookups this used to make were
+         * This list only ever grows - the per-batch lookups this used to make were
          * nine queries a row with nothing to cap the row count. Everything above is resolved in bulk,
          * so the page is a fixed number of queries however many batches it lists.
          */
@@ -97,7 +97,7 @@ class PastProjectsController extends Controller
     /**
      * The distinct owners of each batch's projects, as one readable line, keyed by batch id.
      *
-     * Resolved in bulk alongside everything else on this screen - the archive only grows, and a
+     * Resolved in bulk alongside everything else on this screen - the list only grows, and a
      * per-row lookup here would be the nine-queries-a-row problem the rest of it was trimmed back
      * from. The names are joined here rather than sent as a list because the table prints a line.
      *

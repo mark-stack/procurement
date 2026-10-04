@@ -478,7 +478,7 @@
                         </span>
                         <span v-else>
                             This material list can no longer be changed - the project has been nested, or
-                            archived. Re-nest its batch first if you need to edit it.
+                            marked done. Re-nest its batch first if you need to edit it.
                         </span>
                     </div>
 

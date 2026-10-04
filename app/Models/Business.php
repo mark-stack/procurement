@@ -365,7 +365,14 @@ class Business extends Model
         //Services
         $productService = new ProductService();
 
-        foreach($this->projects as $project){
+        /*
+         * The material rows come with the projects. Walked off the relation as $this->projects, each
+         * project went back for its own rawMaterialQuotes - a query per project the business has ever
+         * had, every time the Nesting page is drawn, because the open batch card is built on this.
+         * That is the one cost on that page which grows with the age of the business rather than with
+         * the work in front of somebody.
+         */
+        foreach($this->projects()->with('rawMaterialQuotes')->get() as $project){
             $partialProductMatches = [];
             foreach ($project->rawMaterialQuotes as $rawMaterialQuote) {
                 $getProductMatchOptions = $productService->getProductMatchOptions($this, $rawMaterialQuote);
@@ -399,13 +406,13 @@ class Business extends Model
      * projectsReadyForBatching() excludes a project with an unconfirmed partial match, and the
      * Nesting column is the only place a pre-batch project is ever drawn - so an import left half
      * finished fell off the board entirely, for its owner as well as for everybody else. Nothing
-     * else lists it, and the archived list holds only your own archived projects, so there was no
+     * else lists it, and the done list holds only your own done projects, so there was no
      * route back to it at all: a colleague could not so much as discover it existed.
      */
     public function projectsWithUnfinishedImport(): Collection
     {
         return $this->projectsRequiringClarification()
-            ->reject(fn (Project $project) => $project->archive)
+            ->reject(fn (Project $project) => $project->done)
             ->filter(fn (Project $project) => $project->pieces()->whereNotNull('batch_id')->doesntExist())
             ->sortBy('created_at')
             ->values();
@@ -413,7 +420,7 @@ class Business extends Model
 
     /*
      * currentProjects() and pastProjects() lived here and are gone. Nothing called either of them -
-     * the board builds its columns from KanbanFormatter and the archive from PastProjectsController -
+     * the board builds its columns from KanbanFormatter and past projects from PastProjectsController -
      * and currentProjects() was quietly wrong in a way that would have bitten whoever reached for it
      * next: its "projects without batch yet" half used Project::scopeWithoutBatch, which was
      * whereRelation("pieces.batch", "done", false) and so matched projects that DO have a batch. It

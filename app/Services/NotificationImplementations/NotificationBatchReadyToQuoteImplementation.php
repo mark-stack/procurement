@@ -101,7 +101,7 @@ class NotificationBatchReadyToQuoteImplementation implements NotificationInterfa
         /*
          * Nothing to do here. Pushing the fabrication date out does make this untrue - which is
          * exactly what FabricationDeadlineQuoting::clearWarningsNoLongerDue clears on the next run,
-         * off the one list that knows which columns are still inside the window. Archiving the
+         * off the one list that knows which columns are still inside the window. Marking done the
          * project clears it too, via NotificationService::clearProjectNotifications and the
          * project_id this carries.
          */

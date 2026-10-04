@@ -80,7 +80,7 @@ class BatchReadyToQuoteEmail extends Notification implements ShouldQueue
             /*
              * project_id is not decoration: NotificationService::clearProjectNotifications, the
              * project observer and FabricationDeadlineQuoting::clearWarningsNoLongerDue all key off
-             * it, so archiving or quoting the project this names takes it out of the bell.
+             * it, so marking the project done or quoting it this names takes it out of the bell.
              */
             'project_id' => $this->project->id,
             'project_name' => $this->project->name,

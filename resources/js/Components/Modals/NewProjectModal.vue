@@ -1,6 +1,6 @@
 <script setup>
     //General Imports
-    import {useForm, usePage} from "@inertiajs/vue3";
+    import {router, useForm, usePage} from "@inertiajs/vue3";
 
     //Component Imports
     import Modal from "@/Layouts/Modal.vue";
@@ -85,6 +85,15 @@
     const fileInput = ref(null);
     //A flash survives in the page props, so it has to be dismissable by hand
     const warningDismissed = ref(false);
+    /**
+     * The files the last attempt came back unable to read, by name.
+     *
+     * Held separately from errors.invalid_template because that error is cleared by
+     * "Ok, got it" and by touching the file picker, while the file itself stays
+     * attached - and a file the user has been told to remove, in a list that gives no
+     * sign of which one it is, is worse than no list at all.
+     */
+    const unreadableFileNames = ref([]);
 
     //Shared Methods
     const {confirmDialog, askToConfirm, confirmDialogAccepted, confirmDialogCancelled} = useConfirm();
@@ -97,6 +106,16 @@
     );
 
     const tooManyFiles = computed(() => formProjectCreate.excel.length > MAX_FILES);
+
+    const unreadableFiles = computed(
+        () => formProjectCreate.excel.filter(file => unreadableFileNames.value.includes(file.name))
+    );
+
+    /**
+     * The finished project holding the name the user just asked for, if there is one and they
+     * are allowed to retire it themselves. Reported by StoreProjectRequest::withValidator.
+     */
+    const nameClashProjectId = computed(() => formProjectCreate.errors.name_clash_project_id ?? null);
 
     /**
      * Every per-file rule reports under its own key ("excel.0"), which the single
@@ -167,6 +186,8 @@
         || !formProjectCreate.date_fabrication_begins
         || tooManyFiles.value
         || oversizedFiles.value.length > 0
+        //Re-posting a file the server has already said it cannot read only fails again
+        || unreadableFiles.value.length > 0
     );
 
     /**
@@ -191,9 +212,29 @@
         if(oversizedFiles.value.length > 0){
             return "Remove the file(s) over the 1Mb limit to continue.";
         }
+        if(unreadableFiles.value.length > 0){
+            return "Remove the file(s) we couldn't read to continue - the rest will still be extracted.";
+        }
 
         return null;
     });
+
+    /**
+     * Why a file's row is marked, or null if nothing is wrong with it.
+     *
+     * The size rule is checked here; "couldn't be read" comes back from the server and
+     * is kept so the row stays marked once the message above the list is dismissed.
+     */
+    function fileProblem(file){
+        if(file.size > MAX_FILE_BYTES){
+            return "Exceeds 1Mb limit - please remove";
+        }
+        if(unreadableFileNames.value.includes(file.name)){
+            return "We couldn't read this one - please remove";
+        }
+
+        return null;
+    }
 
     //Shared Methods
     //
@@ -224,6 +265,9 @@
     function submit(){
         //A new attempt: don't keep showing the last one's warning
         warningDismissed.value = true;
+
+        //...or the last one's verdict on the files, which this attempt is about to replace
+        unreadableFileNames.value = [];
 
         /**
          * "required" counts a field of spaces as filled, so without this a project
@@ -273,12 +317,33 @@
                         freezeView.value = false;
                     }
                 },
-                onError: () => {
+                /**
+                 * The attached files are deliberately left alone.
+                 *
+                 * They used to be emptied here, so a duplicate project name - a rejection
+                 * that has nothing to do with the spreadsheets, and is fixed by typing in
+                 * the field right above them - made the user find and attach every file
+                 * again. Nothing is created when the store fails (an unreadable file is
+                 * refused before the project is), so what is held here is still exactly
+                 * what should be posted on the next attempt.
+                 *
+                 * A file the server did object to is named in the error above the list -
+                 * the 1Mb and 5-file rules mark their own rows, and an unreadable one is
+                 * listed by name in the invalid_template box - so the user removes that
+                 * one rather than starting over.
+                 */
+                onError: (errors) => {
                     //Hide loader
                     freezeView.value = false;
 
-                    //Clear attached files
-                    formProjectCreate.excel = [];
+                    /*
+                     * Which files the server could not read, kept past the dismissal of the
+                     * message naming them. The rule reports one message holding every
+                     * filename - see ProjectController::store.
+                     */
+                    unreadableFileNames.value = Array.isArray(errors.invalid_template)
+                        ? errors.invalid_template
+                        : [];
                 },
             });
         }
@@ -318,6 +383,7 @@
         formProjectCreate.reset();
         formProjectCreate.clearErrors();
         formProjectCreate.excel = [];
+        unreadableFileNames.value = [];
 
         //A close mid-upload used to leave this stuck on the processing screen
         freezeView.value = false;
@@ -335,8 +401,56 @@
         emit('closeModal');
     }
 
+    /**
+     * Mark done the finished project sitting on this name, then try again.
+     *
+     * Both halves matter: marking it done on its own would leave the user looking at the same rejected
+     * form with no sign that the obstacle is gone, and the files are still attached - this whole
+     * modal is built to survive a failed attempt now - so the retry costs nothing.
+     *
+     * preserveState keeps that attached work through that round-trip. Without it Inertia
+     * remounts, and the second upload is as annoying as the one this all started with.
+     */
+    function markDoneAndRetry(){
+        if(!nameClashProjectId.value || freezeView.value){
+            return;
+        }
+
+        freezeView.value = true;
+
+        router.delete(route("projects.destroy", nameClashProjectId.value), {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => {
+                freezeView.value = false;
+
+                /*
+                 * Marking it done can still be refused - by reopenProjectNameIsFree's opposite number
+                 * or a gate - and it says so in its own error. Resubmitting on top of that would
+                 * replace the explanation with the same name rejection as before.
+                 */
+                if(usePage().props.errors?.done){
+                    return;
+                }
+
+                submit();
+            },
+            onError: () => {
+                freezeView.value = false;
+            },
+        });
+    }
+
     function removeFile(fileName){
         formProjectCreate.excel = formProjectCreate.excel.filter(file => file.name !== fileName);
+
+        /*
+         * Forget the verdict along with the file. Names are deduped on the way in, so
+         * removing one is the only way the same name comes back - and when it does it is
+         * a corrected spreadsheet, which must not arrive already marked unreadable and
+         * holding the submit button down.
+         */
+        unreadableFileNames.value = unreadableFileNames.value.filter(name => name !== fileName);
     }
 
     function addFiles(files){
@@ -623,6 +737,25 @@
                                         :disabled="formProjectCreate.processing || freezeView"
                                     >
                                     <div v-if="formProjectCreate.errors.name" class="text-sm text-red-500">{{ formProjectCreate.errors.name }}</div>
+
+                                    <!--
+                                        The way through, where there is one.
+
+                                        Only drawn for a finished project this user may retire -
+                                        StoreProjectRequest decides that and sends the id. Without
+                                        it the message above is the whole story, and the user is
+                                        left hunting for a project whose job is over and which the
+                                        board stopped showing when its batch was marked done.
+                                    -->
+                                    <button
+                                        v-if="nameClashProjectId"
+                                        type="button"
+                                        class="mt-2 text-sm font-semibold text-blue-700 dark:text-blue-400 underline hover:text-blue-900 dark:hover:text-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                        :disabled="formProjectCreate.processing || freezeView"
+                                        @click="markDoneAndRetry()"
+                                    >
+                                        "{{ projectName }}" is a finished project - mark it done and use the name
+                                    </button>
                                 </div>
 
                                 <!--
@@ -631,7 +764,7 @@
                                     Only for a business with somebody else on it. A material list is
                                     often uploaded by the draftsman who detailed the job, for the
                                     project manager running it - and the manager is who the board
-                                    names, who may rename or archive it, and who every materials
+                                    names, who may rename or retire it, and who every materials
                                     deadline reminder goes to. Defaults to the uploader.
                                 -->
                                 <div v-if="colleagues.length > 0">
@@ -808,10 +941,10 @@
                                             :key="file.name"
                                         >
                                             <p
-                                                :class="file.size > MAX_FILE_BYTES ? 'text-red-500' : 'dark:text-gray-200'"
+                                                :class="fileProblem(file) ? 'text-red-500' : 'dark:text-gray-200'"
                                                 class="col-span-4 break-all"
                                             >
-                                                {{file.name}} <span class="block text-xs" v-if="file.size > MAX_FILE_BYTES">(Exceeds 1Mb limit - please remove)</span>
+                                                {{file.name}} <span class="block text-xs" v-if="fileProblem(file)">({{ fileProblem(file) }})</span>
                                             </p>
                                             <button
                                                 type="button"

@@ -17,7 +17,7 @@ use MagicLink\Actions\LoginAction;
  *
  * The other half of App\Services\FabricationDeadlineQuoting. Starting quoting takes the whole Nesting
  * column into one batch owned by one colleague - the manager of the project whose fabrication date
- * forced it - so everybody else in the column loses Edit, Archive and BOM upload on their own project
+ * forced it - so everybody else in the column loses Edit, Done and BOM upload on their own project
  * the moment it happens, and the suppliers and delivery dates become that colleague's call.
  *
  * It now warns before that rather than reporting it afterwards, because the schedule stopped pressing

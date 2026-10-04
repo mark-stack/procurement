@@ -29,7 +29,7 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
          * Sends nothing. It is also not on NotificationService::hourlyImplementations(), so this is
          * never called - both, because the two together are what "deprecated" has to mean for a
          * class that emails customers. It used to ask every project manager, every two days, whether
-         * they had won the work yet, and "Lost it" archived the project.
+         * they had won the work yet, and "Lost it" marked the project done.
          *
          * The rest of the class stays live so that reminders already sitting in somebody's bell can
          * still be read and cleared. See the note on NotificationService::implementations().
@@ -129,10 +129,10 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
         $notification->markAsRead();
 
         /*
-         * Archive project
+         * Mark the project done
          *
-         * The same rule the Archive button answers to - your own project, and only while it is
-         * still pre-nesting. This used to archive whatever project the notification named, no
+         * The same rule the Done button answers to - your own project, and only while it is
+         * still pre-nesting. This used to mark done whatever project the notification named, no
          * questions asked, which is a project stuck off the board and a batch that can never be
          * re-nested for a click meaning nothing more than "we didn't win it".
          */
@@ -140,11 +140,11 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
             $project = Project::findOrFail($notification->data['project_id']);
             $user = auth()->user();
 
-            if (! $user || ! (new PrerequisiteConditions())->archiveProject($user, $project)) {
-                return back()->with('warning', 'That project is already nested, so it was left on the board. Re-nest its batch first if you want it archived.');
+            if (! $user || ! (new PrerequisiteConditions())->markProjectDone($user, $project)) {
+                return back()->with('warning', 'That project is already nested, so it was left on the board. Re-nest its batch first if you want it marked done.');
             }
 
-            $project->archive = true;
+            $project->done = true;
             $project->save();
         }
 
@@ -181,7 +181,7 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
                 'trafficLights' => [
                     'green' => ['Yes', '(Edit)'],
                     'yellow' => ['Not yet', '(Ask later)'],
-                    'red' => ['Lost it', '(Archive)'],
+                    'red' => ['Lost it', '(Mark done)'],
                 ],
             ];
         }

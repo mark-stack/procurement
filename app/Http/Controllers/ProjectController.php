@@ -70,7 +70,7 @@ class ProjectController extends Controller
          * fabricator with a drawing office is the draftsman, not the manager running the job. The BOM
          * comes out of the model and is uploaded by the person who detailed it, so every one of those
          * projects appeared on the board under the draftsman's name and the manager could not edit
-         * it, archive it, or be reminded of its materials date.
+         * it, mark it done, or be reminded of its materials date.
          *
          * So the manager is chosen on the upload page and recorded here, and the uploader is kept in
          * created_by_user_id - which is what lets them add the rest of the materials later and finish
@@ -250,11 +250,11 @@ class ProjectController extends Controller
     public function destroy(Project $project): RedirectResponse
     {
         /**
-         * Single purpose: toggle archive/restore
+         * Single purpose: toggle done/reopen
          *
          * The gate only asks whether the project belongs to your business, which is every
-         * colleague's project in the shared Nesting column - and the archived list this
-         * restores from is filtered to your own projects, so archiving a colleague's project
+         * colleague's project in the shared Nesting column - and the done list this
+         * reopens from is filtered to your own projects, so retiring a colleague's project
          * hid it from the board with no way back for anyone but them.
          */
         Gate::authorize('owned', $project);
@@ -262,27 +262,27 @@ class ProjectController extends Controller
         $user = auth()->user();
         $prerequisiteConditions = new PrerequisiteConditions();
 
-        $allowed = $project->archive
-            ? $prerequisiteConditions->restoreProject($user, $project)
-            : $prerequisiteConditions->archiveProject($user, $project);
+        $allowed = $project->done
+            ? $prerequisiteConditions->reopenProject($user, $project)
+            : $prerequisiteConditions->markProjectDone($user, $project);
 
         abort_unless($allowed, 403);
 
         /*
          * A restore can land on a name that has been given away in the meantime - see
-         * PrerequisiteConditions::restoreProjectNameIsFree for why that is worse than untidy, and why
-         * this is a sentence rather than another abort_unless. The owner can rename the archived
+         * PrerequisiteConditions::reopenProjectNameIsFree for why that is worse than untidy, and why
+         * this is a sentence rather than another abort_unless. The owner can rename the done
          * project and try again.
          */
-        if ($project->archive && ! $prerequisiteConditions->restoreProjectNameIsFree($project)) {
+        if ($project->done && ! $prerequisiteConditions->reopenProjectNameIsFree($project)) {
             return back()->withErrors([
-                'archive' => 'Another live project is already called "'.$project->name.'". Rename this'
+                'done' => 'Another live project is already called "'.$project->name.'". Rename this'
                     .' one before restoring it, or the board will show two projects under the same'
                     .' name and nothing downstream can tell them apart.',
             ]);
         }
 
-        $project->archive = ! $project->archive;
+        $project->done = ! $project->done;
         $project->save();
 
         return back();

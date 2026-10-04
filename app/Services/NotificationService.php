@@ -74,10 +74,10 @@ class NotificationService
             /*
              * Deprecated, and listed on purpose. It sends nothing any more - see
              * hourlyImplementations() and its own hourlyCheck() - but rows it sent before that are
-             * still sitting unread in people's bells, and its "Lost it" button archives the project
+             * still sitting unread in people's bells, and its "Lost it" button marks the project done
              * it names. Dropping it off this list would leave those rows rendered by nobody: no
              * wording, no buttons, no way to clear them, and the ownership check that stops one
-             * user's notification id archiving another business's project never reached.
+             * user's notification id marking another business's project done never reached.
              */
             new NotificationProjectAwardedImplementation,
         ];
@@ -140,7 +140,7 @@ class NotificationService
         /**
          * Everything still outstanding about one project, marked read. Each implementation
          * clears its own notification when the thing it asks about is answered - awarded,
-         * tentative date confirmed - and none of them treats archiving as an answer, so a
+         * tentative date confirmed - and none of them treats marking it done as an answer, so a
          * project taken off the board kept asking whether it had been awarded.
          *
          * This is also what takes the colleague notifications down: they carry project_id for

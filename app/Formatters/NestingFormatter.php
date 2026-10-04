@@ -2530,7 +2530,7 @@ class NestingFormatter
             //Every nesting algo reads $piece->project, once per piece and once per cut
             ->with("project")
             ->whereRelation("project.user.business","id","=",$business->id)
-            ->whereRelation("project","archive","=",false)
+            ->whereRelation("project","done","=",false)
             ->doesntHave("batch")
             /*
              * Ordered, because the nest and the project letters are both built by walking this list.

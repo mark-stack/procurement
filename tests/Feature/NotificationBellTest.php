@@ -45,7 +45,7 @@ it('would be a disaster if a colleague could take your project into their batch 
     /**
      * "Start quoting" nests every project in the Nesting column into one batch owned by whoever
      * pressed it. From that moment the suppliers quoted and the delivery dates asked for belong to
-     * that batch, and the owner of a project swept into it loses Edit, Archive and BOM upload on
+     * that batch, and the owner of a project swept into it loses Edit, Done and BOM upload on
      * their own project. The confirmation naming whose work is being taken is shown to the person
      * doing the taking; the owner was told nothing and found out by noticing the card had moved.
      */
@@ -298,7 +298,7 @@ it('renders every unread notification the bell is given, and only once each', fu
     }
 });
 
-it('would be a disaster if archiving a project left a colleague notification about it in the bell', function () {
+it('would be a disaster if marking a project done left a colleague notification about it in the bell', function () {
     /**
      * The colleague notifications carry project_id for this reason: a project that leaves the board
      * stops being talked about, through NotificationService::clearProjectNotifications and the
@@ -316,7 +316,7 @@ it('would be a disaster if archiving a project left a colleague notification abo
 
     expect($owner->unreadNotifications()->count())->toBe(1);
 
-    $project->archive = true;
+    $project->done = true;
     $project->save();
 
     expect($owner->fresh()->unreadNotifications()->count())->toBe(0);

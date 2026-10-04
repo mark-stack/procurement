@@ -14,7 +14,7 @@ use Illuminate\Support\Collection;
  *
  * The other half of App\Services\FabricationDeadlineQuoting. Starting quoting takes the whole Nesting
  * column into one batch owned by one person - the manager of the project whose fabrication date forced
- * it - so everybody else in that column loses Edit, Archive and BOM upload on their own project the
+ * it - so everybody else in that column loses Edit, Done and BOM upload on their own project the
  * moment it happens, and the suppliers and delivery dates become that colleague's call.
  *
  * What changed is the tense. This used to report a batch the schedule had already created; now the

@@ -29,9 +29,9 @@ use Throwable;
  * is long enough for them and short enough that the column still reads as the current month's work.
  *
  * Deliberately conservative, because nothing in the application re-opens a closed batch: see
- * archiveDueDate() for the four things that hold a card on the board indefinitely rather than guess.
+ * doneDueDate() for the four things that hold a card on the board indefinitely rather than guess.
  */
-class DeliveredBatchArchiving
+class DeliveredBatchAutoDone
 {
     /**
      * How long a fully delivered batch stays on the board before it closes itself.
@@ -47,7 +47,7 @@ class DeliveredBatchArchiving
      */
     public function sweep(): array
     {
-        $archived = [];
+        $done = [];
 
         /*
          * Live rows only. The sandbox global scope resolves to "sandbox_user_id is null" when no test
@@ -56,19 +56,19 @@ class DeliveredBatchArchiving
          * to their real data.
          */
         if (Sandbox::isActive()) {
-            return $archived;
+            return $done;
         }
 
         foreach (Business::query()->get() as $business) {
             try {
-                $archived = array_merge($archived, $this->sweepBusiness($business));
+                $done = array_merge($done, $this->sweepBusiness($business));
             } catch (Throwable $e) {
                 /*
                  * One business's bad data does not stop the rest, for the reason the fabrication
                  * deadline warnings give: the businesses behind this one in the list would otherwise
                  * be taken down with it, silently, on a schedule nobody is watching.
                  */
-                Log::error('Delivered batch archiving failed', [
+                Log::error('Delivered batch auto-done failed', [
                     'business_id' => $business->id,
                     'exception' => $e,
                 ]);
@@ -77,7 +77,7 @@ class DeliveredBatchArchiving
             }
         }
 
-        return $archived;
+        return $done;
     }
 
     /**
@@ -85,7 +85,7 @@ class DeliveredBatchArchiving
      */
     public function sweepBusiness(Business $business): array
     {
-        $archived = [];
+        $done = [];
 
         /*
          * A read-only account is read-only here too. Closing a batch is a write the user could not
@@ -94,7 +94,7 @@ class DeliveredBatchArchiving
          * board of a business that has lost the ability to put it back.
          */
         if (! $business->allowsWrites()) {
-            return $archived;
+            return $done;
         }
 
         /*
@@ -104,10 +104,26 @@ class DeliveredBatchArchiving
          * a batch like that must not quietly become a past project just because the orders that do
          * exist have all arrived.
          */
-        $delivering = (new BatchStages)->forBusiness($business)[BatchStages::DELIVERING];
+        $staged = (new BatchStages)->forBusiness($business);
 
-        foreach ($delivering as $batch) {
-            $due = $this->archiveDueDate($batch);
+        /*
+         * And the Quoting column beside it, for the batches delivered by hand.
+         *
+         * A shop that rings the merchant has no order to book in, so its finished batches never reach
+         * the Delivering column at all - they sit in Quoting with "Delivered" on the card and nothing
+         * to move them on. That was most of them before the quotes screen was deleted and it is all of
+         * them since, which left this sweep closing nothing and the Nesting page growing by a card a
+         * job. Only the ones carrying the mark: an ordinary Quoting batch is work in progress.
+         *
+         * The two columns are kept apart on purpose even so - doneDueDate decides what each is
+         * waiting for, and the Ordering column is in neither, a batch with material nobody has bought
+         * being unfinished however the rest of it arrived.
+         */
+        $deliveredByHand = $staged[BatchStages::QUOTING]
+            ->filter(fn (Batch $batch) => $batch->delivered_at !== null);
+
+        foreach ($staged[BatchStages::DELIVERING]->concat($deliveredByHand) as $batch) {
+            $due = $this->doneDueDate($batch);
 
             if ($due === null || $due->isFuture()) {
                 continue;
@@ -118,11 +134,11 @@ class DeliveredBatchArchiving
              * went back out between the stage query and here - and nothing is written.
              */
             if (MarkAsDone::run($batch)) {
-                $archived[] = $batch;
+                $done[] = $batch;
             }
         }
 
-        return $archived;
+        return $done;
     }
 
     /**
@@ -133,9 +149,15 @@ class DeliveredBatchArchiving
      * that says nothing. The date is the last delivery booked in plus DAYS_AFTER_DELIVERY, counted
      * from the receipt rather than from today, so it does not drift forward as the card is re-rendered.
      *
-     * Null in four cases, and in all four the card stays on the board for somebody to close by hand:
+     * Two kinds of batch reach a date, because there are two ways to buy. One was bought through the
+     * quotes screen and is read off its goods receipts, which is everything below. The other was bought
+     * over the phone, has no order to book in, and carries the Nesting card's own delivered mark -
+     * counted from the day somebody set it. See the Quoting branch in the body.
      *
-     *  - The batch is not in the Delivering column, or is already done. Nothing to close.
+     * Null in four cases, and in all four the card stays on the page for somebody to close by hand:
+     *
+     *  - The batch is already done, or is in neither of the two states above. Nothing to close - and
+     *    the Ordering column is deliberately one of them, material on it being unbought.
      *  - A sent order has not been delivered. The steel is still out.
      *  - A sent, delivered order has no received_at. Those are the deliveries booked in before the
      *    goods receipt columns existed (see the add_goods_receipt_to_orders migration, which refused
@@ -149,7 +171,7 @@ class DeliveredBatchArchiving
      *    stay in the rack and stay untraceable. The board already hides "Move to done" behind this
      *    warning, so holding here is the sweep agreeing with the button rather than a rule of its own.
      */
-    public function archiveDueDate(Batch $batch): ?Carbon
+    public function doneDueDate(Batch $batch): ?Carbon
     {
         if ($batch->done) {
             return null;
@@ -162,7 +184,35 @@ class DeliveredBatchArchiving
          * cost is the same two bounded queries the Ordering and Delivering columns each already pay
          * per batch.
          */
-        if ((new BatchStages)->of($batch) !== BatchStages::DELIVERING) {
+        $stage = (new BatchStages)->of($batch);
+
+        /*
+         * The batch delivered by hand, which has no order to read a receipt off and says so with the
+         * mark instead. Five days from the day somebody said the steel was in - the same wait, counted
+         * from the same event, just recorded by a person rather than by a goods receipt.
+         *
+         * From the cut where there is one, because that is the later of the two and the batch is
+         * plainly still in use until the saw has been through it. Not waiting FOR the cut: a shop that
+         * never presses it would then never have a batch close, which is the silting up this is here
+         * to stop.
+         *
+         * Only from the Quoting column. A hand mark on a batch with real orders behind it is read off
+         * those orders instead (see the block below), and the Ordering column is excluded by the
+         * default: something on that job was never bought.
+         */
+        if ($stage === BatchStages::QUOTING) {
+            if ($batch->delivered_at === null) {
+                return null;
+            }
+
+            $finished = $batch->cut_at !== null && $batch->cut_at->greaterThan($batch->delivered_at)
+                ? $batch->cut_at
+                : $batch->delivered_at;
+
+            return $finished->copy()->addDays(self::DAYS_AFTER_DELIVERY);
+        }
+
+        if ($stage !== BatchStages::DELIVERING) {
             return null;
         }
 

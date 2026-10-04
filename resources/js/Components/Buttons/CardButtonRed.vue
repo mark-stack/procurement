@@ -9,7 +9,7 @@
         /**
          * Draws the mirror of CardButtonForward's arrow, before the label instead of after it,
          * for the buttons that send a card back up the board rather than on down it. Off by
-         * default - Archive uses this button too and leaves the board altogether.
+         * default - Done uses this button too and leaves the board altogether.
          */
         back: Boolean,
     });

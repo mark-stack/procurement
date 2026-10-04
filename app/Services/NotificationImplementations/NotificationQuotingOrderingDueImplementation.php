@@ -39,7 +39,7 @@ class NotificationQuotingOrderingDueImplementation implements NotificationInterf
          * 6) Not notified already
          */
         $quoteDueProjects = Project::query()
-            ->active()                       //1) Project is active (not archived)
+            ->active()                       //1) Project is active (not done)
             ->dueForQuotingAndOrdering()     //3) Between [critical path + 1 day] and [critical path] days before planned project material received date
             ->get();
 

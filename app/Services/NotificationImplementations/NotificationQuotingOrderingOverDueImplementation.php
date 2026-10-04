@@ -39,7 +39,7 @@ class NotificationQuotingOrderingOverDueImplementation implements NotificationIn
          * 6) Not notified already
          */
         $quoteDueProjects = Project::query()
-            ->active()                        //1) Project is active (not archived)
+            ->active()                        //1) Project is active (not done)
             ->overdueForQuotingAndOrdering()  //3) Less than [critical path] before planned project material received date
             ->get();
 

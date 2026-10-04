@@ -5,7 +5,7 @@
         fullWidth: Boolean,
         /*
          * Editing a project is the owner's call, so this button greys out on a colleague's
-         * project the way CardButtonRed does for Archive beside it - the two sit in the same row
+         * project the way CardButtonRed does for Done beside it - the two sit in the same row
          * and used to disagree about who the card belonged to.
          */
         disabled: Boolean,

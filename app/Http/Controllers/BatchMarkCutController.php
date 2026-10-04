@@ -21,7 +21,7 @@ class BatchMarkCutController extends Controller
      * It changes nothing else. The batch stays live and stays on the page - the offcuts it produced
      * were created when it was nested, the board's columns are built on orders and receipts, and a
      * fully delivered batch with real orders behind it still closes itself on those receipts
-     * (App\Services\DeliveredBatchArchiving). This is a date and a name against a job.
+     * (App\Services\DeliveredBatchAutoDone). This is a date and a name against a job.
      */
     public function __invoke(Request $request, Batch $batch): RedirectResponse
     {

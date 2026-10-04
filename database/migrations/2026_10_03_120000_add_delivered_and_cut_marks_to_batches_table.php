@@ -21,8 +21,8 @@ return new class extends Migration
      * order-driven batch too, once its deliveries are all booked in.
      *
      * Neither closes the batch. It stays on the Nesting page saying what has happened to it - a
-     * fully delivered batch with real orders behind it still archives itself on the goods receipts
-     * (App\Services\DeliveredBatchArchiving) and these marks are not part of that count.
+     * fully delivered batch with real orders behind it still closes itself on the goods receipts
+     * (App\Services\DeliveredBatchAutoDone) and these marks are not part of that count.
      *
      * Who pressed it beside when, the way the two before it are, and for the same reason: these are
      * claims about somebody else's steel, and a claim with nobody's name on it is the one nobody can

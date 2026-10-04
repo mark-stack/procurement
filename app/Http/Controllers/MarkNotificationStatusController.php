@@ -28,8 +28,8 @@ class MarkNotificationStatusController extends Controller
 
         /*
          * Read off the caller's own notifications. A bare findOrFail took any notification id
-         * in the table, and the red action on one of them archives the project it names - so
-         * an id was all it took to archive another business's project.
+         * in the table, and the red action on one of them marks done the project it names - so
+         * an id was all it took to mark another business's project done.
          */
         $notification = $request->user()->notifications()->findOrFail($validated['id']);
 

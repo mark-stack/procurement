@@ -7,7 +7,7 @@ use App\Models\Batch;
 use App\Models\Order;
 use App\Models\Quote;
 use App\Models\User;
-use App\Services\DeliveredBatchArchiving;
+use App\Services\DeliveredBatchAutoDone;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 
@@ -20,7 +20,7 @@ uses(RefreshDatabase::class);
  * Named apart from the other files' helpers - pest loads every test file into the one process, so a
  * second declaration of an existing name is a fatal, not an override.
  */
-function archivedBatchOrder(
+function doneBatchOrder(
     User $user,
     Batch $batch,
     string $supplierCategory = 'STEEL_MERCHANT',
@@ -67,7 +67,7 @@ function deliveredBatch(User $user, ?string $receivedAt, ?string $materialCertNu
     $project = createProject($user);
     $piece = pieceOnBatch($project, $batch);
 
-    $order = archivedBatchOrder(
+    $order = doneBatchOrder(
         $user,
         $batch,
         receivedAt: $receivedAt,
@@ -91,9 +91,9 @@ it('closes a batch whose steel has all been in for a week', function () {
 
     [$batch] = deliveredBatch($user, now()->subDays(7)->toDateTimeString());
 
-    $archived = (new DeliveredBatchArchiving)->sweepBusiness($business);
+    $doneProject = (new DeliveredBatchAutoDone)->sweepBusiness($business);
 
-    expect($archived)->toHaveCount(1)
+    expect($doneProject)->toHaveCount(1)
         ->and((bool) $batch->fresh()->done)->toBeTrue();
 
     //And it is off the board, which is the only thing the user sees
@@ -113,12 +113,12 @@ it('leaves a batch alone while its delivery is still recent', function () {
     $receivedAt = now()->subDays(2);
     [$batch] = deliveredBatch($user, $receivedAt->toDateTimeString());
 
-    expect((new DeliveredBatchArchiving)->sweepBusiness($business))->toBeEmpty()
+    expect((new DeliveredBatchAutoDone)->sweepBusiness($business))->toBeEmpty()
         ->and((bool) $batch->fresh()->done)->toBeFalse();
 
     //Counted from the receipt, so the date does not drift forward every time the board is drawn
-    expect((new DeliveredBatchArchiving)->archiveDueDate($batch)->toDateString())
-        ->toBe($receivedAt->copy()->addDays(DeliveredBatchArchiving::DAYS_AFTER_DELIVERY)->toDateString());
+    expect((new DeliveredBatchAutoDone)->doneDueDate($batch)->toDateString())
+        ->toBe($receivedAt->copy()->addDays(DeliveredBatchAutoDone::DAYS_AFTER_DELIVERY)->toDateString());
 });
 
 it('counts from the last delivery booked in, not the first', function () {
@@ -133,7 +133,7 @@ it('counts from the last delivery booked in, not the first', function () {
     [$batch] = deliveredBatch($user, now()->subDays(14)->toDateTimeString());
 
     $lastDelivery = now()->subDay();
-    archivedBatchOrder(
+    doneBatchOrder(
         $user,
         $batch,
         supplierCategory: 'FASTENERS',
@@ -141,23 +141,23 @@ it('counts from the last delivery booked in, not the first', function () {
         materialCertNumbers: null,
     );
 
-    expect((new DeliveredBatchArchiving)->sweepBusiness($business))->toBeEmpty()
-        ->and((new DeliveredBatchArchiving)->archiveDueDate($batch)->toDateString())
-        ->toBe($lastDelivery->copy()->addDays(DeliveredBatchArchiving::DAYS_AFTER_DELIVERY)->toDateString());
+    expect((new DeliveredBatchAutoDone)->sweepBusiness($business))->toBeEmpty()
+        ->and((new DeliveredBatchAutoDone)->doneDueDate($batch)->toDateString())
+        ->toBe($lastDelivery->copy()->addDays(DeliveredBatchAutoDone::DAYS_AFTER_DELIVERY)->toDateString());
 });
 
 it('would be a disaster if a batch with a delivery still out closed itself', function () {
     /*
      * A batch sits in this column from the moment the last order is SENT, so most of the cards in it
      * have steel still on the road. Reading "the oldest delivery was ages ago" as "the job is done"
-     * would archive a live batch - and nothing in the application re-opens one.
+     * would close a live batch - and nothing in the application re-opens one.
      */
     $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     [$batch] = deliveredBatch($user, now()->subDays(30)->toDateTimeString());
 
-    archivedBatchOrder(
+    doneBatchOrder(
         $user,
         $batch,
         supplierCategory: 'FASTENERS',
@@ -165,8 +165,8 @@ it('would be a disaster if a batch with a delivery still out closed itself', fun
         materialCertNumbers: null,
     );
 
-    expect((new DeliveredBatchArchiving)->sweepBusiness($business))->toBeEmpty()
-        ->and((new DeliveredBatchArchiving)->archiveDueDate($batch))->toBeNull()
+    expect((new DeliveredBatchAutoDone)->sweepBusiness($business))->toBeEmpty()
+        ->and((new DeliveredBatchAutoDone)->doneDueDate($batch))->toBeNull()
         ->and((bool) $batch->fresh()->done)->toBeFalse();
 });
 
@@ -182,15 +182,15 @@ it('would be a disaster if it closed a batch whose steel has no material certs',
 
     [$batch] = deliveredBatch($user, now()->subDays(30)->toDateTimeString(), materialCertNumbers: null);
 
-    expect((new DeliveredBatchArchiving)->sweepBusiness($business))->toBeEmpty()
-        ->and((new DeliveredBatchArchiving)->archiveDueDate($batch))->toBeNull();
+    expect((new DeliveredBatchAutoDone)->sweepBusiness($business))->toBeEmpty()
+        ->and((new DeliveredBatchAutoDone)->doneDueDate($batch))->toBeNull();
 
     //And the card goes on asking for them, which is the whole reason it is still there
     $this->actingAs($user);
     $row = collect((new KanbanFormatter)->deliveredColumn($business))->first()['info'];
 
     expect($row['steelMerchantDeliveredButNoCertsYet'])->toBeTrue()
-        ->and($row['archiveDueDate'])->toBeNull();
+        ->and($row['doneDueDate'])->toBeNull();
 });
 
 it('never guesses at when a delivery nobody dated arrived', function () {
@@ -207,8 +207,8 @@ it('never guesses at when a delivery nobody dated arrived', function () {
 
     [$batch] = deliveredBatch($user, null);
 
-    expect((new DeliveredBatchArchiving)->sweepBusiness($business))->toBeEmpty()
-        ->and((new DeliveredBatchArchiving)->archiveDueDate($batch))->toBeNull();
+    expect((new DeliveredBatchAutoDone)->sweepBusiness($business))->toBeEmpty()
+        ->and((new DeliveredBatchAutoDone)->doneDueDate($batch))->toBeNull();
 
     $this->actingAs($user);
     expect(collect((new KanbanFormatter)->deliveredColumn($business))->first()['info']['allDelivered'])
@@ -219,11 +219,11 @@ it('never guesses at when a delivery nobody dated arrived', function () {
     expect((bool) $batch->fresh()->done)->toBeTrue();
 });
 
-it('would be a disaster if it archived a batch carrying material nobody ever ordered', function () {
+it('would be a disaster if it closed a batch carrying material nobody ever ordered', function () {
     /*
      * A material row that never matched a product has no piece, so it can never be ordered and it holds
      * the batch in the Ordering column - BatchStages says so, and the board draws it there. Its sent
-     * orders can still all have arrived, and archiving on that alone would make a past project out of a
+     * orders can still all have arrived, and closing on that alone would make a past project out of a
      * job with steel missing from it.
      */
     $business = createBusiness('biz');
@@ -235,8 +235,8 @@ it('would be a disaster if it archived a batch carrying material nobody ever ord
     $project = $batch->projects()->first();
     createRawMaterialQuote200Pfc($project, MaterialEnums::PLAIN_CARBON_STEEL, GradeEnums::GR300, 6000);
 
-    expect((new DeliveredBatchArchiving)->sweepBusiness($business))->toBeEmpty()
-        ->and((new DeliveredBatchArchiving)->archiveDueDate($batch->fresh()))->toBeNull();
+    expect((new DeliveredBatchAutoDone)->sweepBusiness($business))->toBeEmpty()
+        ->and((new DeliveredBatchAutoDone)->doneDueDate($batch->fresh()))->toBeNull();
 });
 
 it('leaves the board of a lapsed account alone', function () {
@@ -250,7 +250,7 @@ it('leaves the board of a lapsed account alone', function () {
 
     [$batch] = deliveredBatch($user, now()->subDays(30)->toDateTimeString());
 
-    expect((new DeliveredBatchArchiving)->sweepBusiness($business))->toBeEmpty()
+    expect((new DeliveredBatchAutoDone)->sweepBusiness($business))->toBeEmpty()
         ->and((bool) $batch->fresh()->done)->toBeFalse();
 });
 
@@ -260,8 +260,8 @@ it('has nothing left to do on a second run', function () {
 
     deliveredBatch($user, now()->subDays(7)->toDateTimeString());
 
-    expect((new DeliveredBatchArchiving)->sweepBusiness($business))->toHaveCount(1)
-        ->and((new DeliveredBatchArchiving)->sweepBusiness($business))->toBeEmpty();
+    expect((new DeliveredBatchAutoDone)->sweepBusiness($business))->toHaveCount(1)
+        ->and((new DeliveredBatchAutoDone)->sweepBusiness($business))->toBeEmpty();
 });
 
 it('prints the day it will close on the card, on the date the schedule keeps', function () {
@@ -278,8 +278,8 @@ it('prints the day it will close on the card, on the date the schedule keeps', f
     $this->actingAs($user);
     $row = collect((new KanbanFormatter)->deliveredColumn($business))->first()['info'];
 
-    expect($row['archiveDueDate'])
-        ->toBe($receivedAt->copy()->addDays(DeliveredBatchArchiving::DAYS_AFTER_DELIVERY)->toDateString());
+    expect($row['doneDueDate'])
+        ->toBe($receivedAt->copy()->addDays(DeliveredBatchAutoDone::DAYS_AFTER_DELIVERY)->toDateString());
 });
 
 it('closes the batch when the schedule runs it', function () {
@@ -288,7 +288,7 @@ it('closes the batch when the schedule runs it', function () {
 
     [$batch] = deliveredBatch($user, now()->subDays(7)->toDateTimeString());
 
-    $this->artisan('batches:archive-delivered')
+    $this->artisan('batches:mark-delivered-done')
         ->expectsOutputToContain('Batches moved to past projects: 1')
         ->assertSuccessful();
 
@@ -305,12 +305,102 @@ it('waits exactly the five days it says it does', function () {
 
     [$batch] = deliveredBatch($user, now()->toDateTimeString());
 
-    Carbon::setTestNow(now()->addDays(DeliveredBatchArchiving::DAYS_AFTER_DELIVERY - 1));
-    expect((new DeliveredBatchArchiving)->sweepBusiness($business))->toBeEmpty();
+    Carbon::setTestNow(now()->addDays(DeliveredBatchAutoDone::DAYS_AFTER_DELIVERY - 1));
+    expect((new DeliveredBatchAutoDone)->sweepBusiness($business))->toBeEmpty();
 
     Carbon::setTestNow(now()->addDay());
-    expect((new DeliveredBatchArchiving)->sweepBusiness($business))->toHaveCount(1)
+    expect((new DeliveredBatchAutoDone)->sweepBusiness($business))->toHaveCount(1)
         ->and((bool) $batch->fresh()->done)->toBeTrue();
 
     Carbon::setTestNow();
+});
+
+/**
+ * A batch bought over the phone: nested, no order anywhere, and marked delivered by hand on the day
+ * given. The Nesting card's "All delivered" writes exactly this - see BatchMarkDeliveredController.
+ */
+function handDeliveredBatch(User $user, ?string $deliveredAt, ?string $cutAt = null): Batch
+{
+    $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
+    $project = createProject($user);
+    pieceOnBatch($project, $batch);
+
+    $batch->update([
+        'delivered_at' => $deliveredAt,
+        'cut_at' => $cutAt,
+    ]);
+
+    return $batch->fresh();
+}
+
+it('closes a batch bought over the phone, five days after somebody said the steel was in', function () {
+    /*
+     * The shop that rings the merchant has no order to book in, so its finished batches never reach
+     * the Delivering column at all - they sit in Quoting with "Delivered" on the card. This sweep
+     * only ever looked at that column, so those batches were closed by nothing: the Nesting page grew
+     * by a card a job and Past Projects could gain no rows.
+     *
+     * Counted from the mark, which is the same event a goods receipt records - the day somebody said
+     * the steel arrived - just written by a person rather than by the orders screen.
+     */
+    $business = createBusiness('biz');
+    $user = createUser(1, $business, false, true);
+
+    $batch = handDeliveredBatch($user, now()->subDays(DeliveredBatchAutoDone::DAYS_AFTER_DELIVERY)->toDateTimeString());
+
+    $doneProject = (new DeliveredBatchAutoDone)->sweepBusiness($business);
+
+    expect($doneProject)->toHaveCount(1)
+        ->and((bool) $batch->fresh()->done)->toBeTrue();
+});
+
+it('leaves a batch delivered by hand alone until the same five days are up', function () {
+    //The wait is the wait, whichever way the delivery was recorded
+    $business = createBusiness('biz');
+    $user = createUser(1, $business, false, true);
+
+    $batch = handDeliveredBatch($user, now()->subDays(DeliveredBatchAutoDone::DAYS_AFTER_DELIVERY - 1)->toDateTimeString());
+
+    expect((new DeliveredBatchAutoDone)->sweepBusiness($business))->toBeEmpty()
+        ->and((bool) $batch->fresh()->done)->toBeFalse();
+});
+
+it('counts a batch cut after its delivery from the cut, which is the later of the two', function () {
+    /*
+     * The saw going through it is the last thing that happens to a job, and a batch is plainly still
+     * in use until it has. Delivered a fortnight ago and cut this morning stays on the page.
+     */
+    $business = createBusiness('biz');
+    $user = createUser(1, $business, false, true);
+
+    $batch = handDeliveredBatch(
+        $user,
+        now()->subDays(14)->toDateTimeString(),
+        now()->toDateTimeString(),
+    );
+
+    expect((new DeliveredBatchAutoDone)->sweepBusiness($business))->toBeEmpty();
+
+    Carbon::setTestNow(now()->addDays(DeliveredBatchAutoDone::DAYS_AFTER_DELIVERY));
+
+    expect((new DeliveredBatchAutoDone)->sweepBusiness($business))->toHaveCount(1)
+        ->and((bool) $batch->fresh()->done)->toBeTrue();
+
+    Carbon::setTestNow();
+});
+
+it('would be a disaster if an ordinary batch nobody has delivered closed itself', function () {
+    /*
+     * The Quoting column is where the work in progress lives - every batch on the Nesting page is in
+     * it now - so reading that column at all means being sure about the one thing that separates a
+     * finished batch from an unfinished one. No mark, no closing, however old the batch is.
+     */
+    $business = createBusiness('biz');
+    $user = createUser(1, $business, false, true);
+
+    $batch = handDeliveredBatch($user, null);
+    $batch->update(['created_at' => now()->subMonths(6)]);
+
+    expect((new DeliveredBatchAutoDone)->sweepBusiness($business))->toBeEmpty()
+        ->and((bool) $batch->fresh()->done)->toBeFalse();
 });

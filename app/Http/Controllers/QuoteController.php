@@ -81,7 +81,7 @@ class QuoteController extends Controller
         /*
          * Tell the other project managers. This button takes every project in the Nesting column into
          * one batch owned by whoever pressed it, which fixes their suppliers and delivery dates and
-         * takes Edit, Archive and BOM upload away from them - and the confirmation naming whose work
+         * takes Edit, Done and BOM upload away from them - and the confirmation naming whose work
          * is being taken is shown only to the person taking it.
          *
          * After the transaction, so a rolled-back batch notifies nobody. Read off $batch->projects()

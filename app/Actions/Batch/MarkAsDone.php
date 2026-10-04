@@ -11,7 +11,7 @@ use Lorisleiva\Actions\Concerns\AsAction;
  * "done" is written here and nowhere else, and nothing in the application sets it back, so this is
  * the one-way door off the kanban. It is an action rather than two lines in a controller because
  * there are two ways through it now: the "Move to done" button, and
- * App\Services\DeliveredBatchArchiving, which closes a batch whose steel has all been in for days.
+ * App\Services\DeliveredBatchAutoDone, which closes a batch whose steel has all been in for days.
  * Both have to apply the same guard - a batch with a delivery still out must not leave the board by
  * either route, and a second copy of that test is a second copy to get wrong.
  *

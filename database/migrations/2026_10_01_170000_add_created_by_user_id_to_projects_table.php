@@ -15,7 +15,7 @@ return new class extends Migration
      * fabricator with a drawing office that is the draftsman: BOMs come out of the model and get
      * uploaded by the person who detailed the job, for a project manager who never touches the
      * upload page. Every one of those projects sat on the board under the draftsman's name, and the
-     * manager running the job could not edit it, archive it or be reminded about its deadline.
+     * manager running the job could not edit it, mark it done or be reminded about its deadline.
      *
      * So user_id becomes what it says - the manager the upload is for, chosen on the upload page -
      * and this records who actually did it. Both are needed:

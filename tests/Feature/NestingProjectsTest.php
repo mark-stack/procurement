@@ -55,7 +55,7 @@ it('would be a disaster if has other business’s materials', function () {});
 
 it('would be a disaster if includes deprecated project materials', function () {});
 
-it('would be a disaster if includes archived project materials', function () {});
+it('would be a disaster if includes done project materials', function () {});
 
 it("would be a disaster if a nest could be downloaded from another business's batch", function () {
     /**

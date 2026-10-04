@@ -16,7 +16,7 @@ it('would be a disaster if a lapsed account lost access to work it had already d
 
     /*
      * Everything they built stays open. Not an exhaustive list of the application's pages, but one
-     * of each kind: the board, the archive, the rack and the price book.
+     * of each kind: the board, past projects, the rack and the price book.
      */
     foreach (['dashboard', 'past.projects.index', 'offcuts.index', 'pricebook'] as $page) {
         $this->actingAs($user)

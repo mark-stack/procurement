@@ -13,7 +13,7 @@ uses(RefreshDatabase::class);
 
 /**
  * A project that the hourly check will pick up: due inside the critical path window, which is
- * quoting time plus delivery time (Project::criticalPathDays), and not archived.
+ * quoting time plus delivery time (Project::criticalPathDays), and not done.
  */
 function projectDueForQuoting(App\Models\User $user): Project
 {

@@ -46,6 +46,10 @@ class Batch extends Model
 
     private ?EloquentCollection $projectApprovalFlagsMemo = null;
 
+    private ?bool $hasSentOrderMemo = null;
+
+    private ?bool $producedOffcutsConsumedMemo = null;
+
     protected function casts(): array
     {
         return [
@@ -138,13 +142,19 @@ class Batch extends Model
     public function projectApprovalFlags(): EloquentCollection
     {
         /*
-         * Just the owner and archive state, for the prerequisite conditions. Those read nothing but
-         * $project->user_id and $project->archive, while projects() above eager-loads the
+         * Just the owner and done state, for the prerequisite conditions. Those read nothing but
+         * $project->user_id and $project->done, while projects() above eager-loads the
          * rawMaterialQuotes/piece/quote/order tree that ProjectResource needs - several queries per
          * call, and markQuoteAsSent/undoMarkQuoteAsSent together call it four times per supplier row.
          */
+        /*
+         * The manager comes with them, two columns of him: undoStartQuoting asks whose business the
+         * projects on the batch belong to, and walking there through $project->user was a user row
+         * per project on top of the tree projects() was being loaded for.
+         */
         return $this->projectApprovalFlagsMemo ??= Project::query()
-            ->select(['id', 'user_id', 'archive'])
+            ->select(['id', 'user_id', 'done'])
+            ->with('user:id,business_id')
             ->whereIn('id', $this->pieces()->distinct()->pluck('project_id'))
             ->get();
     }
@@ -356,6 +366,79 @@ class Batch extends Model
     public function certificates(): HasMany
     {
         return $this->hasMany(MaterialCertificate::class);
+    }
+
+    /**
+     * Whether an order has gone out on this batch - the one question the whole board turns on.
+     *
+     * It decides which column the batch is in (BatchStages::of), whether it can still be unpicked
+     * (PrerequisiteConditions::undoStartQuoting) and whether the supplier-free marks may be given at
+     * all (canMarkBatchMilestone). Every one of those asked it with its own `exists` query, so the
+     * Nesting page paid for it four times per card - a grouped page that does nothing but draw a list.
+     *
+     * Memoised per instance, the way projectApprovalFlags() below is and for the same reason: within
+     * one request the answer cannot change under the four callers, because sending an order is a POST
+     * that ends in a redraw. The memo is an instance field, so a batch re-read from the database - the
+     * next request, or the next pass of the auto-done sweep - asks again.
+     */
+    public function hasSentOrder(): bool
+    {
+        return $this->hasSentOrderMemo ??= $this->orders()
+            ->where('order_sent', true)
+            ->exists();
+    }
+
+    /**
+     * The same answer, handed in by a caller that asked it of a whole column at once.
+     *
+     * App\Services\BatchStages::forBusiness reads it for every batch of a business in one query and
+     * seeds it here, which is what keeps a page of cards from running the `exists` above per card.
+     * Deliberately a separate method rather than a public property: it is the same memo, filled from
+     * outside, and nothing may overwrite an answer this instance has already given.
+     */
+    public function seedHasSentOrder(bool $hasSentOrder): void
+    {
+        $this->hasSentOrderMemo ??= $hasSentOrder;
+    }
+
+    /**
+     * Whether the offcuts this batch cut have been nested into since.
+     *
+     * The question PrerequisiteConditions::undoStartQuoting asks before it offers the way back:
+     * unpicking a batch deletes the offcuts it produced, so one a later batch has already cut into
+     * cannot be handed back without stripping that batch of its material and of the certificate trail
+     * behind it.
+     *
+     * Memoised and seedable like hasSentOrder() above, for the same reason - a page drawing a card per
+     * batch asks it once per card, and NestingIndexController asks it once for the column.
+     */
+    public function producedOffcutsConsumed(): bool
+    {
+        return $this->producedOffcutsConsumedMemo ??= Offcut::query()
+            ->where('batch_from_id', $this->id)
+            ->whereNotNull('batch_to_id')
+            ->exists();
+    }
+
+    public function seedProducedOffcutsConsumed(bool $consumed): void
+    {
+        $this->producedOffcutsConsumedMemo ??= $consumed;
+    }
+
+    /**
+     * The jobs on this batch as the prerequisite gates read them, handed in by a caller that has
+     * already loaded them.
+     *
+     * The page drawing these cards selects every project on every batch in one query and knows which
+     * belongs where, so each batch is given its own rather than going back for them. The rows have to
+     * carry what projectApprovalFlags() selects - the manager, the done flag, and the manager's
+     * business - or the gates read a null and refuse something they should allow.
+     *
+     * @param  EloquentCollection<int, Project>  $projects
+     */
+    public function seedProjectApprovalFlags(EloquentCollection $projects): void
+    {
+        $this->projectApprovalFlagsMemo ??= $projects;
     }
 
     /**

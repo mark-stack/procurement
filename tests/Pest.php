@@ -363,7 +363,7 @@ function createProject(User $user): Project
 //        'reference' => 'ref',
 //        'date_materials_required' => null,
 //        'tentative' => true,
-//        'archive' => false,
+//        'done' => false,
 //    ]);
 }
 

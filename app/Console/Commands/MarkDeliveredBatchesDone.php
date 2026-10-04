@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Services\DeliveredBatchArchiving;
+use App\Services\DeliveredBatchAutoDone;
 use Illuminate\Console\Command;
 
 /**
@@ -13,18 +13,18 @@ use Illuminate\Console\Command;
  * implementation on it is a read followed by a notify. This one writes, and what it writes cannot be
  * undone by anything in the application - so it wants its own failure handling and its own switch.
  *
- * See App\Services\DeliveredBatchArchiving for what holds a card on the board instead.
+ * See App\Services\DeliveredBatchAutoDone for what holds a card on the board instead.
  */
-class ArchiveDeliveredBatches extends Command
+class MarkDeliveredBatchesDone extends Command
 {
-    protected $signature = 'batches:archive-delivered';
+    protected $signature = 'batches:mark-delivered-done';
 
     protected $description = 'Move batches whose orders were all delivered more than '
-        .DeliveredBatchArchiving::DAYS_AFTER_DELIVERY.' days ago into past projects';
+        .DeliveredBatchAutoDone::DAYS_AFTER_DELIVERY.' days ago into past projects';
 
     public function handle(): int
     {
-        $batches = (new DeliveredBatchArchiving)->sweep();
+        $batches = (new DeliveredBatchAutoDone)->sweep();
 
         $this->info('Batches moved to past projects: '.count($batches));
 

@@ -53,9 +53,9 @@ Schedule::command('quoting:fabrication-deadline')->$frequency();
  * firing every minute on a developer's machine.
  *
  * Idempotent: a closed batch is no longer in the Delivering column, so the next run finds nothing. See
- * App\Services\DeliveredBatchArchiving for the four cases where it leaves a card alone instead.
+ * App\Services\DeliveredBatchAutoDone for the four cases where it leaves a card alone instead.
  */
-Schedule::command('batches:archive-delivered')->daily();
+Schedule::command('batches:mark-delivered-done')->daily();
 
 /*
  * Trial expiry warnings. Idempotent - each business gets each reminder once, recorded in

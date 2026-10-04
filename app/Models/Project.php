@@ -97,6 +97,28 @@ class Project extends Model
         return $this->hasMany(Piece::class);
     }
 
+    /**
+     * Has this job been all the way through and come out the other side?
+     *
+     * True once the project has reached a batch and every batch it reached is done - which is
+     * exactly what Past Projects lists, because PastProjectsController reads the same closed
+     * batches. Deliberately not the same question as Project::done: the batch flag is written by
+     * MarkAsDone and is one-way, while the project flag is the owner's own filing of it.
+     *
+     * A project that never reached a batch is not finished, it is simply new - hence the first
+     * test. Without it every freshly created project would report itself finished, having no
+     * pieces on a live batch to say otherwise.
+     */
+    public function isFinished(): bool
+    {
+        $onABatch = $this->pieces()->whereNotNull('batch_id');
+
+        return $onABatch->clone()->exists()
+            && $onABatch->clone()
+                ->whereHas('batch', fn ($query) => $query->where('done', false))
+                ->doesntExist();
+    }
+
     /** @return HasMany<RawMaterialQuote, $this> */
     public function rawMaterialQuotes(): HasMany
     {
@@ -427,12 +449,12 @@ class Project extends Model
     public function scopeActive(Builder $query): void
     {
         /**
-         * Not archived. The four hourly notification checks have always called this - it was
+         * Not done. The four hourly notification checks have always called this - it was
          * never defined, so every one of them died on a BadMethodCallException the moment the
-         * job ran, and the "don't chase an archived project" rule they each document went
+         * job ran, and the "don't chase a project that is done" rule they each document went
          * with them.
          */
-        $query->where('archive', false);
+        $query->where('done', false);
     }
 
     /*
@@ -490,7 +512,7 @@ class Project extends Model
      * clarification forms, and the second is what the endpoints behind them scope to. A control drawn
      * by one that the other refuses is a button that can only answer 403.
      *
-     * NOT the question behind editProject or archiveProject. Renaming a job, moving its materials
+     * NOT the question behind editProject or markProjectDone. Renaming a job, moving its materials
      * date and taking it off the board are the manager's call, and an uploader has no more say in
      * them than any other colleague.
      */
@@ -503,8 +525,8 @@ class Project extends Model
      * The query form of isManagedBy - the projects whose material lists this user may change.
      *
      * Grouped, because every caller already has conditions of its own and an unparenthesised orWhere
-     * would escape them: "yours or created by you" ANDed with "not archived" reads as "yours and not
-     * archived, or created by you" without the nesting.
+     * would escape them: "yours or created by you" ANDed with "not done" reads as "yours and not
+     * done, or created by you" without the nesting.
      */
     public function scopeManagedBy(Builder $query, int $userId): void
     {

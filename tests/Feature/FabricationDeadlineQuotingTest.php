@@ -95,7 +95,7 @@ it('would be a disaster if the shop started cutting before anybody had quoted th
 it('would be a disaster if a deadline spent the business money on its own', function () {
     /*
      * This used to press "Start quoting" itself, and that is what was taken out of it. Starting
-     * quoting creates a batch, saves a nest, consumes offcut inventory and takes Edit, Archive and
+     * quoting creates a batch, saves a nest, consumes offcut inventory and takes Edit, Done and
      * BOM upload off every project it sweeps in - a purchasing decision, made by a schedule, on
      * behalf of somebody who was not looking. All it may do now is ask.
      */
@@ -247,7 +247,7 @@ it('sends the recipient to the button it is asking them to press', function () {
 it('would be a disaster if a colleague found out their steel had been ordered afterwards', function () {
     /*
      * Starting quoting takes the WHOLE Nesting column, so a colleague's project goes into a batch
-     * they do not own, on a deadline that is not theirs. From that moment they lose Edit, Archive and
+     * they do not own, on a deadline that is not theirs. From that moment they lose Edit, Done and
      * BOM upload on their own project and somebody else picks the suppliers. Now that the press is a
      * person's decision again, the warning reaches them before it happens rather than after - which
      * is the only version of this that leaves them time to say "that BOM is not final".

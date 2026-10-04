@@ -66,7 +66,7 @@ abstract class ColleagueNotificationImplementation implements NotificationInterf
     public function checkProjectChanges(Project $project): void
     {
         /*
-         * Nothing an edit can do makes one of these untrue on its own. Archiving the project does
+         * Nothing an edit can do makes one of these untrue on its own. Marking the project done does
          * clear it, via NotificationService::clearProjectNotifications and the project_id these
          * carry.
          */
