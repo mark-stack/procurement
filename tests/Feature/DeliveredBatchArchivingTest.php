@@ -314,3 +314,93 @@ it('waits exactly the five days it says it does', function () {
 
     Carbon::setTestNow();
 });
+
+/**
+ * A batch bought over the phone: nested, no order anywhere, and marked delivered by hand on the day
+ * given. The Nesting card's "All delivered" writes exactly this - see BatchMarkDeliveredController.
+ */
+function handDeliveredBatch(User $user, ?string $deliveredAt, ?string $cutAt = null): Batch
+{
+    $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
+    $project = createProject($user);
+    pieceOnBatch($project, $batch);
+
+    $batch->update([
+        'delivered_at' => $deliveredAt,
+        'cut_at' => $cutAt,
+    ]);
+
+    return $batch->fresh();
+}
+
+it('closes a batch bought over the phone, five days after somebody said the steel was in', function () {
+    /*
+     * The shop that rings the merchant has no order to book in, so its finished batches never reach
+     * the Delivering column at all - they sit in Quoting with "Delivered" on the card. This sweep
+     * only ever looked at that column, so those batches were closed by nothing: the Nesting page grew
+     * by a card a job and Past Projects could gain no rows.
+     *
+     * Counted from the mark, which is the same event a goods receipt records - the day somebody said
+     * the steel arrived - just written by a person rather than by the orders screen.
+     */
+    $business = createBusiness('biz');
+    $user = createUser(1, $business, false, true);
+
+    $batch = handDeliveredBatch($user, now()->subDays(DeliveredBatchArchiving::DAYS_AFTER_DELIVERY)->toDateTimeString());
+
+    $archived = (new DeliveredBatchArchiving)->sweepBusiness($business);
+
+    expect($archived)->toHaveCount(1)
+        ->and((bool) $batch->fresh()->done)->toBeTrue();
+});
+
+it('leaves a batch delivered by hand alone until the same five days are up', function () {
+    //The wait is the wait, whichever way the delivery was recorded
+    $business = createBusiness('biz');
+    $user = createUser(1, $business, false, true);
+
+    $batch = handDeliveredBatch($user, now()->subDays(DeliveredBatchArchiving::DAYS_AFTER_DELIVERY - 1)->toDateTimeString());
+
+    expect((new DeliveredBatchArchiving)->sweepBusiness($business))->toBeEmpty()
+        ->and((bool) $batch->fresh()->done)->toBeFalse();
+});
+
+it('counts a batch cut after its delivery from the cut, which is the later of the two', function () {
+    /*
+     * The saw going through it is the last thing that happens to a job, and a batch is plainly still
+     * in use until it has. Delivered a fortnight ago and cut this morning stays on the page.
+     */
+    $business = createBusiness('biz');
+    $user = createUser(1, $business, false, true);
+
+    $batch = handDeliveredBatch(
+        $user,
+        now()->subDays(14)->toDateTimeString(),
+        now()->toDateTimeString(),
+    );
+
+    expect((new DeliveredBatchArchiving)->sweepBusiness($business))->toBeEmpty();
+
+    Carbon::setTestNow(now()->addDays(DeliveredBatchArchiving::DAYS_AFTER_DELIVERY));
+
+    expect((new DeliveredBatchArchiving)->sweepBusiness($business))->toHaveCount(1)
+        ->and((bool) $batch->fresh()->done)->toBeTrue();
+
+    Carbon::setTestNow();
+});
+
+it('would be a disaster if an ordinary batch nobody has delivered closed itself', function () {
+    /*
+     * The Quoting column is where the work in progress lives - every batch on the Nesting page is in
+     * it now - so reading that column at all means being sure about the one thing that separates a
+     * finished batch from an unfinished one. No mark, no closing, however old the batch is.
+     */
+    $business = createBusiness('biz');
+    $user = createUser(1, $business, false, true);
+
+    $batch = handDeliveredBatch($user, null);
+    $batch->update(['created_at' => now()->subMonths(6)]);
+
+    expect((new DeliveredBatchArchiving)->sweepBusiness($business))->toBeEmpty()
+        ->and((bool) $batch->fresh()->done)->toBeFalse();
+});

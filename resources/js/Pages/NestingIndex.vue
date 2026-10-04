@@ -48,6 +48,8 @@
     const formMarkQuoted = useForm({});
     const formMarkOrdered = useForm({});
     const formMarkCut = useForm({});
+    //And the press that takes the card off the page altogether - see confirmMarkDone()
+    const formMarkDone = useForm({});
 
     //Confirmation
     const {confirmDialog, askToConfirm, confirmDialogAccepted, confirmDialogCancelled} = useConfirm();
@@ -86,11 +88,36 @@
      * batch it ever bought on this page, most of them somebody else's. Your own work is what you came
      * for, and the switch is there for the times you want the shop's whole picture.
      *
-     * A batch is yours when one of the projects on it is yours - you are its project manager - which is
-     * the same line the board draws when it floats your cards to the top of a column. The server says
-     * so per card; see NestingIndexController.
+     * A batch is yours when one of the projects on it is yours: a job you manage, or one you uploaded
+     * for a colleague. The server says so per card - see NestingIndexController::mineOf().
+     *
+     * Remembered, because it is a view somebody chooses rather than a value they fill in: a shop
+     * foreman who works off the whole business's list was turning the switch off on every visit, and
+     * every press on a card redraws this page. Per browser, which is where a preference about how one
+     * screen is read belongs, and it fails quiet - a locked-down browser throws on localStorage and
+     * the page is still the page, opened on the default.
      */
-    const onlyMine = ref(true);
+    const ONLY_MINE_KEY = 'nesting.onlyMine';
+
+    const onlyMine = ref(readOnlyMinePreference());
+
+    function readOnlyMinePreference() {
+        try {
+            return window.localStorage.getItem(ONLY_MINE_KEY) !== 'false';
+        } catch (error) {
+            return true;
+        }
+    }
+
+    function toggleOnlyMine(value) {
+        onlyMine.value = value;
+
+        try {
+            window.localStorage.setItem(ONLY_MINE_KEY, value ? 'true' : 'false');
+        } catch (error) {
+            //A browser that will not keep it still has the switch; it is just back on next visit
+        }
+    }
 
     //Computed
     /*
@@ -332,7 +359,19 @@
 
         const mine = batch.projects.filter(project => project.mine);
 
-        return mine.length ? mine : batch.projects.slice(0, 1);
+        if (mine.length) {
+            return mine;
+        }
+
+        /*
+         * Then the jobs you put on the system for somebody else, which is the other half of why a
+         * card is in front of you at all - see NestingIndexController::mineOf(). Without this a
+         * draftsman's own card is headed by whichever job happens to be oldest and says nothing
+         * about why the switch kept it.
+         */
+        const uploaded = batch.projects.filter(project => project.uploaded);
+
+        return uploaded.length ? uploaded : batch.projects.slice(0, 1);
     }
 
     /*
@@ -450,6 +489,7 @@
             || batch.prerequisiteMarkOrdered !== null
             || batch.prerequisiteMarkDelivered !== null
             || batch.prerequisiteMarkCut !== null
+            || batch.prerequisiteMarkDone !== null
             || batch.canAttachCertificates !== null;
     }
 
@@ -544,6 +584,35 @@
             confirmLabel: "All ordered",
             onConfirmed: () => markBatch(batch, 'batch.all.ordered', formMarkOrdered),
         });
+    }
+
+    /**
+     * "Move to done" - the job is over, and the batch belongs in Past Projects.
+     *
+     * The board's own button, pressed from here: the same post to the same route, which is all that
+     * was left of it once the board was deleted. It is the one press on this page that takes a card
+     * off it, and without it nothing did - a batch stayed live however finished it was, this list
+     * grew by a card a job, and Past Projects could gain nothing.
+     *
+     * It asks first, like the marks above, and for a stronger reason than any of them: nothing in the
+     * application re-opens a closed batch. The dialog says where the work goes rather than warning
+     * somebody off it - this is the ordinary end of a job, not a destructive press.
+     */
+    function confirmMarkDone(batch) {
+        askToConfirm({
+            title: "Move this batch to done?",
+            message: `Batch ${batch.id} (${projectNames(batch.projects)}) will come off this page and`
+                + ` be read from Past Projects, where its nesting is still printable.`,
+            note: "Nothing re-opens a closed batch.",
+            confirmLabel: "Move to done",
+            onConfirmed: () => markBatch(batch, 'mark.as.past.project', formMarkDone),
+        });
+    }
+
+    function markDoneTitle(batch) {
+        return batch.prerequisiteMarkDone
+            ? 'Close this batch and read it from Past Projects'
+            : 'This batch still has material out for delivery, or it carries no project of yours';
     }
 
     /**
@@ -974,7 +1043,7 @@
                         :title="onlyMine
                             ? 'Showing only batches carrying your own projects'
                             : 'Showing every batch in the business'"
-                        @click="onlyMine = !onlyMine"
+                        @click="toggleOnlyMine(!onlyMine)"
                         class="inline-flex items-center gap-2 text-sm font-medium text-gray-600 transition-colors duration-150 hover:text-gray-800"
                     >
                         <span
@@ -1507,6 +1576,33 @@
                                                     <i class="fa-solid fa-plus text-xs"></i>
                                                     Certificates
                                                 </button>
+
+                                                <!--
+                                                    And the way off the page - the board's "Move to
+                                                    done", which went with the board and left nothing
+                                                    in the application able to finish a batch. Last
+                                                    in the menu because it is the last thing that
+                                                    happens to a job, and separated by a rule because
+                                                    it is the only item here that makes the card
+                                                    disappear. See confirmMarkDone().
+                                                -->
+                                                <template v-if="batch.prerequisiteMarkDone !== null">
+                                                    <span class="block my-1 border-t border-gray-100"></span>
+
+                                                    <button
+                                                        type="button"
+                                                        :disabled="!batch.prerequisiteMarkDone"
+                                                        :title="markDoneTitle(batch)"
+                                                        @click="confirmMarkDone(batch)"
+                                                        class="flex items-center w-full gap-2 px-4 py-2 text-sm text-left transition-colors duration-150"
+                                                        :class="batch.prerequisiteMarkDone
+                                                            ? 'font-semibold text-gray-700 hover:bg-gray-100'
+                                                            : 'text-gray-400 cursor-not-allowed'"
+                                                    >
+                                                        <i class="fa-solid fa-box-archive text-xs"></i>
+                                                        Move to done
+                                                    </button>
+                                                </template>
                                             </template>
                                         </template>
                                     </Dropdown>
@@ -1551,7 +1647,7 @@
                     </p>
                     <button
                         type="button"
-                        @click="onlyMine = false"
+                        @click="toggleOnlyMine(false)"
                         class="mt-2 font-semibold text-blue-700 underline hover:text-blue-900"
                     >
                         Show the business's {{ hiddenCount }}
@@ -1574,7 +1670,7 @@
                 {{ hiddenCount }} {{ hiddenCount === 1 ? 'other batch' : 'other batches' }} in the business
                 <button
                     type="button"
-                    @click="onlyMine = false"
+                    @click="toggleOnlyMine(false)"
                     class="font-semibold text-blue-700 underline hover:text-blue-900"
                 >
                     Show {{ hiddenCount === 1 ? 'it' : 'them' }}

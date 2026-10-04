@@ -365,7 +365,14 @@ class Business extends Model
         //Services
         $productService = new ProductService();
 
-        foreach($this->projects as $project){
+        /*
+         * The material rows come with the projects. Walked off the relation as $this->projects, each
+         * project went back for its own rawMaterialQuotes - a query per project the business has ever
+         * had, every time the Nesting page is drawn, because the open batch card is built on this.
+         * That is the one cost on that page which grows with the age of the business rather than with
+         * the work in front of somebody.
+         */
+        foreach($this->projects()->with('rawMaterialQuotes')->get() as $project){
             $partialProductMatches = [];
             foreach ($project->rawMaterialQuotes as $rawMaterialQuote) {
                 $getProductMatchOptions = $productService->getProductMatchOptions($this, $rawMaterialQuote);

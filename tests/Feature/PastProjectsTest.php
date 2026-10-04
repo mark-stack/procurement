@@ -81,12 +81,35 @@ it('would be a disaster if a batch could be closed with materials still out for 
     expect((bool) $batch->fresh()->done)->toBeFalse();
 });
 
+/**
+ * A batch with one of this user's jobs on it, which is what the press now asks for.
+ *
+ * Closing a batch takes every job on it off the Nesting page, colleagues' included, so it is gated
+ * the way the rest of that card's menu is: your own work has to be on it - see
+ * PrerequisiteConditions::markBatchDone. The fixtures below carried no project at all, which is a
+ * shape nothing in the application makes: a batch exists because projects were nested into it.
+ */
+function pastProjectBatch(User $user, bool $deliveredByHand = false): Batch
+{
+    $batch = Batch::factory()->forUser($user->id)->create([
+        'done' => false,
+        'delivered_at' => $deliveredByHand ? now() : null,
+    ]);
+
+    pieceOnBatch(createProject($user), $batch);
+
+    return $batch;
+}
+
 it('still closes a batch once its sent orders are delivered', function () {
     $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
-    $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
-    pastProjectOrder($user, $batch, orderSent: true, isDelivered: true);
+    $batch = pastProjectBatch($user);
+    $order = pastProjectOrder($user, $batch, orderSent: true, isDelivered: true);
+
+    //Every material row pointing at that sent order, which is what reads as delivered - see BatchStages
+    $batch->pieces()->update(['order_id' => $order->id]);
 
     $this->actingAs($user);
 
@@ -101,11 +124,14 @@ it('still closes a batch that never placed an order', function () {
      * A batch nested entirely out of offcuts places no order at all. Gating on the kanban's
      * "delivered rows === supplier categories" sum would have read 0 === 0 here and gating on
      * "has a delivered order" would have locked the batch open forever.
+     *
+     * It says its steel is in the same way every batch bought off the application says it - the
+     * Nesting card's "All delivered" mark, which is also the card that then offers to close it.
      */
     $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
-    $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
+    $batch = pastProjectBatch($user, deliveredByHand: true);
 
     $this->actingAs($user);
 
@@ -123,7 +149,7 @@ it('still ignores an order that was drafted but never sent', function () {
     $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
-    $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
+    $batch = pastProjectBatch($user, deliveredByHand: true);
     pastProjectOrder($user, $batch, orderSent: false, isDelivered: false);
 
     $this->actingAs($user);
@@ -132,6 +158,42 @@ it('still ignores an order that was drafted but never sent', function () {
         ->assertRedirect();
 
     expect((bool) $batch->fresh()->done)->toBeTrue();
+});
+
+it('would be a disaster if a batch nobody has delivered could be closed', function () {
+    /*
+     * The other half of the gate, and the reason the three above now name a delivery: closing a batch
+     * is a one-way door - nothing in the application re-opens one - so a job whose steel has not
+     * arrived must not go through it. The card only offers the press on a delivered batch; this is the
+     * press arriving without the card.
+     */
+    $business = createBusiness('biz');
+    $user = createUser(1, $business, false, true);
+
+    $batch = pastProjectBatch($user);
+
+    $this->actingAs($user);
+
+    $this->post(route('mark.as.past.project', $batch))
+        ->assertForbidden();
+
+    expect((bool) $batch->fresh()->done)->toBeFalse();
+});
+
+it('would be a disaster if a colleague with no job on the batch could close it', function () {
+    //Every other press on that card's menu draws this line, and this one takes the card away entirely
+    $business = createBusiness('biz');
+    $user = createUser(1, $business, false, true);
+    $colleague = createUser(2, $business, false, true);
+
+    $batch = pastProjectBatch($user, deliveredByHand: true);
+
+    $this->actingAs($colleague);
+
+    $this->post(route('mark.as.past.project', $batch))
+        ->assertForbidden();
+
+    expect((bool) $batch->fresh()->done)->toBeFalse();
 });
 
 it("would be a disaster if the archive listed another business's batches", function () {

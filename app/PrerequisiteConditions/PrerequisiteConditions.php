@@ -3,7 +3,6 @@
 namespace App\PrerequisiteConditions;
 
 use App\Models\Batch;
-use App\Models\Offcut;
 use App\Models\Project;
 use App\Models\Quote;
 use App\Models\User;
@@ -85,25 +84,37 @@ class PrerequisiteConditions
          * 9) BATCH: Nobody has recorded buying any of it off the application
          */
 
+        /*
+         * 1-3) The projects on the batch: whose business they are, whether one of them is yours, and
+         * whether any has been archived.
+         *
+         * Read off projectApprovalFlags(), which is the three columns these conditions actually
+         * touch with the owner's business beside them. This walked $batch->projects() three times -
+         * memoised, so one load, but that load eager-fetches the rawMaterialQuotes/piece/order tree
+         * and the uploader for every project on the batch, which is what ProjectResource needs and
+         * none of what is read here. On the Nesting page that tree was being built per card.
+         */
+        $projects = $batch->projectApprovalFlags();
+
         //1) PROJECT: All projects belong to your business
         $condition_1 = true;
-        foreach($batch->projects() as $project){
-            if($project->user->business->id !== $user->business->id){
+        foreach($projects as $project){
+            if($project->user->business_id !== $user->business_id){
                 $condition_1 = false;
             }
         }
 
         //2) PROJECT: At least project is yours
         $condition_2 = false;
-        foreach($batch->projects() as $project){
-            if($project->user->id === $user->id){
+        foreach($projects as $project){
+            if($project->user_id === $user->id){
                 $condition_2 = true;
             }
         }
 
         //3) PROJECT: All projects not archived
         $condition_3 = true;
-        foreach($batch->projects() as $project){
+        foreach($projects as $project){
             if($project->archive){
                 $condition_3 = false;
             }
@@ -112,7 +123,7 @@ class PrerequisiteConditions
         //4) ORDER: no order sent
         //A single-argument where() compiles to "order_sent is null", and the column is a non-nullable
         //boolean - so this counted 0 every time and let a batch be unwound after it had been ordered
-        $condition_4 = $batch->orders()->where("order_sent", true)->count() === 0;
+        $condition_4 = ! $batch->hasSentOrder();
 
         //5) OFFCUT: Are your offcuts being released
         //6) OFFCUT: "allocated_to" is this batch (released from)
@@ -120,15 +131,23 @@ class PrerequisiteConditions
         $condition_5 = true;
         $condition_6 = true;
         foreach($offcutsAssignedToThisBatch as $offcut){
-            //batchTo() is nullable, and a released offcut with no destination belongs to nobody
-            $batchTo = $offcut->batchTo();
+            /*
+             * batchTo() is a Batch::find, so the batch in hand answers for itself rather than being
+             * fetched again - which is every offcut in the collection the Nesting page passes, it
+             * having selected them on batch_to_id. Nullable either way: a released offcut with no
+             * destination belongs to nobody.
+             */
+            $batchTo = (int) $offcut->batch_to_id === (int) $batch->id
+                ? $batch
+                : $offcut->batchTo();
+
             if(!$batchTo){
                 $condition_5 = false;
                 $condition_6 = false;
                 continue;
             }
 
-            $businessOwnership = $batchTo->user->business->id === $user->business->id;
+            $businessOwnership = $batchTo->user->business_id === $user->business_id;
             if(!$businessOwnership){
                 $condition_5 = false;
             }
@@ -139,13 +158,18 @@ class PrerequisiteConditions
             }
         }
 
-        //7) All materials are assigned to this batch
-        $condition_7 = true;
-        foreach($batch->pieces as $piece){
-            if($piece->batch->id !== $batch->id){
-                $condition_7 = false;
-            }
-        }
+        /*
+         * 7) All materials are assigned to this batch.
+         *
+         * True by construction. $batch->pieces is a hasMany keyed on batch_id, so every row it returns carries
+         * this batch's id - the test it used to make, $piece->batch->id !== $batch->id, could not
+         * come out false. What it could do was cost a batch lookup per piece: a belongsTo walked
+         * lazily, once for every cut on the job, which on a real material list is hundreds of queries
+         * behind a menu item that only wants to know whether to grey itself out.
+         *
+         * So there is no $condition_7 below. The number is kept here, rather than the nine being
+         * renumbered, so this block still reads against the list at the top of the method.
+         */
 
         /*
          * 8) OFFCUT: None of the offcuts this batch produced has been consumed downstream.
@@ -154,10 +178,7 @@ class PrerequisiteConditions
          * with it. If a later batch has already nested into one of them, deleting it would strip that
          * batch of the offcut and of the certificate trail behind it.
          */
-        $condition_8 = ! Offcut::query()
-            ->where("batch_from_id",$batch->id)
-            ->whereNotNull("batch_to_id")
-            ->exists();
+        $condition_8 = ! $batch->producedOffcutsConsumed();
 
         /*
          * 9) BATCH: Nobody has recorded buying any of it.
@@ -184,7 +205,6 @@ class PrerequisiteConditions
             $condition_4 &&
             $condition_5 &&
             $condition_6 &&
-            $condition_7 &&
             $condition_8 &&
             $condition_9;
     }
@@ -443,6 +463,33 @@ class PrerequisiteConditions
     }
 
     /**
+     * And "Move to done" - the job is over and the batch belongs in Past Projects.
+     *
+     * The board's own button, which is where this lived until the board was deleted: the card that
+     * carried it (KanbanMinimalCard.vue) went with the screen, and the route, the gate and the action
+     * behind it were left with nothing calling them. Nothing else writes Batch::done - the archiving
+     * sweep aside - so for the weeks since, every batch a shop made stayed live for ever, the one page
+     * in the application grew by a card a job, and Past Projects could never gain another row.
+     *
+     * Gated like "Cut" rather than like the buying marks, and for the same reason: closing a batch is
+     * not a claim about how it was bought, so a batch ordered through the quotes screen and booked in
+     * on its receipts is exactly as closeable as one bought over the phone. $batchIsDelivered is the
+     * DELIVERED pill either way round - there is nothing to close while the steel is still out.
+     *
+     * Deliberately not insisting on the cut. Plenty of shops never press it, and a door off the page
+     * that only opens for the shops that keep the application fully up to date is a door that leaves
+     * everybody else's list growing - which is the state this is fixing.
+     *
+     * App\Actions\Batch\MarkAsDone asks the other half, the half this cannot see: whether a sent order
+     * on the batch is still out for delivery. Both have to pass, and that one is also what the
+     * archiving sweep applies on the business's behalf.
+     */
+    public function markBatchDone(User $user, Batch $batch, bool $batchIsDelivered): bool
+    {
+        return $this->canChangeBatchItself($user, $batch) && $batchIsDelivered;
+    }
+
+    /**
      * What the buying marks need, which is what every press on a batch needs.
      *
      * 1) BUSINESS: is your business
@@ -462,7 +509,7 @@ class PrerequisiteConditions
     {
         //5) BATCH: nothing ordered through a supplier
         return $this->canChangeBatchItself($user, $batch)
-            && $batch->orders()->where('order_sent', true)->doesntExist();
+            && ! $batch->hasSentOrder();
     }
 
     /**
@@ -480,8 +527,14 @@ class PrerequisiteConditions
      */
     private function canChangeBatchItself(User $user, Batch $batch): bool
     {
-        //1) BUSINESS: is your business
-        if ($batch->user->business->id !== $user->business->id) {
+        /*
+         * 1) BUSINESS: is your business
+         *
+         * Off the foreign key rather than through the relation. Three of the four marks ask this gate
+         * about the same batch while a page is drawn, and $batch->user->business was a business row
+         * loaded per card to compare an id the user already carries.
+         */
+        if ($batch->user->business_id !== $user->business_id) {
             return false;
         }
 

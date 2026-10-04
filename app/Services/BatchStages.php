@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Batch;
 use App\Models\Business;
+use App\Models\Order;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
 use Illuminate\Database\Eloquent\Builder;
@@ -55,11 +56,35 @@ class BatchStages
          * Business::batches() - a hasManyThrough answers "undefined method active()" to static
          * analysis, and a plain select of the staff ids is also one query lighter than the
          * relation's join.
+         *
+         * The owner comes with them. Every caller that walks these batches asks a prerequisite of at
+         * least one - PrerequisiteConditions::canChangeBatchItself reads $batch->user to find out
+         * whose business it is - and lazily that was a user lookup per card on a page drawing a card
+         * per batch.
          */
         $batches = Batch::query()
             ->active()
+            ->with('user')
             ->whereIn('user_id', $business->users()->select('id'))
             ->get();
+
+        /*
+         * And which of them have an order out, in one query for the lot rather than the `exists` per
+         * batch that of() would otherwise run. Seeded onto the batches themselves, so that everything
+         * downstream of this method - the prerequisite gates, isDelivered(), the archiving sweep -
+         * reads the same answer without going back for it.
+         */
+        $sentOrderBatchIds = Order::query()
+            ->whereIn('batch_id', $batches->pluck('id')->all())
+            ->where('order_sent', true)
+            ->distinct()
+            ->pluck('batch_id')
+            ->map(fn ($batchId) => (int) $batchId)
+            ->all();
+
+        foreach ($batches as $batch) {
+            $batch->seedHasSentOrder(in_array($batch->id, $sentOrderBatchIds, true));
+        }
 
         foreach ($batches as $batch) {
             $staged[$this->of($batch)][] = $batch;
@@ -75,8 +100,12 @@ class BatchStages
          * built from: a batch is being quoted until the first order goes in. A draft order exists for
          * every supplier from the moment somebody opens the quotes modal, so this has to ask whether
          * one was SENT, not whether one exists.
+         *
+         * Through Batch::hasSentOrder(), which answers from the grouped query above when the batch
+         * came out of forBusiness() and asks for itself when it did not - this method is also called
+         * of a single batch, by the archiving sweep and by isDelivered().
          */
-        if ($batch->orders()->where('order_sent', true)->doesntExist()) {
+        if (! $batch->hasSentOrder()) {
             return self::QUOTING;
         }
 

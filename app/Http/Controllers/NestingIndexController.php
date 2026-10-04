@@ -12,6 +12,7 @@ use App\Models\Order;
 use App\Models\Piece;
 use App\Models\Project;
 use App\Models\Quote;
+use App\Models\User;
 use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\BatchStages;
 use Illuminate\Support\Carbon;
@@ -45,6 +46,12 @@ class NestingIndexController extends Controller
      * only grows - it would be the one part of the page with no ceiling, burying the handful of batches
      * somebody opened this page to work on. /past-projects is where a finished batch is read, and its
      * nesting is reachable from there.
+     *
+     * That sentence needs a way for a batch to become finished, and for a while there was not one: the
+     * only button that closed a batch by hand was on the deleted board, and the sweep that closes them
+     * on a business's behalf can only see batches bought through the quotes screen, which nothing
+     * writes any more. Every card carries "Move to done" now (see prerequisiteMarkDone below), and the
+     * sweep closes a batch somebody marked delivered by hand as well - App\Services\DeliveredBatchArchiving.
      *
      * Which column a batch is in is read off the one place that answers it: App\Services\BatchStages.
      * Asking it a second way here would let this page and the board disagree about where a batch is -
@@ -165,8 +172,8 @@ class NestingIndexController extends Controller
             'projects' => $this->projectCards($pendingProjects, $user->id, $staffNames),
             'cutCount' => $this->pendingCutCount($pendingProjects->pluck('id')->all()),
             'categoryCount' => $this->pendingCategoryCount($pendingProjects->pluck('id')->all(), $supplierGroups),
-            //Whether any of what is waiting is this user's own work - see projectCards()
-            'mine' => $pendingProjects->contains(fn (Project $project) => $project->user_id === $user->id),
+            //Whether any of what is waiting is this user's own work - see mineOf()
+            'mine' => $this->mineOf($pendingProjects, $user),
             //Nothing to unpick: this batch has not been nested yet. See the loop below.
             'prerequisiteUndoStartQuoting' => null,
             //And nothing to call quoted, bought, delivered or cut: there is no batch row to carry a mark
@@ -174,6 +181,8 @@ class NestingIndexController extends Controller
             'prerequisiteMarkOrdered' => null,
             'prerequisiteMarkDelivered' => null,
             'prerequisiteMarkCut' => null,
+            //Nor a job to call finished: this batch has not been nested, let alone bought and cut
+            'prerequisiteMarkDone' => null,
             //Nor anything for a certificate to be evidence of - nothing here has been bought yet
             'canAttachCertificates' => null,
         ];
@@ -213,8 +222,85 @@ class NestingIndexController extends Controller
          */
         $fullyMarkedOrdered = $this->fullyMarkedOrderedBatchIds($staged[BatchStages::QUOTING], $supplierGroups);
 
+        /*
+         * And the offcuts each batch being quoted has already handed on, which is the other half of
+         * that question: a batch whose offcuts a later nest has cut into cannot be unpicked, because
+         * unpicking it deletes them. One query for the column, like the one above it and for the same
+         * reason - the gate asked it per card.
+         */
+        $producedOffcutsConsumed = Offcut::query()
+            ->whereIn('batch_from_id', $staged[BatchStages::QUOTING]->pluck('id')->all())
+            ->whereNotNull('batch_to_id')
+            ->distinct()
+            ->pluck('batch_from_id')
+            ->map(fn ($batchId) => (int) $batchId)
+            ->all();
+
+        /*
+         * Which jobs are on which batch, and the jobs themselves - asked here, before the cards are
+         * built, because the prerequisites inside the loop want them too.
+         *
+         * Those gates read the manager and the archive flag of every project on the batch
+         * (PrerequisiteConditions::canChangeBatchItself, undoStartQuoting), and left to themselves
+         * they fetch that per card - which on this page is the same handful of rows read again a card
+         * at a time. The loop hands each batch what it has already loaded; see
+         * Batch::seedProjectApprovalFlags.
+         */
+        $batchIds = collect([BatchStages::QUOTING, BatchStages::ORDERING, BatchStages::DELIVERING])
+            ->flatMap(fn (string $stage) => $staged[$stage]->pluck('id'))
+            ->all();
+
+        /*
+         * Two queries rather than a join, and the pairs asked for distinct - a project puts a piece on
+         * the batch per material row, so the raw pairs would name one job a dozen times.
+         */
+        $projectIdsByBatch = Piece::query()
+            ->select(['batch_id', 'project_id'])
+            ->whereIn('batch_id', $batchIds)
+            ->distinct()
+            ->get()
+            ->groupBy('batch_id')
+            ->map(fn ($rows) => $rows->pluck('project_id')->all());
+
+        $projects = Project::query()
+            /*
+             * The last four are the edit modal's, not the card's - see projectCards(). archive and
+             * the manager's business are neither: they are what the prerequisite gates read, and they
+             * are selected here so that those gates do not go and read them again per card.
+             */
+            ->select([
+                'id',
+                'name',
+                'user_id',
+                //Who put the list on for them, which is half of whose card this is - see mineOf()
+                'created_by_user_id',
+                'archive',
+                'reference',
+                'date_materials_required',
+                'date_fabrication_begins',
+                'tentative',
+            ])
+            ->with('user:id,business_id')
+            ->whereIn('id', $projectIdsByBatch->flatten()->unique()->all())
+            //Oldest first, which is the order the cards name them in
+            ->orderBy('id')
+            ->get();
+
         foreach ([BatchStages::QUOTING, BatchStages::ORDERING, BatchStages::DELIVERING] as $stage) {
             foreach ($staged[$stage]->sortByDesc('id') as $batch) {
+                /*
+                 * What this card's gates would otherwise fetch for themselves - the jobs on the batch,
+                 * and whether its offcuts have been handed on. Seeded rather than passed, so the gates
+                 * keep the signatures every other caller uses and answer for themselves when nobody
+                 * has done the work for them.
+                 */
+                $batch->seedProjectApprovalFlags(
+                    $projects->whereIn('id', $projectIdsByBatch->get($batch->id, []))
+                );
+                $batch->seedProducedOffcutsConsumed(
+                    in_array($batch->id, $producedOffcutsConsumed, true)
+                );
+
                 $milestone = $this->milestoneOf(
                     $batch,
                     $stage,
@@ -290,6 +376,20 @@ class NestingIndexController extends Controller
                         ? (new PrerequisiteConditions)->markBatchCut($user, $batch, true)
                         : null,
                     /*
+                     * And the way off the page: "Move to done", which closes the batch and sends its
+                     * projects to Past Projects.
+                     *
+                     * The same two cards "Cut" is offered on, read off the pill for the same reason -
+                     * a batch is finished when its steel is in, however it got there, and the pill is
+                     * where that has already been worked out. The press itself is the board's, which
+                     * is where it lived until the board was deleted; without it on this card nothing
+                     * in the application closes a batch at all and this list only grows. See
+                     * PrerequisiteConditions::markBatchDone.
+                     */
+                    'prerequisiteMarkDone' => in_array($milestone, ['DELIVERED', 'CUT'], true)
+                        ? (new PrerequisiteConditions)->markBatchDone($user, $batch, true)
+                        : null,
+                    /*
                      * And whether the card may offer to keep the merchant's paperwork against the
                      * batch itself. The same cards as "Cut", for the same reason in reverse: a
                      * certificate arrives with the steel, and a batch that has not been delivered has
@@ -311,8 +411,6 @@ class NestingIndexController extends Controller
          * one of them with an actual_qty of 12 is twelve cuts off the saw, and counting the rows would
          * have called that one.
          */
-        $batchIds = array_values(array_filter(array_column($batches, 'id')));
-
         $cuts = Piece::query()
             ->whereIn('batch_id', $batchIds)
             ->groupBy('batch_id')
@@ -321,39 +419,11 @@ class NestingIndexController extends Controller
             ->keyBy('batch_id');
 
         /*
-         * And which jobs they are, because the card is headed by them: your own project's name rather
+         * Which jobs they are, because the card is headed by them - your own project's name rather
          * than a batch number, and the rest of the batch behind the "other projects" label it hovers
-         * open.
+         * open - was asked for above the loop, the gates in it wanting the same rows.
          *
-         * Two queries rather than a join, and the pairs asked for distinct - a project puts a piece on
-         * the batch per material row, so the raw pairs would name one job a dozen times.
-         */
-        $projectIdsByBatch = Piece::query()
-            ->select(['batch_id', 'project_id'])
-            ->whereIn('batch_id', $batchIds)
-            ->distinct()
-            ->get()
-            ->groupBy('batch_id')
-            ->map(fn ($rows) => $rows->pluck('project_id')->all());
-
-        $projects = Project::query()
-            //The last four are the edit modal's, not the card's - see projectCards()
-            ->select([
-                'id',
-                'name',
-                'user_id',
-                'reference',
-                'date_materials_required',
-                'date_fabrication_begins',
-                'tentative',
-            ])
-            ->whereIn('id', $projectIdsByBatch->flatten()->unique()->all())
-            //Oldest first, which is the order the cards name them in
-            ->orderBy('id')
-            ->get();
-
-        /*
-         * And how many suppliers it has to be bought from, which is the third number on a card. The
+         * And how many suppliers each has to be bought from, which is the third number on a card. The
          * product categories a batch carries, mapped through the business's supplier groups - a pair
          * per batch per category, which is a handful of rows however big the job is.
          */
@@ -397,8 +467,7 @@ class NestingIndexController extends Controller
                 $categoriesByBatch->get($batch['id'], []),
                 $supplierGroups,
             );
-            $batches[$index]['mine'] = $batchProjects
-                ->contains(fn (Project $project) => $project->user_id === $user->id);
+            $batches[$index]['mine'] = $this->mineOf($batchProjects, $user);
         }
 
         return Inertia::render('NestingIndex', [
@@ -547,6 +616,28 @@ class NestingIndexController extends Controller
     }
 
     /**
+     * Whether this card is one of yours, which is the whole of what the "Only my projects" switch asks.
+     *
+     * A job you manage, or one you put on the system for somebody else - Project::isManagedBy, the same
+     * line that decides whose material lists you may change. The switch is on by default, so anything
+     * it does not count as yours is a card you do not see until you go looking: a draftsman who uploads
+     * for the project managers all day was managing none of them, which made the one screen in the
+     * application open empty on his own work, every time.
+     *
+     * Deliberately wider here than on the jobs inside the card, where "mine" stays the project manager
+     * alone (see projectCards). That flag draws the pencil, and renaming a colleague's job or moving
+     * its fabrication date is theirs to do - PrerequisiteConditions::editProject refuses everyone else.
+     * Being shown a card and being allowed to edit what is on it are different questions, and the
+     * switch is only asking the first.
+     *
+     * @param  Collection<int, Project>  $projects
+     */
+    private function mineOf(Collection $projects, User $user): bool
+    {
+        return $projects->contains(fn (Project $project) => $project->isManagedBy($user));
+    }
+
+    /**
      * Those jobs as the card words them: the name, whose job it is, and whether it is yours.
      *
      * The card is headed by the projects on the batch rather than by its number, because a batch
@@ -578,7 +669,7 @@ class NestingIndexController extends Controller
      *
      * @param  Collection<int, Project>  $projects
      * @param  Collection<int, string>  $staffNames
-     * @return array<int, array{id: int, name: string, manager: string|null, mine: bool, reference: string|null, date_materials_required: string|null, date_fabrication_begins: string|null, tentative: bool|null}>
+     * @return array<int, array{id: int, name: string, manager: string|null, mine: bool, uploaded: bool, reference: string|null, date_materials_required: string|null, date_fabrication_begins: string|null, tentative: bool|null}>
      */
     private function projectCards(Collection $projects, int $userId, Collection $staffNames): array
     {
@@ -588,6 +679,13 @@ class NestingIndexController extends Controller
                 'name' => $project->name,
                 'manager' => $staffNames->get($project->user_id),
                 'mine' => $project->user_id === $userId,
+                /*
+                 * And whether you are the one who put it on the system for them, which is a different
+                 * question and is answered separately on purpose - see mineOf(). The card is headed
+                 * by a job you uploaded when none of the jobs on it are your own, so that a card the
+                 * switch kept for you says on its face why you are looking at it.
+                 */
+                'uploaded' => $project->created_by_user_id === $userId,
                 'reference' => $project->reference,
                 'date_materials_required' => $project->date_materials_required,
                 /*
