@@ -29,9 +29,9 @@ use Throwable;
  * is long enough for them and short enough that the column still reads as the current month's work.
  *
  * Deliberately conservative, because nothing in the application re-opens a closed batch: see
- * archiveDueDate() for the four things that hold a card on the board indefinitely rather than guess.
+ * doneDueDate() for the four things that hold a card on the board indefinitely rather than guess.
  */
-class DeliveredBatchArchiving
+class DeliveredBatchAutoDone
 {
     /**
      * How long a fully delivered batch stays on the board before it closes itself.
@@ -47,7 +47,7 @@ class DeliveredBatchArchiving
      */
     public function sweep(): array
     {
-        $archived = [];
+        $done = [];
 
         /*
          * Live rows only. The sandbox global scope resolves to "sandbox_user_id is null" when no test
@@ -56,19 +56,19 @@ class DeliveredBatchArchiving
          * to their real data.
          */
         if (Sandbox::isActive()) {
-            return $archived;
+            return $done;
         }
 
         foreach (Business::query()->get() as $business) {
             try {
-                $archived = array_merge($archived, $this->sweepBusiness($business));
+                $done = array_merge($done, $this->sweepBusiness($business));
             } catch (Throwable $e) {
                 /*
                  * One business's bad data does not stop the rest, for the reason the fabrication
                  * deadline warnings give: the businesses behind this one in the list would otherwise
                  * be taken down with it, silently, on a schedule nobody is watching.
                  */
-                Log::error('Delivered batch archiving failed', [
+                Log::error('Delivered batch auto-done failed', [
                     'business_id' => $business->id,
                     'exception' => $e,
                 ]);
@@ -77,7 +77,7 @@ class DeliveredBatchArchiving
             }
         }
 
-        return $archived;
+        return $done;
     }
 
     /**
@@ -85,7 +85,7 @@ class DeliveredBatchArchiving
      */
     public function sweepBusiness(Business $business): array
     {
-        $archived = [];
+        $done = [];
 
         /*
          * A read-only account is read-only here too. Closing a batch is a write the user could not
@@ -94,7 +94,7 @@ class DeliveredBatchArchiving
          * board of a business that has lost the ability to put it back.
          */
         if (! $business->allowsWrites()) {
-            return $archived;
+            return $done;
         }
 
         /*
@@ -115,7 +115,7 @@ class DeliveredBatchArchiving
          * them since, which left this sweep closing nothing and the Nesting page growing by a card a
          * job. Only the ones carrying the mark: an ordinary Quoting batch is work in progress.
          *
-         * The two columns are kept apart on purpose even so - archiveDueDate decides what each is
+         * The two columns are kept apart on purpose even so - doneDueDate decides what each is
          * waiting for, and the Ordering column is in neither, a batch with material nobody has bought
          * being unfinished however the rest of it arrived.
          */
@@ -123,7 +123,7 @@ class DeliveredBatchArchiving
             ->filter(fn (Batch $batch) => $batch->delivered_at !== null);
 
         foreach ($staged[BatchStages::DELIVERING]->concat($deliveredByHand) as $batch) {
-            $due = $this->archiveDueDate($batch);
+            $due = $this->doneDueDate($batch);
 
             if ($due === null || $due->isFuture()) {
                 continue;
@@ -134,11 +134,11 @@ class DeliveredBatchArchiving
              * went back out between the stage query and here - and nothing is written.
              */
             if (MarkAsDone::run($batch)) {
-                $archived[] = $batch;
+                $done[] = $batch;
             }
         }
 
-        return $archived;
+        return $done;
     }
 
     /**
@@ -171,7 +171,7 @@ class DeliveredBatchArchiving
      *    stay in the rack and stay untraceable. The board already hides "Move to done" behind this
      *    warning, so holding here is the sweep agreeing with the button rather than a rule of its own.
      */
-    public function archiveDueDate(Batch $batch): ?Carbon
+    public function doneDueDate(Batch $batch): ?Carbon
     {
         if ($batch->done) {
             return null;

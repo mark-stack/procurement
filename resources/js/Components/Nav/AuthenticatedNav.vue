@@ -413,7 +413,7 @@
                                 :href="route('past.projects.index')"
                                 :class="[panelLink, isActive(route('past.projects.index')) ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-700']"
                             >
-                                <i class="w-4 text-center fa-solid fa-box-archive"></i>
+                                <i class="w-4 text-center fa-solid fa-clock-rotate-left"></i>
                                 <span>Past Projects</span>
                             </Link>
                         </div>

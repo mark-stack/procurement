@@ -529,7 +529,7 @@ it('would be a disaster if a BOM upload took a file that is not a spreadsheet', 
  *
  * The draftsman has the spreadsheet; the project manager has the job. Before projects.user_id could
  * name somebody other than whoever was logged in, every BOM the drawing office uploaded produced a
- * project under the draftsman's name - on the board as theirs, editable and archivable by nobody
+ * project under the draftsman's name - on the board as theirs, editable and retirable by nobody
  * else, and with the materials deadline reminders going to the one person not running the job.
  */
 it('creates the project under the colleague it was uploaded for, and records who uploaded it', function () {
@@ -570,7 +570,7 @@ it('leaves created_by_user_id empty when a project manager uploads their own lis
 
 it('would be a disaster if a project could be created for somebody outside the business', function () {
     /*
-     * This id decides who owns a project: who the board names, who may rename or archive it, and who
+     * This id decides who owns a project: who the board names, who may rename or retire it, and who
      * is chased about its deadline. An id from another business would hand a stranger a project - and
      * take it off the uploader's own board, which is drawn from their business's users, so neither of
      * them would be able to reach it.
@@ -653,7 +653,7 @@ it('still refuses the manager’s colleagues everything except reading the list'
          * taking it off the board stay the manager's call.
          */
         ->and((new PrerequisiteConditions())->editProject($draftsman, $project))->toBeFalse()
-        ->and((new PrerequisiteConditions())->archiveProject($draftsman, $project))->toBeFalse()
+        ->and((new PrerequisiteConditions())->markProjectDone($draftsman, $project))->toBeFalse()
         ->and((new PrerequisiteConditions())->editProject($projectManager, $project))->toBeTrue();
 });
 

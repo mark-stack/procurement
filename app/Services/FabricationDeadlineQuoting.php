@@ -28,7 +28,7 @@ use Throwable;
  *
  * It used to press "Start quoting" itself. It does not any more, and that is the point of this class
  * as it stands: starting quoting creates a batch, saves a nest, consumes offcut inventory and takes
- * Edit, Archive and BOM upload off every project it sweeps in. That is a purchasing decision, and a
+ * Edit, Done and BOM upload off every project it sweeps in. That is a purchasing decision, and a
  * purchasing decision is the user's. The gates below are kept anyway - a warning nobody can act on is
  * noise, so this only speaks up when pressing the button would actually work.
  *
@@ -190,7 +190,7 @@ class FabricationDeadlineQuoting
 
         /*
          * The same gate the button is behind, asked as the trigger user. It holds by construction -
-         * they own a project in this column, the pieces are unbatched, nothing here is archived - but
+         * they own a project in this column, the pieces are unbatched, nothing here is done - but
          * asking it is what keeps the warning honest: it is addressed to the person who has to press
          * the button, so a column they could not press it on is a column to say nothing about.
          */
@@ -284,7 +284,7 @@ class FabricationDeadlineQuoting
      *
      * The same mechanism the hourly deadline reminders use, for the same reason. It is driven off the
      * projects still due rather than off the press, because a column leaves the window in more ways
-     * than one: quoted, archived, or a fabrication date moved out.
+     * than one: quoted, marked done, or a fabrication date moved out.
      *
      * @param  array<int, int>  $triggerProjectIds
      * @param  array<int, int>  $columnProjectIds

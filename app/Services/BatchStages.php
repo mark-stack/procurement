@@ -71,7 +71,7 @@ class BatchStages
         /*
          * And which of them have an order out, in one query for the lot rather than the `exists` per
          * batch that of() would otherwise run. Seeded onto the batches themselves, so that everything
-         * downstream of this method - the prerequisite gates, isDelivered(), the archiving sweep -
+         * downstream of this method - the prerequisite gates, isDelivered(), the auto-done sweep -
          * reads the same answer without going back for it.
          */
         $sentOrderBatchIds = Order::query()
@@ -103,7 +103,7 @@ class BatchStages
          *
          * Through Batch::hasSentOrder(), which answers from the grouped query above when the batch
          * came out of forBusiness() and asks for itself when it did not - this method is also called
-         * of a single batch, by the archiving sweep and by isDelivered().
+         * of a single batch, by the auto-done sweep and by isDelivered().
          */
         if (! $batch->hasSentOrder()) {
             return self::QUOTING;

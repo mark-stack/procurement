@@ -16,7 +16,7 @@ class UpdateProjectRequest extends FormRequest
      * reported back) before anything refused the request.
      *
      * The gate answers "is this my business", which is every colleague's project in the
-     * shared Nesting column. Editing is the owner's call, the same as archiving: see
+     * shared Nesting column. Editing is the owner's call, the same as marking a project done: see
      * PrerequisiteConditions::editProject for why the two belong together.
      */
     public function authorize(): bool
@@ -53,15 +53,15 @@ class UpdateProjectRequest extends FormRequest
         $business = $project->user->business;
 
         /*
-         * Was every project the business has ever had, archived ones included, so a
-         * name freed up by archiving could be given to a new project but never
+         * Was every project the business has ever had, ones marked done included, so a
+         * name freed up that way could be given to a new project but never
          * reached by renaming - under a message saying the opposite.
          *
          * Excluding by id rather than by name: matching on the name also cleared
          * every other project that happened to share it.
          */
         $allActiveProjectNames = $business->projects()
-            ->where("projects.archive", false)
+            ->where("projects.done", false)
             ->where("projects.id", "!=", $project->id)
             ->pluck("projects.name")
             ->toArray();
@@ -114,7 +114,7 @@ class UpdateProjectRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'name.not_in' => 'Pick a name different to your other projects - archived ones are free to reuse',
+            'name.not_in' => 'Pick a name different to your other projects - ones marked done are free to reuse',
         ];
     }
 }

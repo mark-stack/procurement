@@ -217,7 +217,7 @@ class KanbanBoardSeeder extends Seeder
             'reference' => $reference,
             'date_materials_required' => now()->addWeeks(3),
             'tentative' => false,
-            'archive' => false,
+            'done' => false,
         ]);
 
         $bom = $testingFormatter->sampleBOM($project, $dataClassificationService, $nest);

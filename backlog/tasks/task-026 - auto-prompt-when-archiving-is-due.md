@@ -19,6 +19,11 @@ when a card in delivering column has all orders delivered, auto move it into pas
 ## Decisions
 
 <!-- SECTION:DECISIONS:BEGIN -->
+> Renamed 2026-10-04, when the app settled on one word for a job being over: this service is now
+> `App\Services\DeliveredBatchAutoDone`, its command `batches:mark-delivered-done`, and
+> `archiveDueDate()` is `doneDueDate()`. KanbanMinimalCard was deleted with the board; the badge is
+> drawn by the Nesting page. The names below are the ones used at the time.
+
 App\Services\DeliveredBatchArchiving, swept daily by `batches:archive-delivered`, five days after the
 LAST delivery on the batch was booked in. The card says the date it will go
 (KanbanMinimalCard, "Closes 7 Oct 26 (5d)") so it never disappears unannounced.

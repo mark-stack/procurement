@@ -24,7 +24,7 @@ class PrerequisiteConditions
          * 5A) PIECE: All pieces have no batch
          * 5B) QUOTE: There are no quotes
          * 5C) ORDER: There are no orders
-         * 6) PROJECT: All projects not archived
+         * 6) PROJECT: All projects not done
          */
 
         //1) BUSINESS: Is your business
@@ -54,8 +54,8 @@ class PrerequisiteConditions
         //5C) ORDER: There are no orders (requires batch)
         $condition_5 = $piecesReadyForBatching->where("batch_id","!=",null)->count() === 0;
 
-        //6) All projects not archived
-        $condition_6 = $projectsReadyForBatching->where("archive",true)->count() === 0;
+        //6) All projects not done
+        $condition_6 = $projectsReadyForBatching->where("done",true)->count() === 0;
 
         return
             $condition_1 &&
@@ -75,7 +75,7 @@ class PrerequisiteConditions
         /**
          * 1) PROJECT: All projects belong to your business
          * 2) PROJECT: At least project is yours
-         * 3) PROJECT: All projects not archived
+         * 3) PROJECT: All projects not done
          * 4) ORDER: no order sent
          * 5) OFFCUT: Are your offcuts being released
          * 6) OFFCUT: "allocated_to" is this batch (released from)
@@ -86,7 +86,7 @@ class PrerequisiteConditions
 
         /*
          * 1-3) The projects on the batch: whose business they are, whether one of them is yours, and
-         * whether any has been archived.
+         * whether any has been marked done.
          *
          * Read off projectApprovalFlags(), which is the three columns these conditions actually
          * touch with the owner's business beside them. This walked $batch->projects() three times -
@@ -112,10 +112,10 @@ class PrerequisiteConditions
             }
         }
 
-        //3) PROJECT: All projects not archived
+        //3) PROJECT: All projects not done
         $condition_3 = true;
         foreach($projects as $project){
-            if($project->archive){
+            if($project->done){
                 $condition_3 = false;
             }
         }
@@ -214,7 +214,7 @@ class PrerequisiteConditions
         /**
          * 1) BUSINESS: Your business
          * 2) PROJECT: Yours to change - its manager, or whoever uploaded it for them
-         * 3) PROJECT: Not archived
+         * 3) PROJECT: Not done
          * 4A) BATCH: No Batch exists for this project
          * 4B) No quote for this project (requires batch)
          * 4C) No order for this project (requires batch)
@@ -233,8 +233,8 @@ class PrerequisiteConditions
          */
         $condition_2 = $project->isManagedBy($user);
 
-        //3) PROJECT: Not archived
-        $condition_3 = !$project->archive;
+        //3) PROJECT: Not done
+        $condition_3 = !$project->done;
 
         //4A) BATCH: No Batch exists for this project
         //4B) No quote for this project (requires batch)
@@ -256,9 +256,9 @@ class PrerequisiteConditions
     public function editProject(User $user, Project $project): bool
     {
         /**
-         * The same answer archiveProject gives, and for the same reason. The Nesting column is
+         * The same answer markProjectDone gives, and for the same reason. The Nesting column is
          * shared, so every colleague's project carried a live Edit button beside a greyed-out
-         * Archive one - and Edit is not the smaller of the two. The name is how the rest of the
+         * Done one - and Edit is not the smaller of the two. The name is how the rest of the
          * business recognises the project on the board and in Past Projects, and
          * date_materials_required drives the critical path and every deadline notification the
          * owner receives. A colleague could move both, silently, with nothing recording that
@@ -282,20 +282,38 @@ class PrerequisiteConditions
             $condition_2;
     }
 
-    public function archiveProject(User $user, Project $project): bool
+    public function markProjectDone(User $user, Project $project): bool
     {
         /**
-         * Archiving takes a project off the board for the whole business, and only its owner
-         * can put it back - so it is the owner's call, and only while the project is still
-         * pre-nesting. Nothing enforced either of those server side: the button hid itself
-         * outside the Nesting column and the notification "Lost it" action skipped even that,
-         * which is how a batch could end up permanently un-re-nestable (undoStartQuoting
-         * condition 3) because of a project nobody else could see, let alone restore.
+         * Marking a project done takes it off the board for the whole business, and only its
+         * owner can reopen it - so it is the owner's call. Nothing enforced that server side: the
+         * button hid itself outside the Nesting column and the notification "Lost it" action
+         * skipped even that, which is how a batch could end up permanently un-re-nestable
+         * (undoStartQuoting condition 3) because of a project nobody else could see, let alone
+         * reopen.
+         *
+         * This was called archiveProject, and the column behind it projects.archive, until the
+         * application settled on one word for a job being over - see the migration renaming it.
+         *
+         * Condition 4 used to read "no batch exists for this project", which locked the name of
+         * every project that ever finished. Nesting writes a batch_id onto the pieces and nothing
+         * ever clears it, so a project that went all the way through - quoted, ordered, delivered,
+         * "Move to done" - failed that test for good. Both project forms exclude the names of
+         * projects marked done from their uniqueness check and tell the user so ("ones marked done
+         * are free to reuse"), but the one kind of project whose name you actually want back could
+         * never be marked done to free it. The card's tooltip offered "re-nest the batch first",
+         * and MarkAsDone is a one-way door off the board, so there was no batch left to re-nest
+         * either.
+         *
+         * What the condition is really protecting is undoStartQuoting condition 3: a project taken
+         * out from under a batch still being worked leaves that batch un-re-nestable, and
+         * invisible to everyone but the owner. A done batch is not being worked on - nothing
+         * re-nests it and nothing quotes it - so it is no longer a reason to refuse.
          *
          * 1) BUSINESS: Your business
          * 2) PROJECT: Your project
-         * 3) PROJECT: Not already archived
-         * 4) PIECE: No batch exists for this project
+         * 3) PROJECT: Not already done
+         * 4) PIECE: No piece of this project is on a batch that is still live
          */
 
         //1) BUSINESS: Your business
@@ -304,11 +322,19 @@ class PrerequisiteConditions
         //2) PROJECT: Your project
         $condition_2 = $project->user->id === $user->id;
 
-        //3) PROJECT: Not already archived
-        $condition_3 = !$project->archive;
+        //3) PROJECT: Not already done
+        $condition_3 = !$project->done;
 
-        //4) PIECE: No batch exists for this project
-        $condition_4 = $project->pieces()->whereNotNull("batch_id")->doesntExist();
+        /*
+         * 4) PIECE: No piece of this project is on a batch that is still live
+         *
+         * Strictly looser than the old test, so a project that never reached a batch still passes
+         * here the way it always did - it has no pieces on a live batch either.
+         */
+        $condition_4 = $project->pieces()
+            ->whereNotNull("batch_id")
+            ->whereHas("batch", fn ($query) => $query->where("done", false))
+            ->doesntExist();
 
         return
             $condition_1 &&
@@ -317,20 +343,20 @@ class PrerequisiteConditions
             $condition_4;
     }
 
-    public function restoreProject(User $user, Project $project): bool
+    public function reopenProject(User $user, Project $project): bool
     {
         /**
-         * The way back from archiveProject, so it asks for no more than that one did: a project
-         * archived while it was on a batch has to be restorable, or the batch it is holding up
+         * The way back from markProjectDone, so it asks for no more than that one did: a project
+         * marked done while it was on a batch has to be reopenable, or the batch it is holding up
          * stays held up forever.
          *
          * The name clash is deliberately not one of these conditions - it is answered separately by
-         * restoreProjectNameIsFree() below, because it is the one obstacle the owner can clear
+         * reopenProjectNameIsFree() below, because it is the one obstacle the owner can clear
          * themselves and so is worth a sentence rather than a 403.
          *
          * 1) BUSINESS: Your business
          * 2) PROJECT: Your project
-         * 3) PROJECT: Archived
+         * 3) PROJECT: Done
          */
 
         //1) BUSINESS: Your business
@@ -339,8 +365,8 @@ class PrerequisiteConditions
         //2) PROJECT: Your project
         $condition_2 = $project->user->id === $user->id;
 
-        //3) PROJECT: Archived
-        $condition_3 = (bool) $project->archive;
+        //3) PROJECT: Done
+        $condition_3 = (bool) $project->done;
 
         return
             $condition_1 &&
@@ -349,27 +375,28 @@ class PrerequisiteConditions
     }
 
     /**
-     * Is this archived project's name still free on the board it wants to come back to?
+     * Is this done project's name still free on the board it wants to come back to?
      *
-     * Both project forms exclude archived names from their uniqueness check, and say so out loud:
-     * "archived ones are free to reuse". That is the intended behaviour and it is what opens this -
-     * archive "Tower A", give a new project the freed-up name, restore the old one, and the shared
-     * Nesting column has two live projects called "Tower A" belonging to different jobs.
+     * Both project forms exclude the names of projects marked done from their uniqueness check, and
+     * say so out loud: "ones marked done are free to reuse". That is the intended behaviour and it
+     * is what opens this - mark "Tower A" done, give a new project the freed-up name, reopen the old
+     * one, and the shared Nesting column has two live projects called "Tower A" belonging to
+     * different jobs.
      *
      * Nothing downstream can tell them apart for a person. The board draws two identical cards, Past
      * Projects lists the name twice, and a colleague pressing "Start quoting" nests both into one
      * batch - where the cut drawings label their pieces by letter but the spec sheet, the BOM
      * download and every notification name the project. Steel gets cut for the wrong Tower A.
      *
-     * Refusing the restore is safe in a way that refusing the archive would not be: the owner can
-     * rename an archived project (editProject does not ask whether it is archived), so there is
-     * always a way through, and a batch held up by an archived project can never reach this - a
-     * project on a batch cannot be archived through archiveProject in the first place.
+     * Refusing the reopen is safe in a way that refusing to mark done would not be: the owner can
+     * rename a project that is done (editProject does not ask whether it is), so there is always a
+     * way through, and a batch held up by a done project can never reach this - a project on a live
+     * batch cannot be marked done through markProjectDone in the first place.
      */
-    public function restoreProjectNameIsFree(Project $project): bool
+    public function reopenProjectNameIsFree(Project $project): bool
     {
         return ! $project->user->business->projects()
-            ->where('projects.archive', false)
+            ->where('projects.done', false)
             ->where('projects.id', '!=', $project->id)
             ->where('projects.name', $project->name)
             ->exists();
@@ -467,7 +494,7 @@ class PrerequisiteConditions
      *
      * The board's own button, which is where this lived until the board was deleted: the card that
      * carried it (KanbanMinimalCard.vue) went with the screen, and the route, the gate and the action
-     * behind it were left with nothing calling them. Nothing else writes Batch::done - the archiving
+     * behind it were left with nothing calling them. Nothing else writes Batch::done - the auto-done
      * sweep aside - so for the weeks since, every batch a shop made stayed live for ever, the one page
      * in the application grew by a card a job, and Past Projects could never gain another row.
      *
@@ -482,7 +509,7 @@ class PrerequisiteConditions
      *
      * App\Actions\Batch\MarkAsDone asks the other half, the half this cannot see: whether a sent order
      * on the batch is still out for delivery. Both have to pass, and that one is also what the
-     * archiving sweep applies on the business's behalf.
+     * auto-done sweep applies on the business's behalf.
      */
     public function markBatchDone(User $user, Batch $batch, bool $batchIsDelivered): bool
     {
@@ -494,7 +521,7 @@ class PrerequisiteConditions
      *
      * 1) BUSINESS: is your business
      * 2) USER: you're a PM on at least 1 project of the batch
-     * 3) PROJECT: no project on the batch is archived
+     * 3) PROJECT: no project on the batch is done
      * 4) BATCH: the batch is live
      * 5) BATCH: nothing has been ordered through a supplier on it
      *
@@ -517,7 +544,7 @@ class PrerequisiteConditions
      *
      * 1) BUSINESS: is your business
      * 2) USER: you're a PM on at least 1 project of the batch
-     * 3) PROJECT: no project on the batch is archived
+     * 3) PROJECT: no project on the batch is done
      * 4) BATCH: the batch is live
      *
      * The first three are canChangeQuoteSentState's, worded the same way and for the same reason: a
@@ -545,8 +572,8 @@ class PrerequisiteConditions
             return false;
         }
 
-        //3) PROJECT: all projects not archived
-        if ($projects->contains(fn (Project $project) => (bool) $project->archive)) {
+        //3) PROJECT: all projects not done
+        if ($projects->contains(fn (Project $project) => (bool) $project->done)) {
             return false;
         }
 
@@ -575,7 +602,7 @@ class PrerequisiteConditions
          *
          * 1) BUSINESS: is your business
          * 2) USER: you're a PM on at least 1 project
-         * 3) PROJECT: project is not archived
+         * 3) PROJECT: project is not done
          * 5) ORDER: order not sent
          * 6) ORDER: order not delivered
          */
@@ -603,10 +630,10 @@ class PrerequisiteConditions
             }
         }
 
-        //3) PROJECT: all projects not archived
+        //3) PROJECT: all projects not done
         $condition_3 = true;
         foreach($batch->projectApprovalFlags() as $project){
-            if($project->archive){
+            if($project->done){
                 $condition_3 = false;
             }
         }

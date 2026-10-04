@@ -46,7 +46,7 @@ class ProjectResource extends JsonResource
                 ? substr((string) $project->date_fabrication_begins, 0, 10)
                 : null,
             'tentative' => $project->tentative,
-            'archive' => $project->archive,
+            'done' => $project->done,
             'projectManager' => $project->user,
             /*
              * Who uploaded the material list, when that was not the manager it is for - a draftsman

@@ -14,7 +14,7 @@ use Illuminate\Notifications\Notification;
  * that most needs telling. It nests *every* project sitting in the Nesting column into one batch -
  * colleagues' projects included - owned by whoever pressed it, and from that moment the suppliers
  * quoted, the delivery dates asked for and the nesting your pieces were cut into are theirs, not
- * yours. You also lose Edit, Archive and BOM upload on your own project the instant its pieces have
+ * yours. You also lose Edit, Done and BOM upload on your own project the instant its pieces have
  * a batch (PrerequisiteConditions::editProject and friends).
  *
  * All of that is intended - it is how batching saves money - and the board now confirms it and names
@@ -48,7 +48,7 @@ class ColleagueQuotedYourMaterials extends Notification
         return [
             /*
              * project_id is not decoration: NotificationService::clearProjectNotifications and the
-             * project observer both key off it, so archiving the project takes this out of the bell
+             * project observer both key off it, so marking the project done takes this out of the bell
              * with everything else about it.
              */
             'project_id' => $this->project->id,

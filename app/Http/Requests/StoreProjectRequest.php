@@ -3,6 +3,8 @@
 namespace App\Http\Requests;
 
 use App\Models\Project;
+use App\PrerequisiteConditions\PrerequisiteConditions;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -53,7 +55,7 @@ class StoreProjectRequest extends FormRequest
          * inverted scope behind it have since been deleted.
          */
         $allCurrentProjectNames = $business->projects()
-            ->where("projects.archive", false)
+            ->where("projects.done", false)
             ->pluck("projects.name")
             ->toArray();
 
@@ -77,7 +79,7 @@ class StoreProjectRequest extends FormRequest
              * created_by_user_id). Absent, or your own id, means the plain case.
              *
              * Scoped to the business, not just to "a user that exists": this id decides who owns a
-             * project, who is reminded about its deadline and who may archive it, so an arbitrary id
+             * project, who is reminded about its deadline and who may mark it done, so an arbitrary id
              * would hand a stranger a project - and hide it from the person who uploaded it, since
              * their own board is drawn from their business's users.
              */
@@ -116,10 +118,57 @@ class StoreProjectRequest extends FormRequest
         ];
     }
 
+    /**
+     * Name the project standing in the way, when the user can clear it themselves.
+     *
+     * The uniqueness rule above says "ones marked done are free to reuse" and leaves it there, which
+     * sent the user off to find and retire a project the board may not even be showing any more.
+     * A finished one is the case that matters - its job is over, and holding its name is all it is
+     * still doing - so its id is reported alongside the error and the modal offers to mark it done
+     * and take the name in one press.
+     *
+     * Only ever a project this user may retire on their own (PrerequisiteConditions::markProjectDone
+     * asks, and answers "your own" among other things), and only a finished one: a live job is not
+     * something to invite somebody to file away just because they reused its name.
+     */
+    protected function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            //Nothing to offer unless the name is what was rejected
+            if (! $validator->errors()->has('name')) {
+                return;
+            }
+
+            $user = auth()->user();
+
+            /*
+             * Off Project rather than through Business::projects(), which is an untyped
+             * HasManyThrough and hands back a bare Model - see the same choice in
+             * Business::projectsReadyForBatching.
+             */
+            $clash = Project::query()
+                ->whereRelation('user', 'business_id', $user->business->id)
+                ->where('done', false)
+                ->where('name', $this->input('name'))
+                ->first();
+
+            if ($clash === null || ! $clash->isFinished()) {
+                return;
+            }
+
+            if (! (new PrerequisiteConditions)->markProjectDone($user, $clash)) {
+                return;
+            }
+
+            //Just the id - the modal already has the name, the user typed it
+            $validator->errors()->add('name_clash_project_id', (string) $clash->id);
+        });
+    }
+
     public function messages(): array
     {
         return [
-            'name.not_in' => 'Pick a name different to your other projects - archived ones are free to reuse',
+            'name.not_in' => 'Pick a name different to your other projects - ones marked done are free to reuse',
             'date_fabrication_begins.required' => 'Tell us when fabrication begins - the materials have to be quoted, ordered and delivered before then.',
             'project_manager_id.exists' => 'Pick a project manager from your own company.',
             'excel.max' => 'Maximum '.self::MAX_FILES.' BOM files can be uploaded.',

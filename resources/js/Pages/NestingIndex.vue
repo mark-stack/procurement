@@ -448,7 +448,7 @@
      * rather than another copy of them:
      *
      *  - NESTING has no batch to ask for yet, so suggested-nesting re-nests everything waiting.
-     *  - A live batch opens its own saved nest, closing back to the board (KanbanMinimalCard).
+     *  - A live batch opens its own saved nest, closing back to this page.
      *
      * Both the printable sheet, which is the "1" on the end of each: every card on this page is a
      * batch read end to end - its material list, its order list, its nest - and the modal the board
@@ -546,7 +546,7 @@
     function reNestTitle(batch) {
         return batch.prerequisiteUndoStartQuoting
             ? 'Unpick this batch and send its projects back to nesting'
-            : 'This batch can no longer be re-nested - it has been ordered, a project was archived, or a later batch has already used its offcuts';
+            : 'This batch can no longer be re-nested - it has been ordered, a project was marked done, or a later batch has already used its offcuts';
     }
 
     /**
@@ -1599,7 +1599,7 @@
                                                             ? 'font-semibold text-gray-700 hover:bg-gray-100'
                                                             : 'text-gray-400 cursor-not-allowed'"
                                                     >
-                                                        <i class="fa-solid fa-box-archive text-xs"></i>
+                                                        <i class="fa-solid fa-circle-check text-xs"></i>
                                                         Move to done
                                                     </button>
                                                 </template>

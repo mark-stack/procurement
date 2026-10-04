@@ -38,7 +38,7 @@ class MarkAsPastProjectController extends Controller
         );
 
         /*
-         * Through the action, because App\Services\DeliveredBatchArchiving closes batches on this
+         * Through the action, because App\Services\DeliveredBatchAutoDone closes batches on this
          * business's behalf five days after the last delivery and the two routes have to apply the one
          * guard. False is that guard refusing: the card only offers "Move to done" once the deliveries
          * are in, but that is the button's own state - a stale tab or a replayed post reaches this with

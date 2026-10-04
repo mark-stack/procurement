@@ -21,11 +21,11 @@ class ProjectObserver
     public function updated(Project $project): void
     {
         /*
-         * An archived project is off the board, so nothing it is being chased about can be
-         * acted on. No implementation below reads the archive flag, so without this its
+         * A project marked done is off the board, so nothing it is being chased about can be
+         * acted on. No implementation below reads the done flag, so without this its
          * reminders sit unread in the bell for a project the user cannot even see.
          */
-        if ($project->wasChanged('archive') && $project->archive) {
+        if ($project->wasChanged('done') && $project->done) {
             (new NotificationService)->clearProjectNotifications($project);
         }
 

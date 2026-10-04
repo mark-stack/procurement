@@ -51,7 +51,7 @@ class NestingIndexController extends Controller
      * only button that closed a batch by hand was on the deleted board, and the sweep that closes them
      * on a business's behalf can only see batches bought through the quotes screen, which nothing
      * writes any more. Every card carries "Move to done" now (see prerequisiteMarkDone below), and the
-     * sweep closes a batch somebody marked delivered by hand as well - App\Services\DeliveredBatchArchiving.
+     * sweep closes a batch somebody marked delivered by hand as well - App\Services\DeliveredBatchAutoDone.
      *
      * Which column a batch is in is read off the one place that answers it: App\Services\BatchStages.
      * Asking it a second way here would let this page and the board disagree about where a batch is -
@@ -240,7 +240,7 @@ class NestingIndexController extends Controller
          * Which jobs are on which batch, and the jobs themselves - asked here, before the cards are
          * built, because the prerequisites inside the loop want them too.
          *
-         * Those gates read the manager and the archive flag of every project on the batch
+         * Those gates read the manager and the done flag of every project on the batch
          * (PrerequisiteConditions::canChangeBatchItself, undoStartQuoting), and left to themselves
          * they fetch that per card - which on this page is the same handful of rows read again a card
          * at a time. The loop hands each batch what it has already loaded; see
@@ -264,7 +264,7 @@ class NestingIndexController extends Controller
 
         $projects = Project::query()
             /*
-             * The last four are the edit modal's, not the card's - see projectCards(). archive and
+             * The last four are the edit modal's, not the card's - see projectCards(). done and
              * the manager's business are neither: they are what the prerequisite gates read, and they
              * are selected here so that those gates do not go and read them again per card.
              */
@@ -274,7 +274,7 @@ class NestingIndexController extends Controller
                 'user_id',
                 //Who put the list on for them, which is half of whose card this is - see mineOf()
                 'created_by_user_id',
-                'archive',
+                'done',
                 'reference',
                 'date_materials_required',
                 'date_fabrication_begins',
@@ -736,8 +736,8 @@ class NestingIndexController extends Controller
      * shop its material is in the rack while it is still on a lorry.
      *
      * A fully delivered batch closes itself five days after its last goods receipt
-     * (App\Services\DeliveredBatchArchiving), so DELIVERED is what a card says in that window, and for
-     * as long as a hold on the archiving keeps it on the board.
+     * (App\Services\DeliveredBatchAutoDone), so DELIVERED is what a card says in that window, and for
+     * as long as a hold on the auto-done sweep keeps it on the board.
      */
     private function milestoneOf(
         Batch $batch,

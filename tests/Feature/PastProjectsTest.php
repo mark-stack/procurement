@@ -196,7 +196,7 @@ it('would be a disaster if a colleague with no job on the batch could close it',
     expect((bool) $batch->fresh()->done)->toBeFalse();
 });
 
-it("would be a disaster if the archive listed another business's batches", function () {
+it("would be a disaster if past projects listed another business's batches", function () {
     $business1 = createBusiness('biz1');
     $user1 = createUser(1, $business1, false, true);
     $mine = Batch::factory()->forUser($user1->id)->create(['done' => true]);
@@ -220,7 +220,7 @@ it("would be a disaster if the archive listed another business's batches", funct
 it('counts the orders a batch needed, not the drafts it accumulated', function () {
     /*
      * A plain orders count reported every draft row. BatchService::totalOrdersQty counts unique
-     * supplier categories for exactly this reason, and the archive has to agree with it - including
+     * supplier categories for exactly this reason, and past projects has to agree with it - including
      * for the group whose order was drafted and never sent.
      */
     $business = createBusiness('biz');
@@ -240,7 +240,7 @@ it('counts the orders a batch needed, not the drafts it accumulated', function (
     expect($row['ordersQty'])->toBe(2);
 });
 
-it('sends the archive nothing but the project names it renders', function () {
+it('sends past projects nothing but the project names it renders', function () {
     /*
      * The table labels each row with project names and reads nothing else off them. This used to ship
      * Batch::projects() - every project's owner and its whole raw material quote tree - plus a
@@ -265,7 +265,7 @@ it('sends the archive nothing but the project names it renders', function () {
         ->and($row['projectManagers'])->toBeString();
 });
 
-it('would be a disaster if the archive credited a batch to the wrong person', function () {
+it('would be a disaster if past projects credited a batch to the wrong person', function () {
     /*
      * "Start quoting" sweeps in every project that was ready, colleagues' included, and the batch
      * belongs to whoever pressed it. This row used to be labelled with that person - so a batch
@@ -306,9 +306,9 @@ it('would be a disaster if a batch spanning two managers named only one', functi
         ->and($row['projectManagers'])->toContain($colleague->name);
 });
 
-it('reads the archive in a fixed number of queries however many batches it holds', function () {
+it('reads past projects in a fixed number of queries however many batches it holds', function () {
     /*
-     * This is the archive, so it only ever grows and nothing caps the row count. It used to make nine
+     * This list only ever grows and nothing caps the row count. It used to make nine
      * queries a row - the batch's user, the project tree, and an orders count, one batch at a time.
      */
     $business = createBusiness('biz');

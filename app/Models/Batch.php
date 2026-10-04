@@ -142,8 +142,8 @@ class Batch extends Model
     public function projectApprovalFlags(): EloquentCollection
     {
         /*
-         * Just the owner and archive state, for the prerequisite conditions. Those read nothing but
-         * $project->user_id and $project->archive, while projects() above eager-loads the
+         * Just the owner and done state, for the prerequisite conditions. Those read nothing but
+         * $project->user_id and $project->done, while projects() above eager-loads the
          * rawMaterialQuotes/piece/quote/order tree that ProjectResource needs - several queries per
          * call, and markQuoteAsSent/undoMarkQuoteAsSent together call it four times per supplier row.
          */
@@ -153,7 +153,7 @@ class Batch extends Model
          * per project on top of the tree projects() was being loaded for.
          */
         return $this->projectApprovalFlagsMemo ??= Project::query()
-            ->select(['id', 'user_id', 'archive'])
+            ->select(['id', 'user_id', 'done'])
             ->with('user:id,business_id')
             ->whereIn('id', $this->pieces()->distinct()->pluck('project_id'))
             ->get();
@@ -379,7 +379,7 @@ class Batch extends Model
      * Memoised per instance, the way projectApprovalFlags() below is and for the same reason: within
      * one request the answer cannot change under the four callers, because sending an order is a POST
      * that ends in a redraw. The memo is an instance field, so a batch re-read from the database - the
-     * next request, or the next pass of the archiving sweep - asks again.
+     * next request, or the next pass of the auto-done sweep - asks again.
      */
     public function hasSentOrder(): bool
     {
@@ -431,7 +431,7 @@ class Batch extends Model
      *
      * The page drawing these cards selects every project on every batch in one query and knows which
      * belongs where, so each batch is given its own rather than going back for them. The rows have to
-     * carry what projectApprovalFlags() selects - the manager, the archive flag, and the manager's
+     * carry what projectApprovalFlags() selects - the manager, the done flag, and the manager's
      * business - or the gates read a null and refuse something they should allow.
      *
      * @param  EloquentCollection<int, Project>  $projects

@@ -72,17 +72,17 @@ it('would be a disaster if a new materials date could be set in the past', funct
     $response->assertInvalid('date_materials_required');
 });
 
-it('would be a disaster if a name freed up by archiving stayed unreachable', function () {
+it('would be a disaster if a name freed up by marking a project done stayed unreachable', function () {
     /**
-     * Creating a project only checks the names of current projects, so archiving
+     * Creating a project only checks the names of current projects, so marking one done
      * one frees its name. Renaming checked every project the business had ever
      * had, and refused under a message about "currently active projects".
      */
     $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
-    $archived = createProject($user);
-    $archived->update(['name' => 'Retired name', 'archive' => true]);
+    $doneProject = createProject($user);
+    $doneProject->update(['name' => 'Retired name', 'done' => true]);
 
     $project = createProject($user);
 
@@ -164,7 +164,7 @@ it('would be a disaster if user could edit other staff projects', function () {
      * The test of this name used to assert against another BUSINESS, which the gate already
      * refused - so what it was named for went uncovered. ProjectPolicy asks only whether a
      * project belongs to your business, and the Nesting column is shared, so every colleague's
-     * card carried a live Edit button beside a greyed-out Archive one.
+     * card carried a live Edit button beside a greyed-out Done one.
      *
      * Edit is not the smaller of the two: the name is how the rest of the business recognises
      * the project on the board and in Past Projects, and date_materials_required drives the
@@ -299,11 +299,11 @@ it('would be a disaster if a business with no templates yet were turned away at 
     expect(Project::count())->toBe(0);
 });
 
-it('would be a disaster if user could archive other staff projects', function () {
+it('would be a disaster if user could mark other staff projects done', function () {
     /**
      * The gate only asks whether a project belongs to your business, and the Nesting column
-     * is shared - so every colleague's project carried a live Archive button. The archived
-     * list it is restored from is filtered to your own projects, so archiving a colleague's
+     * is shared - so every colleague's project carried a live Done button. The done
+     * list it is reopened from is filtered to your own projects, so retiring a colleague's
      * project took it off the board with no way back for anyone but them.
      */
     $business = createBusiness('gmail');
@@ -317,13 +317,13 @@ it('would be a disaster if user could archive other staff projects', function ()
         ->delete(route('projects.destroy', $colleaguesProject->id));
 
     $response->assertForbidden();
-    expect($colleaguesProject->fresh()->archive)->toBeFalsy();
+    expect($colleaguesProject->fresh()->done)->toBeFalsy();
 });
 
-it('would be a disaster if user could archive project with active quotes and orders', function () {
+it('would be a disaster if user could mark a project done with active quotes and orders', function () {
     /**
-     * Archiving a nested project fails undoStartQuoting condition 3, so its batch can never
-     * be re-nested again - and the tooltip that says so names an archived project the rest
+     * Marking a nested project done fails undoStartQuoting condition 3, so its batch can never
+     * be re-nested again - and the tooltip that says so names a done project the rest
      * of the business cannot see. The button hid itself outside the Nesting column; nothing
      * on the server did.
      */
@@ -339,25 +339,150 @@ it('would be a disaster if user could archive project with active quotes and ord
         ->delete(route('projects.destroy', $project->id));
 
     $response->assertForbidden();
-    expect($project->fresh()->archive)->toBeFalsy();
+    expect($project->fresh()->done)->toBeFalsy();
 });
 
-it('would be a disaster if a project archived before nesting could not be restored', function () {
+it('lets a finished project be marked done so its name comes back', function () {
+    /**
+     * Nesting writes a batch_id onto the pieces and nothing ever clears it, so markProjectDone's
+     * old "no batch exists for this project" condition could never pass again once a job had been
+     * through. Both project forms say "ones marked done are free to reuse" - and the one kind of
+     * project whose name you actually want back was the one kind that could never be marked done to
+     * free it. "Move to done" is a one-way door off the board, so the tooltip's advice to re-nest
+     * the batch first led nowhere either.
+     */
+    $business = createBusiness('gmail');
+    $user = createUser(1, $business, false, true);
+
+    $project = createProject($user);
+    $batch = Batch::factory()->forUser($user->id)->create(['done' => true]);
+    pieceOnBatch($project, $batch);
+
+    $response = $this->actingAs($user)
+        ->from('/dashboard')
+        ->delete(route('projects.destroy', $project->id));
+
+    $response->assertValid();
+    expect($project->fresh()->done)->toBeTruthy();
+});
+
+it('would be a disaster if a finished batch let a project off a live one be marked done', function () {
+    /**
+     * A project collects material over time - see the pending card, which counts the pieces added
+     * since the last batch - so it can be on a closed batch and a live one at once. Only the live
+     * one decides: retiring it out from under a batch is what leaves a batch un-re-nestable
+     * (undoStartQuoting condition 3) and invisible to everyone but the owner.
+     */
+    $business = createBusiness('gmail');
+    $user = createUser(1, $business, false, true);
+
+    $project = createProject($user);
+    pieceOnBatch($project, Batch::factory()->forUser($user->id)->create(['done' => true]));
+    pieceOnBatch($project, Batch::factory()->forUser($user->id)->create(['done' => false]));
+
+    $response = $this->actingAs($user)
+        ->from('/dashboard')
+        ->delete(route('projects.destroy', $project->id));
+
+    $response->assertForbidden();
+    expect($project->fresh()->done)->toBeFalsy();
+});
+
+it('names the finished project holding a name the user is trying to reuse', function () {
+    /**
+     * The rejection used to be the whole story: "pick a name different to your other projects".
+     * The project in the way has finished, so the board stopped drawing it when its batch was
+     * marked done, and the user was sent hunting for something they could not see. Its id comes
+     * back with the error so the modal can offer to mark it done and take the name in one press.
+     */
+    $business = createBusiness('gmail');
+    $user = createUser(1, $business, false, true);
+
+    $finished = createProject($user);
+    $finished->update(['name' => 'Tower A']);
+    pieceOnBatch($finished, Batch::factory()->forUser($user->id)->create(['done' => true]));
+
+    $response = $this->actingAs($user)
+        ->from('/dashboard')
+        ->post(route('projects.store'), [
+            'name' => 'Tower A',
+            'date_fabrication_begins' => now()->addMonth()->toDateString(),
+            'tentative' => false,
+            'excel' => [],
+        ]);
+
+    $response->assertInvalid('name');
+    expect(session('errors')->first('name_clash_project_id'))->toBe((string) $finished->id);
+});
+
+it('does not offer to retire a live project whose name was reused', function () {
+    /**
+     * The offer is for a job that is over and is doing nothing but holding its name. A project
+     * still being worked on is not something to invite somebody to file away because they happened
+     * to type its name - they get the plain rejection and pick another one.
+     */
+    $business = createBusiness('gmail');
+    $user = createUser(1, $business, false, true);
+
+    $live = createProject($user);
+    $live->update(['name' => 'Tower A']);
+    pieceOnBatch($live, Batch::factory()->forUser($user->id)->create(['done' => false]));
+
+    $response = $this->actingAs($user)
+        ->from('/dashboard')
+        ->post(route('projects.store'), [
+            'name' => 'Tower A',
+            'date_fabrication_begins' => now()->addMonth()->toDateString(),
+            'tentative' => false,
+            'excel' => [],
+        ]);
+
+    $response->assertInvalid('name');
+    expect(session('errors')->has('name_clash_project_id'))->toBeFalse();
+});
+
+it('does not offer to retire a colleague’s finished project', function () {
+    /**
+     * Only the owner may retire a project (markProjectDone condition 2), so offering the button to
+     * anybody else is offering a press that comes back 403.
+     */
+    $business = createBusiness('gmail');
+    $user = createUser(1, $business, false, true);
+    $colleague = createUser(2, $business, false, true);
+
+    $theirs = createProject($colleague);
+    $theirs->update(['name' => 'Tower A']);
+    pieceOnBatch($theirs, Batch::factory()->forUser($colleague->id)->create(['done' => true]));
+
+    $response = $this->actingAs($user)
+        ->from('/dashboard')
+        ->post(route('projects.store'), [
+            'name' => 'Tower A',
+            'date_fabrication_begins' => now()->addMonth()->toDateString(),
+            'tentative' => false,
+            'excel' => [],
+        ]);
+
+    $response->assertInvalid('name');
+    expect(session('errors')->has('name_clash_project_id'))->toBeFalse();
+});
+
+it('would be a disaster if a project marked done before nesting could not be reopened', function () {
     $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
     $project = createProject($user);
 
     $this->actingAs($user)->from('/dashboard')->delete(route('projects.destroy', $project->id));
-    expect($project->fresh()->archive)->toBeTruthy();
+    expect($project->fresh()->done)->toBeTruthy();
 
     $this->actingAs($user)->from('/dashboard')->delete(route('projects.destroy', $project->id));
-    expect($project->fresh()->archive)->toBeFalsy();
+    expect($project->fresh()->done)->toBeFalsy();
 });
 
-it('would be a disaster if a project archived while nested could not be restored', function () {
+it('would be a disaster if a project marked done while nested could not be reopened', function () {
     /**
-     * Restore asks for less than archive does. A project that reached a batch while archived -
+     * Reopen asks for less than marking done does. A project that reached a batch while done -
      * "Lost it" on a notification used to do exactly that - is the one holding its batch back,
      * so refusing to restore it would leave the batch stuck for good.
      */
@@ -365,7 +490,7 @@ it('would be a disaster if a project archived while nested could not be restored
     $user = createUser(1, $business, false, true);
 
     $project = createProject($user);
-    $project->update(['archive' => true]);
+    $project->update(['done' => true]);
 
     $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
     pieceOnBatch($project, $batch);
@@ -375,14 +500,14 @@ it('would be a disaster if a project archived while nested could not be restored
         ->delete(route('projects.destroy', $project->id));
 
     $response->assertRedirect();
-    expect($project->fresh()->archive)->toBeFalsy();
+    expect($project->fresh()->done)->toBeFalsy();
 });
 
 it('would be a disaster if restoring a project put two of the same name on the board', function () {
     /**
-     * Both project forms deliberately exclude archived names from their uniqueness check, and say
-     * so: "archived ones are free to reuse". Nothing then looked at the name on the way back in, so
-     * the whole sequence is legal - archive "Tower A", give the freed name to a new project, restore
+     * Both project forms deliberately exclude the names of done projects from their uniqueness check, and say
+     * so: "ones marked done are free to reuse". Nothing then looked at the name on the way back in, so
+     * the whole sequence is legal - mark "Tower A" done, give the freed name to a new project, reopen
      * the old one - and it ends with two live projects called "Tower A" in the shared Nesting column
      * for two different jobs.
      *
@@ -393,21 +518,21 @@ it('would be a disaster if restoring a project put two of the same name on the b
     $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
-    $archived = createProject($user);
-    $archived->update(['name' => 'Tower A', 'archive' => true]);
+    $doneProject = createProject($user);
+    $doneProject->update(['name' => 'Tower A', 'done' => true]);
 
-    //Allowed, and meant to be - the name is free while the other project is archived
+    //Allowed, and meant to be - the name is free while the other project is done
     $live = createProject($user);
     $live->update(['name' => 'Tower A']);
 
     $response = $this->actingAs($user)
         ->from('/dashboard')
-        ->delete(route('projects.destroy', $archived->id));
+        ->delete(route('projects.destroy', $doneProject->id));
 
-    //A reason rather than a 403: the owner can rename the archived project and try again
-    $response->assertInvalid('archive');
-    expect($archived->fresh()->archive)->toBeTruthy()
-        ->and(Project::query()->where('archive', false)->where('name', 'Tower A')->count())->toBe(1);
+    //A reason rather than a 403: the owner can rename the done project and try again
+    $response->assertInvalid('done');
+    expect($doneProject->fresh()->done)->toBeTruthy()
+        ->and(Project::query()->where('done', false)->where('name', 'Tower A')->count())->toBe(1);
 });
 
 it('lets a renamed project be restored once its old name is taken', function () {
@@ -415,28 +540,28 @@ it('lets a renamed project be restored once its old name is taken', function () 
     $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
-    $archived = createProject($user);
-    $archived->update(['name' => 'Tower A', 'archive' => true]);
+    $doneProject = createProject($user);
+    $doneProject->update(['name' => 'Tower A', 'done' => true]);
 
     $live = createProject($user);
     $live->update(['name' => 'Tower A']);
 
-    //Renaming an archived project is allowed - editProject does not ask whether it is archived
+    //Renaming a done project is allowed - editProject does not ask whether it is
     $this->actingAs($user)
         ->from('/dashboard')
-        ->put(route('projects.update', $archived->id), [
+        ->put(route('projects.update', $doneProject->id), [
             'name' => 'Tower A (2024)',
-            'reference' => $archived->reference,
-            'date_materials_required' => $archived->date_materials_required,
+            'reference' => $doneProject->reference,
+            'date_materials_required' => $doneProject->date_materials_required,
         ])
         ->assertValid();
 
     $this->actingAs($user)
         ->from('/dashboard')
-        ->delete(route('projects.destroy', $archived->id))
+        ->delete(route('projects.destroy', $doneProject->id))
         ->assertRedirect();
 
-    expect($archived->fresh()->archive)->toBeFalsy();
+    expect($doneProject->fresh()->done)->toBeFalsy();
 });
 
 it('would be a disaster if a colleague’s project blocked a restore invisibly', function () {
@@ -449,18 +574,18 @@ it('would be a disaster if a colleague’s project blocked a restore invisibly',
     $user = createUser(1, $business, false, true);
     $colleague = createUser(2, $business, false, true);
 
-    $archived = createProject($user);
-    $archived->update(['name' => 'Shared name', 'archive' => true]);
+    $doneProject = createProject($user);
+    $doneProject->update(['name' => 'Shared name', 'done' => true]);
 
     $theirs = createProject($colleague);
     $theirs->update(['name' => 'Shared name']);
 
     $this->actingAs($user)
         ->from('/dashboard')
-        ->delete(route('projects.destroy', $archived->id))
-        ->assertInvalid('archive');
+        ->delete(route('projects.destroy', $doneProject->id))
+        ->assertInvalid('done');
 
-    expect($archived->fresh()->archive)->toBeTruthy();
+    expect($doneProject->fresh()->done)->toBeTruthy();
 });
 
 it('would be a disaster if a project name had no length at all', function () {
@@ -528,10 +653,10 @@ it('would be a disaster if a project reference could be anything at all', functi
         ->assertInvalid('reference');
 });
 
-it('would be a disaster if archiving left the project’s reminders in the bell', function () {
+it('would be a disaster if marking a project done left its reminders in the bell', function () {
     /**
      * Each notification clears itself when the question it asks is answered, and none of them
-     * counts archiving as an answer - so an archived project kept asking whether it had been
+     * counts it as an answer - so a done project kept asking whether it had been
      * awarded, from a board it no longer appears on.
      */
     $business = createBusiness('gmail');
@@ -542,14 +667,14 @@ it('would be a disaster if archiving left the project’s reminders in the bell'
 
     $this->actingAs($user)->from('/dashboard')->delete(route('projects.destroy', $project->id));
 
-    expect($project->fresh()->archive)->toBeTruthy()
+    expect($project->fresh()->done)->toBeTruthy()
         ->and($notification->fresh()->read_at)->not->toBeNull();
 });
 
-it('would be a disaster if a notification id was enough to archive someone else’s project', function () {
+it('would be a disaster if a notification id was enough to retire someone else’s project', function () {
     /**
      * The status route looked the notification up by id alone, and the red action on this one
-     * archives the project it names - so an id, from any account, archived another business's
+     * marks done the project it names - so an id, from any account, retired another business's
      * project.
      */
     $business = createBusiness('gmail');
@@ -568,10 +693,10 @@ it('would be a disaster if a notification id was enough to archive someone else�
         ]);
 
     $response->assertNotFound();
-    expect($otherProject->fresh()->archive)->toBeFalsy();
+    expect($otherProject->fresh()->done)->toBeFalsy();
 });
 
-it('would be a disaster if "Lost it" archived a project that is already nested', function () {
+it('would be a disaster if "Lost it" retired a project that is already nested', function () {
     $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
 
@@ -589,7 +714,7 @@ it('would be a disaster if "Lost it" archived a project that is already nested',
         ]);
 
     $response->assertRedirect();
-    expect($project->fresh()->archive)->toBeFalsy();
+    expect($project->fresh()->done)->toBeFalsy();
 });
 
 it('puts your own projects first in the shared nesting column', function () {
@@ -628,13 +753,13 @@ it('would be a disaster if the hourly checks could not ask for active projects',
     $user = createUser(1, $business, false, true);
 
     $active = createProject($user);
-    $archived = createProject($user);
-    $archived->update(['archive' => true]);
+    $doneProject = createProject($user);
+    $doneProject->update(['done' => true]);
 
     $ids = Project::query()->active()->pluck('id');
 
     expect($ids)->toContain($active->id)
-        ->and($ids)->not->toContain($archived->id);
+        ->and($ids)->not->toContain($doneProject->id);
 });
 
 //todo more

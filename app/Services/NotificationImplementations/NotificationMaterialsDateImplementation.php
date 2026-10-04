@@ -24,7 +24,7 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
     {
         /**
          * Is the materials date still correct?
-         * 1) Project is active (not archived)
+         * 1) Project is active (not done)
          * 2) Project tentative = true
          * 3) At least 2 days since creating the project (so it doesn't immediate send)
          * 4) At least 2 days since last reminder
@@ -32,7 +32,7 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
         $subInterval = $this->subInterval;
 
         $tentativeProjects = Project::query()
-            ->active()                             //1) Project is active (not archived)
+            ->active()                             //1) Project is active (not done)
             ->where('tentative', true)              //2) Project tentative = true
             ->whereBetween('created_at', [Carbon::now()->$subInterval(2), Carbon::now()]) //3)
             ->get();
@@ -51,7 +51,7 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
 
         /*
          * Anything still unread about a project that has dropped out of the query above - the date
-         * was locked in, the project was archived - no longer has a question behind it. This ran in
+         * was locked in, the project was marked done - no longer has a question behind it. This ran in
          * an else branch, so it only happened when no project anywhere was tentative; see
          * NotificationService::clearStaleProjectReminders.
          */
