@@ -28,7 +28,6 @@ use App\Models\Product;
 use App\Models\Project;
 use App\Models\Quote;
 use App\Models\RawMaterialQuote;
-use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
@@ -571,15 +570,13 @@ function create_offcut_200PFC(int $length, int $batchFromId): Offcut
  * A batch with a delivered, certificated STEEL_MERCHANT order - which is what makes its offcuts
  * "available" (see Business::availableOffcuts).
  */
-function batchWithDeliveredOrder(User $user, ?string $cert = null, ?Supplier $supplier = null): Batch
+function batchWithDeliveredOrder(User $user, ?string $cert = null): Batch
 {
     $batch = Batch::factory()->forUser($user->id)->create();
-    $supplier ??= Supplier::factory()->create();
 
     $quote = Quote::create([
         'user_id' => $user->id,
         'batch_id' => $batch->id,
-        'supplier_id' => $supplier->id,
         'supplier_category' => 'STEEL_MERCHANT',
         'supplier_quote_reference' => null,
         'quote_sent' => true,
@@ -590,7 +587,6 @@ function batchWithDeliveredOrder(User $user, ?string $cert = null, ?Supplier $su
     Order::create([
         'user_id' => $user->id,
         'batch_id' => $batch->id,
-        'supplier_id' => $supplier->id,
         'quote_id' => $quote->id,
         'order_sent' => true,
         'order_confirmation_received' => true,
@@ -680,22 +676,6 @@ function nestedBatch(array $nest, string $businessName = 'fabricator'): array
 }
 
 /**
- * A supplier of one group, attached to this business - which is what makes that group draw rows in the
- * quotes/orders modal. See SupplierFormatter::suppliersForSupplierGroup.
- */
-function supplierForGroup(Business $business, string $supplierGroup = 'STEEL_MERCHANT', string $name = 'Southern Steel'): Supplier
-{
-    $supplier = Supplier::create([
-        'name' => $name,
-        'supplier_categories' => serialize([$supplierGroup => true]),
-    ]);
-
-    $business->suppliers()->attach($supplier->id);
-
-    return $supplier;
-}
-
-/**
  * A quote for one supplier group on a batch, with the order that always accompanies it.
  *
  * @return array{0: Quote, 1: Order}
@@ -703,17 +683,13 @@ function supplierForGroup(Business $business, string $supplierGroup = 'STEEL_MER
 function quoteAndOrder(
     User $user,
     Batch $batch,
-    ?Supplier $supplier = null,
     string $supplierCategory = 'STEEL_MERCHANT',
     bool $quoteSent = false,
     bool $orderSent = false,
 ): array {
-    $supplier ??= Supplier::factory()->create();
-
     $quote = Quote::create([
         'user_id' => $user->id,
         'batch_id' => $batch->id,
-        'supplier_id' => $supplier->id,
         'supplier_category' => $supplierCategory,
         'supplier_quote_reference' => null,
         'quote_sent' => $quoteSent,
@@ -724,7 +700,6 @@ function quoteAndOrder(
     $order = Order::create([
         'user_id' => $user->id,
         'batch_id' => $batch->id,
-        'supplier_id' => $supplier->id,
         'quote_id' => $quote->id,
         'order_sent' => $orderSent,
         'is_delivered' => false,

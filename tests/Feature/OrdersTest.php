@@ -4,7 +4,6 @@ use App\Models\Batch;
 use App\Models\Order;
 use App\Models\OrderApproval;
 use App\Models\Quote;
-use App\Models\Supplier;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -104,7 +103,6 @@ it('would be a disaster if duplicate orders were possible', function () {
     $quote = Quote::create([
         'user_id' => $user->id,
         'batch_id' => $batch->id,
-        'supplier_id' => Supplier::factory()->create()->id,
         'supplier_category' => 'STEEL_MERCHANT',
         'quote_sent' => false,
     ]);

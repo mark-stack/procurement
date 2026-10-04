@@ -120,7 +120,7 @@ class NotificationProjectAwardedImplementation implements NotificationInterface
         $notification->markAsRead();
 
         //Go to project index
-        return redirect()->route('projects.index');
+        return redirect()->route('dashboard');
     }
 
     public function markRed(DatabaseNotification $notification): RedirectResponse

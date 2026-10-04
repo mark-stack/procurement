@@ -139,7 +139,7 @@ class NotificationBatchReadyToQuoteImplementation implements NotificationInterfa
         //"Start quoting" - the board is where that button is
         $notification->markAsRead();
 
-        return redirect()->route('projects.index');
+        return redirect()->route('dashboard');
     }
 
     public function markRed(DatabaseNotification $notification): RedirectResponse

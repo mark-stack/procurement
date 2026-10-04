@@ -87,7 +87,6 @@ class OrderMarkDeliveredController extends Controller
         }
 
         return 'Delivery booked in, and recorded as "'.$nonconformance->label().'". The steel counts as '
-            .'delivered - the nest will use it - so chase this with '
-            .($order->supplier->name ?? 'the supplier').' separately.';
+            .'delivered - the nest will use it - so chase this with the supplier separately.';
     }
 }

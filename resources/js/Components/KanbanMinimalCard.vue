@@ -596,21 +596,6 @@
                 class="col-span-2"
             />
 
-            <!-- email buttons (should be just one for steel merchant) -->
-<!--            <template v-for="supplierGroup in info?.quotesData?.supplierGroupCards">-->
-
-<!--                <button-->
-<!--                    @click="shared.sendSupplierBatchEmail(supplierGroup.info.batchGroup)"-->
-<!--                    class="col-span-3 bg-green-50 hover:bg-green-100 border-[1px] border-green-200 w-full text-center pt-1 h-6 px-2 text-xs font-semibold text-green-400 hover:text-green-500 rounded-full"-->
-<!--                    style="cursor: pointer;padding-top: 2px;"-->
-<!--                >-->
-<!--                    <i class="fa-regular fa-envelope text-sm pr-1"></i>-->
-<!--                    <span class="text-xs">{{supplierGroup.info.supplierGroup}}</span>-->
-<!--                </button>-->
-<!--                <p class="text-xs text-gray-500">-->
-<!--                    {{supplierGroup.info.includedProducts}}-->
-<!--                </p>-->
-<!--            </template>-->
         </div>
 
         <!-- Teleports to body, so it sits inside the card only to keep this a single-root component -->

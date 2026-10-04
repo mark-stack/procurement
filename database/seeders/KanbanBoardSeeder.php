@@ -12,7 +12,6 @@ use App\Models\Order;
 use App\Models\Piece;
 use App\Models\Project;
 use App\Models\Quote;
-use App\Models\Supplier;
 use App\Models\User;
 use App\Services\DataClassificationService;
 use Illuminate\Database\Seeder;
@@ -112,7 +111,7 @@ class KanbanBoardSeeder extends Seeder
     /**
      * Column 2: a batch with no order sent.
      *
-     * A draft order per supplier is minted the first time the quote screen is opened, so an unsent
+     * A draft order per supplier group is minted with its quote, so an unsent
      * order is the ordinary shape here rather than no order at all - and KanbanFormatter selects
      * this column on hasNoSentOrder(), not on having none.
      */
@@ -252,12 +251,14 @@ class KanbanBoardSeeder extends Seeder
         bool $isDelivered,
         ?string $materialCertNumbers,
     ): Order {
-        $supplier = $this->steelMerchant($user->business);
-
+        /*
+         * The bill of materials above is all PFC, so the order belongs to the steel merchant group.
+         * That group is the whole of who the quote is addressed to - there is no suppliers list to
+         * pick a merchant out of, and the quotes table is unique on (batch_id, supplier_category).
+         */
         $quote = Quote::create([
             'user_id' => $user->id,
             'batch_id' => $batch->id,
-            'supplier_id' => $supplier->id,
             'supplier_category' => SupplierGroupEnums::STEEL_MERCHANT->value,
             'supplier_quote_reference' => null,
             'quote_sent' => true,
@@ -268,43 +269,11 @@ class KanbanBoardSeeder extends Seeder
         return Order::create([
             'user_id' => $user->id,
             'batch_id' => $batch->id,
-            'supplier_id' => $supplier->id,
             'quote_id' => $quote->id,
             'order_sent' => $orderSent,
             'is_delivered' => $isDelivered,
             'material_cert_numbers' => $materialCertNumbers,
         ]);
-    }
-
-    /**
-     * The bill of materials above is all PFC, so the order belongs to a steel merchant. One of the
-     * business's own where there is one - a supplier it has never heard of would be a stranger on
-     * its quote screen.
-     */
-    private function steelMerchant(Business $business): Supplier
-    {
-        $isSteel = fn (Supplier $supplier) => (bool) (
-            $supplier->categories()[SupplierGroupEnums::STEEL_MERCHANT->value] ?? false
-        );
-
-        $supplier = $business->suppliers->first($isSteel)
-            ?? Supplier::all()->first($isSteel);
-
-        if ($supplier) {
-            return $supplier;
-        }
-
-        $supplier = Supplier::create([
-            'name' => 'Seeded Steel Co',
-            'supplier_categories' => serialize([
-                SupplierGroupEnums::FASTENERS->value => false,
-                SupplierGroupEnums::STEEL_MERCHANT->value => true,
-                SupplierGroupEnums::TIMBER_MERCHANT->value => false,
-            ]),
-        ]);
-        $business->suppliers()->attach($supplier->id);
-
-        return $supplier;
     }
 
     private function report(User $user, Business $business): void

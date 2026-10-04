@@ -58,7 +58,7 @@ class BatchReadyToQuoteEmail extends Notification implements ShouldQueue
          * pressed anything - so the one tap this can save is getting them to the column.
          */
         $action = new LoginAction($this->recipient);
-        $action->response(redirect()->route('projects.index'));
+        $action->response(redirect()->route('dashboard'));
         $magicLinkUrl = $this->loginLinkFor($action);
 
         return (new MailMessage)

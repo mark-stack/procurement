@@ -69,7 +69,7 @@
                 -->
                 <Link
                     class="inline-flex items-center gap-x-2 text-sm font-medium text-gray-600 transition-colors duration-200 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
-                    :href="route('projects.index')"
+                    :href="route('dashboard')"
                 >
                     <span aria-hidden="true">&larr;</span> Current projects
                 </Link>

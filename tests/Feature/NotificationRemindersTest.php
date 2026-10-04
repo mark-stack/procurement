@@ -157,7 +157,7 @@ it('would be a disaster if an unmatched BOM row chased a project manager forever
     $project = projectDueForQuoting($user);
 
     $batch = App\Models\Batch::factory()->forUser($user->id)->create();
-    [, $order] = quoteAndOrder($user, $batch, App\Models\Supplier::factory()->create(), 'STEEL_MERCHANT', true, true);
+    [, $order] = quoteAndOrder($user, $batch, 'STEEL_MERCHANT', true, true);
 
     //One row that was matched and ordered
     $ordered = createRawMaterialQuote200Pfc(

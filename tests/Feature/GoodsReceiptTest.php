@@ -1,7 +1,6 @@
 <?php
 
 use App\Enums\GoodsReceiptNonconformanceEnums;
-use App\Formatters\QuoteFormatter;
 use App\Models\Batch;
 use App\Models\MaterialCertificate;
 use App\Models\Order;
@@ -14,23 +13,29 @@ use Illuminate\Support\Facades\Storage;
 uses(RefreshDatabase::class);
 
 /**
- * The receipt block the quotes/orders modal reads for one order, as the page gets it.
+ * The receipt block the Nesting page's Order list modal reads for one supplier group.
+ *
+ * It used to be read off the quotes/orders modal, a block per supplier row. That screen went with the
+ * projects board, and the order list is where a delivery is read now - one block per group, which is
+ * also the unit an order is placed in.
  *
  * @return array<string, mixed>|null
  */
-function receiptStateFor(User $user, Batch $batch, Order $order): ?array
+function receiptStateFor(Batch $batch, string $supplierGroup = 'STEEL_MERCHANT'): ?array
 {
-    $quotesData = (new QuoteFormatter)->quotesData($user->business, $batch->fresh(), $user);
+    return orderListGroupFor($batch, $supplierGroup)['goodsReceipt'] ?? null;
+}
 
-    foreach ($quotesData['supplierGroupCards'] as $card) {
-        foreach ($card['rows'] ?? [] as $row) {
-            if ($row['goodsReceipt']['order_id'] === $order->id) {
-                return $row['goodsReceipt'];
-            }
-        }
-    }
-
-    return null;
+/**
+ * One supplier group's whole block of the order list - the certificates sit beside the receipt
+ * rather than inside it, because they go on arriving after the steel has been booked in.
+ *
+ * @return array<string, mixed>|null
+ */
+function orderListGroupFor(Batch $batch, string $supplierGroup = 'STEEL_MERCHANT'): ?array
+{
+    return collect(test()->getJson(route('batch.order.list', $batch))->assertOk()->json('orderList.groups'))
+        ->firstWhere('supplierGroup', $supplierGroup);
 }
 
 /**
@@ -270,30 +275,25 @@ it('reports a delivery that was marked as arrived with no receipt behind it', fu
 
     $this->actingAs($user);
 
-    $quotesData = (new QuoteFormatter)->quotesData($user->business, $batch->fresh(), $user);
-
-    expect($quotesData['info']['deliveredWithoutReceiptQty'])->toBe(1);
+    //Counted off the batch itself now that the modal that used to total it is gone
+    expect($batch->fresh()->orders()->where('is_delivered', true)->whereNull('received_at')->count())
+        ->toBe(1);
 });
 
-it('hands the page the receipt state for each supplier row', function () {
+it('hands the page the receipt state for each supplier group', function () {
     /*
-     * The fuller setup the quotes/orders modal needs: a real nest, so STEEL_MERCHANT is a group this
-     * batch actually requires, and a supplier of that group attached to the business so the group draws
-     * rows at all. The same supplier carries the quote, so the formatter's firstOrCreate finds the order
-     * already on it rather than minting a second.
+     * The fuller setup the order list needs: a real nest, so STEEL_MERCHANT is a group this batch
+     * actually requires and therefore draws a block of its own.
      */
     [$business, $user, $batch] = nestedBatch([[2500, 5]]);
 
-    $supplier = supplierForGroup($business);
-
-    [, $order] = quoteAndOrder($user, $batch, supplier: $supplier, quoteSent: true, orderSent: true);
+    [, $order] = quoteAndOrder($user, $batch, quoteSent: true, orderSent: true);
 
     $this->actingAs($user);
 
-    //Placed and not yet received: the form is drawn
-    $receipt = receiptStateFor($user, $batch, $order);
-    expect($receipt['canReceive'])->toBeTrue()
-        ->and($receipt['received'])->toBeFalse()
+    //Placed and not yet received
+    $receipt = receiptStateFor($batch);
+    expect($receipt['received'])->toBeFalse()
         ->and($receipt['deliveredWithoutReceipt'])->toBeFalse();
 
     $this->post(route('order.mark.delivered', $order), [
@@ -303,9 +303,8 @@ it('hands the page the receipt state for each supplier row', function () {
     ]);
 
     //Received: the record is drawn, read-only
-    $receipt = receiptStateFor($user, $batch, $order);
+    $receipt = receiptStateFor($batch);
     expect($receipt['received'])->toBeTrue()
-        ->and($receipt['canReceive'])->toBeFalse()
         ->and($receipt['accepted'])->toBeTrue()
         ->and($receipt['docket_number'])->toBe('DN-884213')
         ->and($receipt['received_by'])->toBe($user->name);
@@ -323,9 +322,7 @@ it('takes the mill certificates on the delivery screen, and goes on taking them 
      */
     [$business, $user, $batch] = nestedBatch([[2500, 5]]);
 
-    $supplier = supplierForGroup($business);
-
-    [, $order] = quoteAndOrder($user, $batch, supplier: $supplier, quoteSent: true, orderSent: true);
+    [, $order] = quoteAndOrder($user, $batch, quoteSent: true, orderSent: true);
 
     //Faked after the nest, not before it: this is the default disk, and the master materials the nest
     //needs are seeded off the real one
@@ -341,10 +338,7 @@ it('takes the mill certificates on the delivery screen, and goes on taking them 
         ],
     ])->assertRedirect();
 
-    $receipt = receiptStateFor($user, $batch, $order);
-
-    expect($receipt['canAttach'])->toBeTrue()
-        ->and($receipt['certificates'])->toHaveCount(2);
+    expect(orderListGroupFor($batch)['certificates'])->toHaveCount(2);
 
     $this->post(route('order.mark.delivered', $order), [
         'docket_number' => 'DN-884213',
@@ -357,10 +351,7 @@ it('takes the mill certificates on the delivery screen, and goes on taking them 
         'certificates' => [UploadedFile::fake()->create('late-cert.pdf', 10, 'application/pdf')],
     ])->assertRedirect();
 
-    $receipt = receiptStateFor($user, $batch, $order);
-
-    expect($receipt['received'])->toBeTrue()
-        ->and($receipt['canAttach'])->toBeTrue()
-        ->and(collect($receipt['certificates'])->pluck('filename')->sort()->values()->all())
+    expect(receiptStateFor($batch)['received'])->toBeTrue()
+        ->and(collect(orderListGroupFor($batch)['certificates'])->pluck('filename')->sort()->values()->all())
         ->toBe(['heat-4471880.pdf', 'heat-4471881.pdf', 'late-cert.pdf']);
 });

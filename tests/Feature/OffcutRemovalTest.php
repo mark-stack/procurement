@@ -4,7 +4,6 @@ use App\Enums\OffcutRemovalEnums;
 use App\Enums\ProductEnums;
 use App\Formatters\UniqueLetterIDGenerator;
 use App\Models\Batch;
-use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -19,11 +18,11 @@ uses(RefreshDatabase::class);
  *
  * @return array{0: User, 1: Batch}
  */
-function userWithDeliveredBatch(?string $cert = null, ?Supplier $supplier = null): array
+function userWithDeliveredBatch(?string $cert = null): array
 {
     $user = offcutsIndexUser();
 
-    return [$user, batchWithDeliveredOrder($user, $cert, $supplier)];
+    return [$user, batchWithDeliveredOrder($user, $cert)];
 }
 
 it('takes an offcut out of inventory, recording who said so and why', function () {
@@ -88,7 +87,7 @@ it('leaves the offcuts cut from a removed one exactly where they are', function 
      * A removal says nothing about steel that was cut off this piece before it went missing - that
      * steel is in its own rack, and the removed row is what carries its certificate trail.
      */
-    [$user, $rootBatch] = userWithDeliveredBatch('CERT-ROOT', Supplier::factory()->create(['name' => 'Root Steel']));
+    [$user, $rootBatch] = userWithDeliveredBatch('CERT-ROOT');
     $chain = offcutGenerations($user, $rootBatch, 3);
     $deepest = end($chain);
 
@@ -106,7 +105,7 @@ it('leaves the offcuts cut from a removed one exactly where they are', function 
             ->where('offcuts.data.0.id', $deepest->id)
             ->where('offcuts.data.0.generation', 3)
             ->where('offcuts.data.0.offcutOrdersWithCertificates.certificates', [
-                ['supplier_name' => 'Root Steel', 'material_cert_numbers' => 'CERT-ROOT', 'material_cert_files' => []],
+                ['supplier_group' => 'STEEL_MERCHANT', 'material_cert_numbers' => 'CERT-ROOT', 'material_cert_files' => []],
             ])
         );
 });

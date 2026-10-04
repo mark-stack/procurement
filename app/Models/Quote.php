@@ -35,11 +35,6 @@ class Quote extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function supplier(): BelongsTo
-    {
-        return $this->belongsTo(Supplier::class);
-    }
-
     public function products(): BelongsToMany
     {
         return $this->belongsToMany(Product::class);

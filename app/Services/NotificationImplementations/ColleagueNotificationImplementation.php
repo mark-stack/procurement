@@ -95,7 +95,7 @@ abstract class ColleagueNotificationImplementation implements NotificationInterf
         //"Show me" - the board is where the batch and its quotes are
         $notification->markAsRead();
 
-        return redirect()->route('projects.index');
+        return redirect()->route('dashboard');
     }
 
     public function markRed(DatabaseNotification $notification): RedirectResponse

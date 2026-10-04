@@ -53,7 +53,7 @@
         let certs = [];
 
         /*
-         * Both arrive as [{supplier_name, material_cert_numbers, material_cert_files}]. An order can
+         * Both arrive as [{supplier_group, material_cert_numbers, material_cert_files}]. An order can
          * be certified by an attached file with no written reference at all, so reading only the
          * numbers off these left steel that is fully traceable showing a blank certs column.
          */

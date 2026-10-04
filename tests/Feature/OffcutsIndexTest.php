@@ -2,7 +2,6 @@
 
 use App\Models\Bar;
 use App\Models\Batch;
-use App\Models\Supplier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -99,8 +98,8 @@ it('reports offcut certificates as a list, and says when no offcuts were used', 
     $user = offcutsIndexUser();
     $this->actingAs($user);
 
-    $olderBatch = batchWithDeliveredOrder($user, 'CERT-OLD', Supplier::factory()->create(['name' => 'Old Steel']));
-    $batch = batchWithDeliveredOrder($user, 'CERT-NEW', Supplier::factory()->create(['name' => 'New Steel']));
+    $olderBatch = batchWithDeliveredOrder($user, 'CERT-OLD');
+    $batch = batchWithDeliveredOrder($user, 'CERT-NEW');
 
     //An offcut consumed BY $batch, so $batch's own offcuts inherit its certificate
     $consumed = create_offcut_200PFC(900, $olderBatch->id);
@@ -116,7 +115,7 @@ it('reports offcut certificates as a list, and says when no offcuts were used', 
             ->has('offcuts.data', 1)
             ->where('offcuts.data.0.offcutOrdersWithCertificates.used_offcuts', true)
             ->where('offcuts.data.0.offcutOrdersWithCertificates.certificates', [
-                ['supplier_name' => 'Old Steel', 'material_cert_numbers' => 'CERT-OLD', 'material_cert_files' => []],
+                ['supplier_group' => 'STEEL_MERCHANT', 'material_cert_numbers' => 'CERT-OLD', 'material_cert_files' => []],
             ])
         );
 });
@@ -177,12 +176,10 @@ it('keeps every certificate when one supplier certificated several source batche
     $user = offcutsIndexUser();
     $this->actingAs($user);
 
-    $supplier = Supplier::factory()->create(['name' => 'One Steel']);
-
     $batch = batchWithDeliveredOrder($user, 'CERT-NEW');
 
     foreach (['CERT-1', 'CERT-2'] as $cert) {
-        $olderBatch = batchWithDeliveredOrder($user, $cert, $supplier);
+        $olderBatch = batchWithDeliveredOrder($user, $cert);
 
         $consumed = create_offcut_200PFC(900, $olderBatch->id);
         $consumed->batch_to_id = $batch->id;
@@ -197,8 +194,8 @@ it('keeps every certificate when one supplier certificated several source batche
         ->assertInertia(fn (Assert $page) => $page
             ->has('offcuts.data', 1)
             ->where('offcuts.data.0.offcutOrdersWithCertificates.certificates', [
-                ['supplier_name' => 'One Steel', 'material_cert_numbers' => 'CERT-1', 'material_cert_files' => []],
-                ['supplier_name' => 'One Steel', 'material_cert_numbers' => 'CERT-2', 'material_cert_files' => []],
+                ['supplier_group' => 'STEEL_MERCHANT', 'material_cert_numbers' => 'CERT-1', 'material_cert_files' => []],
+                ['supplier_group' => 'STEEL_MERCHANT', 'material_cert_numbers' => 'CERT-2', 'material_cert_files' => []],
             ])
         );
 });
@@ -323,7 +320,7 @@ it('keeps the certificate trail on an offcut of an offcut of an offcut', functio
     $user = offcutsIndexUser();
     $this->actingAs($user);
 
-    $rootBatch = batchWithDeliveredOrder($user, 'CERT-ROOT', Supplier::factory()->create(['name' => 'Root Steel']));
+    $rootBatch = batchWithDeliveredOrder($user, 'CERT-ROOT');
 
     //9000 off a bar -> 8000 -> 7000 -> 6000, each cut from the one before it
     $chain = offcutGenerations($user, $rootBatch, 4);
@@ -338,7 +335,7 @@ it('keeps the certificate trail on an offcut of an offcut of an offcut', functio
             ->where('offcuts.data.0.id', $deepest->id)
             ->where('offcuts.data.0.offcutOrdersWithCertificates.used_offcuts', true)
             ->where('offcuts.data.0.offcutOrdersWithCertificates.certificates', [
-                ['supplier_name' => 'Root Steel', 'material_cert_numbers' => 'CERT-ROOT', 'material_cert_files' => []],
+                ['supplier_group' => 'STEEL_MERCHANT', 'material_cert_numbers' => 'CERT-ROOT', 'material_cert_files' => []],
             ])
         );
 });
@@ -394,11 +391,11 @@ it('does not stamp an offcut of an offcut with its cutting batch\'s own new stoc
     $user = offcutsIndexUser();
     $this->actingAs($user);
 
-    $rootBatch = batchWithDeliveredOrder($user, 'CERT-ROOT', Supplier::factory()->create(['name' => 'Root Steel']));
+    $rootBatch = batchWithDeliveredOrder($user, 'CERT-ROOT');
     $source = create_offcut_200PFC(3000, $rootBatch->id);
 
     //The batch that reuses it also buys unrelated new steel, certificated
-    $cuttingBatch = batchWithDeliveredOrder($user, 'CERT-UNRELATED', Supplier::factory()->create(['name' => 'Other Steel']));
+    $cuttingBatch = batchWithDeliveredOrder($user, 'CERT-UNRELATED');
     $source->batch_to_id = $cuttingBatch->id;
     $source->save();
 
@@ -414,7 +411,7 @@ it('does not stamp an offcut of an offcut with its cutting batch\'s own new stoc
             ->where('offcuts.data.0.id', $produced->id)
             ->where('offcuts.data.0.newStockOrdersWithCertificates', [])
             ->where('offcuts.data.0.offcutOrdersWithCertificates.certificates', [
-                ['supplier_name' => 'Root Steel', 'material_cert_numbers' => 'CERT-ROOT', 'material_cert_files' => []],
+                ['supplier_group' => 'STEEL_MERCHANT', 'material_cert_numbers' => 'CERT-ROOT', 'material_cert_files' => []],
             ])
         );
 });

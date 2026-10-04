@@ -8,7 +8,6 @@ use App\Models\Batch;
 use App\Models\Offcut;
 use App\Models\Order;
 use App\Models\Quote;
-use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;

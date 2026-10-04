@@ -10,7 +10,6 @@ use App\Models\Piece;
 use App\Models\Project;
 use App\Models\Quote;
 use App\Models\RawMaterialQuote;
-use App\Models\Supplier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -133,12 +132,10 @@ it('would be a disaster if ordered material could be deleted out from under its 
     $row = bomRowWithPiece($project);
 
     $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
-    $supplier = Supplier::factory()->create();
 
     $order = Order::create([
         'user_id' => $user->id,
         'batch_id' => $batch->id,
-        'supplier_id' => $supplier->id,
         'quote_id' => null,
         'order_sent' => true,
         'is_delivered' => false,
@@ -183,12 +180,10 @@ it('would be a disaster if deleting a row reached a batch that has already been 
     $row = bomRowWithPiece($project);
 
     $bought = Batch::factory()->forUser($user->id)->create(['done' => false]);
-    $supplier = Supplier::factory()->create();
 
     $quote = Quote::create([
         'user_id' => $user->id,
         'batch_id' => $bought->id,
-        'supplier_id' => $supplier->id,
         'supplier_category' => 'STEEL_MERCHANT',
         'supplier_quote_reference' => null,
         'quote_sent' => true,
@@ -199,7 +194,6 @@ it('would be a disaster if deleting a row reached a batch that has already been 
     $order = Order::create([
         'user_id' => $user->id,
         'batch_id' => $bought->id,
-        'supplier_id' => $supplier->id,
         'quote_id' => $quote->id,
         'order_sent' => true,
         'is_delivered' => true,

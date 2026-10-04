@@ -47,7 +47,7 @@ class WelcomeActivatedUserEmail extends Notification implements ShouldQueue
         /*
          * Following the link verifies the address, because reaching it is the same proof the
          * verification email asks for. Without this the link signed an unverified user in and
-         * EnsureEmailIsVerified - which guards projects.index - bounced them straight to the
+         * EnsureEmailIsVerified - which guards the dashboard - bounced them straight to the
          * verification prompt, and an unverified signup is exactly who this email welcomes.
          */
         $action->response(function () {
@@ -57,7 +57,7 @@ class WelcomeActivatedUserEmail extends Notification implements ShouldQueue
                 event(new Verified($user));
             }
 
-            return redirect()->route('projects.index');
+            return redirect()->route('dashboard');
         });
 
         //"welcome", not the reminders' numbers: sent once, and a customer's first way in

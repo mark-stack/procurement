@@ -7,16 +7,20 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Quotes and orders are provisioned lazily while the quote/order management page renders, so two
-     * concurrent loads (double click, browser prefetch, a retry) could both miss the lookup and both
-     * insert. These constraints are what make the firstOrCreate calls in QuoteFormatter actually
-     * race-safe - without them Laravel has no unique violation to catch and retry on.
+     * One quote per supplier group on a batch, and one order per quote.
+     *
+     * These were written for the quote/order management page, which provisioned both lazily as it
+     * rendered and so could insert the same row twice from two concurrent loads. That page is gone
+     * with the projects board, and the quotes key is narrower than it was: it named a supplier_id
+     * too, back when a group held a list of merchants and each of them got a quote of their own.
+     * There is no suppliers table now - the group is the whole of who a quote is addressed to - so
+     * the pair that has to stay unique is the batch and the group.
      */
     public function up(): void
     {
         Schema::table('quotes', function (Blueprint $table) {
             $table->unique(
-                ['batch_id', 'supplier_id', 'supplier_category'],
+                ['batch_id', 'supplier_category'],
                 'quotes_batch_supplier_category_unique'
             );
         });

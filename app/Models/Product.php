@@ -60,11 +60,6 @@ class Product extends Model
         return $this->belongsTo(Business::class);
     }
 
-    public function suppliers(): BelongsToMany
-    {
-        return $this->belongsToMany(Supplier::class);
-    }
-
     public function quotes(): BelongsToMany
     {
         return $this->belongsToMany(Quote::class);

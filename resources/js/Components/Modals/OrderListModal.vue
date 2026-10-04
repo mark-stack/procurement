@@ -2,8 +2,7 @@
     /**
      * What to buy for a batch, a block per supplier group.
      *
-     * The same lines the quotes/orders modal's "Email tables" buttons put in a mail - see
-     * Shared/shared.js, where they are built, so the merchant's copy and this one cannot word the
+     * The lines are built in Shared/shared.js, so the merchant's copy and this one cannot word the
      * same order differently. This is for reading and copying: nothing here sends, quotes or orders.
      *
      * Each block has the stock to buy, and - for the merchants whose material comes with one - the

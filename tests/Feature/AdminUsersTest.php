@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\Supplier;
 use App\Models\Template;
 use App\Models\User;
 use App\Notifications\ColleagueJoined;
@@ -9,7 +8,7 @@ use Illuminate\Support\Facades\Notification;
 
 it('would be a disaster if the users list shipped every template screenshot to the browser', function () {
     /**
-     * The page renders a count of templates and suppliers, never the rows, but it eager
+     * The page renders a count of templates, never the rows, but it eager
      * loaded them and UserResource sent the business model - which serializes its loaded
      * relations - alongside the relations themselves. templates.screenshot is a base64
      * data url bounded at 1,000,000 characters, so each one went out twice per user row.
@@ -33,25 +32,21 @@ it('would be a disaster if the users list shipped every template screenshot to t
 
     $response->assertInertia(fn ($page) => $page
         ->missing('users.data.0.templates')
-        ->missing('users.data.0.suppliers')
         ->missing('users.data.0.business.templates')
-        ->missing('users.data.0.business.suppliers')
     );
 });
 
-it('counts the templates and suppliers of the business', function () {
+it('counts the templates of the business', function () {
     //A business is created with no templates, so the count is the two recorded here
     $business = createBusiness('Business A');
     $admin = createUser(1, $business, true, true);
 
     Template::factory()->count(2)->create(['business_id' => $business->id]);
-    $business->suppliers()->attach(Supplier::factory()->count(3)->create()->pluck('id'));
 
     $this->actingAs($admin)
         ->get(route('admin.users.index'))
         ->assertInertia(fn ($page) => $page
             ->where('users.data.0.templates_count', 2)
-            ->where('users.data.0.suppliers_count', 3)
         );
 });
 
@@ -240,7 +235,7 @@ it('verifies the address the welcome email reached', function () {
     expect($user->hasVerifiedEmail())->toBeFalse();
 
     $this->get((new WelcomeActivatedUserEmail)->toMail($user)->actionUrl)
-        ->assertRedirect(route('projects.index'));
+        ->assertRedirect(route('dashboard'));
 
     expect($user->fresh()->hasVerifiedEmail())->toBeTrue();
 });

@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
  *
  *  - Work recorded against the product's SPEC, with no foreign key: pieces, bars, offcuts.
  *    Editing a spec column detaches this work rather than correcting it, so the spec locks.
- *  - Rows that name the product by id: quotes, orders, suppliers, keywords. These survive a spec
+ *  - Rows that name the product by id: quotes, orders, keywords. These survive a spec
  *    edit, but the product cannot be deleted out from under them.
  */
 class ProductUsage
@@ -24,7 +24,7 @@ class ProductUsage
      */
     private const LOCKING_RELATIONS = ['quotes', 'orders'];
 
-    private const RELATIONS = ['quotes', 'orders', 'suppliers', 'keywords'];
+    private const RELATIONS = ['quotes', 'orders', 'keywords'];
 
     public function __construct(private ProductSpec $spec = new ProductSpec) {}
 
@@ -183,7 +183,6 @@ class ProductUsage
             'offcuts' => 'offcut',
             'quotes' => 'quote',
             'orders' => 'order',
-            'suppliers' => 'supplier',
             'keywords' => 'keyword',
         ];
 

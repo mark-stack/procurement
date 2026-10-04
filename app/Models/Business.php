@@ -251,18 +251,6 @@ class Business extends Model
     }
 
     /**
-     * Annotated for the same reason User::business() and templates() are: without it every caller
-     * iterating $business->suppliers gets a plain Model, so Supplier's own methods - categories(),
-     * isUsed() - are invisible to static analysis at each of the places that read them.
-     *
-     * @return BelongsToMany<Supplier, $this>
-     */
-    public function suppliers(): BelongsToMany
-    {
-        return $this->belongsToMany(Supplier::class);
-    }
-
-    /**
      * Annotated because select() on this relation otherwise hands back a collection of
      * plain Models, so anything mapping over the rows loses the Template type.
      *

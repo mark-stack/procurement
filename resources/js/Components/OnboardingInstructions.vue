@@ -55,18 +55,12 @@
                             We can add more later as needed.
                         </p>
                     </div>
-
-                    <!-- Supplier list -->
-                    <div class="mt-3">
-                        <h3 class="font-semibold">Your suppliers list:</h3>
-                        This may come from Xero export, a spreadsheet, or simply brain dump a list suppliers in the email.
-                    </div>
                 </div>
                 <p class="mt-5">
                     Send whatever you come up with to:
                     <br>
                     <a
-                        :href="'mailto:'+adminEmail+'?subject=BOM%20templates%20and%20suppliers%20list'"
+                        :href="'mailto:'+adminEmail+'?subject=BOM%20templates'"
                         target="_blank"
                         class="underline text-blue-500 text-lg"
                     >

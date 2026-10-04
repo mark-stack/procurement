@@ -23,7 +23,7 @@ class SandboxController extends Controller
         $user->save();
 
         return redirect()
-            ->route('projects.index')
+            ->route('dashboard')
             ->with('success', 'Test mode is on. Projects and batches you create now are yours alone, and can be thrown away at any time.');
     }
 
@@ -40,7 +40,7 @@ class SandboxController extends Controller
          * board has no route to.
          */
         return redirect()
-            ->route('projects.index')
+            ->route('dashboard')
             ->with('success', 'Back on your real projects. Anything you made in test mode is still there next time you switch.');
     }
 

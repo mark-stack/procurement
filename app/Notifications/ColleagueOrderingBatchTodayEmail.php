@@ -53,7 +53,7 @@ class ColleagueOrderingBatchTodayEmail extends Notification implements ShouldQue
     {
         //The board, where the column is. There is no batch to deep link into until somebody presses
         $action = new LoginAction($notifiable);
-        $action->response(redirect()->route('projects.index'));
+        $action->response(redirect()->route('dashboard'));
         $magicLinkUrl = $this->loginLinkFor($action);
 
         /*

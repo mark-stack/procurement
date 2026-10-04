@@ -6,7 +6,6 @@ use App\Models\MaterialCertificate;
 use App\Models\Order;
 use App\Models\Piece;
 use App\Models\Product;
-use App\Models\Supplier;
 use App\Models\Template;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Vite;
@@ -70,7 +69,6 @@ class AppServiceProvider extends ServiceProvider
             'material_certificate' => MaterialCertificate::class,
             'product' => Product::class,
             'template' => Template::class,
-            'supplier' => Supplier::class,
         ]);
     }
 }

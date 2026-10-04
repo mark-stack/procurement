@@ -146,29 +146,16 @@
 
                 <nav class="items-center hidden gap-1 lg:flex">
                     <!--
-                        First, because it is where login lands - see DashboardController. It was
-                        labelled "Upload Materials" while uploading was all it did; it now carries
-                        what is outstanding and where every job stands as well, and a link that
-                        promises only the form would have people walking past the list of work.
+                        One link, because there is one screen. "Dashboard" and "Current Projects"
+                        stood beside this and pointed at the same place: the board they were written
+                        for is gone, and so is the pipeline-and-upload page that held /dashboard
+                        before Nesting took the route over. Labelled for what the page is rather
+                        than for the url it sits on.
                     -->
                     <Link
                         :href="route('dashboard')"
-                        title="What needs doing, where your jobs stand, and upload a material list"
-                        :class="[barLink, isActive(route('dashboard')) ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white']"
-                    >
-                        Dashboard
-                    </Link>
-                    <Link
-                        :href="route('projects.index')"
-                        title="Current Projects"
-                        :class="[barLink, isActive(route('projects.index')) ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white']"
-                    >
-                        Current Projects
-                    </Link>
-                    <Link
-                        :href="route('nesting.index')"
                         title="Every live batch, and its nesting"
-                        :class="[barLink, isActive(route('nesting.index')) ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white']"
+                        :class="[barLink, isActive(route('dashboard')) ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white']"
                     >
                         Nesting
                     </Link>
@@ -290,12 +277,6 @@
                             </Link>
 
                             <div class="p-1.5 space-y-0.5 border-t border-gray-200">
-                                <!-- Suppliers -->
-                                <NavButton
-                                    :route="route('suppliers.index')"
-                                    label="Suppliers"
-                                    icon="fa-solid fa-cubes"
-                                />
                                 <!-- Offcuts -->
                                 <NavButton
                                     :route="route('offcuts.index')"
@@ -419,23 +400,10 @@
                             @click="closeMobileNav"
                             class="absolute right-0 z-40 w-56 mt-2 origin-top-right bg-white shadow-xl rounded-xl ring-1 ring-black ring-opacity-5 p-1.5 space-y-0.5"
                         >
+                            <!-- One link, for the one screen - see the bar above -->
                             <Link
                                 :href="route('dashboard')"
                                 :class="[panelLink, isActive(route('dashboard')) ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-700']"
-                            >
-                                <i class="w-4 text-center fa-solid fa-gauge-high"></i>
-                                <span>Dashboard</span>
-                            </Link>
-                            <Link
-                                :href="route('projects.index')"
-                                :class="[panelLink, isActive(route('projects.index')) ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-700']"
-                            >
-                                <i class="w-4 text-center fa-solid fa-diagram-project"></i>
-                                <span>Current Projects</span>
-                            </Link>
-                            <Link
-                                :href="route('nesting.index')"
-                                :class="[panelLink, isActive(route('nesting.index')) ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-700']"
                             >
                                 <i class="w-4 text-center fa-solid fa-bars-staggered"></i>
                                 <span>Nesting</span>

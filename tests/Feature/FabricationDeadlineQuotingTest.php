@@ -241,7 +241,7 @@ it('sends the recipient to the button it is asking them to press', function () {
      * And the button actually lands on the board. Followed rather than inspected: the action url is
      * an opaque MagicLink token, so the only honest way to ask where it goes is to go there.
      */
-    test()->get($mail->actionUrl)->assertRedirect(route('projects.index'));
+    test()->get($mail->actionUrl)->assertRedirect(route('dashboard'));
 });
 
 it('would be a disaster if a colleague found out their steel had been ordered afterwards', function () {
@@ -388,8 +388,9 @@ it('would be a disaster if the board promised an ordering date nothing kept to',
 
     test()->actingAs($user);
 
-    $column = test()->get(route('projects.index'))
-        ->viewData('page')['props']['projects']['READY_FOR_NESTING'];
+    //The open batch card - the Nesting column, now that the board it used to head is gone
+    $column = test()->get(route('dashboard'))
+        ->viewData('page')['props']['batches'][0];
 
     $triggerDate = $column['orderingTriggerDate'];
 
@@ -422,8 +423,9 @@ it('says nothing about an ordering date for projects that were never asked for o
 
     test()->actingAs($user);
 
-    $column = test()->get(route('projects.index'))
-        ->viewData('page')['props']['projects']['READY_FOR_NESTING'];
+    //The open batch card - the Nesting column, now that the board it used to head is gone
+    $column = test()->get(route('dashboard'))
+        ->viewData('page')['props']['batches'][0];
 
     expect($column['orderingTriggerDate'])->toBeNull();
 

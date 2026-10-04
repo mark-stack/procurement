@@ -17,7 +17,8 @@ return new class extends Migration
 
             $table->foreignId('user_id')->constrained();
             $table->foreignId('batch_id')->nullable()->constrained();
-            $table->foreignId('supplier_id')->nullable()->constrained();
+            //The supplier GROUP this quote is for - e.g STEEL_MERCHANT. There is no suppliers table:
+            //the group is the whole of who a quote is addressed to.
             $table->string('supplier_category')->nullable();
             $table->string('supplier_quote_reference')->nullable();
             $table->boolean('quote_sent')->default(false);

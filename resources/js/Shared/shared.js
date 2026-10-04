@@ -4,10 +4,8 @@ export default {
     /**
      * What to buy from one supplier group, a line per stock length.
      *
-     * One definition, because two screens print it: the "Email tables" button on the quotes/orders
-     * modal, which writes these lines into a mail, and the Nesting page's Order list modal, which
-     * shows them. A merchant reading the email and the person reading the screen have to be looking
-     * at the same order.
+     * Read by the Nesting page's Order list modal, whose Copy button is how the list leaves the
+     * screen and reaches a merchant.
      *
      * AREA and BUNDLE produce nothing yet - the nest has no order list for them - so they are left
      * out rather than printed as empty lines.
@@ -28,28 +26,6 @@ export default {
         });
 
         return lines;
-    },
-    sendSupplierBatchEmail(batchGroup,supplierGroup) {
-        // Email details
-        const emailAddress = ""; //"example@example.com";
-        const subject = ""; //todo
-        const lines = this.orderListLines(batchGroup);
-        let row3 = "";
-
-        //Material certs. Only worth asking for where there is steel on the list to ask about
-        if(supplierGroup === 'STEEL_MERCHANT' && lines.length > 0){
-            row3 = "Mill certificates will be required. Thank you.";
-        }
-
-        // Create the mailto link
-        let row1 = "Hi, I'm seeking a quote for the following:";
-        let row2 = lines.join("\n") + (lines.length > 0 ? "\n" : "");
-
-        const body = encodeURIComponent(`${row1}\n\n${row2}\n\n${row3}`);
-        const mailtoLink = `mailto:${emailAddress}?subject=${encodeURIComponent(subject)}&body=${body}`;
-
-        // Open the email client
-        window.location.href = mailtoLink;
     },
     capitalizeWords(input) {
         return input.replace(/\b\w/g, char => char.toUpperCase());
