@@ -14,13 +14,11 @@ use App\Http\Controllers\BillingController;
 use App\Http\Controllers\BillingInvoiceController;
 use App\Http\Controllers\BillingPortalController;
 use App\Http\Controllers\BusinessPreferencesController;
-use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DownloadBatchBomController;
 use App\Http\Controllers\DownloadBomController;
 use App\Http\Controllers\DownloadMaterialCertificateController;
 use App\Http\Controllers\DownloadMaterialListFileController;
 use App\Http\Controllers\DownloadNesting;
-use App\Http\Controllers\DownloadQuotesDataController;
 use App\Http\Controllers\DownloadUsageController;
 use App\Http\Controllers\MarkAsPastProjectController;
 use App\Http\Controllers\MarkNotificationStatusController;
@@ -47,7 +45,6 @@ use App\Http\Controllers\RawMaterialListClarificationsController;
 use App\Http\Controllers\RawMaterialListCustomisationsController;
 use App\Http\Controllers\SandboxController;
 use App\Http\Controllers\SuggestedNestingController;
-use App\Http\Controllers\SupplierController;
 use App\Http\Middleware\BillingWriteAccessMiddleware;
 use Illuminate\Support\Facades\Route;
 
@@ -60,9 +57,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-
-    //Dashboard
-    Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
     /*
      * Notifications. One route: every button in the bell is this, with a GREEN/YELLOW/RED status,
@@ -123,9 +117,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('business-preferences', [BusinessPreferencesController::class, 'update'])
             ->name('business.preferences.update');
 
-        //Current Projects
-        //Create/show/edit were unimplemented stubs - the dashboard modals cover them
-        Route::resource('projects', ProjectController::class)->only(['index', 'store', 'update', 'destroy']);
+        /*
+         * Current Projects
+         *
+         * Create/show/edit were unimplemented stubs - the dashboard modals cover them - and index is
+         * gone with the Kanban board it rendered. /nesting carries the workflow now, so what is left
+         * here is the three writes the upload page and the Nesting page already post to.
+         */
+        Route::resource('projects', ProjectController::class)->only(['store', 'update', 'destroy']);
 
         //Past Projects
         Route::get("past-projects", PastProjectsController::class)->name("past.projects.index");
@@ -166,9 +165,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('download-nesting/{batch_id}', DownloadNesting::class)->name('download.nesting');
 
-        //Feeds the quotes/orders modal on the projects board, which replaced a page of its own
-        Route::get('download-quotes-data/{batch}', DownloadQuotesDataController::class)->name('download.quotes.data');
-
         Route::get('download-usage-data', DownloadUsageController::class)->name('download.usage.data');
 
         //Raw Material Quotes
@@ -189,14 +185,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         //Pricebook
         Route::get('pricebook', PricebookController::class)->name('pricebook');
-
-        //Suppliers
-        Route::controller(SupplierController::class)->group(function () {
-            Route::get('/suppliers', 'index')->name('suppliers.index');
-            Route::post('/suppliers', 'store')->name('suppliers.store');
-            Route::put('/suppliers/{supplier}', 'update')->name('suppliers.update');
-            Route::delete('/suppliers/{supplier}', 'destroy')->name('suppliers.destroy');
-        });
 
         /*
          * Quotes
@@ -295,13 +283,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('batch.certificates.store');
 
         /*
-         * Nesting
+         * Nesting - and the home page, which is why it is named "dashboard".
          *
-         * Every live batch in one list, which is the three batch columns of the board without the
-         * board. In this group with the rest of nesting: the only thing the page offers is a way into
-         * batch.nesting below, which is gated here.
+         * Every live batch in one list, headed by the open batch everything waiting is nested into.
+         * It took over /dashboard when the page that was there - a pipeline summary over an upload
+         * form - was deleted, and it kept that route name because login, registration and all four
+         * email verification controllers redirect to route('dashboard').
+         *
+         * In this group with the rest of nesting: the only thing the page offers is a way into
+         * batch.nesting below, which is gated here. Safe as the screen login lands on even so -
+         * BillingWriteAccessMiddleware holds writes, not GETs, so a lapsed account still arrives at
+         * a page it can read.
          */
-        Route::get('nesting', NestingIndexController::class)->name('nesting.index');
+        Route::get('/dashboard', NestingIndexController::class)->name('dashboard');
 
         //How well each batch nested, fetched by that page once it has drawn - see the controller
         Route::get('nesting-efficiency', NestingEfficiencyController::class)->name('nesting.efficiency');

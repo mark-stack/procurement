@@ -58,11 +58,6 @@ class Order extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function supplier(): BelongsTo
-    {
-        return $this->belongsTo(Supplier::class);
-    }
-
     //Optional
     public function quote(): BelongsTo
     {

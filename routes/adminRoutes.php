@@ -10,8 +10,6 @@ use App\Http\Controllers\AdminMaterialUpdateController;
 use App\Http\Controllers\AdminNestingAlgorithmController;
 use App\Http\Controllers\AdminNotificationIndexController;
 use App\Http\Controllers\AdminStopImpersonationController;
-use App\Http\Controllers\AdminSupplierIndexController;
-use App\Http\Controllers\AdminSupplierStoreController;
 use App\Http\Controllers\AdminTemplateAttemptResolveController;
 use App\Http\Controllers\AdminTemplateAttemptSampleController;
 use App\Http\Controllers\AdminTemplateProposalController;
@@ -146,10 +144,6 @@ Route::prefix('admin')->name('admin.')->middleware([AdminMiddleware::class, 'ver
     //{business?}: the cost settings are per business, so an admin can inspect any of them, but the
     //page explains the algorithm either way and defaults to the admin's own
     Route::get('nesting-algorithm/{business?}', AdminNestingAlgorithmController::class)->name('nesting.algorithm');
-
-    //Suppliers
-    Route::get('/suppliers/{business}', AdminSupplierIndexController::class)->name('suppliers.index');
-    Route::post('/suppliers/{business}', AdminSupplierStoreController::class)->name('suppliers.store');
 });
 
 //Outside the group on purpose: while impersonating, isAdmin() reads the impersonated

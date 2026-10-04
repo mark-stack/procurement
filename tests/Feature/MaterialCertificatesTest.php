@@ -4,7 +4,6 @@ use App\Formatters\KanbanFormatter;
 use App\Models\Batch;
 use App\Models\MaterialCertificate;
 use App\Models\Order;
-use App\Models\Supplier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -312,13 +311,11 @@ it('would be a disaster if one merchant\'s two file-only certificates collapsed 
     $user = offcutsIndexUser();
     $this->actingAs($user);
 
-    $supplier = Supplier::factory()->create(['name' => 'One Steel']);
-
     $batch = batchWithDeliveredOrder($user, 'CERT-NEW');
 
     //Two older batches from the same merchant, each certified by a file and nothing else
     foreach (['first.pdf', 'second.pdf'] as $filename) {
-        $olderBatch = batchWithDeliveredOrder($user, null, $supplier);
+        $olderBatch = batchWithDeliveredOrder($user, null);
 
         $this->post(route('material.certificates.store', $olderBatch->orders()->sole()), [
             'certificates' => [UploadedFile::fake()->create($filename, 10, 'application/pdf')],

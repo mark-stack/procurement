@@ -9,7 +9,6 @@ use App\Models\Order;
 use App\Models\Piece;
 use App\Models\Project;
 use App\Models\Quote;
-use App\Models\Supplier;
 use App\Models\User;
 use App\Services\BatchStages;
 use App\Services\DataClassificationService;
@@ -110,15 +109,12 @@ function projectCard(Project $project, User $user): array
  *
  * Its own name for the same reason as above - PastProjectsTest declares pastProjectOrder().
  */
-function nestingPageSentOrder(User $user, Batch $batch): Order
+function nestingPageSentOrder(User $user, Batch $batch, string $supplierCategory = 'STEEL_MERCHANT'): Order
 {
-    $supplier = Supplier::factory()->create();
-
     $quote = Quote::create([
         'user_id' => $user->id,
         'batch_id' => $batch->id,
-        'supplier_id' => $supplier->id,
-        'supplier_category' => 'STEEL_MERCHANT',
+        'supplier_category' => $supplierCategory,
         'supplier_quote_reference' => null,
         'quote_sent' => true,
         'quoted_price' => null,
@@ -128,7 +124,6 @@ function nestingPageSentOrder(User $user, Batch $batch): Order
     return Order::create([
         'user_id' => $user->id,
         'batch_id' => $batch->id,
-        'supplier_id' => $supplier->id,
         'quote_id' => $quote->id,
         'order_sent' => true,
         'is_delivered' => false,
@@ -164,7 +159,7 @@ it('names the last step each batch has passed, down the three columns of live ba
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('NestingIndex')
@@ -194,9 +189,8 @@ it('says Quoting until every merchant on the batch has priced it, and Quoted onc
      * the prices in, or is one still being chased.
      *
      * Measured against the card's own Material order count, which is the supplier groups this batch's
-     * material falls into, and against SENT quotes: QuoteFormatter::quotesData mints a quote row per
-     * supplier the moment anybody opens the modal, so the rows exist long before anything was asked of
-     * anybody.
+     * material falls into, and against SENT quotes: a quote row can be drafted long before anything
+     * was asked of anybody.
      */
     test()->actingAs(createUser(1, createBusiness('admin'), true, true));
     seedMasterMaterials();
@@ -215,7 +209,6 @@ it('says Quoting until every merchant on the batch has priced it, and Quoted onc
     $quote = Quote::create([
         'user_id' => $user->id,
         'batch_id' => $batch->id,
-        'supplier_id' => Supplier::factory()->create()->id,
         'supplier_category' => 'STEEL_MERCHANT',
         'supplier_quote_reference' => null,
         'quote_sent' => false,
@@ -231,7 +224,6 @@ it('says Quoting until every merchant on the batch has priced it, and Quoted onc
     Quote::create([
         'user_id' => $user->id,
         'batch_id' => $batch->id,
-        'supplier_id' => Supplier::factory()->create()->id,
         'supplier_category' => 'TIMBER_MERCHANT',
         'supplier_quote_reference' => null,
         'quote_sent' => true,
@@ -242,7 +234,7 @@ it('says Quoting until every merchant on the batch has priced it, and Quoted onc
     $this->actingAs($user);
     $this->withoutExceptionHandling();
 
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('batches.1.id', $batch->id)
@@ -251,7 +243,7 @@ it('says Quoting until every merchant on the batch has priced it, and Quoted onc
 
     $quote->update(['quote_sent' => true]);
 
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('batches.1.id', $batch->id)
@@ -276,10 +268,11 @@ it('says Delivered when the steel has turned up, not when the last order went ou
     $arrived = Batch::factory()->forUser($user->id)->create(['done' => false]);
     nestingPageSentOrder($user, $arrived)->update(['is_delivered' => true]);
 
-    //Two orders on this one and only the first of them in - a batch is delivered when all of it is
+    //Two orders on this one and only the first of them in - a batch is delivered when all of it is.
+    //Two groups, because the quotes table takes one row per group per batch.
     $partlyArrived = Batch::factory()->forUser($user->id)->create(['done' => false]);
     nestingPageSentOrder($user, $partlyArrived)->update(['is_delivered' => true]);
-    nestingPageSentOrder($user, $partlyArrived);
+    nestingPageSentOrder($user, $partlyArrived, 'FASTENERS');
 
     //Both of them in the same column, which is what makes the two pills below worth asserting
     expect((new BatchStages)->of($arrived))->toBe(BatchStages::DELIVERING);
@@ -288,7 +281,7 @@ it('says Delivered when the steel has turned up, not when the last order went ou
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             //The open batch, which is always the first of them, and these two
@@ -322,7 +315,7 @@ it('leaves a finished batch to /past-projects, however much of it is mine', func
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             /*
@@ -365,7 +358,7 @@ it('calls a batch Ordering while there is material on it nobody has bought', fun
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             //The open batch, with nothing waiting on it, and this one
@@ -391,7 +384,7 @@ it('cards the batch that does not exist yet, ahead of the ones that do', functio
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->has('batches', 2)
@@ -425,7 +418,7 @@ it('tells the pending card the day it stops being pending', function () {
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->has('batches', 1)
@@ -472,7 +465,7 @@ it('prints the day each card\'s material is wanted on site, a working day before
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->has('batches', 2)
@@ -521,7 +514,7 @@ it('counts each card\'s deadline back from the work that card still has left to 
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->has('batches', 2)
@@ -569,7 +562,7 @@ it('drops the quoting time off the deadline once the prices are in, and not befo
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('batches.1.id', $batch->id)
@@ -600,7 +593,7 @@ it('still owes the delivery on a batch that has been bought outright', function 
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('batches.1.id', $batch->id)
@@ -633,7 +626,7 @@ it('chases a half-bought batch on the ordering deadline, not the delivery one', 
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('batches.1.id', $batch->id)
@@ -671,7 +664,7 @@ it('stops holding a batch to a deadline once its steel is in', function () {
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->has('batches', 3)
@@ -723,7 +716,7 @@ it('says how many working days past its deadline each card already is', function
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             //Nothing waiting, so the open batch has no date and nothing to be behind on
@@ -773,7 +766,7 @@ it('counts a card that is still inside its deadline as not behind at all', funct
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('batches.1.id', $batch->id)
@@ -806,7 +799,7 @@ it('leaves a batch whose steel is in with nothing to be behind on', function () 
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('batches.1.id', $batch->id)
@@ -853,7 +846,7 @@ it('counts the deadline back from the business\'s own lead times, not the platfo
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('batches.0.stage', 'NESTING')
@@ -886,7 +879,7 @@ it('cards the open batch with nothing waiting on it, rather than leaving it off 
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->has('batches', 1)
@@ -905,7 +898,7 @@ it('lists a colleague\'s batches too, the way the board\'s columns do', function
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             //The open batch, then both of theirs and mine
@@ -944,7 +937,7 @@ it('calls a batch mine when it carries my project, whoever pressed the button', 
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             //Nothing left unbatched, so the open card above these two is an empty one
@@ -976,7 +969,7 @@ it('calls the pending card mine as soon as any of the work waiting is mine', fun
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->has('batches', 1)
@@ -987,7 +980,7 @@ it('calls the pending card mine as soon as any of the work waiting is mine', fun
     //Now my own material list is waiting too, on the same card - it is one batch in waiting, not two
     nestingPageProject($user);
 
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->has('batches', 1)
@@ -1026,7 +1019,7 @@ it('says whose each job on a card is, so the heading can name a colleague\'s', f
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             //The empty open batch, and the one both jobs were nested onto
@@ -1069,7 +1062,7 @@ it('hands each card what the pencil beside a job name opens', function () {
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('batches.0.projects.0.id', $project->id)
@@ -1094,7 +1087,7 @@ it('hands the page the colleagues a new project can be created for', function ()
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->has('colleagues')
@@ -1138,7 +1131,7 @@ it('names the jobs on each card, a batch being several projects bought as one', 
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->has('batches', 2)
@@ -1177,7 +1170,7 @@ it('offers the open batch the press that closes it, on the board\'s own gate', f
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page->where('prerequisiteStartQuoting', true));
 });
@@ -1200,7 +1193,7 @@ it('refuses the open batch that press when the work waiting is a colleague\'s', 
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             //There is work waiting, and it is on the card - it is only the press that is refused
@@ -1236,7 +1229,7 @@ it('offers a batch being quoted the way back, per batch', function () {
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('batches.1.id', $batch->id)
@@ -1268,7 +1261,7 @@ it('would be a disaster if a card offered to unpick a batch that has been ordere
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('batches.1.id', $batch->id)
@@ -1295,13 +1288,13 @@ it('calls a batch quoted on the press, with no supplier anywhere in the business
     $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
     Piece::query()->where('project_id', $project->id)->update(['batch_id' => $batch->id]);
 
-    //Nobody to ask for a price, which is the whole point
-    expect($business->suppliers()->count())->toBe(0);
+    //Nothing quoted or ordered on it, which is the whole point
+    expect($batch->quotes()->count())->toBe(0);
 
     $this->actingAs($user);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('batches.1.stage', 'QUOTING')
@@ -1320,7 +1313,7 @@ it('calls a batch quoted on the press, with no supplier anywhere in the business
         ->and($batch->quotes()->count())->toBe(0)
         ->and($batch->orders()->count())->toBe(0);
 
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('batches.1.stage', 'QUOTED')
@@ -1363,7 +1356,7 @@ it('calls it ordered on the other press, and leaves the board column where it is
         //Still out for quote as far as every other screen is concerned
         ->and((new BatchStages)->of($batch))->toBe(BatchStages::QUOTING);
 
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('batches.1.stage', 'ORDERED')
@@ -1406,7 +1399,7 @@ it('would be a disaster if a batch bought off the application could still be re-
     //Priced, not yet bought: QUOTED still offers it, the prices having changed nothing about the nest
     $this->post(route('batch.all.quoted', $batch->id))->assertRedirect();
 
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('batches.1.stage', 'QUOTED')
@@ -1415,7 +1408,7 @@ it('would be a disaster if a batch bought off the application could still be re-
 
     $this->post(route('batch.all.ordered', $batch->id))->assertRedirect();
 
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('batches.1.stage', 'ORDERED')
@@ -1456,7 +1449,7 @@ it('would be a disaster if a colleague with no job on the batch could call it bo
 
     //And the card says so rather than offering a press that 403s
     $this->actingAs($colleague)
-        ->get(route('nesting.index'))
+        ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('batches.1.prerequisiteMarkQuoted', false)
@@ -1506,7 +1499,7 @@ it('stops offering either mark once a real order has gone out', function () {
     $this->actingAs($user);
 
     //Exception handling left on: the two presses below are refused, and a 403 is the assertion
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('batches.1.prerequisiteMarkQuoted', null)
@@ -1545,7 +1538,7 @@ it('carries a batch bought over the phone all the way to cut, without a supplier
     $this->post(route('batch.all.ordered', $batch->id))->assertRedirect();
 
     //Delivered is offered from Quoting, Quoted and Ordered alike - see PrerequisiteConditions
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('batches.1.stage', 'ORDERED')
@@ -1557,7 +1550,7 @@ it('carries a batch bought over the phone all the way to cut, without a supplier
 
     $this->post(route('batch.all.delivered', $batch->id))->assertRedirect();
 
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('batches.1.stage', 'DELIVERED')
@@ -1584,7 +1577,7 @@ it('carries a batch bought over the phone all the way to cut, without a supplier
         ->and($batch->quotes()->count())->toBe(0)
         ->and((new BatchStages)->of($batch))->toBe(BatchStages::QUOTING);
 
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('batches.1.stage', 'CUT')
@@ -1624,7 +1617,7 @@ it('offers Cut on a batch delivered the ordinary way, which the other marks neve
     $this->withoutExceptionHandling();
 
     //Ordered and still on the lorry: nothing to cut, and the card says so by not asking
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('batches.1.prerequisiteMarkCut', null)
@@ -1633,7 +1626,7 @@ it('offers Cut on a batch delivered the ordinary way, which the other marks neve
     //Every sent order booked in, which is what the DELIVERED pill is read from
     $order->update(['is_delivered' => true]);
 
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('batches.1.stage', 'DELIVERED')
@@ -1698,7 +1691,7 @@ it('would be a disaster if a colleague with no job on the batch could call it de
     expect($batch->refresh()->cut_at)->toBeNull();
 
     //And the card says so rather than offering a press that 403s
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('batches.1.prerequisiteMarkCut', false)
@@ -2225,7 +2218,7 @@ it("would be a disaster if another business's batches were listed", function () 
     $this->actingAs($user1);
 
     $this->withoutExceptionHandling();
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         //Its own open batch and nothing else - the other business's live batch is not a card here
         ->assertInertia(fn (Assert $page) => $page

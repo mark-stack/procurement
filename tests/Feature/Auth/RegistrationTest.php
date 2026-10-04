@@ -260,7 +260,7 @@ it('shares only the named business fields once the address is verified', functio
 
     //projects.index, not dashboard - the dashboard is only ever a redirect to it
     $this->actingAs($user)
-        ->get(route('projects.index'))
+        ->get(route('dashboard'))
         ->assertStatus(200)
         ->assertInertia(fn ($page) => $page
             //What the modals branch on, and enough to identify the company

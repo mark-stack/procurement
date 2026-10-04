@@ -17,7 +17,7 @@ return new class extends Migration
 
             $table->foreignId('user_id')->constrained();
             $table->foreignId('batch_id')->nullable()->constrained();
-            $table->foreignId('supplier_id')->nullable()->constrained();
+            //Which merchant this is for is read off the quote's supplier_category - see the quotes table
             $table->foreignId('quote_id')->nullable()->constrained(); //optional
 
             //Status

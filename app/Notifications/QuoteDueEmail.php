@@ -34,7 +34,7 @@ class QuoteDueEmail extends Notification implements ShouldQueue
          * page now, and landing an "action this" link on a file picker would be a dead end.
          */
         $action = new LoginAction($this->recipient);
-        $action->response(redirect()->route('projects.index'));
+        $action->response(redirect()->route('dashboard'));
         $magicLinkUrl = $this->loginLinkFor($action);
 
         return (new MailMessage)

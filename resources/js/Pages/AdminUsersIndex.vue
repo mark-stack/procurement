@@ -82,7 +82,6 @@
                                     <th scope="col">Email</th>
                                     <th scope="col">Business</th>
                                     <th scope="col">Templates</th>
-                                    <th scope="col">Suppliers</th>
                                     <th scope="col">Emails</th>
                                     <th scope="col">Access</th>
                                     <th scope="col">Created</th>
@@ -154,24 +153,13 @@
                                         <span v-else>&mdash;</span>
                                     </td>
                                     <td>
-                                        <Link
-                                            v-if="user.business"
-                                            class="underline"
-                                            :class="user.suppliers_count > 0 ? 'text-blue-500' : 'text-red-500 font-bold'"
-                                            :href="route('admin.suppliers.index',user.business.id)"
-                                        >
-                                            {{user.suppliers_count}}
-                                        </Link>
-                                        <span v-else>&mdash;</span>
-                                    </td>
-                                    <td>
                                         <!--
                                             Every email this person has been sent. Links to the
                                             notifications log filtered to the mail channel, where
                                             the pills widen it to the bell as well.
 
-                                            Not coloured by its value, unlike Templates and
-                                            Suppliers: a user who has needed nothing sent to them
+                                            Not coloured by its value, unlike Templates: a user
+                                            who has needed nothing sent to them
                                             is not a problem to go and fix, so a red 0 here would
                                             be an alarm with nothing behind it. It is a link at
                                             zero all the same - "nothing was sent" is an answer,

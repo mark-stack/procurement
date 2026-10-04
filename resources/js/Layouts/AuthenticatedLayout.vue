@@ -89,7 +89,7 @@
 <!--                    <Link-->
 <!--                        v-if="onboarded"-->
 <!--                        class="flex items-center px-3 py-2 text-gray-600 transition-colors duration-300 transform rounded-lg dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 dark:hover:text-gray-200 hover:text-gray-700"-->
-<!--                        :href="route('projects.index')"-->
+<!--                        :href="route('dashboard')"-->
 <!--                    >-->
 <!--                        <svg xmlns="http://www.w3.org/2000/svg" width="1.3em" height="1.3em" viewBox="0 0 18 18" class="bi bi-kanban" fill="currentColor">-->
 <!--                            <path fill-rule="evenodd" d="M13.5 1h-11a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zm-11-1a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2h-11z"/>-->
@@ -104,13 +104,6 @@
 <!--                        :route="route('pricebook')"-->
 <!--                        label="Price Book"-->
 <!--                        icon="fa-solid fa-list"-->
-<!--                    />-->
-<!--                    &lt;!&ndash; Suppliers &ndash;&gt;-->
-<!--                    <NavButton-->
-<!--                        v-if="onboarded"-->
-<!--                        :route="route('suppliers.index')"-->
-<!--                        label="Suppliers"-->
-<!--                        icon="fa-solid fa-cubes"-->
 <!--                    />-->
 <!--                    &lt;!&ndash; Profile &ndash;&gt;-->
 <!--                    <NavButton-->

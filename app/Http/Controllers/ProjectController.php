@@ -2,13 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Formatters\KanbanFormatter;
 use App\Imports\ExcelImport;
-use App\Formatters\NestingFormatter;
 use App\Http\Requests\StoreProjectRequest;
 use App\Http\Requests\UpdateProjectRequest;
-use App\Http\Resources\ArchivedProjectResource;
-use App\Http\Resources\ProjectResource;
 use App\Models\MaterialListFile;
 use App\Models\Project;
 use App\PrerequisiteConditions\PrerequisiteConditions;
@@ -19,94 +15,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Http\RedirectResponse;
 use Maatwebsite\Excel\Facades\Excel;
-use Inertia\Inertia;
-use Inertia\Response;
 use Illuminate\Validation\ValidationException;
 
 class ProjectController extends Controller
 {
-    public function index(): Response
-    {
-        //Services
-        $kanbanFormatter = new KanbanFormatter();
-
-        //Prerequisite variables
-        $user = auth()->user();
-        $business = $user->business;
-
-        /*
-         * Project columns
-         *
-         * There was a "NEW_PROJECTS" column here too. Nothing on the board ever read it - the page
-         * draws READY_FOR_NESTING and the three batch columns - but building it walked every project
-         * the business has ever had, archived and completed ones included, running a price book match
-         * per material row to find the ones needing clarification.
-         */
-        $projects = [
-            //Kanban column 1
-            "READY_FOR_NESTING" => $kanbanFormatter->readyForNestingColumn($business, $user),
-        ];
-
-        /*
-         * Batch columns
-         */
-        $batches = [
-            //Batches for quoting (Kanban column 3)
-            'QUOTED' => $kanbanFormatter->quotedColumn($business,$user),
-
-            //Batches for Ordering (Kanban column 4)
-            'ORDERED' => $kanbanFormatter->orderedColumn($business),
-
-            //Batches for Delivering (Kanban column 5)
-            'DELIVERED' => $kanbanFormatter->deliveredColumn($business),
-        ];
-
-        /*
-         * Archived projects
-         *
-         * ProjectResource walks rawMaterialQuotes > piece > quotes/order for every row, which is
-         * around three queries per material line and none of it eager loaded - several hundred
-         * queries on a board with a few archived projects, to draw a name and a "Restore" link.
-         * The list only grows, so it gets its own slim resource.
-         */
-        $archivedProjects = ArchivedProjectResource::collection(Project::query()
-            ->select(['id', 'name', 'user_id', 'archive'])
-            ->thisBusiness($business)
-            ->where("user_id",$user->id)
-            ->where('archive', true)
-            ->latest()
-            ->get());
-
-        /*
-         * Prerequisite Gates
-         */
-        $piecesReadyForBatching = (new NestingFormatter())->piecesReadyForBatching($business);
-        $projectsReadyForBatching = $business->projectsReadyForBatching($piecesReadyForBatching);
-        $prerequisiteStartQuoting = (new PrerequisiteConditions())->startQuoting(
-            $user,
-            $projectsReadyForBatching,
-            $piecesReadyForBatching,
-        );
-
-        /*
-         * ProjectsBoard, which was called Dashboard until /dashboard became a page in its own right.
-         * The route name is still projects.index and the file is the same board; nothing was renamed
-         * but the component, and that only so the two screens stop sharing a name.
-         */
-        return Inertia::render('ProjectsBoard', [
-            /*
-             * The staff a new project can be created for, for the board's own new-project modal -
-             * the same facility the upload page has, because the person with the spreadsheet is
-             * often not the person running the job. See User::colleagueOptions.
-             */
-            'colleagues' => $user->colleagueOptions(),
-            'projects' => $projects,
-            'batches' => $batches,
-            'archivedProjects' => $archivedProjects,
-            "prerequisiteStartQuoting" => $prerequisiteStartQuoting,
-        ]);
-    }
-
     /**
      * Create a project and import the bills of materials uploaded with it - writing the template for
      * any of them we have no template for.

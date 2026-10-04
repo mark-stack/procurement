@@ -248,10 +248,10 @@ class BatchOrderListController extends Controller
     /**
      * What the goods receipt against this group's order says.
      *
-     * The same record the quotes/orders modal draws - see QuoteFormatter::goodsReceiptState, and
-     * deliberately under the same key names, because it is the same delivery read on a second screen
-     * and two spellings of received_at would be two things to keep in step. What is missing is
-     * everything to do with writing one: this modal is for reading, and nothing here books steel in.
+     * What is missing is everything to do with writing one: this modal is for reading, and nothing
+     * here books steel in. The quotes/orders modal used to draw the same record under the same key
+     * names and offer the form that wrote it; it went with the projects board, so this is the only
+     * screen a goods receipt is read on.
      *
      * Asked of the sent order alone, unlike the certificates. A receipt is only ever written against a
      * placed order (the panel offers it on order_sent && ! is_delivered), so the row that exists merely

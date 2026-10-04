@@ -46,8 +46,8 @@ class UserResource extends JsonResource
                 'domain' => $business->domain,
             ] : null,
             /*
-             * How many templates are matched against uploads, how many exist at all, and the
-             * suppliers - see the controller for why the first two are both here.
+             * How many templates are matched against uploads and how many exist at all - see the
+             * controller for why both are here.
              *
              * Guarded the same way the business above is, rather than with "?->": the relation is
              * declared as returning a Business, so static analysis reads a null-safe access here as
@@ -55,7 +55,6 @@ class UserResource extends JsonResource
              */
             'templates_count' => $business ? (int) $business->templates_count : 0,
             'templates_total' => $business ? (int) $business->templates_total : 0,
-            'suppliers_count' => $business ? (int) $business->suppliers_count : 0,
             /*
              * On the user and not the business, unlike the two above: mail is addressed to a person.
              * A business whose owner has had four emails and whose draftsman has had none is the

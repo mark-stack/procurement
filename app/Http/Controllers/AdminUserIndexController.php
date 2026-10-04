@@ -51,7 +51,6 @@ class AdminUserIndexController extends Controller
                 ->withCount([
                     'detectableTemplates as templates_count',
                     'templates as templates_total',
-                    'suppliers',
                 ]),
             ])
             /*

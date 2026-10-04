@@ -316,7 +316,7 @@
                         <h2 class="font-bold">Material Certificates from new stock:</h2>
                         <ul v-if="newStockOrdersWithCertificates.length > 0">
                             <li v-for="certificate in newStockOrdersWithCertificates">
-                                {{certificate.supplier_name}}: {{shared.certificateDetail(certificate)}}
+                                {{shared.supplierGroupLabel(certificate.supplier_group)}}: {{shared.certificateDetail(certificate)}}
                             </li>
                         </ul>
                         <p v-else>
@@ -331,7 +331,7 @@
                         <template v-else>
                             <ul v-if="offcutOrdersWithCertificates.certificates.length > 0">
                                 <li v-for="certificate in offcutOrdersWithCertificates.certificates">
-                                    {{certificate.supplier_name}}: {{shared.certificateDetail(certificate)}}
+                                    {{shared.supplierGroupLabel(certificate.supplier_group)}}: {{shared.certificateDetail(certificate)}}
                                 </li>
                             </ul>
                             <p v-else class="text-orange-700">

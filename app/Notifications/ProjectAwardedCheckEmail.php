@@ -41,7 +41,7 @@ class ProjectAwardedCheckEmail extends Notification implements ShouldQueue
     {
         //Go to projects page which has notifications for actioning
         $action = new LoginAction($this->recipient);
-        $action->response(redirect()->route('projects.index'));
+        $action->response(redirect()->route('dashboard'));
         $magicLinkUrl = $this->loginLinkFor($action);
 
         return (new MailMessage)

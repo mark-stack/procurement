@@ -4,7 +4,6 @@ use App\Enums\NestingEnums;
 use App\Models\Bar;
 use App\Models\Batch;
 use App\Models\Offcut;
-use App\Models\Supplier;
 use App\Services\DataClassificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -268,8 +267,7 @@ it('would be a disaster if a batch spanning several projects cut the wrong steel
      * Stage 4: the steel is ordered, certificated and marked delivered. Only now is the offcut
      * physically in the yard, and only now can a later nest draw on it.
      */
-    $supplier = Supplier::factory()->create(['name' => 'Southern Steel']);
-    [, $orderOne] = quoteAndOrder($user, $batchOne, $supplier, quoteSent: true, orderSent: true);
+    [, $orderOne] = quoteAndOrder($user, $batchOne, quoteSent: true, orderSent: true);
     $orderOne->update(['material_cert_numbers' => 'HEAT-88201']);
 
     $this->post(route('order.mark.delivered', $orderOne))->assertRedirect();
@@ -441,7 +439,7 @@ it('would be a disaster if a batch spanning several projects cut the wrong steel
             ->where('offcuts.data.0.generation', 2)
             ->where('offcuts.data.0.cut_from_marks', [$drop->unique_mark])
             ->where('offcuts.data.0.offcutOrdersWithCertificates.used_offcuts', true)
-            ->where('offcuts.data.0.offcutOrdersWithCertificates.certificates.0.supplier_name', 'Southern Steel')
+            ->where('offcuts.data.0.offcutOrdersWithCertificates.certificates.0.supplier_group', 'STEEL_MERCHANT')
             ->where('offcuts.data.0.offcutOrdersWithCertificates.certificates.0.material_cert_numbers', 'HEAT-88201')
             //Cut from an offcut, so its own batch's purchases are not its certificates
             ->count('offcuts.data.0.newStockOrdersWithCertificates', 0)

@@ -3,7 +3,6 @@
 use App\Models\Batch;
 use App\Models\Order;
 use App\Models\Quote;
-use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -23,12 +22,10 @@ function pastProjectOrder(
     bool $orderSent = true,
     bool $isDelivered = true,
 ): Order {
-    $supplier = Supplier::factory()->create();
 
     $quote = Quote::create([
         'user_id' => $user->id,
         'batch_id' => $batch->id,
-        'supplier_id' => $supplier->id,
         'supplier_category' => $supplierCategory,
         'supplier_quote_reference' => null,
         'quote_sent' => true,
@@ -39,7 +36,6 @@ function pastProjectOrder(
     return Order::create([
         'user_id' => $user->id,
         'batch_id' => $batch->id,
-        'supplier_id' => $supplier->id,
         'quote_id' => $quote->id,
         'order_sent' => $orderSent,
         'is_delivered' => $isDelivered,
@@ -162,17 +158,17 @@ it("would be a disaster if the archive listed another business's batches", funct
 it('counts the orders a batch needed, not the drafts it accumulated', function () {
     /*
      * A plain orders count reported every draft row. BatchService::totalOrdersQty counts unique
-     * supplier categories for exactly this reason, and the archive has to agree with it.
+     * supplier categories for exactly this reason, and the archive has to agree with it - including
+     * for the group whose order was drafted and never sent.
      */
     $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create(['done' => true]);
 
-    // Two rows for the one supplier group, plus a second group
+    //One sent, one never sent - two groups either way
     pastProjectOrder($user, $batch, supplierCategory: 'STEEL_MERCHANT');
-    pastProjectOrder($user, $batch, supplierCategory: 'STEEL_MERCHANT', orderSent: false, isDelivered: false);
-    pastProjectOrder($user, $batch, supplierCategory: 'FASTENERS');
+    pastProjectOrder($user, $batch, supplierCategory: 'FASTENERS', orderSent: false, isDelivered: false);
 
     $this->actingAs($user);
 

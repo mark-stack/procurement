@@ -280,7 +280,7 @@ it('calls the batch ordered once every merchant on it has been marked', function
     $this->post(route('batch.group.ordered', $batch), ['supplier_group' => 'STEEL_MERCHANT'])
         ->assertRedirect();
 
-    $this->get(route('nesting.index'))
+    $this->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Illuminate\Testing\Fluent\AssertableJson $page) => $page
             ->where('batches.1.stage', 'ORDERED')

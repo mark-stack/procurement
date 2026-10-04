@@ -13,7 +13,6 @@ use App\Models\OrderApproval;
 use App\Models\Piece;
 use App\Models\Quote;
 use App\Models\RawMaterialQuote;
-use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -39,11 +38,9 @@ it('would be a disaster if duplicate quotes were possible', function () {
     $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
     $batch = Batch::factory()->forUser($user->id)->create();
-    $supplier = Supplier::factory()->create();
 
     $attributes = [
         'batch_id' => $batch->id,
-        'supplier_id' => $supplier->id,
         'supplier_category' => 'STEEL_MERCHANT',
     ];
 

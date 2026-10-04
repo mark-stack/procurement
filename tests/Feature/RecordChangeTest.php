@@ -5,7 +5,6 @@ use App\Models\MaterialCertificate;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\RecordChange;
-use App\Models\Supplier;
 use App\Models\Template;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -129,19 +128,22 @@ it('keeps what a deleted row held', function () {
 });
 
 it('records the creation of a row as the row it created', function () {
-    $user = createUser(1, createBusiness('biz'), false, true);
+    Storage::fake(MaterialCertificate::DISK);
 
-    $this->actingAs($user)->post(route('suppliers.store'), [
-        'name' => 'Southern Steel',
-        'supplier_categories' => ['STEEL_MERCHANT' => true],
+    $user = createUser(1, createBusiness('biz'), false, true);
+    $batch = Batch::factory()->forUser($user->id)->create();
+    [, $order] = quoteAndOrder($user, $batch, orderSent: false);
+
+    $this->actingAs($user)->post(route('material.certificates.store', $order), [
+        'certificates' => [UploadedFile::fake()->create('heat-4471882.pdf', 10, 'application/pdf')],
     ])->assertRedirect();
 
-    $supplier = Supplier::query()->where('name', 'Southern Steel')->sole();
+    $certificate = $order->materialCertificates()->sole();
 
-    $creation = changesFor($supplier)->sole();
+    $creation = changesFor($certificate)->sole();
 
     expect($creation->event)->toBe(RecordChange::CREATED)
-        ->and($creation->changes['name'])->toBe('Southern Steel')
+        ->and($creation->changes['original_filename'])->toBe('heat-4471882.pdf')
         ->and($creation->user_id)->toBe($user->id);
 });
 

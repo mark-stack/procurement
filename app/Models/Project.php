@@ -178,17 +178,6 @@ class Project extends Model
     }
 
     //Collections
-    public function suppliers(): Collection
-    {
-        $suppliers = [];
-
-        foreach ($this->orders as $order) {
-            $suppliers[] = $order->supplier;
-        }
-
-        return collect($suppliers);
-    }
-
     public function orderedProducts(): Collection
     {
         $products = [];

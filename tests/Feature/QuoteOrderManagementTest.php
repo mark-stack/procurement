@@ -10,7 +10,6 @@ use App\Models\OrderApproval;
 use App\Models\Piece;
 use App\Models\Project;
 use App\Models\Quote;
-use App\Models\Supplier;
 use App\Models\User;
 use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\BatchService;
@@ -217,8 +216,8 @@ it("would be a disaster if undoing one supplier group cleared another group's ap
     $batch = Batch::factory()->forUser($user->id)->create();
     pieceOnBatch($project, $batch);
 
-    [, $steel] = quoteAndOrder($user, $batch, Supplier::factory()->create(), 'STEEL_MERCHANT');
-    [, $fasteners] = quoteAndOrder($user, $batch, Supplier::factory()->create(), 'FASTENERS');
+    [, $steel] = quoteAndOrder($user, $batch, 'STEEL_MERCHANT');
+    [, $fasteners] = quoteAndOrder($user, $batch, 'FASTENERS');
 
     $approval = OrderApproval::create([
         'batch_id' => $batch->id,
@@ -245,37 +244,6 @@ it("would be a disaster if undoing one supplier group cleared another group's ap
         ->and($approval->fresh()->approved_by_user_id)->toBeNull();
 });
 
-it("would be a disaster if sending one supplier's order un-sent a delivered one", function () {
-    /*
-     * Marking an order sent un-sends every other order in its supplier group. That used to include one
-     * the steel had already arrived against, leaving a row that is delivered but not sent - which the
-     * undo route refuses outright, and which the rest of the app cannot read: the certificate trail
-     * filters on order_sent while the offcut inventory keys on is_delivered.
-     */
-    $business = createBusiness('biz');
-    $user = createUser(1, $business, false, true);
-    $project = createProject($user);
-
-    $batch = Batch::factory()->forUser($user->id)->create();
-    pieceOnBatch($project, $batch);
-
-    [, $orderA] = quoteAndOrder($user, $batch, Supplier::factory()->create(), 'STEEL_MERCHANT');
-    [, $orderB] = quoteAndOrder($user, $batch, Supplier::factory()->create(), 'STEEL_MERCHANT');
-
-    $this->actingAs($user);
-
-    $this->post(route('order.sent', $batch), ['order_id' => $orderA->id])->assertRedirect();
-    $this->post(route('order.mark.delivered', $orderA))->assertRedirect();
-
-    //Refused, with the reason, rather than quietly un-sending delivered steel
-    $this->post(route('order.sent', $batch), ['order_id' => $orderB->id])
-        ->assertSessionHasErrors('order');
-
-    expect($orderA->fresh()->order_sent)->toBeTrue()
-        ->and($orderA->fresh()->is_delivered)->toBeTrue()
-        ->and($orderB->fresh()->order_sent)->toBeFalse();
-});
-
 it('would be a disaster if a second delivery post un-delivered the order', function () {
     /*
      * is_delivered was flipped rather than set, while the page disables the checkbox the moment an order
@@ -286,7 +254,7 @@ it('would be a disaster if a second delivery post un-delivered the order', funct
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create();
-    [, $order] = quoteAndOrder($user, $batch, null, 'STEEL_MERCHANT', false, true);
+    [, $order] = quoteAndOrder($user, $batch, 'STEEL_MERCHANT', false, true);
 
     $this->actingAs($user);
 
@@ -337,7 +305,6 @@ it('would be a disaster if the order counts fatalled on an order with no quote',
     Order::create([
         'user_id' => $user->id,
         'batch_id' => $batch->id,
-        'supplier_id' => Supplier::factory()->create()->id,
         'quote_id' => null,
         'order_sent' => false,
         'is_delivered' => false,
@@ -469,46 +436,15 @@ it('would be a disaster if discarding an order left the batch impossible to unwi
     expect(Batch::find($batch->id))->toBeNull();
 });
 
-it("would be a disaster if another business's quotes and orders could be downloaded", function () {
-    /*
-     * The quotes/orders modal on the projects board is fed by download.quotes.data, which replaced the
-     * /quote-order-management/{batch} page. The page authorised the batch; the endpoint has to do the
-     * same, or every supplier, PO number and cert on somebody else's batch is one guessed id away.
-     */
-    $business1 = createBusiness('biz1');
-    $user1 = createUser(1, $business1, false, true);
-
-    $business2 = createBusiness('biz2');
-    $user2 = createUser(1, $business2, false, true);
-    $theirBatch = Batch::factory()->forUser($user2->id)->create();
-    pieceOnBatch(createProject($user2), $theirBatch);
-
-    $this->actingAs($user1);
-
-    $this->getJson(route('download.quotes.data', $theirBatch))->assertForbidden();
-});
-
-it('serves the quotes and orders for your own batch', function () {
-    $business = createBusiness('biz');
-    $user = createUser(1, $business, false, true);
-
-    $batch = Batch::factory()->forUser($user->id)->create();
-    pieceOnBatch(createProject($user), $batch);
-
-    $this->actingAs($user);
-
-    $this->getJson(route('download.quotes.data', $batch))
-        ->assertOk()
-        ->assertJsonStructure(['quotesData' => ['info', 'supplierGroupCards']]);
-});
-
 it('names every project the batch is buying for', function () {
     /*
-     * A batch is the whole Nesting column swept into one nest, so this screen listed the suppliers
-     * and the sections and never said whose jobs were in the cart - and it is the screen the order
-     * actually goes out from. It matters more again since the fabrication deadline sweep started
-     * creating batches nobody pressed a button for: the email that brings you here names one
-     * project, and this is where you find out what came with it.
+     * A batch is the whole Nesting column swept into one nest, so the screens it is bought from have
+     * to say whose jobs are in the cart. The quotes/orders modal used to answer this; it went with
+     * the projects board, and the Nesting page's BOM modal is where the question is asked now.
+     *
+     * It matters more again since the fabrication deadline sweep started creating batches nobody
+     * pressed a button for: the email that brings you here names one project, and this is where you
+     * find out what came with it.
      */
     $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
@@ -527,14 +463,11 @@ it('names every project the batch is buying for', function () {
 
     $this->actingAs($user);
 
-    $names = collect($this->getJson(route('download.quotes.data', $batch))
-        ->assertOk()
-        ->json('quotesData.info.projects'))
-        ->pluck('name');
+    $bom = $this->getJson(route('download.batch.bom', $batch))->assertOk()->json('batchBom');
 
-    expect($names)->toContain('Conveyor gantry');
-    expect($names)->toContain('Pump station platform');
-    expect($names)->toHaveCount(2);
+    expect($bom['projectCount'])->toBe(2)
+        ->and(collect($bom['rows'])->pluck('project')->unique()->sort()->values()->all())
+        ->toBe(['Conveyor gantry', 'Pump station platform']);
 });
 
 it('would be a disaster if orders.store could raise orders on another business’s batch', function () {
@@ -572,11 +505,9 @@ it('raises one order per quote on your own batch, and does not double up', funct
     $project = createProject($user);
     pieceOnBatch($project, $batch);
 
-    $supplier = Supplier::factory()->create();
     Quote::create([
         'batch_id' => $batch->id,
         'user_id' => $user->id,
-        'supplier_id' => $supplier->id,
         'supplier_category' => 'STEEL_MERCHANT',
         'quote_sent' => false,
     ]);

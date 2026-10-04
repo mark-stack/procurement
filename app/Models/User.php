@@ -148,16 +148,6 @@ class User extends Authenticatable implements MustVerifyEmail
         return collect($products);
     }
 
-    public function suppliersOrderedFrom(): Collection
-    {
-        $suppliers = [];
-        foreach ($this->orders as $order) {
-            $suppliers[] = $order->supplier;
-        }
-
-        return collect($suppliers);
-    }
-
     //Boolean
     /**
      * The platform admin, who can read and write every business's data.

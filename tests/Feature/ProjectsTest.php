@@ -212,10 +212,9 @@ it('would be a disaster if user could see other business’s projects', function
     /**
      * Declared as a placeholder since the file was written, and the coverage audit found nothing
      * standing behind it: every cross-business test here asks whether a write is refused, and none
-     * asks what the board draws. The board is the one screen that shows the whole business's work
-     * rather than the caller's own, so a scoping mistake in any of its four columns puts another
-     * company's projects, batches and suppliers in front of you rather than merely letting you
-     * write to them.
+     * asks what a page draws. /nesting is the screen that shows the whole business's work rather
+     * than the caller's own, so a scoping mistake there puts another company's projects and batches
+     * in front of you rather than merely letting you write to them.
      */
     $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
@@ -234,14 +233,13 @@ it('would be a disaster if user could see other business’s projects', function
     pieceOnBatch(createProject($otherUser), $theirBatch);
 
     $this->actingAs($user)
-        ->get(route('projects.index'))
+        ->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page
-            ->has('projects.READY_FOR_NESTING.projects.data', 1)
-            ->where('projects.READY_FOR_NESTING.projects.data.0.id', $mine->id)
-            //The batch columns are plain arrays, not resource collections
-            ->has('batches.QUOTED', 0)
-            ->has('batches.ORDERED', 0)
-            ->has('batches.DELIVERED', 0)
+            //The open batch card, which is what "Start quoting" would sweep in
+            ->has('batches.0.projects', 1)
+            ->where('batches.0.projects.0.id', $mine->id)
+            //And their nested batch is not drawn at all - the open card is the only one on the page
+            ->has('batches', 1)
             ->etc()
         );
 });
@@ -594,124 +592,6 @@ it('would be a disaster if "Lost it" archived a project that is already nested',
     expect($project->fresh()->archive)->toBeFalsy();
 });
 
-it('would be a disaster if the archived list cost a walk of every material row', function () {
-    /**
-     * The archived list draws a name and a "Restore" link, and it only ever grows. It used to
-     * be built from the full ProjectResource, which walks rawMaterialQuotes > piece > quotes
-     * and > order per row with nothing eager loaded - about three queries per material line,
-     * on every dashboard load, for fields nothing renders.
-     */
-    $business = createBusiness('gmail');
-    $user = createUser(1, $business, false, true);
-
-    $project = createProject($user);
-    createRawMaterialQuote200Pfc($project, MaterialEnums::PLAIN_CARBON_STEEL, GradeEnums::GR300, 9000);
-    $project->update(['archive' => true]);
-
-    $this->actingAs($user)
-        ->get(route('projects.index'))
-        ->assertInertia(fn (Assert $page) => $page
-            ->has('archivedProjects.data', 1)
-            ->has('archivedProjects.data.0', fn (Assert $archived) => $archived
-                ->where('id', $project->id)
-                ->where('name', $project->name)
-                ->where('user_id', $user->id)
-                ->where('archive', true)
-            )
-        );
-});
-
-it('would be a disaster if a half-finished import was on nobody’s board', function () {
-    /**
-     * A project with an unconfirmed price book match is excluded from projectsReadyForBatching,
-     * and the Nesting column is the only place a project that has not been nested is ever drawn.
-     * So closing the upload modal part way through took the project off every screen in the app:
-     * its owner had no route back to it, and a colleague could not so much as discover it
-     * existed. It is listed separately now, alongside the column it is stuck before.
-     */
-    $business = createBusiness('gmail');
-    $user = createUser(1, $business, false, true);
-    $colleague = createUser(2, $business, false, true);
-
-    $project = createProject($colleague);
-    $row = createRawMaterialQuote200Pfc($project, MaterialEnums::PLAIN_CARBON_STEEL, GradeEnums::GR300, 9000);
-
-    //Two candidate products on the row is what "needs clarification" means - see ProductService
-    $row->update(['general_product_matches' => serialize(['results' => [
-        ['product_category' => 'PFC', 'grade' => 'GR300', 'surface' => 'NONE', 'nominal_height' => 200],
-        ['product_category' => 'PFC', 'grade' => 'GR350', 'surface' => 'NONE', 'nominal_height' => 200],
-    ]])]);
-
-    $this->actingAs($user)
-        ->get(route('projects.index'))
-        ->assertInertia(fn (Assert $page) => $page
-            //Not in the column itself - it cannot be nested until the product is confirmed
-            ->has('projects.READY_FOR_NESTING.projects.data', 0)
-            ->has('projects.READY_FOR_NESTING.unfinishedImports.data', 1)
-            ->has('projects.READY_FOR_NESTING.unfinishedImports.data.0', fn (Assert $unfinished) => $unfinished
-                ->where('id', $project->id)
-                ->where('name', $project->name)
-                ->where('user_id', $colleague->id)
-                //Named, so a colleague knows who to go and ask rather than just seeing it stuck
-                ->where('projectManagerName', $colleague->name)
-                //Nobody uploaded this for them - they created their own project
-                ->where('created_by_user_id', null)
-                ->where('uploadedByName', null)
-                //Only its owner can finish it
-                ->where('prerequisiteUploadMaterials', false)
-            )
-        );
-});
-
-it('still offers the owner of a half-finished import a way to finish it', function () {
-    $business = createBusiness('gmail');
-    $user = createUser(1, $business, false, true);
-
-    $project = createProject($user);
-    $row = createRawMaterialQuote200Pfc($project, MaterialEnums::PLAIN_CARBON_STEEL, GradeEnums::GR300, 9000);
-
-    $row->update(['general_product_matches' => serialize(['results' => [
-        ['product_category' => 'PFC', 'grade' => 'GR300', 'surface' => 'NONE', 'nominal_height' => 200],
-        ['product_category' => 'PFC', 'grade' => 'GR350', 'surface' => 'NONE', 'nominal_height' => 200],
-    ]])]);
-
-    $this->actingAs($user)
-        ->get(route('projects.index'))
-        ->assertInertia(fn (Assert $page) => $page
-            ->has('projects.READY_FOR_NESTING.unfinishedImports.data.0', fn (Assert $unfinished) => $unfinished
-                ->where('id', $project->id)
-                ->where('prerequisiteUploadMaterials', true)
-                ->etc()
-            )
-        );
-});
-
-it('would be a disaster if an archived project reappeared as an unfinished import', function () {
-    /*
-     * The clarification walk covers every project the business has ever had, archived and nested
-     * ones included - listing those would put projects back on the board that were deliberately
-     * taken off it.
-     */
-    $business = createBusiness('gmail');
-    $user = createUser(1, $business, false, true);
-
-    $project = createProject($user);
-    $row = createRawMaterialQuote200Pfc($project, MaterialEnums::PLAIN_CARBON_STEEL, GradeEnums::GR300, 9000);
-
-    $row->update(['general_product_matches' => serialize(['results' => [
-        ['product_category' => 'PFC', 'grade' => 'GR300', 'surface' => 'NONE', 'nominal_height' => 200],
-        ['product_category' => 'PFC', 'grade' => 'GR350', 'surface' => 'NONE', 'nominal_height' => 200],
-    ]])]);
-
-    $project->update(['archive' => true]);
-
-    $this->actingAs($user)
-        ->get(route('projects.index'))
-        ->assertInertia(fn (Assert $page) => $page
-            ->has('projects.READY_FOR_NESTING.unfinishedImports.data', 0)
-        );
-});
-
 it('puts your own projects first in the shared nesting column', function () {
     /**
      * The column draws the whole business's work as one pile, in creation order, so on a board
@@ -731,10 +611,10 @@ it('puts your own projects first in the shared nesting column', function () {
     pieceReadyForBatching($mine);
 
     $this->actingAs($user)
-        ->get(route('projects.index'))
+        ->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page
-            ->where('projects.READY_FOR_NESTING.projects.data.0.id', $mine->id)
-            ->where('projects.READY_FOR_NESTING.projects.data.1.id', $theirs->id)
+            ->where('batches.0.projects.0.id', $mine->id)
+            ->where('batches.0.projects.1.id', $theirs->id)
             ->etc()
         );
 });

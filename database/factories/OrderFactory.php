@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -22,7 +21,6 @@ class OrderFactory extends Factory
             'user_id' => User::factory(),
             'project_id' => null,
             'quote_id' => null,
-            'supplier_id' => Supplier::factory(),
         ];
     }
 
@@ -53,12 +51,4 @@ class OrderFactory extends Factory
         });
     }
 
-    public function forSupplier($supplierId = null)
-    {
-        return $this->state(function (array $attributes) use ($supplierId) {
-            return [
-                'supplier_id' => $supplierId ?? Supplier::factory(),
-            ];
-        });
-    }
 }

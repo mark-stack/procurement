@@ -57,9 +57,9 @@ class OrderSentController extends Controller
 
         if ($delivered !== null) {
             return back()->withErrors([
-                'order' => 'The order to '.($delivered->supplier->name ?? 'another supplier')
-                    .' for these materials has already been delivered, so this one cannot be marked as '
-                    .'placed as well. The delivery would have to be undone first.',
+                'order' => 'Another order for these materials has already been delivered, so this '
+                    .'one cannot be marked as placed as well. The delivery would have to be undone '
+                    .'first.',
             ]);
         }
 

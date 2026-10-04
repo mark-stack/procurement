@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Middleware\BillingWriteAccessMiddleware;
-use App\Models\Supplier;
 use Illuminate\Support\Facades\Route;
 
 /**
@@ -19,7 +18,7 @@ it('would be a disaster if a lapsed account lost access to work it had already d
      * Everything they built stays open. Not an exhaustive list of the application's pages, but one
      * of each kind: the board, the archive, the rack and the price book.
      */
-    foreach (['projects.index', 'past.projects.index', 'offcuts.index', 'pricebook'] as $page) {
+    foreach (['dashboard', 'past.projects.index', 'offcuts.index', 'pricebook'] as $page) {
         $this->actingAs($user)
             ->get(route($page))
             ->assertStatus(200);
@@ -31,14 +30,11 @@ it('would be a disaster if a lapsed account could still change things', function
     $user = createUser(1, $business, false, true);
 
     $this->actingAs($user)
-        ->post(route('suppliers.store'), [
-            'name' => 'New Supplier',
-            'supplier_categories' => ['STEEL_MERCHANT' => true],
-        ])
+        ->patch(route('business.preferences.update'), ['quoting_days' => 9, 'delivery_days' => 9])
         ->assertRedirect(route('billing.index'))
         ->assertSessionHas('warning');
 
-    expect($business->suppliers()->count())->toBe(0);
+    expect($business->fresh()->quoting_days)->not->toBe(9);
 });
 
 it('would be a disaster if a lapsed account could still nest a batch', function () {
@@ -60,13 +56,10 @@ it('would be a disaster if the billing gate blocked a business that was still on
     $user = createUser(1, $business, false, true);
 
     $this->actingAs($user)
-        ->post(route('suppliers.store'), [
-            'name' => 'New Supplier',
-            'supplier_categories' => ['STEEL_MERCHANT' => true],
-        ])
+        ->patch(route('business.preferences.update'), ['quoting_days' => 9, 'delivery_days' => 9])
         ->assertRedirect();
 
-    expect($business->suppliers()->count())->toBe(1);
+    expect($business->fresh()->quoting_days)->toBe(9);
 });
 
 it('would be a disaster if a read-only account could not reach the page that fixes it', function () {
@@ -373,8 +366,6 @@ it('would be a disaster if the gate refused a download because of its own strict
      */
     $business = lapsedTrialBusiness();
     $user = createUser(1, $business, false, true);
-
-    Supplier::factory()->create();
 
     $this->actingAs($user)
         ->get(route('download.usage.data'))

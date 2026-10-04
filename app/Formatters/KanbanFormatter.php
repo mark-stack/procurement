@@ -4,7 +4,6 @@ namespace App\Formatters;
 
 use App\Enums\SupplierGroupEnums;
 use App\Http\Resources\ProjectResource;
-use App\Http\Resources\UnfinishedImportResource;
 use App\Models\Batch;
 use App\Models\Business;
 use App\Models\Offcut;
@@ -20,41 +19,6 @@ use Illuminate\Support\Collection;
 
 class KanbanFormatter
 {
-    public function readyForNestingColumn(Business $business, User $user): array
-    {
-        $piecesReadyForBatching = (new NestingFormatter())->piecesReadyForBatching($business);
-
-        /*
-         * Your own projects first, then oldest first within each group.
-         *
-         * This column is the whole business's, drawn as one undifferentiated pile in creation
-         * order - so on a board with a few colleagues on it your own work was wherever it
-         * happened to land. The three batch columns below already sort this way, through
-         * BatchService::sortByUserAndLatest; only the column of projects did not.
-         */
-        $projects = $business->projectsReadyForBatching($piecesReadyForBatching)
-            ->sortBy(fn (Project $project) => [
-                $project->user_id === $user->id ? 0 : 1,
-                $project->created_at->timestamp,
-                //Two projects created in the same second would otherwise order arbitrarily
-                $project->id,
-            ])
-            ->values();
-
-        return [
-            'projects' => ProjectResource::collection($projects),
-            /*
-             * Imports that stopped at a clarification. These are excluded from the column above -
-             * and from everywhere else in the app - so without this they are on nobody's board at
-             * all. See Business::projectsWithUnfinishedImport().
-             */
-            'unfinishedImports' => UnfinishedImportResource::collection(
-                $business->projectsWithUnfinishedImport()
-            ),
-            'orderingTriggerDate' => $this->orderingTriggerDate($projects),
-        ];
-    }
-
     /**
      * The day this column has to stop waiting and buy.
      *
@@ -212,10 +176,11 @@ class KanbanFormatter
              * The card's "everything is in" test has to be the one MarkAsPastProjectController applies,
              * or the "Move to done" button it draws lies about what the post will do.
              *
-             * This used to read "delivered rows === unique supplier categories", which compares two
-             * different units. Orders are created one per quote and quotes one per supplier in a group
-             * (QuoteFormatter), so two steel merchants delivered on the one batch read 2 === 1 and the
-             * batch could never be closed - and "done" is written nowhere else.
+             * This used to read "delivered rows === unique supplier categories", which compared two
+             * different units back when a group held a list of merchants and each of them got a quote
+             * of their own: two steel merchants delivered on the one batch read 2 === 1 and the batch
+             * could never be closed - and "done" is written nowhere else. One quote per group now, so
+             * the two units agree, but the question asked is still the controller's own.
              */
             $allDelivered = ! $batch->orders()
                 ->where('order_sent', true)
@@ -223,9 +188,8 @@ class KanbanFormatter
                 ->exists();
 
             /*
-             * Only a delivered order can be missing its certs. This matched any steel merchant row with
-             * no cert numbers at all, and a draft order exists for every supplier in the group from the
-             * first time the quote screen is opened - so a business with two steel merchants always had
+             * Only a delivered order can be missing its certs. This matched any steel merchant row
+             * with no cert numbers at all, drafts included - so a business with a draft row always had
              * one, and the warning stuck on with the button hidden behind it for good.
              *
              * An attached certificate file settles this as well as a written reference does, which is

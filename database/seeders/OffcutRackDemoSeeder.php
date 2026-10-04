@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Formatters\SupplierFormatter;
 use App\Formatters\UniqueLetterIDGenerator;
 use App\Models\Batch;
 use App\Models\Business;
@@ -10,7 +9,6 @@ use App\Models\Offcut;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\Quote;
-use App\Models\Supplier;
 use App\Models\User;
 use App\Notifications\OffcutCleanoutDue;
 use App\Sandbox\Sandbox;
@@ -164,17 +162,20 @@ class OffcutRackDemoSeeder extends Seeder
      */
     private function deliveredBatch(User $user): Batch
     {
-        $supplier = $this->steelMerchant($user);
-
         $orderedOn = now()->subDays(self::oldestDays() + 30);
 
         $batch = Batch::create(['user_id' => $user->id]);
         $batch->forceFill(['created_at' => $orderedOn, 'updated_at' => $orderedOn])->save();
 
+        /*
+         * STEEL_MERCHANT, because the offcut is only in the yard if the delivered order came from
+         * the group that carries its product - putting this under fasteners would write a rack
+         * nothing can see. The group is the whole of who the order went to: there is no suppliers
+         * list to pick a merchant out of.
+         */
         $quote = Quote::create([
             'user_id' => $user->id,
             'batch_id' => $batch->id,
-            'supplier_id' => $supplier->id,
             'supplier_category' => 'STEEL_MERCHANT',
             'supplier_quote_reference' => 'DEMO-RACK',
             'quote_sent' => true,
@@ -185,7 +186,6 @@ class OffcutRackDemoSeeder extends Seeder
         Order::create([
             'user_id' => $user->id,
             'batch_id' => $batch->id,
-            'supplier_id' => $supplier->id,
             'quote_id' => $quote->id,
             'order_sent' => true,
             'order_confirmation_received' => true,
@@ -195,37 +195,6 @@ class OffcutRackDemoSeeder extends Seeder
         ]);
 
         return $batch;
-    }
-
-    /**
-     * A supplier of this business that actually stocks steel.
-     *
-     * The offcut is only in the yard if the delivered order came from the category that carries its
-     * product, so borrowing a fastener supplier here would write a rack nothing can see.
-     */
-    private function steelMerchant(User $user): Supplier
-    {
-        $business = $user->business;
-
-        /*
-         * Asked through SupplierFormatter rather than read off the column. supplier_categories is a
-         * PHP-serialized string, not a cast array, so reading it directly gets a character of that
-         * string - and one place deciding what a supplier stocks is one place to be wrong.
-         */
-        $suppliers = $business instanceof Business
-            ? (new SupplierFormatter)->suppliersForSupplierGroup('STEEL_MERCHANT', $business)
-            : [];
-
-        $supplier = $suppliers[0] ?? null;
-
-        if (! $supplier instanceof Supplier) {
-            throw new RuntimeException(
-                'This business has no STEEL_MERCHANT supplier, so it cannot have taken delivery of any steel. '
-                .'Add one on the Suppliers page first.'
-            );
-        }
-
-        return $supplier;
     }
 
     /**

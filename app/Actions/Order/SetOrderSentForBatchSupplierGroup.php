@@ -67,7 +67,7 @@ class SetOrderSentForBatchSupplierGroup
         $orders = $batch->orders()
             ->whereKeyNot($orderedOrder->getKey())
             ->where('is_delivered', true)
-            ->with('quote:id,supplier_category', 'supplier:id,name')
+            ->with('quote:id,supplier_category')
             ->get();
 
         return $orders->first(fn (Order $order): bool => $order->quote?->supplier_category === $supplierGroup);

@@ -51,7 +51,6 @@ it('starts a new business on trial, with no templates and no suppliers', functio
     $business = registerAt('sam@newfabricator.com.au')->business;
 
     expect($business->detectableTemplates()->count())->toBe(0)
-        ->and($business->suppliers()->count())->toBe(0)
         ->and($business->trial_ends_at->isFuture())->toBeTrue()
         ->and($business->allowsWrites())->toBeTrue();
 });
@@ -64,7 +63,7 @@ it('sends an unverified signup to the verification prompt and nowhere else', fun
 
     expect($user->hasVerifiedEmail())->toBeFalse();
 
-    foreach (['dashboard', 'projects.index', 'billing.index', 'profile.edit'] as $route) {
+    foreach (['dashboard', 'dashboard', 'billing.index', 'profile.edit'] as $route) {
         $this->actingAs($user)
             ->get(route($route))
             ->assertRedirect(route('verification.notice'));
@@ -74,8 +73,8 @@ it('sends an unverified signup to the verification prompt and nowhere else', fun
 it('would be a disaster if a brand new company still had to wait for us', function () {
     /*
      * The whole of the change, in one test. A company that signed up a minute ago, with no template
-     * recorded for it and no admin having touched it, verifies its address and is on the material
-     * list upload page - where it can create a project and upload a bill of materials, which is what
+     * recorded for it and no admin having touched it, verifies its address and is on the Nesting
+     * page - where "+ Materials" creates a project and uploads a bill of materials, which is what
      * writes its first template.
      *
      * This used to land on /onboarding, a page quoting two business days.
@@ -89,8 +88,8 @@ it('would be a disaster if a brand new company still had to wait for us', functi
     $this->actingAs($user)
         ->get(route('dashboard'))
         ->assertStatus(200)
-        ->assertInertia(fn ($page) => $page->component('Dashboard'));
-    $this->actingAs($user)->get(route('projects.index'))->assertStatus(200);
+        ->assertInertia(fn ($page) => $page->component('NestingIndex'));
+    $this->actingAs($user)->get(route('dashboard'))->assertStatus(200);
     $this->actingAs($user)->get(route('billing.index'))->assertStatus(200);
     $this->actingAs($user)->get(route('profile.edit'))->assertStatus(200);
 });
@@ -118,7 +117,7 @@ it('would be a disaster if a colleague joining a working business had to wait fo
     $this->actingAs($joiner->fresh())
         ->get(route('dashboard'))
         ->assertStatus(200)
-        ->assertInertia(fn ($page) => $page->component('Dashboard'));
+        ->assertInertia(fn ($page) => $page->component('NestingIndex'));
 });
 
 it('warns every business on a trial, including one that has not recorded a template yet', function () {
@@ -180,7 +179,7 @@ it('welcomes the customer with a link that survives a weekend', function () {
 
     $this->travel(3)->days();
 
-    $this->get($url)->assertRedirect(route('projects.index'));
+    $this->get($url)->assertRedirect(route('dashboard'));
 
     $this->assertAuthenticatedAs($user);
     expect($user->fresh()->hasVerifiedEmail())->toBeTrue();

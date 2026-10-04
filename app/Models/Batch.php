@@ -189,23 +189,27 @@ class Batch extends Model
     /**
      * The certificates behind the new steel this batch bought.
      *
-     * Shape matches offcutOrdersWithCertificates() below: {supplier_name, material_cert_numbers,
+     * Shape matches offcutOrdersWithCertificates() below: {supplier_group, material_cert_numbers,
      * material_cert_files}. It used to hand back Order models, so the two trails - which are printed
      * side by side on the same spec sheet - read their supplier off different keys, and the Order
      * rows carried the whole orders table out to the page to have two fields read off them.
      *
-     * @return array<int, array{supplier_name: string, material_cert_numbers: ?string, material_cert_files: array<int, array{id: int, filename: string}>}>
+     * The merchant's own name used to head each line. There is no longer a suppliers list to read one
+     * from, so the line is headed by the supplier group the order was placed under - which is what the
+     * order was always grouped by, and the only identity of it the application still keeps.
+     *
+     * @return array<int, array{supplier_group: string, material_cert_numbers: ?string, material_cert_files: array<int, array{id: int, filename: string}>}>
      */
     public function newStockOrdersWithCertificates(): array
     {
         return $this->newStockCertificatesMemo ??= $this->orders()
             ->where("order_sent",true)
             ->hasMaterialCerts()
-            ->with(["supplier:id,name","materialCertificates"])
+            ->with(["quote:id,supplier_category","materialCertificates"])
             ->get()
             ->map(fn (Order $order) => [
-                //supplier_id is nullable, and ?? short-circuits the whole chain rather than fatal
-                'supplier_name' => $order->supplier->name ?? 'Unknown supplier',
+                //quote_id is nullable, and ?? short-circuits the whole chain rather than fatal
+                'supplier_group' => $order->quote->supplier_category ?? 'UNKNOWN',
                 'material_cert_numbers' => $order->material_cert_numbers,
                 'material_cert_files' => $order->materialCertificates
                     ->map(fn (MaterialCertificate $certificate) => [
@@ -222,7 +226,7 @@ class Batch extends Model
     public function offcutOrdersWithCertificates(Business $business): array
     {
         /*
-         * Shape is fixed: {used_offcuts: bool, certificates: [{supplier_name, material_cert_numbers}]}.
+         * Shape is fixed: {used_offcuts: bool, certificates: [{supplier_group, material_cert_numbers}]}.
          * This used to return either the "NO_OFFCUTS" string or a collection KEYED by supplier name, and
          * both arrive in JSON as a truthy object - so consumers could not tell the two apart, and a
          * keyed collection has no .forEach for the ones that guessed it was a list.
@@ -296,24 +300,25 @@ class Batch extends Model
             ->whereIn("batch_id",$originalBatchIds)
             ->where("order_sent",true)
             ->hasMaterialCerts()
-            ->with(["supplier:id,name","quote:id,supplier_category","materialCertificates"])
+            ->with(["quote:id,supplier_category","materialCertificates"])
             ->get();
 
         $certificates = [];
         foreach($ordersWithCertificates as $order){
             $supplierCategory = $order->quote?->supplier_category; //e.g "STEEL_MERCHANT"
             if(in_array($supplierCategory,$supplierCategoriesFromOffcuts)){
-                //supplier_id is nullable, so fall back rather than fatal on a missing supplier
-                $supplierName = $order->supplier?->name ?? 'Unknown supplier';
+                //Headed by the group the order was placed under - there is no suppliers list to name
+                //a merchant from. Never null here: the in_array above matched it against a real group.
+                $supplierGroup = $supplierCategory;
 
                 /*
-                 * Keyed on the supplier/certificate PAIR. Keying on the supplier name alone meant one
-                 * merchant supplying two of the source batches kept only the last certificate read -
+                 * Keyed on the group/certificate PAIR. Keying on the group alone meant one
+                 * group supplying two of the source batches kept only the last certificate read -
                  * silently dropping the others from the traceability trail.
                  *
                  * The attached files are part of that identity now. An order certified only by a PDF
-                 * has no cert numbers at all, so two of them under one merchant would collide on the
-                 * same "name\0null" key and the trail would report one of the two.
+                 * has no cert numbers at all, so two of them under one group would collide on the
+                 * same "group\0null" key and the trail would report one of the two.
                  */
                 $files = $order->materialCertificates
                     ->map(fn (MaterialCertificate $certificate) => [
@@ -323,11 +328,11 @@ class Batch extends Model
                     ->values()
                     ->all();
 
-                $fingerprint = $supplierName."\0".$order->material_cert_numbers
+                $fingerprint = $supplierGroup."\0".$order->material_cert_numbers
                     ."\0".implode(",",array_column($files,'id'));
 
                 $certificates[$fingerprint] = [
-                    'supplier_name' => $supplierName,
+                    'supplier_group' => $supplierGroup,
                     'material_cert_numbers' => $order->material_cert_numbers,
                     'material_cert_files' => $files,
                 ];

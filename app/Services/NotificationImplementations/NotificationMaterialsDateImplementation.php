@@ -167,7 +167,7 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
         $notification->markAsRead();
 
         //Go to project index
-        return redirect()->route('projects.index');
+        return redirect()->route('dashboard');
     }
 
     public function markYellow(DatabaseNotification $notification): RedirectResponse

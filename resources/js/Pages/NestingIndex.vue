@@ -176,7 +176,7 @@
     const refreshNewProject = ref(false);
     /*
      * The project that same modal is editing, or null when it is being used to add one. It is the
-     * board's own switch between the two (ProjectsBoard::editMode), so the two pages open the same
+     * same switch between the two the board had (it is gone), so both entry points open the same
      * form on the same project - see editProjectMode().
      */
     const editProject = ref(null);
@@ -923,7 +923,7 @@
      *
      * That modal freezes itself on "Calculating..." until this answers, so it has to be signalled
      * either way - a failed fetch would otherwise leave it spinning with no way back. Same handshake
-     * as ProjectsBoard::downloadProjectBomData.
+     * as the board's own downloadProjectBomData was.
      */
     async function downloadNewProjectBom(project) {
         try {

@@ -86,7 +86,22 @@ class NestingIndexController extends Controller
          * Empty is a card too; see below.
          */
         $pending = $this->pendingBatch($business);
-        $pendingProjects = $pending['projects']->sortBy('id');
+
+        /*
+         * Your own projects first, then oldest first within each group.
+         *
+         * Inherited from the board's Nesting column, which sorted this way and is gone: the card
+         * names the whole business's waiting work as one list, so on a page with a few colleagues on
+         * it your own job was wherever creation order happened to put it. Sorted by id alone before
+         * the column moved here.
+         */
+        $pendingProjects = $pending['projects']
+            ->sortBy(fn (Project $project) => [
+                $project->user_id === $user->id ? 0 : 1,
+                //Two projects created in the same second would otherwise order arbitrarily
+                $project->id,
+            ])
+            ->values();
 
         /*
          * And whether this user may close it, which is what the open batch card's menu offers.
@@ -669,10 +684,9 @@ class NestingIndexController extends Controller
      * material falls into (see supplierGroupCount) - because that is the number the pill is read
      * against: a card saying "Quoted" over "2 Categories" is claiming both of them are priced.
      *
-     * A sent quote, not a quote row: QuoteFormatter::quotesData mints a quote per supplier the moment
-     * anybody opens the modal, so the rows exist long before anything was asked of anybody. Any one
-     * sent quote answers a group, the way Project::percentageOfMaterialsQuoted counts a row quoted -
-     * a business with two steel merchants has priced its steel once the first of them answers.
+     * A sent quote, not a quote row: a quote row can be drafted long before anything was asked of
+     * anybody, the way Project::percentageOfMaterialsQuoted counts a row quoted. There is one quote
+     * per group now, so the group is priced once its own quote comes back.
      *
      * A batch whose material belongs to no supplier group the business's plan covers can never answer
      * yes, and says QUOTING for as long as it is in the column. That is the honest reading: there is

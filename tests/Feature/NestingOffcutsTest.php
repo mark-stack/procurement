@@ -40,7 +40,6 @@ it('would be a disaster if meterage nesting with an offcut was not working corre
     $deliveredQuote = Quote::create([
         'user_id' => $user->id,
         'batch_id' => $batchFrom->id,
-        'supplier_id' => null,
         'supplier_category' => "STEEL_MERCHANT",
         'supplier_quote_reference' => null,
         'quote_sent' => true,
@@ -50,7 +49,6 @@ it('would be a disaster if meterage nesting with an offcut was not working corre
     $deliveredOrder = Order::create([
         'user_id' => $user->id,
         'batch_id' => $batchFrom->id,
-        'supplier_id' => null,
         'quote_id' => $deliveredQuote->id,
         'order_sent' => true,
         'order_confirmation_received' => true,
@@ -192,7 +190,6 @@ it("would be a disaster if offcut of an offcut didn't work", function () {
     $deliveredQuote = Quote::create([
         'user_id' => $user->id,
         'batch_id' => $batchFrom->id,
-        'supplier_id' => null,
         'supplier_category' => "STEEL_MERCHANT",
         'supplier_quote_reference' => null,
         'quote_sent' => true,
@@ -202,7 +199,6 @@ it("would be a disaster if offcut of an offcut didn't work", function () {
     $deliveredOrder = Order::create([
         'user_id' => $user->id,
         'batch_id' => $batchFrom->id,
-        'supplier_id' => null,
         'quote_id' => $deliveredQuote->id,
         'order_sent' => true,
         'order_confirmation_received' => true,
@@ -315,7 +311,6 @@ it('would be a disaster if using offcuts that belong to another company', functi
     $deliveredQuote = Quote::create([
         'user_id' => $user1->id,
         'batch_id' => $batchFrom->id,
-        'supplier_id' => null,
         'supplier_category' => "STEEL_MERCHANT",
         'supplier_quote_reference' => null,
         'quote_sent' => true,
@@ -325,7 +320,6 @@ it('would be a disaster if using offcuts that belong to another company', functi
     Order::create([
         'user_id' => $user1->id,
         'batch_id' => $batchFrom->id,
-        'supplier_id' => null,
         'quote_id' => $deliveredQuote->id,
         'order_sent' => true,
         'order_confirmation_received' => true,
@@ -382,7 +376,6 @@ it('would be a disaster if using an offcut twice in the same project', function 
     $deliveredQuote = Quote::create([
         'user_id' => $user->id,
         'batch_id' => $batchFrom->id,
-        'supplier_id' => null,
         'supplier_category' => "STEEL_MERCHANT",
         'supplier_quote_reference' => null,
         'quote_sent' => true,
@@ -392,7 +385,6 @@ it('would be a disaster if using an offcut twice in the same project', function 
     Order::create([
         'user_id' => $user->id,
         'batch_id' => $batchFrom->id,
-        'supplier_id' => null,
         'quote_id' => $deliveredQuote->id,
         'order_sent' => true,
         'order_confirmation_received' => true,

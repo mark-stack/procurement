@@ -6,7 +6,6 @@ use App\Formatters\KanbanFormatter;
 use App\Models\Batch;
 use App\Models\Order;
 use App\Models\Quote;
-use App\Models\Supplier;
 use App\Models\User;
 use App\Services\DeliveredBatchArchiving;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -30,12 +29,10 @@ function archivedBatchOrder(
     ?string $receivedAt = null,
     ?string $materialCertNumbers = 'CERT-1',
 ): Order {
-    $supplier = Supplier::factory()->create();
 
     $quote = Quote::create([
         'user_id' => $user->id,
         'batch_id' => $batch->id,
-        'supplier_id' => $supplier->id,
         'supplier_category' => $supplierCategory,
         'supplier_quote_reference' => null,
         'quote_sent' => true,
@@ -46,7 +43,6 @@ function archivedBatchOrder(
     return Order::create([
         'user_id' => $user->id,
         'batch_id' => $batch->id,
-        'supplier_id' => $supplier->id,
         'quote_id' => $quote->id,
         'order_sent' => $orderSent,
         'is_delivered' => $isDelivered,

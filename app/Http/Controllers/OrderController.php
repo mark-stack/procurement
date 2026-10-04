@@ -62,7 +62,6 @@ class OrderController extends Controller
                 ],
                 [
                     'user_id' => $user->getKey(),
-                    'supplier_id' => null,
                 ]
             );
         }
@@ -138,11 +137,10 @@ class OrderController extends Controller
              * and then its quotes, hit the constraint on a row it could not see. The unwind threw, and
              * there is no repair path in the app: the batch could never be re-nested again.
              *
-             * It was no use to anybody either way. The detached row stayed the one order for that quote
-             * (orders.quote_id is unique), so QuoteFormatter's firstOrCreate went on handing it back to
-             * the page while $batch->orders() could not see it - and OrderSentController refuses an
-             * order whose batch_id is not the batch, which made that supplier row permanently
-             * un-orderable. Deleting it lets the next render provision a fresh one against the batch.
+             * It was no use to anybody either way. The detached row stayed the one order for that
+             * quote (orders.quote_id is unique) while $batch->orders() could not see it - and
+             * OrderSentController refuses an order whose batch_id is not the batch, which made that
+             * group permanently un-orderable.
              */
             $order->delete();
         }

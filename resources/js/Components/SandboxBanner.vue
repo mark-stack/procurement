@@ -46,7 +46,7 @@
         askToConfirm({
             title: 'Clear everything in test mode?',
             message: `This deletes ${projectCount.value} ${projectCount.value === 1 ? 'project' : 'projects'} and ${batchCount.value} ${batchCount.value === 1 ? 'batch' : 'batches'}, along with every material list, quote, order, offcut and nesting made against them. It cannot be undone.`,
-            note: 'Your real projects, your price book and your suppliers are not touched.',
+            note: 'Your real projects and your price book are not touched.',
             confirmLabel: 'Clear everything',
             tone: 'danger',
             onConfirmed: clearEverything,

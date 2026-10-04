@@ -8,7 +8,6 @@ use App\Models\Piece;
 use App\Models\Project;
 use App\Models\Quote;
 use App\Models\RawMaterialQuote;
-use App\Models\Supplier;
 use App\Models\User;
 use App\Notifications\QuoteDueEmail;
 use App\Services\NotificationImplementations\NotificationQuotingOrderingDueImplementation;
@@ -71,12 +70,10 @@ function sandboxProjectDueForQuoting(User $user): Project
 function sandboxBatchWithWorkings(User $user, Project $project): array
 {
     $batch = Batch::create(['user_id' => $user->id]);
-    $supplier = Supplier::factory()->create();
 
     $quote = Quote::create([
         'user_id' => $user->id,
         'batch_id' => $batch->id,
-        'supplier_id' => $supplier->id,
         'supplier_category' => 'STEEL_MERCHANT',
         'quote_sent' => true,
     ]);
@@ -84,7 +81,6 @@ function sandboxBatchWithWorkings(User $user, Project $project): array
     $order = Order::create([
         'user_id' => $user->id,
         'batch_id' => $batch->id,
-        'supplier_id' => $supplier->id,
         'quote_id' => $quote->id,
         'order_sent' => true,
         'is_delivered' => true,
@@ -127,27 +123,27 @@ it('would be a disaster if a test project turned up on the real board', function
     $test = createProject($user);
     pieceReadyForBatching($test);
 
-    //Their own live board
+    //Their own live Nesting column
     actingInLiveMode($user);
-    $this->get(route('projects.index'))
+    $this->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page
-            ->has('projects.READY_FOR_NESTING.projects.data', 0)
+            ->has('batches.0.projects', 0)
             ->etc()
         );
 
     //And the colleague's, who should have no way of knowing it exists
     $this->actingAs($colleague)
-        ->get(route('projects.index'))
+        ->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page
-            ->has('projects.READY_FOR_NESTING.projects.data', 0)
+            ->has('batches.0.projects', 0)
             ->etc()
         );
 
     //It is not gone, it is just somewhere else
     actingInTestMode($user);
-    $this->get(route('projects.index'))
+    $this->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page
-            ->where('projects.READY_FOR_NESTING.projects.data.0.id', $test->id)
+            ->where('batches.0.projects.0.id', $test->id)
             ->etc()
         );
 });
@@ -165,9 +161,9 @@ it('would be a disaster if test mode showed the real projects', function () {
 
     actingInTestMode($user);
 
-    $this->get(route('projects.index'))
+    $this->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page
-            ->has('projects.READY_FOR_NESTING.projects.data', 0)
+            ->has('batches.0.projects', 0)
             ->etc()
         );
 
@@ -193,33 +189,10 @@ it('would be a disaster if one person’s sandbox was visible in another’s', f
     $theirs = createProject($colleague);
     pieceReadyForBatching($theirs);
 
-    $this->get(route('projects.index'))
+    $this->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page
-            ->has('projects.READY_FOR_NESTING.projects.data', 1)
-            ->where('projects.READY_FOR_NESTING.projects.data.0.id', $theirs->id)
-            ->etc()
-        );
-});
-
-it('would be a disaster if the suppliers went missing in test mode', function () {
-    /*
-     * Suppliers, products and templates are deliberately not sandboxed: the point of test mode is
-     * to try a real BOM against the real price book and the real merchants. Only the work made
-     * against them is disposable.
-     */
-    $business = createBusiness('gmail');
-    $user = createUser(1, $business, false, true);
-
-    $supplier = Supplier::create(['name' => 'Ours', 'supplier_categories' => serialize([])]);
-    $business->suppliers()->attach($supplier->id);
-
-    actingInTestMode($user);
-
-    $this->get(route('suppliers.index'))
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->has('suppliers.data', 1)
-            ->where('suppliers.data.0.name', 'Ours')
+            ->has('batches.0.projects', 1)
+            ->where('batches.0.projects.0.id', $theirs->id)
             ->etc()
         );
 });
@@ -235,12 +208,12 @@ it('would be a disaster if leaving test mode threw the sandbox away', function (
     actingInTestMode($user);
     $test = createProject($user);
 
-    $this->post(route('sandbox.leave'))->assertRedirect(route('projects.index'));
+    $this->post(route('sandbox.leave'))->assertRedirect(route('dashboard'));
 
     expect($user->fresh()->sandbox_mode)->toBeFalse()
         ->and(Project::query()->withoutGlobalScope('sandbox')->whereKey($test->id)->exists())->toBeTrue();
 
-    $this->post(route('sandbox.enter'))->assertRedirect(route('projects.index'));
+    $this->post(route('sandbox.enter'))->assertRedirect(route('dashboard'));
 
     expect($user->fresh()->sandbox_mode)->toBeTrue()
         ->and(Project::query()->whereKey($test->id)->exists())->toBeTrue();
@@ -281,9 +254,6 @@ it('would be a disaster if clearing left any of the test data behind', function 
         ->and(Offcut::count())->toBe(0)
         ->and(Bar::count())->toBe(0)
         ->and(DB::table('piece_quote')->count())->toBe(0);
-
-    //The real price book side of it is untouched
-    expect(Supplier::count())->toBe(1);
 });
 
 it('would be a disaster if clearing a sandbox reached live work', function () {
