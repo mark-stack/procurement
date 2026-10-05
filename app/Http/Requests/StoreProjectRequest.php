@@ -4,7 +4,6 @@ namespace App\Http\Requests;
 
 use App\Models\Project;
 use App\PrerequisiteConditions\PrerequisiteConditions;
-use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -17,6 +16,13 @@ class StoreProjectRequest extends FormRequest
     public const MAX_FILES = 5;
 
     public const MAX_FILE_KILOBYTES = 1024;
+
+    /**
+     * The finished project whose name this one is taking, resolved while validating.
+     *
+     * @see self::finishedProjectHoldingTheName()
+     */
+    private ?Project $projectToRetire = null;
 
     public function authorize(): bool
     {
@@ -58,6 +64,27 @@ class StoreProjectRequest extends FormRequest
             ->where("projects.done", false)
             ->pluck("projects.name")
             ->toArray();
+
+        /*
+         * A finished job is not holding its name.
+         *
+         * The list above is every project not yet marked done, and a project that went all the way
+         * through - quoted, ordered, delivered, its batch closed - keeps that flag until its owner
+         * retires it by hand. So a name whose job is over, and which the board stopped showing when
+         * the batch was marked done, was still refused here; the user was told to go and mark done
+         * a project they could only find under Past Batches.
+         *
+         * Finished is deliberately not read off projects.done - see Project::isFinished, which asks
+         * the batches. Only a project this user may retire on their own is let go of: a colleague's
+         * is not ours to file away, and that is markProjectDone's second condition.
+         */
+        $finishedClash = $this->finishedProjectHoldingTheName();
+
+        if ($finishedClash !== null) {
+            $allCurrentProjectNames = array_values(
+                array_diff($allCurrentProjectNames, [$finishedClash->name]),
+            );
+        }
 
         return [
             /*
@@ -119,56 +146,57 @@ class StoreProjectRequest extends FormRequest
     }
 
     /**
-     * Name the project standing in the way, when the user can clear it themselves.
+     * The finished project of this user's that is still carrying the requested name, if any.
      *
-     * The uniqueness rule above says "ones marked done are free to reuse" and leaves it there, which
-     * sent the user off to find and retire a project the board may not even be showing any more.
-     * A finished one is the case that matters - its job is over, and holding its name is all it is
-     * still doing - so its id is reported alongside the error and the modal offers to mark it done
-     * and take the name in one press.
+     * Its name is let through the uniqueness rule, and ProjectController::store marks it done once
+     * the new project has actually imported something - the same press the user used to be asked
+     * for, made on their behalf. Nothing here writes: a request that goes on to fail validation for
+     * some other reason must leave the old project exactly as it found it.
      *
      * Only ever a project this user may retire on their own (PrerequisiteConditions::markProjectDone
-     * asks, and answers "your own" among other things), and only a finished one: a live job is not
-     * something to invite somebody to file away just because they reused its name.
+     * asks, and answers "your own" among other things), and only a finished one: a live job keeps
+     * its name, and the rejection the user gets for it is the whole story.
      */
-    protected function withValidator(Validator $validator): void
+    public function finishedProjectHoldingTheName(): ?Project
     {
-        $validator->after(function (Validator $validator): void {
-            //Nothing to offer unless the name is what was rejected
-            if (! $validator->errors()->has('name')) {
-                return;
-            }
+        if ($this->projectToRetire !== null) {
+            return $this->projectToRetire;
+        }
 
-            $user = auth()->user();
+        $name = $this->input('name');
 
-            /*
-             * Off Project rather than through Business::projects(), which is an untyped
-             * HasManyThrough and hands back a bare Model - see the same choice in
-             * Business::projectsReadyForBatching.
-             */
-            $clash = Project::query()
-                ->whereRelation('user', 'business_id', $user->business->id)
-                ->where('done', false)
-                ->where('name', $this->input('name'))
-                ->first();
+        if (! is_string($name) || $name === '') {
+            return null;
+        }
 
-            if ($clash === null || ! $clash->isFinished()) {
-                return;
-            }
+        $user = auth()->user();
 
-            if (! (new PrerequisiteConditions)->markProjectDone($user, $clash)) {
-                return;
-            }
+        /*
+         * Off Project rather than through Business::projects(), which is an untyped
+         * HasManyThrough and hands back a bare Model - see the same choice in
+         * Business::projectsReadyForBatching.
+         */
+        $clash = Project::query()
+            ->whereRelation('user', 'business_id', $user->business->id)
+            ->where('done', false)
+            ->where('name', $name)
+            ->first();
 
-            //Just the id - the modal already has the name, the user typed it
-            $validator->errors()->add('name_clash_project_id', (string) $clash->id);
-        });
+        if ($clash === null || ! $clash->isFinished()) {
+            return null;
+        }
+
+        if (! (new PrerequisiteConditions)->markProjectDone($user, $clash)) {
+            return null;
+        }
+
+        return $this->projectToRetire = $clash;
     }
 
     public function messages(): array
     {
         return [
-            'name.not_in' => 'Pick a name different to your other projects - ones marked done are free to reuse',
+            'name.not_in' => 'Pick a name different to your other live projects - a name comes free once its job is finished or marked done',
             'date_fabrication_begins.required' => 'Tell us when fabrication begins - the materials have to be quoted, ordered and delivered before then.',
             'project_manager_id.exists' => 'Pick a project manager from your own company.',
             'excel.max' => 'Maximum '.self::MAX_FILES.' BOM files can be uploaded.',
