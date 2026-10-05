@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Batch;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\RawMaterialQuote;
@@ -345,6 +346,54 @@ it('would be a disaster if a failed extraction blocked retrying the same name', 
     expect(session('warning'))->toBeNull()
         ->and(Project::count())->toBe(1)
         ->and(RawMaterialQuote::count())->toBeGreaterThan(0);
+});
+
+it('retires the finished project whose name the new one takes', function () {
+    /**
+     * The other half of letting a finished project's name through. The old job is over - its batch
+     * is closed and it lives under Past Batches - and two projects of the same business cannot both
+     * be live under one name, so it is marked done as the new one is created. That is exactly the
+     * press the user used to be asked for before the upload would be accepted at all.
+     */
+    $business = createBusiness('gmail');
+    recordExampleTemplates($business);
+
+    $user = createUser(1, $business, true, true);
+    seedMasterMaterials();
+
+    $finished = createProject($user);
+    $finished->update(['name' => 'Tower A']);
+    pieceOnBatch($finished, Batch::factory()->forUser($user->id)->create(['done' => true]));
+
+    uploadExampleMaterialList($this, $user, 'Tower A');
+
+    expect(session('warning'))->toBeNull()
+        ->and($finished->fresh()->done)->toBeTruthy()
+        ->and(Project::where('name', 'Tower A')->where('done', false)->count())->toBe(1);
+});
+
+it('would be a disaster if an upload that imported nothing retired the project holding the name', function () {
+    /**
+     * A project that extracts nothing is deleted again so the name can be retried - and the name it
+     * is retried under has to still be there to retry. Retiring the old job beside the create would
+     * file away a finished project on the strength of an upload that then failed, which is a change
+     * the user never asked for and never saw.
+     */
+    $business = createBusiness('gmail');
+    recordExampleTemplates($business);
+
+    //Admin, so an unreadable file throws rather than being swallowed - and no products to match against
+    $user = createUser(1, $business, true, true);
+
+    $finished = createProject($user);
+    $finished->update(['name' => 'Tower A']);
+    pieceOnBatch($finished, Batch::factory()->forUser($user->id)->create(['done' => true]));
+
+    uploadExampleMaterialList($this, $user, 'Tower A');
+
+    expect(session('warning'))->not->toBeNull()
+        ->and($finished->fresh()->done)->toBeFalsy()
+        ->and(Project::where('name', 'Tower A')->count())->toBe(1);
 });
 
 /**

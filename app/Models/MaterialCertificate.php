@@ -79,7 +79,7 @@ class MaterialCertificate extends Model
          * One attached to a batch instead of an order (a shop that bought over the phone) is held to
          * the same idea at the point that idea starts applying to it. There is no order to be sent,
          * so the line is the batch closing: while it is live this is somebody tidying up a file they
-         * have just attached to their own open job, and once it is a past project it is the record.
+         * have just attached to their own open job, and once it is a past batch it is the record.
          */
         if ($this->batch_id !== null) {
             return $this->batch !== null && ! $this->batch->done;

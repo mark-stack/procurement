@@ -15,7 +15,7 @@ uses(RefreshDatabase::class);
  * Named apart from QuoteOrderManagementTest's quoteAndOrder() - pest loads every test file into the
  * one process, so a second declaration of that name is a fatal, not an override.
  */
-function pastProjectOrder(
+function pastBatchOrder(
     User $user,
     Batch $batch,
     string $supplierCategory = 'STEEL_MERCHANT',
@@ -56,7 +56,7 @@ it("would be a disaster if another business's batch could be closed", function (
 
     $this->actingAs($user1);
 
-    $this->post(route('mark.as.past.project', $theirBatch))
+    $this->post(route('mark.as.past.batch', $theirBatch))
         ->assertForbidden();
 
     expect((bool) $theirBatch->fresh()->done)->toBeFalse();
@@ -71,11 +71,11 @@ it('would be a disaster if a batch could be closed with materials still out for 
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
-    pastProjectOrder($user, $batch, orderSent: true, isDelivered: false);
+    pastBatchOrder($user, $batch, orderSent: true, isDelivered: false);
 
     $this->actingAs($user);
 
-    $this->post(route('mark.as.past.project', $batch))
+    $this->post(route('mark.as.past.batch', $batch))
         ->assertForbidden();
 
     expect((bool) $batch->fresh()->done)->toBeFalse();
@@ -89,7 +89,7 @@ it('would be a disaster if a batch could be closed with materials still out for 
  * PrerequisiteConditions::markBatchDone. The fixtures below carried no project at all, which is a
  * shape nothing in the application makes: a batch exists because projects were nested into it.
  */
-function pastProjectBatch(User $user, bool $deliveredByHand = false): Batch
+function pastBatchFor(User $user, bool $deliveredByHand = false): Batch
 {
     $batch = Batch::factory()->forUser($user->id)->create([
         'done' => false,
@@ -105,15 +105,15 @@ it('still closes a batch once its sent orders are delivered', function () {
     $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
-    $batch = pastProjectBatch($user);
-    $order = pastProjectOrder($user, $batch, orderSent: true, isDelivered: true);
+    $batch = pastBatchFor($user);
+    $order = pastBatchOrder($user, $batch, orderSent: true, isDelivered: true);
 
     //Every material row pointing at that sent order, which is what reads as delivered - see BatchStages
     $batch->pieces()->update(['order_id' => $order->id]);
 
     $this->actingAs($user);
 
-    $this->post(route('mark.as.past.project', $batch))
+    $this->post(route('mark.as.past.batch', $batch))
         ->assertRedirect();
 
     expect((bool) $batch->fresh()->done)->toBeTrue();
@@ -131,11 +131,11 @@ it('still closes a batch that never placed an order', function () {
     $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
-    $batch = pastProjectBatch($user, deliveredByHand: true);
+    $batch = pastBatchFor($user, deliveredByHand: true);
 
     $this->actingAs($user);
 
-    $this->post(route('mark.as.past.project', $batch))
+    $this->post(route('mark.as.past.batch', $batch))
         ->assertRedirect();
 
     expect((bool) $batch->fresh()->done)->toBeTrue();
@@ -149,12 +149,12 @@ it('still ignores an order that was drafted but never sent', function () {
     $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
-    $batch = pastProjectBatch($user, deliveredByHand: true);
-    pastProjectOrder($user, $batch, orderSent: false, isDelivered: false);
+    $batch = pastBatchFor($user, deliveredByHand: true);
+    pastBatchOrder($user, $batch, orderSent: false, isDelivered: false);
 
     $this->actingAs($user);
 
-    $this->post(route('mark.as.past.project', $batch))
+    $this->post(route('mark.as.past.batch', $batch))
         ->assertRedirect();
 
     expect((bool) $batch->fresh()->done)->toBeTrue();
@@ -170,11 +170,11 @@ it('would be a disaster if a batch nobody has delivered could be closed', functi
     $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
-    $batch = pastProjectBatch($user);
+    $batch = pastBatchFor($user);
 
     $this->actingAs($user);
 
-    $this->post(route('mark.as.past.project', $batch))
+    $this->post(route('mark.as.past.batch', $batch))
         ->assertForbidden();
 
     expect((bool) $batch->fresh()->done)->toBeFalse();
@@ -186,17 +186,17 @@ it('would be a disaster if a colleague with no job on the batch could close it',
     $user = createUser(1, $business, false, true);
     $colleague = createUser(2, $business, false, true);
 
-    $batch = pastProjectBatch($user, deliveredByHand: true);
+    $batch = pastBatchFor($user, deliveredByHand: true);
 
     $this->actingAs($colleague);
 
-    $this->post(route('mark.as.past.project', $batch))
+    $this->post(route('mark.as.past.batch', $batch))
         ->assertForbidden();
 
     expect((bool) $batch->fresh()->done)->toBeFalse();
 });
 
-it("would be a disaster if past projects listed another business's batches", function () {
+it("would be a disaster if past batches listed another business's batches", function () {
     $business1 = createBusiness('biz1');
     $user1 = createUser(1, $business1, false, true);
     $mine = Batch::factory()->forUser($user1->id)->create(['done' => true]);
@@ -208,7 +208,7 @@ it("would be a disaster if past projects listed another business's batches", fun
 
     $this->actingAs($user1);
 
-    $response = $this->get(route('past.projects.index'))->assertOk();
+    $response = $this->get(route('past.batches.index'))->assertOk();
 
     $listedIds = collect($response->viewData('page')['props']['pastBatches'])->pluck('id');
 
@@ -217,30 +217,36 @@ it("would be a disaster if past projects listed another business's batches", fun
         ->not->toContain($stillActive->id);
 });
 
-it('counts the orders a batch needed, not the drafts it accumulated', function () {
+it('counts a closed batch the way the live card counts it', function () {
     /*
-     * A plain orders count reported every draft row. BatchService::totalOrdersQty counts unique
-     * supplier categories for exactly this reason, and past projects has to agree with it - including
-     * for the group whose order was drafted and never sent.
+     * The two numbers under the card's buttons. Both are read off the material on the batch, the way
+     * NestingIndexController reads them for a live card, so a batch says the same thing the day
+     * after it closes as the day before: the cuts are the pieces' quantities summed rather than the
+     * rows counted, and the categories are the supplier groups the material falls into.
+     *
+     * This page used to count Order rows instead, which is a different question with a different
+     * answer - a batch bought over the phone and marked ordered by hand has no order row at all.
      */
     $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
 
     $batch = Batch::factory()->forUser($user->id)->create(['done' => true]);
+    $project = createProject($user);
 
-    //One sent, one never sent - two groups either way
-    pastProjectOrder($user, $batch, supplierCategory: 'STEEL_MERCHANT');
-    pastProjectOrder($user, $batch, supplierCategory: 'FASTENERS', orderSent: false, isDelivered: false);
+    //Two lines of demand, twelve cuts off the saw - and both of them steel
+    pieceOnBatch($project, $batch)->update(['actual_qty' => 10]);
+    pieceOnBatch($project, $batch)->update(['actual_qty' => 2]);
 
     $this->actingAs($user);
 
-    $response = $this->get(route('past.projects.index'))->assertOk();
+    $response = $this->get(route('past.batches.index'))->assertOk();
     $row = collect($response->viewData('page')['props']['pastBatches'])->firstWhere('id', $batch->id);
 
-    expect($row['ordersQty'])->toBe(2);
+    expect($row['cutCount'])->toBe(12)
+        ->and($row['categoryCount'])->toBe(1);
 });
 
-it('sends past projects nothing but the project names it renders', function () {
+it('sends past batches nothing but the project names it renders', function () {
     /*
      * The table labels each row with project names and reads nothing else off them. This used to ship
      * Batch::projects() - every project's owner and its whole raw material quote tree - plus a
@@ -255,17 +261,17 @@ it('sends past projects nothing but the project names it renders', function () {
 
     $this->actingAs($user);
 
-    $response = $this->get(route('past.projects.index'))->assertOk();
+    $response = $this->get(route('past.batches.index'))->assertOk();
     $row = collect($response->viewData('page')['props']['pastBatches'])->firstWhere('id', $batch->id);
 
-    expect(array_keys($row))->toBe(['id', 'createdAt', 'projectManagers', 'batchedBy', 'projects', 'ordersQty'])
+    expect(array_keys($row))->toBe(['id', 'createdAt', 'projectManagers', 'batchedBy', 'projects', 'cutCount', 'categoryCount'])
         ->and($row['projects'])->toHaveCount(1)
         //Still just the names: the managers arrive as one joined string, not as the owners themselves
         ->and(array_keys($row['projects'][0]))->toBe(['id', 'name'])
         ->and($row['projectManagers'])->toBeString();
 });
 
-it('would be a disaster if past projects credited a batch to the wrong person', function () {
+it('would be a disaster if past batches credited a batch to the wrong person', function () {
     /*
      * "Start quoting" sweeps in every project that was ready, colleagues' included, and the batch
      * belongs to whoever pressed it. This row used to be labelled with that person - so a batch
@@ -280,7 +286,7 @@ it('would be a disaster if past projects credited a batch to the wrong person', 
 
     $this->actingAs($batcher);
 
-    $response = $this->get(route('past.projects.index'))->assertOk();
+    $response = $this->get(route('past.batches.index'))->assertOk();
     $row = collect($response->viewData('page')['props']['pastBatches'])->firstWhere('id', $batch->id);
 
     //The owner of the work, not the person who nested it
@@ -299,14 +305,14 @@ it('would be a disaster if a batch spanning two managers named only one', functi
 
     $this->actingAs($user);
 
-    $response = $this->get(route('past.projects.index'))->assertOk();
+    $response = $this->get(route('past.batches.index'))->assertOk();
     $row = collect($response->viewData('page')['props']['pastBatches'])->firstWhere('id', $batch->id);
 
     expect($row['projectManagers'])->toContain($user->name)
         ->and($row['projectManagers'])->toContain($colleague->name);
 });
 
-it('reads past projects in a fixed number of queries however many batches it holds', function () {
+it('reads past batches in a fixed number of queries however many batches it holds', function () {
     /*
      * This list only ever grows and nothing caps the row count. It used to make nine
      * queries a row - the batch's user, the project tree, and an orders count, one batch at a time.
@@ -318,7 +324,7 @@ it('reads past projects in a fixed number of queries however many batches it hol
         foreach (range(1, $batches) as $i) {
             $batch = Batch::factory()->forUser($user->id)->create(['done' => true]);
             pieceOnBatch(createProject($user), $batch);
-            pastProjectOrder($user, $batch);
+            pastBatchOrder($user, $batch);
         }
     };
 
@@ -329,7 +335,7 @@ it('reads past projects in a fixed number of queries however many batches it hol
             $queries++;
         });
 
-        $this->get(route('past.projects.index'))->assertOk();
+        $this->get(route('past.batches.index'))->assertOk();
 
         return $queries;
     };
@@ -342,7 +348,7 @@ it('reads past projects in a fixed number of queries however many batches it hol
      * inertia props, and both stay hydrated on the guard afterwards. Warm those two off before
      * counting, or the first leg is charged for them and the second is not.
      */
-    $this->get(route('past.projects.index'))->assertOk();
+    $this->get(route('past.batches.index'))->assertOk();
 
     $twoBatches = $countQueries();
 

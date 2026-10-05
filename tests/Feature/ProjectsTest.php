@@ -167,7 +167,7 @@ it('would be a disaster if user could edit other staff projects', function () {
      * card carried a live Edit button beside a greyed-out Done one.
      *
      * Edit is not the smaller of the two: the name is how the rest of the business recognises
-     * the project on the board and in Past Projects, and date_materials_required drives the
+     * the project on the board and in Past Batches, and date_materials_required drives the
      * critical path and every deadline reminder its owner is sent.
      */
     $business = createBusiness('gmail');
@@ -388,12 +388,16 @@ it('would be a disaster if a finished batch let a project off a live one be mark
     expect($project->fresh()->done)->toBeFalsy();
 });
 
-it('names the finished project holding a name the user is trying to reuse', function () {
+it('does not let a finished project hold on to its name', function () {
     /**
-     * The rejection used to be the whole story: "pick a name different to your other projects".
-     * The project in the way has finished, so the board stopped drawing it when its batch was
-     * marked done, and the user was sent hunting for something they could not see. Its id comes
-     * back with the error so the modal can offer to mark it done and take the name in one press.
+     * The uniqueness check reads projects.done, which is the owner's own filing of a job and stays
+     * false until somebody sets it by hand. So a job that went all the way through - quoted,
+     * ordered, delivered, its batch closed - kept its name, and the only way to get it back was to
+     * go and retire a project the board stopped drawing when the batch was marked done. The name is
+     * let through here and the old project is retired on the way out of ProjectController::store.
+     *
+     * Only the name is being asserted on - the empty upload is still refused, which is the point:
+     * nothing is retired by a request that goes no further than validation.
      */
     $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
@@ -411,15 +415,15 @@ it('names the finished project holding a name the user is trying to reuse', func
             'excel' => [],
         ]);
 
-    $response->assertInvalid('name');
-    expect(session('errors')->first('name_clash_project_id'))->toBe((string) $finished->id);
+    $response->assertValid('name');
+    expect($finished->fresh()->done)->toBeFalsy();
 });
 
-it('does not offer to retire a live project whose name was reused', function () {
+it('would be a disaster if a live project could have its name taken', function () {
     /**
-     * The offer is for a job that is over and is doing nothing but holding its name. A project
-     * still being worked on is not something to invite somebody to file away because they happened
-     * to type its name - they get the plain rejection and pick another one.
+     * Only a job that is over gives its name up. A project still being worked on is drawn on every
+     * colleague's board under that name, and nothing downstream - the cut drawings, the BOM
+     * download, every notification - could tell two of them apart.
      */
     $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
@@ -438,13 +442,13 @@ it('does not offer to retire a live project whose name was reused', function () 
         ]);
 
     $response->assertInvalid('name');
-    expect(session('errors')->has('name_clash_project_id'))->toBeFalse();
 });
 
-it('does not offer to retire a colleague’s finished project', function () {
+it('would be a disaster if a colleague’s finished project were retired to free its name', function () {
     /**
-     * Only the owner may retire a project (markProjectDone condition 2), so offering the button to
-     * anybody else is offering a press that comes back 403.
+     * Freeing the name retires the project holding it, and only the owner may retire a project
+     * (markProjectDone condition 2). Taking a colleague's name would file their job away for them,
+     * on nothing but somebody else typing it - so they get the plain rejection and pick another.
      */
     $business = createBusiness('gmail');
     $user = createUser(1, $business, false, true);
@@ -464,7 +468,7 @@ it('does not offer to retire a colleague’s finished project', function () {
         ]);
 
     $response->assertInvalid('name');
-    expect(session('errors')->has('name_clash_project_id'))->toBeFalse();
+    expect($theirs->fresh()->done)->toBeFalsy();
 });
 
 it('would be a disaster if a project marked done before nesting could not be reopened', function () {
@@ -512,7 +516,7 @@ it('would be a disaster if restoring a project put two of the same name on the b
      * for two different jobs.
      *
      * Nothing downstream can tell them apart for a person: two identical cards, the name twice in
-     * Past Projects, and a colleague pressing "Start quoting" nests both into one batch whose spec
+     * Past Batches, and a colleague pressing "Start quoting" nests both into one batch whose spec
      * sheet, BOM download and notifications all name "Tower A". Steel gets cut for the wrong one.
      */
     $business = createBusiness('gmail');

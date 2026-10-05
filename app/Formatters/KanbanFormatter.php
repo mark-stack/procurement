@@ -173,7 +173,7 @@ class KanbanFormatter
 
         foreach ($batchesForDelivering as $batch) {
             /*
-             * The card's "everything is in" test has to be the one MarkAsPastProjectController applies,
+             * The card's "everything is in" test has to be the one MarkAsPastBatchController applies,
              * or the "Move to done" button it draws lies about what the post will do.
              *
              * This used to read "delivered rows === unique supplier categories", which compared two
@@ -211,7 +211,7 @@ class KanbanFormatter
                     "allDelivered" => $allDelivered,
                     "steelMerchantDeliveredButNoCertsYet" => $steelMerchantDeliveredButNoCertsYet,
                     /*
-                     * The day this card closes itself and becomes a past project.
+                     * The day this card closes itself and becomes a past batch.
                      *
                      * Read off DeliveredBatchAutoDone rather than computed here, so the date the board
                      * promises is the date the schedule keeps - and null wherever that sweep holds off:

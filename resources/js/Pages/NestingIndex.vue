@@ -403,7 +403,7 @@
      * quietly inside it is a card you would scroll past looking for that job. Several names make a long
      * heading, so it truncates and the whole of it is on hover.
      *
-     * A batch with none of yours on it - which only the "Only my projects" switch can show you - is
+     * A batch with none of yours on it - which only the "Only my materials" switch can show you - is
      * headed by the oldest job on it instead, named with its manager. Every card then says what the
      * work is rather than what number it was given.
      *
@@ -514,8 +514,8 @@
      * stamped DO NOT CUT, its nest being a suggestion until quoting saves one; see
      * SuggestedNestingController.
      *
-     * Always "current", there being no finished batch on this page to close back to /past-projects -
-     * those are read from /past-projects itself. See NestingIndexController.
+     * Always "current", there being no finished batch on this page to close back to /past-batches -
+     * those are read from /past-batches itself. See NestingIndexController.
      */
     function nestingHref(batch) {
         if (batch.stage === 'NESTING') {
@@ -602,12 +602,12 @@
     }
 
     /**
-     * "Move to done" - the job is over, and the batch belongs in Past Projects.
+     * "Move to done" - the job is over, and the batch belongs in Past Batches.
      *
      * The board's own button, pressed from here: the same post to the same route, which is all that
      * was left of it once the board was deleted. It is the one press on this page that takes a card
      * off it, and without it nothing did - a batch stayed live however finished it was, this list
-     * grew by a card a job, and Past Projects could gain nothing.
+     * grew by a card a job, and Past Batches could gain nothing.
      *
      * The last mark left in this menu, the three "All" ones having gone to the order list, where they
      * are asked a merchant at a time. This one never belonged with them: it is not a claim about how
@@ -621,16 +621,16 @@
         askToConfirm({
             title: "Move this batch to done?",
             message: `Batch ${batch.id} (${projectNames(batch.projects)}) will come off this page and`
-                + ` be read from Past Projects, where its nesting is still printable.`,
+                + ` be read from Past Batches, where its nesting is still printable.`,
             note: "Nothing re-opens a closed batch.",
             confirmLabel: "Move to done",
-            onConfirmed: () => markBatch(batch, 'mark.as.past.project', formMarkDone),
+            onConfirmed: () => markBatch(batch, 'mark.as.past.batch', formMarkDone),
         });
     }
 
     function markDoneTitle(batch) {
         return batch.prerequisiteMarkDone
-            ? 'Close this batch and read it from Past Projects'
+            ? 'Close this batch and read it from Past Batches'
             : 'This batch still has material out for delivery, or it carries no project of yours';
     }
 
@@ -1058,7 +1058,7 @@
 </script>
 
 <template>
-    <Head title="Nesting" />
+    <Head title="Current batches" />
 
     <AuthenticatedLayout>
         <!-- Held over "Start quoting" alone, which is the one press on this page that writes - see startQuoting() -->
@@ -1095,7 +1095,7 @@
             <!-- Wraps rather than squeezes: the switch and the button do not fit a phone beside the title -->
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <h1 class="text-lg font-semibold text-gray-800">
-                    Nesting batches
+                    Current batches
                 </h1>
 
                 <div class="flex items-center gap-3">
@@ -1122,7 +1122,7 @@
                                 :class="onlyMine ? 'translate-x-[1.125rem]' : 'translate-x-0.5'"
                             ></span>
                         </span>
-                        Only my projects
+                        Only my materials
                     </button>
 
                     <!--

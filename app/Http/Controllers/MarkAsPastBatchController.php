@@ -9,7 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
-class MarkAsPastProjectController extends Controller
+class MarkAsPastBatchController extends Controller
 {
     /**
      * Handle the incoming request.
@@ -53,7 +53,7 @@ class MarkAsPastProjectController extends Controller
         //The card just disappears off the board otherwise, with nothing to say where it went
         return back()->with(
             'success',
-            "Batch {$batch->id} has been moved to done. You'll find it under Past Projects.",
+            "Batch {$batch->id} has been moved to done. You'll find it under Past Batches.",
         );
     }
 }

@@ -39,7 +39,7 @@
      * 3 above a list of two is the sort of thing that makes people stop trusting the badge.
      */
     const unreadCount = computed(() => notifications.value.length);
-    const hasPastProjects = computed(() => page.props.auth.hasPastProjects);
+    const hasPastBatches = computed(() => page.props.auth.hasPastBatches);
     //computed, not read once: the nav alert has to clear when an import fills the catalogue,
     //not stay red until the next full page load
     const hasSeedImport = computed(() => page.props.hasSeedImport);
@@ -157,15 +157,15 @@
                         title="Every live batch, and its nesting"
                         :class="[barLink, isActive(route('dashboard')) ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white']"
                     >
-                        Nesting
+                        Current batches
                     </Link>
                     <Link
-                        v-if="hasPastProjects"
-                        :href="route('past.projects.index')"
-                        title="Past Projects"
-                        :class="[barLink, isActive(route('past.projects.index')) ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white']"
+                        v-if="hasPastBatches"
+                        :href="route('past.batches.index')"
+                        title="Past Batches"
+                        :class="[barLink, isActive(route('past.batches.index')) ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/5 hover:text-white']"
                     >
-                        Past Projects
+                        Past Batches
                     </Link>
                 </nav>
             </div>
@@ -406,15 +406,15 @@
                                 :class="[panelLink, isActive(route('dashboard')) ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-700']"
                             >
                                 <i class="w-4 text-center fa-solid fa-bars-staggered"></i>
-                                <span>Nesting</span>
+                                <span>Current batches</span>
                             </Link>
                             <Link
-                                v-if="hasPastProjects"
-                                :href="route('past.projects.index')"
-                                :class="[panelLink, isActive(route('past.projects.index')) ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-700']"
+                                v-if="hasPastBatches"
+                                :href="route('past.batches.index')"
+                                :class="[panelLink, isActive(route('past.batches.index')) ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-700']"
                             >
                                 <i class="w-4 text-center fa-solid fa-clock-rotate-left"></i>
-                                <span>Past Projects</span>
+                                <span>Past Batches</span>
                             </Link>
                         </div>
                     </Transition>

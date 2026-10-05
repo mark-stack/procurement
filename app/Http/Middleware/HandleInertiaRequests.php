@@ -43,7 +43,7 @@ class HandleInertiaRequests extends Middleware
                 //on the page can tell that the session is not really theirs
                 'impersonating' => (bool) $request->session()->get('impersonator_id'),
                 'notifications' => (new NotificationService)->getUnreadNotifications($request->user()),
-                "hasPastProjects" => (bool) $request->user()?->business?->batches()->inactive()->exists(),
+                "hasPastBatches" => (bool) $request->user()?->business?->batches()->inactive()->exists(),
             ],
             /*
              * Trial countdown and read-only state, for the banner that every authenticated page

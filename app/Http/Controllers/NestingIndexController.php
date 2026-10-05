@@ -38,13 +38,13 @@ class NestingIndexController extends Controller
      * One card per column of the board, in the order the board runs: the Nesting column first, which is
      * a batch in waiting - everything ready to be nested, which "Start quoting" sweeps into one batch -
      * then the three columns of live batches. That first card is always there, empty or not, because it
-     * is the only batch an upload can join; the page keeps it out of the "Only my projects" filter for
+     * is the only batch an upload can join; the page keeps it out of the "Only my materials" filter for
      * the same reason.
      *
      * Finished batches are deliberately not here. They are nested, bought and delivered: there is
      * nothing left on them to nest or to buy, which is every button a card carries, and the list of them
      * only grows - it would be the one part of the page with no ceiling, burying the handful of batches
-     * somebody opened this page to work on. /past-projects is where a finished batch is read, and its
+     * somebody opened this page to work on. /past-batches is where a finished batch is read, and its
      * nesting is reachable from there.
      *
      * That sentence needs a way for a batch to become finished, and for a while there was not one: the
@@ -58,7 +58,7 @@ class NestingIndexController extends Controller
      * and "done" is the one answer that keeps a batch off the page entirely. What the card's pill says
      * is a step further on; see milestoneOf().
      *
-     * Every one of them is sent whatever the "Only my projects" switch is set to, and each card says
+     * Every one of them is sent whatever the "Only my materials" switch is set to, and each card says
      * whether it is one of yours. The switch is a filter over a list the page already holds, so
      * flicking it costs nothing - and it is one more card per batch, not one more query per flick.
      */
@@ -360,7 +360,7 @@ class NestingIndexController extends Controller
                         : null,
                     /*
                      * And the way off the page: "Move to done", which closes the batch and sends its
-                     * projects to Past Projects.
+                     * projects to Past Batches.
                      *
                      * The exception among the marks, and the last one left that is not about buying.
                      * It is asked of a delivered batch however that batch got delivered - the marks
@@ -429,7 +429,7 @@ class NestingIndexController extends Controller
             }
 
             /*
-             * The jobs on this batch, which answer both the card's heading and the "Only my projects"
+             * The jobs on this batch, which answer both the card's heading and the "Only my materials"
              * switch - see projectCards() for which of them counts as yours.
              */
             $batchProjects = $projects->whereIn('id', $projectIdsByBatch->get($batch['id'], []));
@@ -606,7 +606,7 @@ class NestingIndexController extends Controller
     }
 
     /**
-     * Whether this card is one of yours, which is the whole of what the "Only my projects" switch asks.
+     * Whether this card is one of yours, which is the whole of what the "Only my materials" switch asks.
      *
      * A job you manage, or one you put on the system for somebody else - Project::isManagedBy, the same
      * line that decides whose material lists you may change. The switch is on by default, so anything
@@ -1090,8 +1090,9 @@ class NestingIndexController extends Controller
     /**
      * Those groups by name, which is the same question the pill asks - see fullyQuotedBatchIds().
      *
-     * The names are the keys of SupplierFormatter::supplierGroups, which is what a quote records in
-     * supplier_category, so the two lists can be compared directly.
+     * The matching itself lives on SupplierFormatter, beside the groups it is matching against:
+     * PastBatchesController counts the same thing for a closed batch's card, and two copies of it
+     * would let the two pages print different numbers of merchants for the same material.
      *
      * @param  array<int, string|null>  $productCategories
      * @param  array<string, array<int, string>>  $supplierGroups
@@ -1099,15 +1100,7 @@ class NestingIndexController extends Controller
      */
     private function supplierGroupsFor(array $productCategories, array $supplierGroups): array
     {
-        $matched = [];
-
-        foreach ($supplierGroups as $supplierGroup => $includedProducts) {
-            if (array_intersect($productCategories, $includedProducts) !== []) {
-                $matched[] = (string) $supplierGroup;
-            }
-        }
-
-        return $matched;
+        return (new SupplierFormatter)->groupsFor($productCategories, $supplierGroups);
     }
 
     /**

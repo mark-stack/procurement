@@ -680,7 +680,7 @@ it('calls the batch delivered once every merchant on it has been marked in', fun
 
     //And the press it unblocked really is allowed, not merely drawn
     $this->withoutExceptionHandling();
-    $this->post(route('mark.as.past.project', $batch))->assertRedirect();
+    $this->post(route('mark.as.past.batch', $batch))->assertRedirect();
 
     expect((bool) $batch->refresh()->done)->toBeTrue();
 });

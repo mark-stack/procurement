@@ -229,6 +229,24 @@ class ProjectController extends Controller
         }
 
         /*
+         * The finished project that was carrying this name, retired now the new one has earned it.
+         *
+         * StoreProjectRequest let the name through on the strength of that project being finished and
+         * this user being allowed to retire it; this is the other half, and it is deliberately down
+         * here rather than beside the create above. A project that imports nothing is deleted a few
+         * lines up so the name can be retried - and retiring somebody's old job as a side effect of
+         * an upload that then failed would be a change they never asked for and never saw.
+         *
+         * Re-asked rather than trusted: validation ran before any of the importing above.
+         */
+        $clash = $request->finishedProjectHoldingTheName();
+
+        if ($clash !== null && (new PrerequisiteConditions)->markProjectDone($user, $clash)) {
+            $clash->done = true;
+            $clash->save();
+        }
+
+        /*
          * Nothing is said about a template having been written: from the customer's side the file
          * simply imported, which is the whole point of writing one. The template itself is the
          * record - see TemplateLearningService - and an admin reviews it there.

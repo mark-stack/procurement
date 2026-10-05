@@ -1,6 +1,6 @@
 <script setup>
     //General Imports
-    import {router, useForm, usePage} from "@inertiajs/vue3";
+    import {useForm, usePage} from "@inertiajs/vue3";
 
     //Component Imports
     import Modal from "@/Layouts/Modal.vue";
@@ -110,12 +110,6 @@
     const unreadableFiles = computed(
         () => formProjectCreate.excel.filter(file => unreadableFileNames.value.includes(file.name))
     );
-
-    /**
-     * The finished project holding the name the user just asked for, if there is one and they
-     * are allowed to retire it themselves. Reported by StoreProjectRequest::withValidator.
-     */
-    const nameClashProjectId = computed(() => formProjectCreate.errors.name_clash_project_id ?? null);
 
     /**
      * Every per-file rule reports under its own key ("excel.0"), which the single
@@ -399,46 +393,6 @@
         freezeView.value = false;
 
         emit('closeModal');
-    }
-
-    /**
-     * Mark done the finished project sitting on this name, then try again.
-     *
-     * Both halves matter: marking it done on its own would leave the user looking at the same rejected
-     * form with no sign that the obstacle is gone, and the files are still attached - this whole
-     * modal is built to survive a failed attempt now - so the retry costs nothing.
-     *
-     * preserveState keeps that attached work through that round-trip. Without it Inertia
-     * remounts, and the second upload is as annoying as the one this all started with.
-     */
-    function markDoneAndRetry(){
-        if(!nameClashProjectId.value || freezeView.value){
-            return;
-        }
-
-        freezeView.value = true;
-
-        router.delete(route("projects.destroy", nameClashProjectId.value), {
-            preserveScroll: true,
-            preserveState: true,
-            onSuccess: () => {
-                freezeView.value = false;
-
-                /*
-                 * Marking it done can still be refused - by reopenProjectNameIsFree's opposite number
-                 * or a gate - and it says so in its own error. Resubmitting on top of that would
-                 * replace the explanation with the same name rejection as before.
-                 */
-                if(usePage().props.errors?.done){
-                    return;
-                }
-
-                submit();
-            },
-            onError: () => {
-                freezeView.value = false;
-            },
-        });
     }
 
     function removeFile(fileName){
@@ -739,23 +693,11 @@
                                     <div v-if="formProjectCreate.errors.name" class="text-sm text-red-500">{{ formProjectCreate.errors.name }}</div>
 
                                     <!--
-                                        The way through, where there is one.
-
-                                        Only drawn for a finished project this user may retire -
-                                        StoreProjectRequest decides that and sends the id. Without
-                                        it the message above is the whole story, and the user is
-                                        left hunting for a project whose job is over and which the
-                                        board stopped showing when its batch was marked done.
+                                        No "mark it done and use the name" press here any more: a
+                                        finished project no longer holds its name at all, so the
+                                        only names left to reject are live ones. See
+                                        StoreProjectRequest::finishedProjectHoldingTheName.
                                     -->
-                                    <button
-                                        v-if="nameClashProjectId"
-                                        type="button"
-                                        class="mt-2 text-sm font-semibold text-blue-700 dark:text-blue-400 underline hover:text-blue-900 dark:hover:text-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
-                                        :disabled="formProjectCreate.processing || freezeView"
-                                        @click="markDoneAndRetry()"
-                                    >
-                                        "{{ projectName }}" is a finished project - mark it done and use the name
-                                    </button>
                                 </div>
 
                                 <!--

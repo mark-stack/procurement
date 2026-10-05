@@ -73,7 +73,7 @@ class BatchCertificateController extends Controller
         Gate::authorize('owned', $batch);
 
         /*
-         * A closed batch takes no more paperwork. It is a past project, its certificates are its
+         * A closed batch takes no more paperwork. It is a past batch, its certificates are its
          * record, and MaterialCertificate::isDeletable has already stopped them being removed - this
          * is the same line drawn on the way in.
          */

@@ -101,7 +101,7 @@ class DeliveredBatchAutoDone
          * Asked through BatchStages so that "in the Delivering column" means here what it means on the
          * board. The stage matters as much as the delivery dates do: a batch carrying a material row
          * that never matched a product reads as ORDERING - something on the job was never bought - and
-         * a batch like that must not quietly become a past project just because the orders that do
+         * a batch like that must not quietly become a past batch just because the orders that do
          * exist have all arrived.
          */
         $staged = (new BatchStages)->forBusiness($business);

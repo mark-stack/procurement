@@ -259,7 +259,7 @@ class PrerequisiteConditions
          * The same answer markProjectDone gives, and for the same reason. The Nesting column is
          * shared, so every colleague's project carried a live Edit button beside a greyed-out
          * Done one - and Edit is not the smaller of the two. The name is how the rest of the
-         * business recognises the project on the board and in Past Projects, and
+         * business recognises the project on the board and in Past Batches, and
          * date_materials_required drives the critical path and every deadline notification the
          * owner receives. A colleague could move both, silently, with nothing recording that
          * they had.
@@ -548,13 +548,13 @@ class PrerequisiteConditions
     }
 
     /**
-     * And "Move to done" - the job is over and the batch belongs in Past Projects.
+     * And "Move to done" - the job is over and the batch belongs in Past Batches.
      *
      * The board's own button, which is where this lived until the board was deleted: the card that
      * carried it (KanbanMinimalCard.vue) went with the screen, and the route, the gate and the action
      * behind it were left with nothing calling them. Nothing else writes Batch::done - the auto-done
      * sweep aside - so for the weeks since, every batch a shop made stayed live for ever, the one page
-     * in the application grew by a card a job, and Past Projects could never gain another row.
+     * in the application grew by a card a job, and Past Batches could never gain another row.
      *
      * Gated like "Cut" rather than like the buying marks, and for the same reason: closing a batch is
      * not a claim about how it was bought, so a batch ordered through the quotes screen and booked in

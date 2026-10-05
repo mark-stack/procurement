@@ -10,7 +10,7 @@
      *
      *  - The dashboard says the step the work is ON, which is App\Services\BatchStages plus the two
      *    columns it does not cover: NESTING, where a batch is before it exists, and COMPLETED, where it
-     *    goes after - a past project.
+     *    goes after - a past batch.
      *  - The Nesting page says the last step the batch has PASSED, and uses both wordings to do it: the
      *    ing-word while that step is half done (QUOTING is a batch still missing a price from one of
      *    its merchants, ORDERING one with material nobody has bought yet) and the ed-word once it is

@@ -81,7 +81,7 @@
                 <div v-if="redirect">
                     <Link
                         type="button"
-                        :href="redirect === 'current' ? route('dashboard') : route('past.projects.index')"
+                        :href="redirect === 'current' ? route('dashboard') : route('past.batches.index')"
                     >
                         <i class="fa-solid fa-xmark"></i>
                     </Link>

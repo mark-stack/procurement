@@ -20,13 +20,13 @@ class MarkDeliveredBatchesDone extends Command
     protected $signature = 'batches:mark-delivered-done';
 
     protected $description = 'Move batches whose orders were all delivered more than '
-        .DeliveredBatchAutoDone::DAYS_AFTER_DELIVERY.' days ago into past projects';
+        .DeliveredBatchAutoDone::DAYS_AFTER_DELIVERY.' days ago into past batches';
 
     public function handle(): int
     {
         $batches = (new DeliveredBatchAutoDone)->sweep();
 
-        $this->info('Batches moved to past projects: '.count($batches));
+        $this->info('Batches moved to past batches: '.count($batches));
 
         return self::SUCCESS;
     }

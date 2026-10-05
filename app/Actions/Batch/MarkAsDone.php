@@ -6,7 +6,7 @@ use App\Models\Batch;
 use Lorisleiva\Actions\Concerns\AsAction;
 
 /**
- * Close a batch and send its projects to Past Projects.
+ * Close a batch and send its projects to Past Batches.
  *
  * "done" is written here and nowhere else, and nothing in the application sets it back, so this is
  * the one-way door off the kanban. It is an action rather than two lines in a controller because
