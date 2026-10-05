@@ -460,10 +460,18 @@ class PrerequisiteConditions
      * quoted" first. A shop that rings the merchant on Monday and takes delivery on Friday has not
      * skipped a step this application can see, and insisting on the marks in order would only teach
      * people to press all three in a row to get to the true one.
+     *
+     * Refused, like the two above it, once every merchant on the batch has been marked delivered one
+     * at a time - $everyGroupDelivered, which is Batch::everySupplierGroupDelivered for the press and
+     * the card's own answer for the menu. A shop working the order list block by block arrives where
+     * this press jumps to, and the item left live underneath it would be offering to record what the
+     * card's pill is already saying.
      */
-    public function markBatchDelivered(User $user, Batch $batch): bool
+    public function markBatchDelivered(User $user, Batch $batch, bool $everyGroupDelivered): bool
     {
-        return $this->canMarkBatchMilestone($user, $batch) && $batch->delivered_at === null;
+        return $this->canMarkBatchMilestone($user, $batch)
+            && ! $everyGroupDelivered
+            && $batch->delivered_at === null;
     }
 
     /**
@@ -497,6 +505,25 @@ class PrerequisiteConditions
      * is already priced is the caller's question - see BatchMarkGroupQuotedController.
      */
     public function markBatchGroupQuoted(User $user, Batch $batch): bool
+    {
+        return $this->canChangeBatchItself($user, $batch);
+    }
+
+    /**
+     * And the delivered mark said of one merchant - the order list's "Delivered" on a single block.
+     *
+     * The same gate as the two above, for the same reason: it speaks for a merchant, so a sent order
+     * on another block of the batch is none of its business. The shop this is for buys its steel
+     * through the quotes screen and its timber over the phone, and the timber turning up has to be
+     * recordable while the steel is still booked in on a goods receipt.
+     *
+     * Whether this particular merchant may be marked at all is the caller's question, the group being
+     * the thing it knows about - and there is one more of those here than for the other two marks.
+     * A group with a sent order of its own is delivered by receiving that order
+     * (OrderMarkDeliveredController), and the block refuses the mark rather than keeping two answers
+     * to "has it arrived" that can disagree. See BatchMarkGroupDeliveredController.
+     */
+    public function markBatchGroupDelivered(User $user, Batch $batch): bool
     {
         return $this->canChangeBatchItself($user, $batch);
     }

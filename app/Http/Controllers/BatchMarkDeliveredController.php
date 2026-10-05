@@ -30,7 +30,20 @@ class BatchMarkDeliveredController extends Controller
 
         $user = $request->user();
 
-        abort_if(! (new PrerequisiteConditions)->markBatchDelivered($user, $batch), 403);
+        /*
+         * "Has every merchant already been marked in" worked out here rather than taken from the card
+         * that greyed the item, for the reason the two marks before it do the same: the colleague who
+         * marked the last block delivered in the order list did it while this modal was open on
+         * somebody else's screen.
+         */
+        abort_if(
+            ! (new PrerequisiteConditions)->markBatchDelivered(
+                $user,
+                $batch,
+                $batch->everySupplierGroupDelivered($user->business),
+            ),
+            403,
+        );
 
         $batch->update([
             'delivered_at' => now(),

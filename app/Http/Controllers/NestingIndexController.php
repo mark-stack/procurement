@@ -176,12 +176,7 @@ class NestingIndexController extends Controller
             'mine' => $this->mineOf($pendingProjects, $user),
             //Nothing to unpick: this batch has not been nested yet. See the loop below.
             'prerequisiteUndoStartQuoting' => null,
-            //And nothing to call quoted, bought, delivered or cut: there is no batch row to carry a mark
-            'prerequisiteMarkQuoted' => null,
-            'prerequisiteMarkOrdered' => null,
-            'prerequisiteMarkDelivered' => null,
-            'prerequisiteMarkCut' => null,
-            //Nor a job to call finished: this batch has not been nested, let alone bought and cut
+            //And no job to call finished: this batch has not been nested, let alone bought
             'prerequisiteMarkDone' => null,
             //Nor anything for a certificate to be evidence of - nothing here has been bought yet
             'canAttachCertificates' => null,
@@ -228,6 +223,14 @@ class NestingIndexController extends Controller
          * the card saying the prices are still out.
          */
         $fullyMarkedQuoted = $this->fullyMarkedQuotedBatchIds($staged[BatchStages::QUOTING], $supplierGroups);
+
+        /*
+         * And the step after both - the batches whose every merchant has been marked delivered from
+         * the order list. Same reason a third time, and it carries more than the pill: DELIVERED is
+         * what opens "Cut" and "Move to done" on the menu, so a batch answered block by block has to
+         * reach it or it is a card with its steel in and no way off the page.
+         */
+        $fullyMarkedDelivered = $this->fullyMarkedDeliveredBatchIds($staged[BatchStages::QUOTING], $supplierGroups);
 
         /*
          * And the offcuts each batch being quoted has already handed on, which is the other half of
@@ -315,6 +318,7 @@ class NestingIndexController extends Controller
                     in_array($batch->id, $fullyQuoted, true)
                         || in_array($batch->id, $fullyMarkedQuoted, true),
                     in_array($batch->id, $fullyMarkedOrdered, true),
+                    in_array($batch->id, $fullyMarkedDelivered, true),
                 );
 
                 $batches[] = [
@@ -355,68 +359,29 @@ class NestingIndexController extends Controller
                         )
                         : null,
                     /*
-                     * And whether it may offer the two presses that move a batch on without naming a
-                     * supplier - "All quoted" and "All ordered". Same convention again: false is
-                     * greyed with the reason, null is a card that does not ask the question.
-                     *
-                     * The Quoting column alone, like the one above. Past it the batch has a sent
-                     * order behind it and what the pill says is read off the orders and their
-                     * deliveries - a mark set there could only contradict them, which is why the
-                     * gate refuses it too (PrerequisiteConditions::markBatchQuoted).
-                     *
-                     * The pill is what answers "is every merchant already priced" for the quoted one.
-                     * Anything but QUOTING in this column means the prices are in - a sent quote per
-                     * group, every block marked quoted, or every block marked bought, which are the
-                     * three readings milestoneOf has just taken - and a press that claims it again
-                     * has nothing to record. The card said Quoted over a live "All quoted" until this.
-                     *
-                     * The ordered one is given the narrower fact rather than the pill, because the
-                     * pill moving on is no reason to grey it: QUOTED is precisely the batch somebody
-                     * is about to buy. What stops it is the blocks having been bought one at a time,
-                     * which is the reading that put ORDERED on the card to begin with.
-                     */
-                    'prerequisiteMarkQuoted' => $stage === BatchStages::QUOTING
-                        ? (new PrerequisiteConditions)->markBatchQuoted($user, $batch, $milestone !== 'QUOTING')
-                        : null,
-                    'prerequisiteMarkOrdered' => $stage === BatchStages::QUOTING
-                        ? (new PrerequisiteConditions)->markBatchOrdered(
-                            $user,
-                            $batch,
-                            in_array($batch->id, $fullyMarkedOrdered, true),
-                        )
-                        : null,
-                    //And "Delivered", which is the same kind of mark: the steel turned up, nobody named
-                    'prerequisiteMarkDelivered' => $stage === BatchStages::QUOTING
-                        ? (new PrerequisiteConditions)->markBatchDelivered($user, $batch)
-                        : null,
-                    /*
-                     * "Cut" is the exception among the four. It is asked of a delivered batch however
-                     * that batch got delivered - the marks above, or real orders booked in on their
-                     * goods receipts - so it is drawn off the pill rather than the column, and the
-                     * pill is the answer the gate would otherwise go and work out again.
-                     */
-                    'prerequisiteMarkCut' => in_array($milestone, ['DELIVERED', 'CUT'], true)
-                        ? (new PrerequisiteConditions)->markBatchCut($user, $batch, true)
-                        : null,
-                    /*
                      * And the way off the page: "Move to done", which closes the batch and sends its
                      * projects to Past Projects.
                      *
-                     * The same two cards "Cut" is offered on, read off the pill for the same reason -
-                     * a batch is finished when its steel is in, however it got there, and the pill is
-                     * where that has already been worked out. The press itself is the board's, which
-                     * is where it lived until the board was deleted; without it on this card nothing
-                     * in the application closes a batch at all and this list only grows. See
-                     * PrerequisiteConditions::markBatchDone.
+                     * The exception among the marks, and the last one left that is not about buying.
+                     * It is asked of a delivered batch however that batch got delivered - the marks
+                     * above, or real orders booked in on their goods receipts - so it is drawn off
+                     * the pill rather than the column, and the pill is the answer the gate would
+                     * otherwise go and work out again. A batch is finished when its steel is in,
+                     * however it got there.
+                     *
+                     * The press itself is the board's, which is where it lived until the board was
+                     * deleted; without it on this card nothing in the application closes a batch at
+                     * all and this list only grows. See PrerequisiteConditions::markBatchDone.
                      */
                     'prerequisiteMarkDone' => in_array($milestone, ['DELIVERED', 'CUT'], true)
                         ? (new PrerequisiteConditions)->markBatchDone($user, $batch, true)
                         : null,
                     /*
                      * And whether the card may offer to keep the merchant's paperwork against the
-                     * batch itself. The same cards as "Cut", for the same reason in reverse: a
-                     * certificate arrives with the steel, and a batch that has not been delivered has
-                     * nothing to show one for. A closed batch is its own record and takes no more.
+                     * batch itself. The same cards as "Move to done", for the same reason in
+                     * reverse: a certificate arrives with the steel, and a batch that has not been
+                     * delivered has nothing to show one for. A closed batch is its own record and
+                     * takes no more.
                      */
                     'canAttachCertificates' => in_array($milestone, ['DELIVERED', 'CUT'], true)
                         ? ! $batch->done
@@ -751,11 +716,12 @@ class NestingIndexController extends Controller
      * page's card menu and none of them naming a supplier (see the 2026_10_03 migrations). They are
      * read nowhere past that column, because past it there are real orders to read instead.
      *
-     * "It has been bought" has a second spelling, and the pill has to accept it: the order list marks
-     * one merchant at a time, and a batch whose every merchant has been marked there is as bought as
-     * one somebody called bought in a single press. A card still reading Quoting over a modal whose
-     * only block says Ordered is the page disagreeing with itself. "The prices are in" has the same
-     * second spelling, and is folded into $everyCategoryQuoted by the caller for the same reason.
+     * All three have a second spelling, and the pill has to accept each of them: the order list marks
+     * one merchant at a time, and a batch whose every merchant has been marked there is as priced, as
+     * bought, or as delivered as one somebody said so of in a single press. A card still reading
+     * Quoting over a modal whose only block says Ordered is the page disagreeing with itself. The
+     * quoted one is folded into $everyCategoryQuoted by the caller; the other two arrive as their own
+     * arguments, because what they claim is not read any other way in this column.
      *
      * That last one is the whole reason this is not a relabelling of the columns. The Delivering column
      * means every material row points at a sent order, which is a statement about the paperwork going
@@ -772,6 +738,7 @@ class NestingIndexController extends Controller
         bool $everyOrderDelivered,
         bool $everyCategoryQuoted,
         bool $everyGroupMarkedOrdered,
+        bool $everyGroupMarkedDelivered,
     ): string {
         /*
          * Cut is the last step there is and the only one a batch can reach from either side of the
@@ -784,7 +751,7 @@ class NestingIndexController extends Controller
         }
 
         if ($stage === BatchStages::QUOTING) {
-            if ($batch->delivered_at !== null) {
+            if ($batch->delivered_at !== null || $everyGroupMarkedDelivered) {
                 return 'DELIVERED';
             }
 
@@ -980,6 +947,66 @@ class NestingIndexController extends Controller
         }
 
         return $fullyQuoted;
+    }
+
+    /**
+     * And the step after both - the ones whose every merchant has been marked delivered.
+     *
+     * The order list offers that mark on a block once that merchant has been bought from and has no
+     * order on the application to book in (see BatchMarkGroupDeliveredController), which is the
+     * timber the shop rang for. A batch whose every block says "Delivered" has its material in the
+     * rack, which is what the card's own "All delivered" claims in a single press.
+     *
+     * This one carries more than the pill. DELIVERED is what opens "Cut" and "Move to done" on the
+     * card menu, and Batch::isDelivered reads the same marks for the presses behind them - so a batch
+     * answered a merchant at a time leaves the page by the same door as one answered in a press,
+     * rather than sitting on it for ever with its steel in.
+     *
+     * Measured against the same list of merchants as the two methods above, and answering no for a
+     * batch whose material belongs to no supplier group the business's plan covers, for the same
+     * reason: an empty list of merchants is nobody to have taken a delivery from.
+     *
+     * Costs nothing until somebody uses the mark - a batch with none cannot answer yes and never
+     * reaches the query.
+     *
+     * @param  Collection<int, \App\Models\Batch>  $quoting
+     * @param  array<string, array<int, string>>  $supplierGroups
+     * @return array<int, int>
+     */
+    private function fullyMarkedDeliveredBatchIds(Collection $quoting, array $supplierGroups): array
+    {
+        $marked = $quoting->filter(fn (Batch $batch) => ($batch->delivered_supplier_groups ?? []) !== []);
+
+        if ($marked->isEmpty()) {
+            return [];
+        }
+
+        $categoriesByBatch = Piece::query()
+            ->select(['batch_id', 'product_category'])
+            ->whereIn('batch_id', $marked->pluck('id')->all())
+            ->distinct()
+            ->get()
+            ->groupBy('batch_id')
+            ->map(fn ($rows) => $rows->pluck('product_category')->all());
+
+        $fullyDelivered = [];
+
+        foreach ($marked as $batch) {
+            $required = $this->supplierGroupsFor(
+                $categoriesByBatch->get($batch->id, []),
+                $supplierGroups,
+            );
+
+            if ($required === []) {
+                continue;
+            }
+
+            if (array_diff($required, $batch->delivered_supplier_groups ?? []) === []) {
+                $fullyDelivered[] = (int) $batch->id;
+            }
+        }
+
+        return $fullyDelivered;
     }
 
     /**

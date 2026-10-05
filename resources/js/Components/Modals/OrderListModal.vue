@@ -9,9 +9,9 @@
      * certificates that arrived with it. They are one merchant's business either way, so they are one
      * card rather than two places to look.
      *
-     * One block can also be marked quoted and then ordered from here, for the merchant somebody rang
-     * rather than sent a quote request to - see markQuoted() and markOrdered(). Nothing is asked for
-     * or placed by either.
+     * One block can also be marked quoted, then ordered, then delivered from here, for the merchant
+     * somebody rang rather than sent a quote request to - see markQuoted(), markOrdered() and
+     * markDelivered(). Nothing is asked for, placed or booked in by any of them.
      *
      * The open batch is the exception to all of it. That card is still taking material, its nest is a
      * suggestion that changes with the next upload, and anything bought off it would be bought twice -
@@ -110,12 +110,16 @@
     }
 
     //Forms
-    //The two presses this modal has - see markQuoted() and markOrdered()
+    //The three presses this modal has - see markQuoted(), markOrdered() and markDelivered()
     const formMarkQuoted = useForm({
         supplier_group: null,
     });
 
     const formMarkOrdered = useForm({
+        supplier_group: null,
+    });
+
+    const formMarkDelivered = useForm({
         supplier_group: null,
     });
 
@@ -191,6 +195,36 @@
         formMarkOrdered.supplier_group = group.supplierGroup;
 
         formMarkOrdered.post(route('batch.group.ordered', props.orderList.batch_id), {
+            preserveScroll: true,
+            onSuccess: () => emit('refresh'),
+        });
+    }
+
+    /**
+     * "Delivered" on one block - this merchant's steel is in the rack.
+     *
+     * The press a bought block had nothing of. A batch whose steel arrived on Tuesday and whose
+     * timber is still on a lorry is neither delivered nor waiting, and the only mark between the two
+     * was "All delivered" on the card menu, which says both at once.
+     *
+     * It books in nothing: no goods receipt, no order flagged, nobody notified - see
+     * BatchMarkGroupDeliveredController. Marking every merchant is what the card's "All delivered"
+     * claims in one press, so the card reads DELIVERED once the last block is in, and the menu item
+     * greys because there is nothing left for it to record.
+     *
+     * Only ever offered on a merchant this application has no order against. One with a sent order
+     * is delivered by receiving that order, which records who checked the steel and against what,
+     * and a mark beside it would be a second answer to the same question - so canMarkDelivered comes
+     * back false for that block and the route refuses it.
+     */
+    function markDelivered(group) {
+        if (formMarkDelivered.processing) {
+            return;
+        }
+
+        formMarkDelivered.supplier_group = group.supplierGroup;
+
+        formMarkDelivered.post(route('batch.group.delivered', props.orderList.batch_id), {
             preserveScroll: true,
             onSuccess: () => emit('refresh'),
         });
@@ -298,38 +332,93 @@
                         </div>
 
                         <!--
-                            How far this merchant has got: priced, then bought. Green carries the
-                            purchase order number where somebody has typed one in; an order placed
-                            with the number still blank is just as ordered, and says so rather than
-                            reading "Order: " with nothing after it.
+                            How far this merchant has got - priced, bought, then arrived - and the
+                            press for the next of those. The word first and the press after it, so
+                            the heading says where the merchant is before it offers to move them on.
 
                             A pill rather than a fourth tab: it is one fact, and a tab holding one
                             line would be a click to read what fits on the heading.
                         -->
                         <div class="flex items-center gap-2 shrink-0">
                             <!--
-                                The press for a merchant somebody rang. Beside the pill it changes
-                                rather than down in the tab, because it is the answer to the word
-                                that pill is showing - and it says "Mark as", because nothing is
+                                The word for where it has got to, in the colour the card's own menu
+                                uses for that step: the price in but nothing bought is blue, the way
+                                "All quoted" is, and the steel in the rack is teal, the way "All
+                                delivered" is. One state rather than three pills, because a
+                                delivered merchant was bought from and a bought one was priced.
+
+                                The purchase order number rides along on the last two where somebody
+                                typed one in. It is the only place this modal shows it, and a
+                                delivery is not a reason to stop saying which order arrived.
+
+                                First in the row, so the blocks read down the modal as a column of
+                                states: that is the fact somebody opened this to find out, and the
+                                press beside it is what they do about it. Putting the press first
+                                moved the pill left and right as the step changed, because the three
+                                buttons are different widths and some blocks have none at all.
+                            -->
+                            <p
+                                :class="group.delivered
+                                    ? 'text-teal-800 bg-teal-100'
+                                    : (group.ordered
+                                        ? 'text-green-800 bg-green-100'
+                                        : (group.quoted
+                                            ? 'text-blue-800 bg-blue-100'
+                                            : 'text-yellow-800 bg-yellow-100'))"
+                                class="inline-flex items-center h-8 gap-1.5 px-2.5 text-xs font-semibold rounded-lg shrink-0"
+                            >
+                                <i
+                                    :class="group.delivered
+                                        ? 'fa-solid fa-truck'
+                                        : (group.ordered || group.quoted
+                                            ? 'fa-solid fa-check'
+                                            : 'fa-regular fa-clock')"
+                                    class="text-[10px]"
+                                ></i>
+                                <template v-if="group.delivered">
+                                    {{ group.purchaseOrderNumber ? 'Delivered: ' + group.purchaseOrderNumber : 'Delivered' }}
+                                </template>
+                                <template v-else-if="group.ordered">
+                                    {{ group.purchaseOrderNumber ? 'Order: ' + group.purchaseOrderNumber : 'Ordered' }}
+                                </template>
+                                <template v-else-if="group.quoted">
+                                    Quoted
+                                </template>
+                                <template v-else>
+                                    Not quoted
+                                </template>
+                            </p>
+
+                            <!--
+                                And the press for a merchant somebody rang. After the pill it
+                                changes rather than down in the tab, because it is the answer to the
+                                word that pill is showing - and it says "Mark as", because nothing is
                                 asked for or bought by pressing it.
 
                                 One button, and which one is the step this block is actually at: a
-                                merchant nobody has a price from is marked quoted, and a merchant
-                                whose price is in is marked ordered. The block offered the ordered
-                                one from the moment the batch was nested, which on a batch still out
-                                for prices is the press after next, and taking it is how a card goes
-                                from Quoting to Ordered without ever reading Quoted.
+                                merchant nobody has a price from is marked quoted, a merchant whose
+                                price is in is marked ordered, and a merchant who has been bought
+                                from is marked delivered. The block offered the ordered one from the
+                                moment the batch was nested, which on a batch still out for prices is
+                                the press after next, and taking it is how a card goes from Quoting
+                                to Ordered without ever reading Quoted.
+
+                                The delivered one is the last of the three and the only one that can
+                                be refused for this merchant alone: a block with a real order behind
+                                it is delivered by booking that order in, where somebody says who
+                                checked the steel and against what. Two answers to "has it arrived"
+                                that can disagree is worse than one that is sometimes somewhere else.
 
                                 It is not a gate. A shop that rings one merchant and buys in the
                                 same call presses twice here, or presses "All ordered" on the card
                                 menu, which is offered from Quoting exactly as it was before - see
                                 PrerequisiteConditions::markBatchOrdered.
 
-                                Only where there is something to say: a group already bought has
-                                both steps behind it, and the open batch must not be quoted or
-                                ordered from at all. Hidden rather than greyed, unlike the card
-                                menu's marks - this is a block in a list of blocks, and a dead
-                                button on each of them would be the loudest thing in the modal.
+                                Only where there is something to say: a group already delivered has
+                                all three steps behind it, and the open batch must not be quoted,
+                                ordered or delivered from at all. Hidden rather than greyed, unlike
+                                the card menu's marks - this is a block in a list of blocks, and a
+                                dead button on each of them would be the loudest thing in the modal.
                             -->
                             <button
                                 v-if="!group.quoted && group.canMarkQuoted && !isOpenBatch"
@@ -359,36 +448,19 @@
                                 Mark as ordered
                             </button>
 
-                            <!--
-                                And the word for where it has got to, in the colour the card's own
-                                pill uses for that step: the price in but nothing bought is blue,
-                                the way "All quoted" is on the card menu, and it is one state rather
-                                than two pills because a bought merchant was priced first.
-                            -->
-                            <p
-                                :class="group.ordered
-                                    ? 'text-green-800 bg-green-100'
-                                    : (group.quoted
-                                        ? 'text-blue-800 bg-blue-100'
-                                        : 'text-yellow-800 bg-yellow-100')"
-                                class="inline-flex items-center h-8 gap-1.5 px-2.5 text-xs font-semibold rounded-lg shrink-0"
+                            <button
+                                v-else-if="!group.delivered && group.canMarkDelivered && !isOpenBatch"
+                                type="button"
+                                @click="markDelivered(group)"
+                                :disabled="formMarkDelivered.processing"
+                                :title="'Record that the '
+                                    + shared.supplierGroupLabel(group.supplierGroup)
+                                    + ' material has arrived, without booking in a delivery here'"
+                                class="inline-flex items-center h-8 gap-1.5 px-2.5 text-xs font-semibold text-teal-800 transition-colors duration-150 bg-white border border-teal-300 rounded-lg shadow-sm hover:bg-teal-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400"
                             >
-                                <i
-                                    :class="group.ordered || group.quoted
-                                        ? 'fa-solid fa-check'
-                                        : 'fa-regular fa-clock'"
-                                    class="text-[10px]"
-                                ></i>
-                                <template v-if="group.ordered">
-                                    {{ group.purchaseOrderNumber ? 'Order: ' + group.purchaseOrderNumber : 'Ordered' }}
-                                </template>
-                                <template v-else-if="group.quoted">
-                                    Quoted
-                                </template>
-                                <template v-else>
-                                    Not quoted
-                                </template>
-                            </p>
+                                <i class="fa-solid fa-truck text-[10px]"></i>
+                                Mark as delivered
+                            </button>
                         </div>
                     </div>
 

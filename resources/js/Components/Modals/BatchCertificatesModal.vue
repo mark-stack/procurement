@@ -1,12 +1,12 @@
 <script setup>
     /**
-     * The mill certificates for a batch, a merchant at a time, and the press that says its steel has
-     * arrived.
+     * The mill certificates for a batch, a merchant at a time.
      *
-     * Both in the one place because they are the one moment: somebody is standing at the rack with a
-     * delivery in front of them and an email from the merchant open. Asking "has it turned up" in a
-     * confirm box and then making them find a separate screen for the PDF is how a yard ends up with
-     * a delivered date and no paperwork behind it.
+     * It carried the press that said the steel had arrived as well, both in the one place because
+     * they were the one moment: somebody standing at the rack with a delivery in front of them and
+     * an email from the merchant open. That mark is made on the order list now, a merchant at a time
+     * like the file is, so this modal is the paperwork and nothing else - and the two are still the
+     * one moment, in the one place, a block apart.
      *
      * A block per supplier group, and only the groups whose material comes with a certificate at all
      * - steel does, timber does not (products.certificates, the flag the BOM reads). A certificate
@@ -18,9 +18,8 @@
      * list's Certificates tab for the same block, beside any that came in against a real order - see
      * BatchCertificateController and BatchOrderListController.
      *
-     * Marking delivered does not need a certificate and attaching one does not mark anything. Plenty
-     * of merchants send the PDF days after the truck, and a batch delivered through real orders
-     * reaches this modal already marked, to have its paperwork added.
+     * Attaching one marks nothing. Plenty of merchants send the PDF days after the truck, which is
+     * why the two were never conditional on each other even when they shared a modal.
      */
     //General Imports
     import {computed, ref, watch} from "vue";
@@ -46,7 +45,6 @@
         certificates: [],
     });
 
-    const formMarkDelivered = useForm({});
     const formDeleteFile = useForm({});
 
     //Variables
@@ -68,9 +66,6 @@
 
     //Computed
     const batchId = computed(() => props.batch?.id ?? null);
-
-    //The press is only offered while the mark is still to be made; the gate decides, the card carries it
-    const canMarkDelivered = computed(() => props.batch?.prerequisiteMarkDelivered === true);
 
     const projectNames = computed(() => (props.batch?.projects ?? [])
         .map(project => project.name)
@@ -154,18 +149,6 @@
         window.open(route('material.certificates.download', file.id), '_blank');
     }
 
-    function markDelivered(){
-        if(formMarkDelivered.processing){
-            return;
-        }
-
-        formMarkDelivered.post(route('batch.all.delivered', batchId.value), {
-            preserveScroll: true,
-            //Closed on success: the card behind it now says Delivered, which is the answer
-            onSuccess: () => emit('closeModal'),
-        });
-    }
-
     function readableSize(bytes){
         if(!bytes){
             return '';
@@ -198,7 +181,7 @@
         <!-- header -->
         <div class="px-5 pt-2 pb-3">
             <h3 id="batch-certs-title" class="text-xl font-medium leading-6 text-gray-900">
-                {{ canMarkDelivered ? 'Mark this batch as delivered' : 'Mill certificates' }}
+                Mill certificates
             </h3>
             <p class="mt-1 text-sm text-gray-500">
                 Batch #{{ batch?.id }}<template v-if="projectNames"> · {{ projectNames }}</template>
@@ -210,20 +193,7 @@
             :style="{width: 'min(620px, calc(100vw - 2rem))'}"
             class="max-h-[70vh] overflow-y-auto px-5 pb-5"
         >
-            <!--
-                What the press does and, more to the point, what it does not. "Delivered" beside a
-                batch reads like the application booked something in, and nobody pressing it should
-                believe a goods receipt has been written or a merchant told anything.
-            -->
-            <p
-                v-if="canMarkDelivered"
-                class="p-3 text-xs leading-relaxed text-gray-600 rounded-lg bg-gray-50"
-            >
-                Records that this batch's material has arrived. No goods receipt is written and no
-                merchant is contacted - this is a note on the batch. Attach the certificates now or
-                come back to them; they are not needed to mark it delivered.
-            </p>
-            <p v-else class="p-3 text-xs leading-relaxed text-gray-600 rounded-lg bg-gray-50">
+            <p class="p-3 text-xs leading-relaxed text-gray-600 rounded-lg bg-gray-50">
                 The certificates that came in with this batch's material, by the merchant who
                 supplied it. Kept on the private disk, and shown on the same merchant's block in the
                 order list.
@@ -347,26 +317,15 @@
 
         <template #footer>
             <!--
-                The press, where the modal was opened to make it. Primary and on the right, with
-                Close beside it - the other way round from the order side's single Done, because here
-                there is something to do rather than something to read.
+                One button, because there is nothing to decide here: the files are saved as they are
+                attached. Done rather than Cancel for that reason - closing changes nothing.
             -->
-            <button
-                v-if="canMarkDelivered"
-                type="button"
-                @click="markDelivered()"
-                :disabled="formMarkDelivered.processing"
-                class="inline-flex justify-center w-full px-4 py-2 text-base font-medium text-white bg-teal-700 border border-transparent rounded-md shadow-sm hover:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-300 sm:ml-3 sm:w-auto sm:text-sm"
-            >
-                {{ formMarkDelivered.processing ? 'Marking...' : 'Mark as delivered' }}
-            </button>
-
             <button
                 type="button"
                 @click="$emit('closeModal')"
                 class="inline-flex justify-center w-full px-4 py-2 mt-3 text-base font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:ml-3 sm:mt-0 sm:w-auto sm:text-sm"
             >
-                {{ canMarkDelivered ? 'Cancel' : 'Done' }}
+                Done
             </button>
         </template>
     </Modal>

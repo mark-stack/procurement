@@ -45,11 +45,7 @@
     //Forms
     const formQuoteStore = useForm({});
     const formBreakBatch = useForm({});
-    //The supplier-free marks the card menu sets - see confirmMarkQuoted()
-    const formMarkQuoted = useForm({});
-    const formMarkOrdered = useForm({});
-    const formMarkCut = useForm({});
-    //And the press that takes the card off the page altogether - see confirmMarkDone()
+    //The press that takes the card off the page altogether - see confirmMarkDone()
     const formMarkDone = useForm({});
 
     //Confirmation
@@ -534,25 +530,30 @@
      * in it.
      *
      * The open batch always does: it can be added to and it can be closed and quoted. Past that it is
-     * whichever of the marks this batch is in a position to be given - unpicked while it is only
-     * priced, called quoted, bought or delivered while nobody has bought it through a merchant, cut
-     * once it has arrived however it arrived. A card in the middle of the board with a real order out
-     * and nothing delivered has none of them, and keeps the space without drawing the dots, so the
-     * row of buttons still lines up down the page.
+     * whichever of the three this batch is in a position to be given - unpicked while it is only
+     * priced, closed once its steel has arrived however it arrived, and given the merchant's
+     * paperwork over the same window. A card in the middle of the board with a real order out and
+     * nothing delivered has none of them, and keeps the space without drawing the dots, so the row of
+     * buttons still lines up down the page.
      *
-     * Every one of those is read off the server's gate rather than off the card's pill, null meaning
+     * Shorter than it was by the three "All" marks, which the order list asks a merchant at a time
+     * now. That makes the dots rarer: a batch being priced has Re-nest and nothing else, where it
+     * used to have three greyed items under it saying which steps were still to come.
+     *
+     * Each test is the item's own, exactly as the template writes it, because an item that is hidden
+     * rather than greyed cannot hold the menu open on its own. Re-nest asks for true - it is dropped
+     * from the moment the batch is past unpicking - while "Move to done" is still drawn greyed and so
+     * asks only that the card put the question. Get that wrong and a card opens on an empty panel.
+     *
+     * Every one of these is read off the server's gate rather than off the card's pill, null meaning
      * "not a question this card asks". They are the gates the controllers abort 403 on, so anything
      * else could draw an item leading nowhere.
      */
     function hasMenu(batch) {
         return batch.id === null
-            || batch.prerequisiteUndoStartQuoting !== null
-            || batch.prerequisiteMarkQuoted !== null
-            || batch.prerequisiteMarkOrdered !== null
-            || batch.prerequisiteMarkDelivered !== null
-            || batch.prerequisiteMarkCut !== null
+            || batch.prerequisiteUndoStartQuoting === true
             || batch.prerequisiteMarkDone !== null
-            || batch.canAttachCertificates !== null;
+            || batch.canAttachCertificates === true;
     }
 
     /**
@@ -601,54 +602,6 @@
     }
 
     /**
-     * What the Re-nest item says when it cannot run, which is the board's own wording: the gate
-     * turns on things that have happened to the batch since it was nested, and none of them are
-     * visible on the card.
-     */
-    function reNestTitle(batch) {
-        return batch.prerequisiteUndoStartQuoting
-            ? 'Unpick this batch and send its projects back to nesting'
-            : 'This batch can no longer be re-nested - it has been ordered, a project was marked done, or a later batch has already used its offcuts';
-    }
-
-    /**
-     * "All quoted" and "All ordered" - the two steps a batch passes, said of the batch itself.
-     *
-     * They exist for a shop that does not buy through the quotes and orders screen. Everything there
-     * hangs off a supplier - a quote is a row per merchant, an order a row per quote - so a business
-     * that has entered no suppliers has nothing to tick, and its batches sit at Quoting however much
-     * steel is in the rack. These record the step and name nobody.
-     *
-     * Both ask first, and both say what they do not do. "Ordered" beside a batch is a claim that money
-     * has been spent, and the one thing somebody pressing it must not believe is that the application
-     * has just bought the steel for them: no merchant is contacted, no order is placed, and the board
-     * does not move the card, because its columns are built on orders that really were sent.
-     */
-    function confirmMarkQuoted(batch) {
-        askToConfirm({
-            title: "Mark this batch as quoted?",
-            message: `Batch ${batch.id} (${projectNames(batch.projects)}) will read as Quoted on this`
-                + ` page, recording that you have your prices.`,
-            note: "No quote request is sent and no supplier is marked - this is a note on the batch.",
-            confirmLabel: "All quoted",
-            onConfirmed: () => markBatch(batch, 'batch.all.quoted', formMarkQuoted),
-        });
-    }
-
-    function confirmMarkOrdered(batch) {
-        askToConfirm({
-            title: "Mark this batch as ordered?",
-            message: `Batch ${batch.id} (${projectNames(batch.projects)}) will read as Ordered on this`
-                + ` page, recording that its material has been bought.`,
-            note: "No order is placed and no merchant is contacted - this is a note on the batch, and the"
-                + " board still shows it where it is. Once it is marked, the batch can no longer be"
-                + " re-nested.",
-            confirmLabel: "All ordered",
-            onConfirmed: () => markBatch(batch, 'batch.all.ordered', formMarkOrdered),
-        });
-    }
-
-    /**
      * "Move to done" - the job is over, and the batch belongs in Past Projects.
      *
      * The board's own button, pressed from here: the same post to the same route, which is all that
@@ -656,9 +609,13 @@
      * off it, and without it nothing did - a batch stayed live however finished it was, this list
      * grew by a card a job, and Past Projects could gain nothing.
      *
-     * It asks first, like the marks above, and for a stronger reason than any of them: nothing in the
-     * application re-opens a closed batch. The dialog says where the work goes rather than warning
-     * somebody off it - this is the ordinary end of a job, not a destructive press.
+     * The last mark left in this menu, the three "All" ones having gone to the order list, where they
+     * are asked a merchant at a time. This one never belonged with them: it is not a claim about how
+     * the steel was bought, so there is no merchant to say it of.
+     *
+     * It asks first, and for a stronger reason than those did: nothing in the application re-opens a
+     * closed batch. The dialog says where the work goes rather than warning somebody off it - this is
+     * the ordinary end of a job, not a destructive press.
      */
     function confirmMarkDone(batch) {
         askToConfirm({
@@ -678,10 +635,11 @@
     }
 
     /**
-     * "Delivered" - the steel has turned up. Asked in a modal rather than a confirm box, because the
-     * person pressing it is standing at the rack with the merchant's email open: the certificates
-     * belong to this moment, and sending them off to another screen for the PDF is how a yard ends up
-     * with a delivered date and no paperwork. See BatchCertificatesModal.
+     * The merchant's paperwork for a batch whose steel has turned up - see BatchCertificatesModal.
+     *
+     * It used to carry the "Delivered" press as well, the person attaching the PDF being the person
+     * standing at the rack. That mark is made on the order list now, a merchant at a time, so this
+     * is the files and nothing else.
      */
     function openCertificates(batch) {
         certificatesBatch.value = batch;
@@ -689,28 +647,9 @@
     }
 
     /**
-     * And "Cut" - the saw has been through it. A confirm box, like the two marks above it, because
-     * there is nothing to attach to this one.
-     *
-     * It is the one mark on the menu that is not about buying, so it is also the one a batch ordered
-     * the ordinary way can be given: delivered is delivered, whether that came off goods receipts or
-     * off the mark above.
-     */
-    function confirmMarkCut(batch) {
-        askToConfirm({
-            title: "Mark this batch as cut?",
-            message: `Batch ${batch.id} (${projectNames(batch.projects)}) will read as Cut on this page,`
-                + ` recording that its material has been through the saw.`,
-            note: "The batch stays where it is - this is a note on it, not a way of closing it.",
-            confirmLabel: "Cut",
-            onConfirmed: () => markBatch(batch, 'batch.cut', formMarkCut),
-        });
-    }
-
-    /**
-     * Both presses are the same post, so they are the same function: the batch, the route and the form
-     * holding it. A queued second click would be refused by the gate anyway - the mark is already set
-     * by then - and that would be a 403 the page cannot explain, so it is dropped here instead.
+     * The batch, the route and the form holding it. One press uses this now, and it stays a function
+     * of three arguments because a queued second click is the thing it exists to drop: the gate would
+     * refuse it - the batch is closed by then - and that is a 403 the page cannot explain.
      */
     function markBatch(batch, routeName, form) {
         if (form.processing) {
@@ -718,35 +657,6 @@
         }
 
         form.post(route(routeName, batch.id), {preserveScroll: true});
-    }
-
-    /**
-     * What each item says when it cannot run. One sentence listing the reasons, the way reNestTitle
-     * does: none of them are visible on the card, and the gate is the only thing that knows which it
-     * is (see PrerequisiteConditions::markBatchQuoted).
-     */
-    function markQuotedTitle(batch) {
-        return batch.prerequisiteMarkQuoted
-            ? 'Record that the prices for this batch are in, without naming a supplier'
-            : 'Every merchant on this batch is priced already, or it is marked quoted or ordered, or it carries no project of yours';
-    }
-
-    function markOrderedTitle(batch) {
-        return batch.prerequisiteMarkOrdered
-            ? 'Record that the material on this batch has been bought, without naming a supplier'
-            : 'Every merchant on this batch has been bought from already, or it is marked ordered or delivered, or it carries no project of yours';
-    }
-
-    function markDeliveredTitle(batch) {
-        return batch.prerequisiteMarkDelivered
-            ? 'Record that this batch\'s material has arrived, and attach the mill certificates'
-            : 'This batch is already marked as delivered, or it carries no project of yours';
-    }
-
-    function markCutTitle(batch) {
-        return batch.prerequisiteMarkCut
-            ? 'Record that this batch has been through the saw'
-            : 'This batch is already marked as cut, or it carries no project of yours';
     }
 
     /**
@@ -1628,109 +1538,45 @@
                                                     The way back - the board's "Re-nest" (see
                                                     confirmReNest). Red, because it destroys the quotes
                                                     and draft orders on the batch and the offcuts it
-                                                    cut; greyed with the reason when the batch is past
-                                                    unpicking, which is what somebody opens this menu to
-                                                    find out. First, because it is the one people come
-                                                    to this menu for.
+                                                    cut. First, because it is the one people come to
+                                                    this menu for.
+
+                                                    Dropped rather than greyed when the batch is past
+                                                    unpicking, which is every card from Ordered on.
+                                                    The board greyed it to say why, and that reading
+                                                    stopped paying its way once the three marks left
+                                                    this menu: a delivered card now opens on a single
+                                                    dead red item above the two live ones, which reads
+                                                    as a menu that is mostly broken rather than as an
+                                                    answer to a question nobody asked there.
                                                 -->
                                                 <button
+                                                    v-if="batch.prerequisiteUndoStartQuoting"
                                                     type="button"
-                                                    :disabled="!batch.prerequisiteUndoStartQuoting"
-                                                    :title="reNestTitle(batch)"
+                                                    title="Unpick this batch and send its projects back to nesting"
                                                     @click="confirmReNest(batch)"
-                                                    class="flex items-center w-full gap-2 px-4 py-2 text-sm text-left transition-colors duration-150"
-                                                    :class="batch.prerequisiteUndoStartQuoting
-                                                        ? 'font-semibold text-red-700 hover:bg-red-50'
-                                                        : 'text-gray-400 cursor-not-allowed'"
+                                                    class="flex items-center w-full gap-2 px-4 py-2 text-sm font-semibold text-left text-red-700 transition-colors duration-150 hover:bg-red-50"
                                                 >
                                                     <i class="fa-solid fa-circle-arrow-up text-xs"></i>
                                                     Re-nest
                                                 </button>
 
                                                 <!--
-                                                    "All quoted" - the prices are in. Coloured with the
-                                                    Quoted pill it sets, so the menu item and the word
-                                                    it puts on the card read as the one step. See
-                                                    confirmMarkQuoted().
-                                                -->
-                                                <button
-                                                    v-if="batch.prerequisiteMarkQuoted !== null"
-                                                    type="button"
-                                                    :disabled="!batch.prerequisiteMarkQuoted"
-                                                    :title="markQuotedTitle(batch)"
-                                                    @click="confirmMarkQuoted(batch)"
-                                                    class="flex items-center w-full gap-2 px-4 py-2 text-sm text-left transition-colors duration-150"
-                                                    :class="batch.prerequisiteMarkQuoted
-                                                        ? 'font-semibold text-blue-800 hover:bg-blue-50'
-                                                        : 'text-gray-400 cursor-not-allowed'"
-                                                >
-                                                    <i class="fa-solid fa-tags text-xs"></i>
-                                                    All quoted
-                                                </button>
+                                                    The merchant's paperwork, against the batch itself.
+                                                    Drawn only where certificates can still be attached,
+                                                    which is a live delivered batch - a closed one is
+                                                    its own record.
 
-                                                <!-- And "All ordered" - it has been bought. Same again, in the Ordered pill's colour -->
-                                                <button
-                                                    v-if="batch.prerequisiteMarkOrdered !== null"
-                                                    type="button"
-                                                    :disabled="!batch.prerequisiteMarkOrdered"
-                                                    :title="markOrderedTitle(batch)"
-                                                    @click="confirmMarkOrdered(batch)"
-                                                    class="flex items-center w-full gap-2 px-4 py-2 text-sm text-left transition-colors duration-150"
-                                                    :class="batch.prerequisiteMarkOrdered
-                                                        ? 'font-semibold text-indigo-800 hover:bg-indigo-50'
-                                                        : 'text-gray-400 cursor-not-allowed'"
-                                                >
-                                                    <i class="fa-solid fa-cart-shopping text-xs"></i>
-                                                    All ordered
-                                                </button>
-
-                                                <!--
-                                                    "All delivered" - the steel is in the rack. Opens
-                                                    the certificates modal rather than a confirm box,
-                                                    the press being in there with the paperwork it
-                                                    arrives with. See openCertificates().
-                                                -->
-                                                <button
-                                                    v-if="batch.prerequisiteMarkDelivered !== null"
-                                                    type="button"
-                                                    :disabled="!batch.prerequisiteMarkDelivered"
-                                                    :title="markDeliveredTitle(batch)"
-                                                    @click="openCertificates(batch)"
-                                                    class="flex items-center w-full gap-2 px-4 py-2 text-sm text-left transition-colors duration-150"
-                                                    :class="batch.prerequisiteMarkDelivered
-                                                        ? 'font-semibold text-teal-800 hover:bg-teal-50'
-                                                        : 'text-gray-400 cursor-not-allowed'"
-                                                >
-                                                    <i class="fa-solid fa-truck text-xs"></i>
-                                                    All delivered
-                                                </button>
-
-                                                <!--
-                                                    And "Cut". The one mark here that is not about
-                                                    buying, so the one a batch ordered the ordinary way
-                                                    is offered too - see confirmMarkCut().
-                                                -->
-                                                <button
-                                                    v-if="batch.prerequisiteMarkCut !== null"
-                                                    type="button"
-                                                    :disabled="!batch.prerequisiteMarkCut"
-                                                    :title="markCutTitle(batch)"
-                                                    @click="confirmMarkCut(batch)"
-                                                    class="flex items-center w-full gap-2 px-4 py-2 text-sm text-left transition-colors duration-150"
-                                                    :class="batch.prerequisiteMarkCut
-                                                        ? 'font-semibold text-emerald-800 hover:bg-emerald-50'
-                                                        : 'text-gray-400 cursor-not-allowed'"
-                                                >
-                                                    <i class="fa-solid fa-scissors text-xs"></i>
-                                                    Cut
-                                                </button>
-
-                                                <!--
-                                                    The same modal again on a batch already delivered,
-                                                    where there is no mark left to set and the files are
-                                                    the whole of it. Drawn only where certificates can
-                                                    still be attached, which is a live delivered batch -
-                                                    a closed one is its own record.
+                                                    The three marks this menu used to carry - "All
+                                                    quoted", "All ordered", "All delivered" - are gone
+                                                    from it. Each of them claimed one thing about every
+                                                    merchant on the job at once, which is the wrong size
+                                                    of answer for the shop that rings one merchant and
+                                                    sends a quote request to the next; the order list
+                                                    asks it a block at a time instead, and the card
+                                                    reads the whole job off those blocks (see
+                                                    OrderListModal.vue and
+                                                    NestingIndexController::milestoneOf).
                                                 -->
                                                 <button
                                                     v-if="batch.canAttachCertificates"

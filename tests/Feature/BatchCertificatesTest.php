@@ -448,26 +448,17 @@ it('calls the batch quoted once every merchant on it has been marked', function 
         ->and($batch->quoted_supplier_groups)->toBe(['STEEL_MERCHANT']);
 });
 
-it('stops offering "All quoted" once every merchant on the batch is priced', function () {
+it('refuses the whole-job quoted mark once every merchant on the batch is priced', function () {
     /*
      * The press has nothing left to record. A shop working the order list block by block arrives
-     * where "All quoted" jumps to, and the card went on offering the jump - a menu with a live "All
-     * quoted" under a pill already reading Quoted.
+     * where "All quoted" jumped to, and the card reads QUOTED off those blocks.
      *
-     * Greyed rather than dropped, like every other item in that menu: "this is already done" is what
-     * somebody opened it to find out. And refused by the route as well as the card, because the
-     * colleague who marked the last block did it on somebody else's open dropdown.
+     * The menu item is gone, so what is held down here is the gate behind it: the route refuses, and
+     * the batch-wide date stays unset where the names on the blocks are the whole record.
      */
     [$business, $user, $batch] = batchWithFakedDisk();
 
     $this->actingAs($user);
-
-    //Still on offer while a price is outstanding
-    $this->get(route('dashboard'))
-        ->assertInertia(fn (Illuminate\Testing\Fluent\AssertableJson $page) => $page
-            ->where('batches.1.prerequisiteMarkQuoted', true)
-            ->etc()
-        );
 
     $this->post(route('batch.group.quoted', $batch), ['supplier_group' => 'STEEL_MERCHANT'])
         ->assertRedirect();
@@ -475,25 +466,25 @@ it('stops offering "All quoted" once every merchant on the batch is priced', fun
     $this->get(route('dashboard'))
         ->assertInertia(fn (Illuminate\Testing\Fluent\AssertableJson $page) => $page
             ->where('batches.1.stage', 'QUOTED')
-            ->where('batches.1.prerequisiteMarkQuoted', false)
-            //The step after it is untouched: the prices being in is the reason to buy, not a bar to it
-            ->where('batches.1.prerequisiteMarkOrdered', true)
             ->etc()
         );
 
     $this->post(route('batch.all.quoted', $batch->id))->assertForbidden();
 
-    expect($batch->refresh()->quoted_at)->toBeNull();
+    //And the step after it is untouched: the prices being in is the reason to buy, not a bar to it
+    $this->post(route('batch.all.ordered', $batch->id))->assertRedirect();
+
+    expect($batch->refresh()->quoted_at)->toBeNull()
+        ->and($batch->ordered_at)->not->toBeNull();
 });
 
-it('stops offering either mark on a batch whose every merchant has been bought', function () {
+it('refuses both whole-job marks on a batch whose every merchant has been bought', function () {
     /*
-     * The card this was reported from: every block marked ordered, the pill reading Ordered, and
-     * both menu items still blue underneath it.
+     * The card this was reported from: every block marked ordered and the pill reading Ordered.
      *
-     * "All ordered" is the obvious one - the buying is what has already been recorded. "All quoted"
-     * goes with it because nobody buys steel without a price, which is how the block itself reads a
-     * bought merchant (see the test below), so there is no earlier step left to claim either.
+     * The ordered one is the obvious refusal - the buying is what has already been recorded. The
+     * quoted one goes with it because nobody buys steel without a price, which is how the block
+     * itself reads a bought merchant (see the test below), so there is no earlier step left to claim.
      */
     [$business, $user, $batch] = batchWithFakedDisk();
 
@@ -505,18 +496,18 @@ it('stops offering either mark on a batch whose every merchant has been bought',
     $this->get(route('dashboard'))
         ->assertInertia(fn (Illuminate\Testing\Fluent\AssertableJson $page) => $page
             ->where('batches.1.stage', 'ORDERED')
-            ->where('batches.1.prerequisiteMarkQuoted', false)
-            ->where('batches.1.prerequisiteMarkOrdered', false)
-            //Still offered: the steel can be bought and not yet have turned up
-            ->where('batches.1.prerequisiteMarkDelivered', true)
             ->etc()
         );
 
     $this->post(route('batch.all.quoted', $batch->id))->assertForbidden();
     $this->post(route('batch.all.ordered', $batch->id))->assertForbidden();
 
+    //Still allowed: the steel can be bought and not yet have turned up
+    $this->post(route('batch.all.delivered', $batch->id))->assertRedirect();
+
     expect($batch->refresh()->quoted_at)->toBeNull()
-        ->and($batch->ordered_at)->toBeNull();
+        ->and($batch->ordered_at)->toBeNull()
+        ->and($batch->delivered_at)->not->toBeNull();
 });
 
 it('calls every merchant on the batch quoted when the whole job is marked quoted', function () {
@@ -607,6 +598,203 @@ it('would be a disaster if a colleague with no job on the batch could mark a mer
         ->assertForbidden();
 
     expect($batch->refresh()->quoted_supplier_groups)->toBeNull();
+});
+
+it('offers the delivered mark on a merchant that has been bought from, and not before', function () {
+    /*
+     * The third of the block's presses, and the one a bought block had nothing of: "Ordered" was the
+     * end of the list, so a merchant whose steel had turned up could only be recorded by calling the
+     * whole job delivered.
+     *
+     * One button at a time, the way the other two work: the step this merchant is actually at. A
+     * merchant nobody has bought from has nothing to take delivery of, so the block offers "Mark as
+     * ordered" and the delivered press appears behind it.
+     */
+    [$business, $user, $batch] = batchWithFakedDisk();
+
+    $this->actingAs($user);
+    $this->withoutExceptionHandling();
+
+    $before = collect($this->getJson(route('batch.order.list', $batch))->json('orderList.groups'))
+        ->firstWhere('supplierGroup', 'STEEL_MERCHANT');
+
+    //Markable, but not yet the press on offer - the block is still showing "Mark as ordered"
+    expect($before['ordered'])->toBeFalse()
+        ->and($before['delivered'])->toBeFalse()
+        ->and($before['canMarkDelivered'])->toBeTrue();
+
+    $this->post(route('batch.group.ordered', $batch), ['supplier_group' => 'STEEL_MERCHANT'])
+        ->assertRedirect();
+
+    $this->post(route('batch.group.delivered', $batch), ['supplier_group' => 'STEEL_MERCHANT'])
+        ->assertRedirect();
+
+    $after = collect($this->getJson(route('batch.order.list', $batch))->json('orderList.groups'))
+        ->firstWhere('supplierGroup', 'STEEL_MERCHANT');
+
+    expect($after['delivered'])->toBeTrue()
+        ->and($batch->refresh()->delivered_supplier_groups)->toBe(['STEEL_MERCHANT'])
+        //Nothing was booked in by it: no receipt, no order, nobody contacted
+        ->and($batch->orders()->count())->toBe(0)
+        //And the batch itself is untouched - one merchant is not the whole job
+        ->and($batch->delivered_at)->toBeNull();
+});
+
+it('calls the batch delivered once every merchant on it has been marked in', function () {
+    /*
+     * The card and the order list have to agree about this one too, and it carries more than the
+     * pill: DELIVERED is what opens "Move to done". A batch answered a merchant at a time that never
+     * reached it would be a card with its steel in the rack and no way off the page.
+     *
+     * So the menu item that claims the same thing greys - there is nothing left for it to record -
+     * and the one it was blocking comes live in its place.
+     */
+    [$business, $user, $batch] = batchWithFakedDisk();
+
+    $this->actingAs($user);
+
+    //Shut while a merchant is outstanding: there is nothing to close and no paperwork to keep
+    $this->get(route('dashboard'))
+        ->assertInertia(fn (Illuminate\Testing\Fluent\AssertableJson $page) => $page
+            ->where('batches.1.prerequisiteMarkDone', null)
+            ->where('batches.1.canAttachCertificates', null)
+            ->etc()
+        );
+
+    $this->post(route('batch.group.delivered', $batch), ['supplier_group' => 'STEEL_MERCHANT'])
+        ->assertRedirect();
+
+    $this->get(route('dashboard'))
+        ->assertInertia(fn (Illuminate\Testing\Fluent\AssertableJson $page) => $page
+            ->where('batches.1.stage', 'DELIVERED')
+            //And the way out of the page, which is the thing the pill was holding shut
+            ->where('batches.1.prerequisiteMarkDone', true)
+            ->where('batches.1.canAttachCertificates', true)
+            ->etc()
+        );
+
+    //And the gate behind the mark the card used to carry refuses: there is nothing left to record
+    $this->post(route('batch.all.delivered', $batch->id))->assertForbidden();
+
+    expect($batch->refresh()->delivered_at)->toBeNull();
+
+    //And the press it unblocked really is allowed, not merely drawn
+    $this->withoutExceptionHandling();
+    $this->post(route('mark.as.past.project', $batch))->assertRedirect();
+
+    expect((bool) $batch->refresh()->done)->toBeTrue();
+});
+
+it('calls every merchant on the batch delivered when the whole job is marked in', function () {
+    /*
+     * The other direction of the same agreement, the shape the ordered and quoted marks already
+     * have: "All delivered" on the Nesting card is a claim about the whole job, so no block may go
+     * on offering to record a delivery the card says has happened.
+     */
+    [$business, $user, $batch] = batchWithFakedDisk();
+
+    $this->actingAs($user);
+    $this->withoutExceptionHandling();
+
+    $this->post(route('batch.all.delivered', $batch->id))->assertRedirect();
+
+    $group = collect($this->getJson(route('batch.order.list', $batch))->json('orderList.groups'))
+        ->firstWhere('supplierGroup', 'STEEL_MERCHANT');
+
+    //Read off the batch rather than written across the groups when that press lands
+    expect($group['delivered'])->toBeTrue()
+        ->and($batch->refresh()->delivered_supplier_groups)->toBeNull();
+});
+
+it('would be a disaster if a merchant with an order out could be marked delivered from the block', function () {
+    /*
+     * The one refusal this mark has that the other two do not. A merchant bought through the quotes
+     * screen is delivered by booking that order in, which records who checked the steel and against
+     * what (OrderMarkDeliveredController). A mark set beside that receipt is a second answer to "has
+     * it arrived" that can disagree with the first.
+     *
+     * The block does not draw the press, and the route refuses it, because the two are read by
+     * different people at different times - a stale modal is all it takes.
+     */
+    [$business, $user, $batch] = batchWithFakedDisk();
+
+    quoteAndOrder($user, $batch, quoteSent: true, orderSent: true);
+
+    $this->actingAs($user);
+
+    $group = collect($this->getJson(route('batch.order.list', $batch))->json('orderList.groups'))
+        ->firstWhere('supplierGroup', 'STEEL_MERCHANT');
+
+    expect($group['canMarkDelivered'])->toBeFalse()
+        //And the delivery itself is the order's to report, which it does not yet
+        ->and($group['delivered'])->toBeFalse();
+
+    $this->post(route('batch.group.delivered', $batch), ['supplier_group' => 'STEEL_MERCHANT'])
+        ->assertForbidden();
+
+    expect($batch->refresh()->delivered_supplier_groups)->toBeNull();
+});
+
+it('reads a merchant whose order has been booked in as delivered on its block', function () {
+    /*
+     * The other half of the refusal above: the block says "Delivered" for that merchant anyway, off
+     * the goods receipt, because what the reader wants to know is whether the steel is in - not
+     * which screen somebody used to say so.
+     */
+    [$business, $user, $batch] = batchWithFakedDisk();
+
+    [, $order] = quoteAndOrder($user, $batch, quoteSent: true, orderSent: true);
+
+    $order->update(['is_delivered' => true]);
+
+    $this->actingAs($user);
+    $this->withoutExceptionHandling();
+
+    $group = collect($this->getJson(route('batch.order.list', $batch))->json('orderList.groups'))
+        ->firstWhere('supplierGroup', 'STEEL_MERCHANT');
+
+    expect($group['delivered'])->toBeTrue()
+        ->and($group['canMarkDelivered'])->toBeFalse();
+});
+
+it('would be a disaster if the open batch could have a merchant marked delivered', function () {
+    /*
+     * There is no batch to mark, and nothing on that card has been bought: its nest is a suggestion
+     * the next upload changes.
+     */
+    [$business, $user] = batchWithFakedDisk();
+
+    $this->actingAs($user);
+    $this->withoutExceptionHandling();
+
+    $orderList = $this->getJson(route('batch.order.list'))->assertOk()->json('orderList');
+
+    expect($orderList['batch_id'])->toBeNull();
+
+    foreach ($orderList['groups'] as $group) {
+        expect($group['canMarkDelivered'])->toBeNull();
+    }
+});
+
+it('would be a disaster if a colleague with no job on the batch could mark a merchant delivered', function () {
+    /*
+     * The same line every press on a batch draws: you have to be a project manager on it. A delivery
+     * written onto somebody else's steel closes the job their own card is still waiting on.
+     */
+    [$business, $owner, $batch] = batchWithFakedDisk();
+
+    $this->actingAs(createUser(2, $business, false, true));
+
+    $this->post(route('batch.group.delivered', $batch), ['supplier_group' => 'STEEL_MERCHANT'])
+        ->assertForbidden();
+
+    //And another business cannot reach the batch at all
+    $this->actingAs(createUser(1, createBusiness('somebody else'), false, true));
+
+    $this->post(route('batch.group.delivered', $batch), ['supplier_group' => 'STEEL_MERCHANT'])
+        ->assertForbidden();
+
+    expect($batch->refresh()->delivered_supplier_groups)->toBeNull();
 });
 
 it('leaves the certificates behind when the batch they belong to is re-nested', function () {

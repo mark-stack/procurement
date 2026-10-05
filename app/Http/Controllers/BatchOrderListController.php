@@ -81,6 +81,13 @@ class BatchOrderListController extends Controller
         $quotedGroups = $batch === null ? [] : ($batch->quoted_supplier_groups ?? []);
 
         /*
+         * And the step after both of them: the merchants somebody has watched come off the truck. The
+         * mark for a group with no order on the application to book in - the timber the shop rang for
+         * - which is why the block offering it is also the block with no purchase order behind it.
+         */
+        $deliveredGroups = $batch === null ? [] : ($batch->delivered_supplier_groups ?? []);
+
+        /*
          * Plus the merchants whose price came back through the quotes screen, which is the other way
          * a group is priced. A sent quote rather than a quote row, the way the card's QUOTED pill
          * counts one (NestingIndexController::fullyQuotedBatchIds): a row is minted per supplier the
@@ -102,12 +109,16 @@ class BatchOrderListController extends Controller
          */
         $wholeBatchOrdered = $batch?->ordered_at !== null;
         $wholeBatchQuoted = $batch?->quoted_at !== null;
+        $wholeBatchDelivered = $batch?->delivered_at !== null;
         $canMarkOrdered = $batch === null
             ? null
             : (new PrerequisiteConditions)->markBatchGroupOrdered(auth()->user(), $batch);
         $canMarkQuoted = $batch === null
             ? null
             : (new PrerequisiteConditions)->markBatchGroupQuoted(auth()->user(), $batch);
+        $canMarkDelivered = $batch === null
+            ? null
+            : (new PrerequisiteConditions)->markBatchGroupDelivered(auth()->user(), $batch);
 
         /*
          * And the certificates attached to the batch itself rather than to one of its orders, in one
@@ -190,6 +201,34 @@ class BatchOrderListController extends Controller
                  * carry a mark and nothing anybody should be buying from it yet.
                  */
                 'canMarkOrdered' => $canMarkOrdered,
+                /*
+                 * And whether its steel is in the rack, which is the step after that one.
+                 *
+                 * Three ways again, and they line up with the three ways of being bought: the order
+                 * that was placed through the quotes screen has been booked in on a goods receipt,
+                 * somebody marked this block (BatchMarkGroupDeliveredController), or the card's "All
+                 * delivered" said it of the whole job at once.
+                 *
+                 * Unlike quoted, nothing is inferred from the step before it. A merchant that has
+                 * been bought from is not thereby delivered - that is the whole of what this block is
+                 * waiting to be told.
+                 */
+                'delivered' => ($order !== null && $order->is_delivered)
+                    || $wholeBatchDelivered
+                    || in_array($supplierGroup, $deliveredGroups, true),
+                /*
+                 * And whether this block may offer that mark - the batch gate, and one more question
+                 * the other two marks do not have to ask.
+                 *
+                 * A merchant with a real order out is delivered by receiving that order, which
+                 * records who checked the steel and against what (OrderMarkDeliveredController). A
+                 * mark beside that would be a second answer to "has it arrived" that can disagree
+                 * with the first, so the block does not offer one and the route refuses it. What is
+                 * left is exactly the merchant this mark is for: the one somebody rang.
+                 */
+                'canMarkDelivered' => $canMarkDelivered === null
+                    ? null
+                    : ($canMarkDelivered && $order === null),
                 /*
                  * Whether this group's steel comes with a mill certificate at all, and the ones that
                  * have arrived. Asked of every order in the group rather than the sent one: a

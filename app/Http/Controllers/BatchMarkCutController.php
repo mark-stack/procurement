@@ -32,10 +32,10 @@ class BatchMarkCutController extends Controller
         /*
          * The gate is asked whether the batch is delivered, rather than trusting the card that drew
          * the button: the page knows it from the pill it has already worked out, and a press arriving
-         * here has only the batch. See Batch::isDelivered for the two ways of being delivered.
+         * here has only the batch. See Batch::isDelivered for the three ways of being delivered.
          */
         abort_if(
-            ! (new PrerequisiteConditions)->markBatchCut($user, $batch, $batch->isDelivered()),
+            ! (new PrerequisiteConditions)->markBatchCut($user, $batch, $batch->isDelivered($user->business)),
             403,
         );
 

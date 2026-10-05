@@ -4,6 +4,7 @@ use App\Http\Controllers\BatchController;
 use App\Http\Controllers\BatchCertificateController;
 use App\Http\Controllers\BatchMarkCutController;
 use App\Http\Controllers\BatchMarkDeliveredController;
+use App\Http\Controllers\BatchMarkGroupDeliveredController;
 use App\Http\Controllers\BatchMarkGroupOrderedController;
 use App\Http\Controllers\BatchMarkGroupQuotedController;
 use App\Http\Controllers\BatchMarkOrderedController;
@@ -259,9 +260,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('batch-all-ordered/{batch}', BatchMarkOrderedController::class)->name('batch.all.ordered');
         Route::post('batch-all-delivered/{batch}', BatchMarkDeliveredController::class)->name('batch.all.delivered');
         Route::post('batch-cut/{batch}', BatchMarkCutController::class)->name('batch.cut');
-        //And the same two said of one merchant rather than the whole batch - the order list's own
+        //And the same three said of one merchant rather than the whole batch - the order list's own
         Route::post('batch-group-quoted/{batch}', BatchMarkGroupQuotedController::class)->name('batch.group.quoted');
         Route::post('batch-group-ordered/{batch}', BatchMarkGroupOrderedController::class)->name('batch.group.ordered');
+        Route::post('batch-group-delivered/{batch}', BatchMarkGroupDeliveredController::class)->name('batch.group.delivered');
 
         /*
          * Material certificates - the file half of them. The written reference is a column on the
