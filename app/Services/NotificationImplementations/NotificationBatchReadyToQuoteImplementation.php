@@ -235,11 +235,17 @@ class NotificationBatchReadyToQuoteImplementation implements NotificationInterfa
                 $projectName,
             ),
             'timestamp' => $notification->created_at->diffForHumans(),
+            /*
+             * One button, and all it does is take the row out of the bell.
+             *
+             * This used to offer the press itself - "Start quoting", green, with "Ok" beside it -
+             * and nesting a column is a purchase. A bell is read in a hurry, often on a phone, and
+             * a pair of boxes where the big friendly one buys steel is the wrong place to put that
+             * decision. The warning says what the deadline is; the press lives on the card that
+             * names the materials, which is where somebody can see what they are committing to.
+             */
             'trafficLights' => [
-                //The press, and what it leaves on screen afterwards - see markGreen()
-                'green' => ['Start quoting', '(Open order list)'],
-                'yellow' => ['Ok', '(Dismiss)'],
-                'red' => null,
+                'read' => ['Read', null],
             ],
         ];
     }

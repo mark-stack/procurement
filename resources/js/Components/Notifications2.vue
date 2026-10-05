@@ -50,12 +50,21 @@
     /*
      * The buttons a notification offers, in the order they are read. trafficLights is null for the
      * ones that only report something - a colleague joined - and those get a single Dismiss.
+     *
+     * A `read` light is the other one-button kind: a warning whose answer is on the page it names
+     * rather than on anything in this panel. It marks the row read and nothing else, so it reads as
+     * a small link instead of a row of boxes offering a choice that was never a choice. YELLOW is
+     * what it posts - every implementation's markYellow is "read it and stay where you are".
      */
     function actions(notification) {
         const lights = notification.trafficLights;
 
         if (!lights) {
             return [{status: 'YELLOW', label: 'Dismiss', hint: null, tone: 'neutral'}];
+        }
+
+        if (lights.read) {
+            return [{status: 'YELLOW', label: lights.read[0], hint: null, tone: 'read'}];
         }
 
         return [
@@ -65,10 +74,15 @@
         ].filter(Boolean);
     }
 
+    /*
+     * Shape as well as colour. The three traffic lights are boxes that share the width of the row -
+     * they are a choice - and `read` is a plain blue link, because it is the only thing on offer.
+     */
     const toneClasses = {
-        go: 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100',
-        neutral: 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100',
-        stop: 'border-red-200 bg-red-50 text-red-800 hover:bg-red-100',
+        go: 'flex-1 min-w-[5rem] px-2 py-1.5 border rounded-md border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100',
+        neutral: 'flex-1 min-w-[5rem] px-2 py-1.5 border rounded-md border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100',
+        stop: 'flex-1 min-w-[5rem] px-2 py-1.5 border rounded-md border-red-200 bg-red-50 text-red-800 hover:bg-red-100',
+        read: 'text-blue-600 hover:text-blue-800 hover:underline',
     };
 </script>
 
@@ -101,7 +115,7 @@
                         :disabled="formNotificationMarkStatus.processing"
                         @click="notificationMarkStatus(notification.id, action.status)"
                         :class="toneClasses[action.tone]"
-                        class="flex-1 min-w-[5rem] px-2 py-1.5 text-xs font-semibold text-center border rounded-md transition-colors duration-200 disabled:opacity-50 disabled:cursor-wait"
+                        class="text-xs font-semibold text-center transition-colors duration-200 disabled:opacity-50 disabled:cursor-wait"
                     >
                         {{ action.label }}
                         <span v-if="action.hint" class="block font-normal opacity-70">{{ action.hint }}</span>
