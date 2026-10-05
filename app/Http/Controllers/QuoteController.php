@@ -2,17 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Actions\Batch\StartQuoting;
-use App\Formatters\NestingFormatter;
+use App\Actions\Batch\PressStartQuoting;
 use App\Http\Requests\UpdateQuoteRequest;
 use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Models\Quote;
-use App\Services\NotificationImplementations\NotificationColleagueQuotedImplementation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Log;
-use Throwable;
 
 class QuoteController extends Controller
 {
@@ -22,75 +18,29 @@ class QuoteController extends Controller
      * quote authorised the caller, deleted nothing and answered 200 - a success as far as anything
      * calling it could tell. A batch's quotes are unwound by BatchController::destroy.
      */
+    /**
+     * The Nesting page's "Lock before quoting", pressed from the open batch card.
+     *
+     * The press itself is PressStartQuoting, which the bell's green action on a fabrication deadline
+     * warning runs too - same gate, same nesting, same notifications. All that is left here is how a
+     * refusal reads to the form that posted: a 403 for the gate, which is what the page's own button
+     * is drawn from and so should never be seen, and an error on the batch field for the two that
+     * can happen to anybody.
+     *
+     * back(), because the card's presser is already looking at the page they want to see: they
+     * chose the moment, and the batch they just made is on it. The bell's green action is the one
+     * press that lands somewhere else, and it runs PressStartQuoting itself rather than posting
+     * here - see NotificationBatchReadyToQuoteImplementation::markGreen.
+     */
     public function store(Request $request): RedirectResponse
     {
-        //Prerequisite variables
-        $user = auth()->user();
-        $business = $user->business;
+        $press = PressStartQuoting::run(auth()->user());
 
-        //Prerequisites
-        $piecesReadyForBatching = (new NestingFormatter())->piecesReadyForBatching($business);
-        $projectsReadyForBatching = $business->projectsReadyForBatching($piecesReadyForBatching); //Note get this before updating pieces because it gets modified
+        abort_if(! $press['allowed'], 403);
 
-        //Prerequisite conditions
-        $prerequisiteStartQuoting = (new PrerequisiteConditions())->startQuoting(
-            $user,
-            $projectsReadyForBatching,
-            $piecesReadyForBatching,
-        );
-
-        abort_if(!$prerequisiteStartQuoting,403);
-
-        try {
-            /*
-             * The locking, the batch, the nesting and the order approvals all live in the action. It
-             * is this controller's alone again now that App\Services\FabricationDeadlineQuoting only
-             * warns rather than pressing this button on a schedule - but the race it guards against
-             * was never only about that: a double click, a second tab and a retried request all
-             * arrive here holding the same list of unbatched pieces.
-             */
-            $batch = StartQuoting::run($user, $business, $piecesReadyForBatching);
-        } catch (Throwable $e) {
-            /*
-             * The transaction rolled back, so no batch exists. Say so - redirecting silently made a
-             * failed "start quoting" look identical to a successful one.
-             */
-            Log::error('Failed to start quoting', [
-                'user_id' => $user->id,
-                'exception' => $e,
-            ]);
-
-            return back()->withErrors([
-                'batch' => 'Could not start quoting. The nesting was not saved, so nothing has changed.',
-            ]);
+        if ($press['refusal'] !== null) {
+            return back()->withErrors(['batch' => $press['refusal']]);
         }
-
-        /*
-         * Somebody else got the steel. Not an error - their batch is a perfectly good batch, and the
-         * board behind this redirect already shows it - so it reads as news, and it says where the
-         * projects went rather than leaving the presser to work out why the column emptied itself.
-         */
-        if ($batch === null) {
-            return back()->withErrors([
-                'batch' => 'These projects were taken into a batch a moment ago, either by a colleague'
-                    .' or by a second press of this button. Nothing was quoted twice - look in Quoting'
-                    .' for the batch that has them.',
-            ]);
-        }
-
-        /*
-         * Tell the other project managers. This button takes every project in the Nesting column into
-         * one batch owned by whoever pressed it, which fixes their suppliers and delivery dates and
-         * takes Edit, Done and BOM upload away from them - and the confirmation naming whose work
-         * is being taken is shown only to the person taking it.
-         *
-         * After the transaction, so a rolled-back batch notifies nobody. Read off $batch->projects()
-         * rather than $projectsReadyForBatching because the pieces are what actually got nested, and
-         * the two sets are known to differ: a project awaiting clarification is excluded from
-         * projectsReadyForBatching while its already-matched pieces are swept in anyway. Its owner is
-         * the one who most needs telling.
-         */
-        (new NotificationColleagueQuotedImplementation)->notifyAffectedProjectManagers($batch, $user);
 
         return back();
     }

@@ -2135,10 +2135,13 @@ it('answers the BOM button with every project on the batch, each row naming its 
     expect(collect($bom['rows'])->pluck('project')->unique()->sort()->values()->all())
         ->toBe(collect([$first->name, $second->name])->sort()->values()->all());
 
+    //And who to go and ask about one, which is the other half of tracing a row back to its job
+    expect(collect($bom['rows'])->pluck('project_manager')->unique()->all())->toBe([$user->name]);
+
     //What the table prints, so a missing key is caught here rather than as a blank column
     expect($bom['rows'][0])->toHaveKeys([
-        'id', 'project', 'description', 'product_label', 'nesting_algo',
-        'length_required', 'width_required', 'sub_qty', 'assembly_mark', 'status',
+        'id', 'project', 'project_manager', 'description', 'product_label', 'nesting_algo',
+        'length_required', 'width_required', 'sub_qty', 'status',
     ]);
 });
 

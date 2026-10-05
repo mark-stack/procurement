@@ -489,8 +489,11 @@ class NestingIndexController extends Controller
      * The earliest fabrication start among the jobs on it, less one working day: the steel has to be
      * in the shop before the saw starts, and a job starting on the Monday wants it there on the
      * Friday - not on the Sunday, when the yard is shut and nobody is there to take a delivery.
-     * Carbon::subWeekdays is what steps over the weekend, so the date printed is always a day the
-     * business is open.
+     *
+     * The subtraction itself is Project::materialsRequiredDate, which the fabrication deadline
+     * warning and the bell read the same day off - the card and the email that chases it cannot be a
+     * day apart about when the steel is wanted. All this adds is which of the jobs on the card sets
+     * it, which is the earliest of them.
      *
      * Deliberately not KanbanFormatter::orderingTriggerDate, which is a different day about a
      * different thing: that one is when the open batch has to stop waiting and be quoted, five days
@@ -512,9 +515,8 @@ class NestingIndexController extends Controller
             ->map(fn ($date) => Carbon::parse($date))
             ->min();
 
-        return $earliest
-            ?->subWeekdays(1)
-            ->toDateString();
+        return Project::materialsRequiredDate($earliest?->toDateString())
+            ?->toDateString();
     }
 
     /**

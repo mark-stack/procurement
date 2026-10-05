@@ -51,11 +51,21 @@ class BatchReadyToQuoteEmail extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         /*
-         * The board, which is where "Start quoting" is.
+         * Signed in, and on the page the button is on. Nothing more.
          *
-         * It used to deep link into Quotes / Orders for the batch, because there was a batch by the
-         * time this went out. There is not one now - the whole point of the change is that nobody has
-         * pressed anything - so the one tap this can save is getting them to the column.
+         * It made the press itself for a while - the link landing on a page that posted itself, so
+         * that the batch was nested and its material order list open by the time the reader looked.
+         * That page was a flash of a screen on the way to this one, and it bought less than it cost:
+         * the press is one button away on the card they land on, the bell's green action still makes
+         * it in one, and a batch is a purchase. Doing it from a link in an email, where a mistimed
+         * tap and a mail filter look alike, is not where that should happen quietly.
+         *
+         * So the url is the whole of it, which is also all MagicLink keeps: it serialises the
+         * response it is handed and rebuilds it from the target url and status code alone
+         * (ResponseAction::formattedResponse), so anything carried on this redirect would be dropped
+         * on the way. A flash set here is lost twice over - redirect()->with() flashes when the
+         * object is built, which for this notification is inside a queued job with no session to
+         * flash into.
          */
         $action = new LoginAction($this->recipient);
         $action->response(redirect()->route('dashboard'));
@@ -64,11 +74,7 @@ class BatchReadyToQuoteEmail extends Notification implements ShouldQueue
         return (new MailMessage)
             ->subject('These materials need quoting today')
             ->line($this->message)
-            ->line('Pressing "Start quoting" on the Nesting column takes everything waiting in it into'
-                .' one batch and opens Quotes / Orders. Each supplier there has an "Email tables"'
-                .' button beside it, which opens an email already written with that supplier\'s'
-                .' material order list in it - one per supplier category on the batch.')
-            ->action('Open the board', $magicLinkUrl);
+            ->action('Start quoting', $magicLinkUrl);
     }
 
     /**

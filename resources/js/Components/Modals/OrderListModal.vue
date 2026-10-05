@@ -373,10 +373,48 @@
                             there is no stamp on it, and the lines are the whole of what it says.
                         -->
                         <div class="relative mt-3">
+                            <!--
+                                Room at the top right for the Copy button that sits in it, so the
+                                first lines stop short of the button rather than running under it.
+                                A line long enough to reach it is long enough to scroll, and the
+                                button is opaque: scrolled far enough, text passes behind it and is
+                                read by scrolling on. The padding is what keeps that rare rather
+                                than routine - most sections and grades are well short of it.
+                            -->
                             <pre
                                 :class="isOpenBatch ? 'min-h-[5.5rem] sm:min-h-[6.5rem]' : null"
-                                class="p-3 overflow-x-auto text-sm text-gray-800 rounded-lg bg-gray-50"
+                                class="p-3 pr-24 overflow-x-auto text-sm text-gray-800 rounded-lg bg-gray-50"
                             >{{ group.lines.join('\n') }}</pre>
+
+                            <!--
+                                In the corner of the lines it copies, rather than under them or in
+                                the heading. This is the one tab whose contents go into a mail, and a
+                                Copy button up beside the supplier's name would sit next to the
+                                Certificates tab as well - inviting somebody to think it copies those.
+
+                                One button per group rather than one for the modal: the lists go to
+                                different suppliers, and nobody sends a timber merchant the steel.
+
+                                Not drawn on the open batch at all. Copying is how this list leaves
+                                the screen and reaches a merchant, and that card's nest is a
+                                suggestion the next upload changes - which is what the watermark
+                                below occupies this same corner to say.
+                            -->
+                            <button
+                                v-if="!isOpenBatch"
+                                type="button"
+                                @click="copyGroup(group)"
+                                :title="'Copy the ' + shared.supplierGroupLabel(group.supplierGroup) + ' list'"
+                                class="absolute inline-flex items-center h-8 gap-1.5 px-2.5 text-xs font-semibold text-gray-600 transition-colors duration-150 bg-white border border-gray-300 rounded-lg shadow-sm top-2 right-2 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800"
+                            >
+                                <i
+                                    :class="copiedGroup === group.supplierGroup
+                                        ? 'fa-solid fa-check text-green-600'
+                                        : 'fa-regular fa-copy'"
+                                    class="text-[11px]"
+                                ></i>
+                                {{ copiedGroup === group.supplierGroup ? 'Copied' : 'Copy' }}
+                            </button>
 
                             <div
                                 v-if="isOpenBatch"
@@ -387,37 +425,6 @@
                                     Do not order
                                 </span>
                             </div>
-                        </div>
-
-                        <!--
-                            Under the lines it copies, rather than in the heading: this is the one tab
-                            whose contents go into a mail, and a Copy button sitting beside a list of
-                            certificates invites somebody to think it copies those.
-
-                            One button per group rather than one for the modal - the lists go to
-                            different suppliers, and nobody sends a timber merchant the steel. Below
-                            rather than over the lines, which scroll sideways: a bar section and its
-                            grade is a long line, and a button floating on top of it hides the end.
-
-                            Not drawn on the open batch at all. Copying is how this list leaves the
-                            screen and reaches a merchant, and that card's nest is a suggestion that
-                            the next upload changes.
-                        -->
-                        <div v-if="!isOpenBatch" class="flex justify-end mt-2">
-                            <button
-                                type="button"
-                                @click="copyGroup(group)"
-                                :title="'Copy the ' + shared.supplierGroupLabel(group.supplierGroup) + ' list'"
-                                class="inline-flex items-center h-8 gap-1.5 px-2.5 text-xs font-semibold text-gray-600 transition-colors duration-150 bg-white border border-gray-300 rounded-lg shadow-sm hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800"
-                            >
-                                <i
-                                    :class="copiedGroup === group.supplierGroup
-                                        ? 'fa-solid fa-check text-green-600'
-                                        : 'fa-regular fa-copy'"
-                                    class="text-[11px]"
-                                ></i>
-                                {{ copiedGroup === group.supplierGroup ? 'Copied' : 'Copy' }}
-                            </button>
                         </div>
                     </div>
 

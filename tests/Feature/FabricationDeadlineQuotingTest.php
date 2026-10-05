@@ -212,12 +212,16 @@ it('stops asking once somebody has started quoting', function () {
     expect(warningsSent($user, BatchReadyToQuoteEmail::class))->toBe(1);
 });
 
-it('sends the recipient to the button it is asking them to press', function () {
+it('signs the recipient in on the page the button it names is on', function () {
     /*
-     * The email used to deep link into Quotes / Orders for the batch, because by the time it went out
-     * there was a batch. There is not one now, and will not be until somebody presses "Start
-     * quoting" - so the one tap this can save is getting them to the column, and it has to say what
-     * they will find on the other side of the button.
+     * The email used to explain, at length, which button to find when they got there - on the one
+     * screen it is already about. The explanation is gone: the deadline is the whole message, and
+     * the button names the thing to do rather than the screen it is on.
+     *
+     * The link signs them in and stops there. It made the press itself for a while, through a page
+     * that posted itself, and that page was a flash of a screen on the way to this one for a saving
+     * of one button - on a press that commits the business to a purchase, reached from a link in an
+     * email where a mistimed tap and a mail filter look alike.
      */
     seededCatalogue();
 
@@ -230,18 +234,29 @@ it('sends the recipient to the button it is asking them to press', function () {
 
     $rendered = implode("\n", $mail->introLines);
 
-    //It names the button to press, and the one that writes the supplier drafts afterwards
-    expect($rendered)->toContain('Start quoting');
-    expect($rendered)->toContain('Email tables');
+    expect($mail->actionText)->toBe('Start quoting');
+
+    //The deadline and nothing else. The walkthrough of a screen they have not reached yet is gone
+    expect($rendered)->not->toContain('Email tables');
+    expect($rendered)->not->toContain('Quotes / Orders');
 
     //And none of the material list itself - a list reflowed by a mail client cannot be sent to a merchant
     expect($rendered)->not->toContain('mm');
 
     /*
-     * And the button actually lands on the board. Followed rather than inspected: the action url is
-     * an opaque MagicLink token, so the only honest way to ask where it goes is to go there.
+     * Followed rather than inspected: the action url is an opaque MagicLink token, and MagicLink
+     * rebuilds the response it was handed from the target url and status code alone - so the only
+     * honest way to ask where this goes is to go there.
      */
     test()->get($mail->actionUrl)->assertRedirect(route('dashboard'));
+
+    /*
+     * And it bought nothing on the way. A magic link is followed by mail scanners and link-rewriting
+     * gateways before a human sees it - config/magiclink allows three visits for exactly that reason
+     * - so a url that nested on arrival would commit the business to a purchase nobody had clicked.
+     */
+    expect(Batch::count())->toBe(0);
+    expect((new NestingFormatter)->piecesReadyForBatching($business))->not->toBeEmpty();
 });
 
 it('would be a disaster if a colleague found out their steel had been ordered afterwards', function () {
@@ -447,4 +462,140 @@ it('is reachable as a scheduled command', function () {
 
     //And it did not quote anything on the way past
     expect(Batch::count())->toBe(0);
+});
+
+it('presses the button the warning asks for, and opens the order list of what it made', function () {
+    /*
+     * The green action on the warning. It used to send the reader to the page the button is on and
+     * leave them to find it, which is the one screen they were already being told about - so it is
+     * the press itself now, and then the order list of the batch it produced: somebody told their
+     * steel has to go out today needs the materials to put in front of a merchant.
+     *
+     * The same press the card's own "Lock before quoting" makes - PressStartQuoting - so the batch,
+     * the nest and the notifications to the colleagues swept up in it are identical either way.
+     */
+    seededCatalogue();
+
+    $business = createBusiness('fabricator');
+    $user = createUser(1, $business, false, true);
+
+    $project = nestingColumnProject($user, now()->addDays(2)->toDateString());
+
+    (new FabricationDeadlineQuoting)->warnBusiness($business);
+
+    $notification = $user->notifications()
+        ->where('type', BatchReadyToQuoteEmail::class)
+        ->firstOrFail();
+
+    $response = test()->actingAs($user)
+        ->from(route('dashboard'))
+        ->post(route('mark.notification.status'), [
+            'id' => $notification->id,
+            'status' => 'GREEN',
+        ]);
+
+    //The column was nested, which is the thing the warning was asking for
+    expect(Batch::count())->toBe(1);
+
+    $batch = Batch::query()->firstOrFail();
+
+    expect($batch->user_id)->toBe($user->id)
+        ->and($project->fresh()->pieces()->whereNull('batch_id')->exists())->toBeFalse()
+        ->and((new NestingFormatter)->piecesReadyForBatching($business))->toBeEmpty();
+
+    /*
+     * And the page it lands on is told to open that batch's order list. A flash rather than a query
+     * string: it is an instruction about this one arrival, where ?orderList=12 would sit in the
+     * address bar reopening the modal on every refresh.
+     */
+    $response->assertRedirect(route('dashboard'))
+        ->assertSessionHas('openOrderList', $batch->id);
+
+    //The warning is answered, so it is out of the bell rather than waiting for the next sweep
+    expect($notification->fresh()->read_at)->not->toBeNull();
+});
+
+it('would be a disaster if the green action quoted a column a colleague had already taken', function () {
+    /*
+     * An hour is long enough for somebody else to press the button, and the warning sits in a bell
+     * until it is read. Pressing it then must not build a second batch over the same steel - the
+     * press is gated and race-checked exactly as the card's own is - and it has to say where the
+     * work went, because an emptied column and a silent redirect look identical to a success.
+     */
+    seededCatalogue();
+
+    $business = createBusiness('fabricator');
+    $user = createUser(1, $business, false, true);
+
+    nestingColumnProject($user, now()->addDays(2)->toDateString());
+
+    (new FabricationDeadlineQuoting)->warnBusiness($business);
+
+    $notification = $user->notifications()
+        ->where('type', BatchReadyToQuoteEmail::class)
+        ->firstOrFail();
+
+    //The colleague gets there first, by the one route that does this
+    StartQuoting::run($user, $business, (new NestingFormatter)->piecesReadyForBatching($business));
+
+    expect(Batch::count())->toBe(1);
+
+    $response = test()->actingAs($user)
+        ->from(route('dashboard'))
+        ->post(route('mark.notification.status'), [
+            'id' => $notification->id,
+            'status' => 'GREEN',
+        ]);
+
+    //No second batch over the same steel, and nothing to open
+    expect(Batch::count())->toBe(1);
+
+    $response->assertRedirect(route('dashboard'))
+        ->assertSessionMissing('openOrderList')
+        ->assertSessionHas('warning');
+});
+
+it('would be a disaster if the green action let a lapsed account buy steel', function () {
+    /*
+     * The bell's status route sits outside BillingWriteAccessMiddleware on purpose - dismissing a
+     * notification changes nothing anybody is billed for - and that stopped being the whole truth
+     * when this notification's green action became the press itself. Nesting is the most expensive
+     * write in the application and it commits the business to a purchase, so the one way into it
+     * that the middleware does not guard has to ask the same question for itself.
+     *
+     * The warning is sent while the trial is live, because projectsToWarn will not chase a read-only
+     * business at all - and then it sits in the bell, which is where a trial runs out.
+     */
+    seededCatalogue();
+
+    $business = createBusiness('fabricator');
+    $user = createUser(1, $business, false, true);
+
+    nestingColumnProject($user, now()->addDays(2)->toDateString());
+
+    (new FabricationDeadlineQuoting)->warnBusiness($business);
+
+    $notification = $user->notifications()
+        ->where('type', BatchReadyToQuoteEmail::class)
+        ->firstOrFail();
+
+    //And now the trial lapses, with the row still unread
+    $business->trial_ends_at = now()->subDay();
+    $business->save();
+
+    expect($business->fresh()->allowsWrites())->toBeFalse();
+
+    $response = test()->actingAs($user)
+        ->from(route('dashboard'))
+        ->post(route('mark.notification.status'), [
+            'id' => $notification->id,
+            'status' => 'GREEN',
+        ]);
+
+    //Nothing bought, and nothing to open
+    expect(Batch::count())->toBe(0);
+    expect((new NestingFormatter)->piecesReadyForBatching($business->fresh()))->not->toBeEmpty();
+
+    $response->assertSessionMissing('openOrderList')
+        ->assertSessionHas('warning');
 });
