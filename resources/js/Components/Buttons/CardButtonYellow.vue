@@ -20,10 +20,10 @@
         /**
          * Pulse the border, for a button the card above it is telling somebody to press.
          *
-         * The Nesting page turns it on for "Material order" while a batch is late at the quoting -
-         * the footer says "Action required: Complete quoting" and this is where that gets completed.
-         * Off by default, and worth keeping that way: two glowing buttons on one card is a card with
-         * nothing marked out on it.
+         * The Nesting page turns it on for "Material order" while a batch is late at the quoting or
+         * at the ordering - the footer says "Complete quoting" or "Place the order" and both of them
+         * get done in the modal behind that button. Off by default, and worth keeping that way: two
+         * glowing buttons on one card is a card with nothing marked out on it.
          *
          * Ignored on a disabled button. A greyed button that pulses is pointing at something that
          * cannot be pressed, which is the one thing worse than not pointing at all.

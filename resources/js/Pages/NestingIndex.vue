@@ -264,16 +264,22 @@
      * prices come in through the Material order list, which is where each merchant on the batch is
      * marked quoted and then ordered. The button glows so the sentence has somewhere to point.
      *
-     * Only on that one step. Every late card has a footer and every card has these buttons, so a
-     * glow on all of them would be a page of pulsing borders saying nothing - and the other two
-     * steps are not completed here at all: QUOTED wants an order placed and NESTING wants the open
-     * batch locked, which is the card menu rather than this button. ORDERING is the odd one out and
-     * is deliberately left alone too: some of its material is still unbought, which is work in the
-     * same modal, but its footer already names the outstanding merchants and a batch that far along
-     * is being read rather than searched.
+     * Two steps, because both of them are finished in that modal and nowhere else on this page.
+     * QUOTING is the prices coming in, "Mark as quoted" a block at a time; QUOTED is "Place the
+     * order", which is the "Mark as ordered" on the same blocks once they are priced. That second
+     * one used to be left out on the grounds that an order is placed from the card menu - true only
+     * of "All ordered", which buys the whole batch in one press and is the shortcut rather than the
+     * step. Per-merchant ordering lives in the modal, so that is where the footer points.
+     *
+     * Not on the other two late steps. Every late card has a footer and every card has these
+     * buttons, so a glow on all of them would be a page of pulsing borders saying nothing. NESTING
+     * wants the open batch locked, which its own footer now offers a button for. ORDERING is
+     * deliberately left alone: some of its material is still unbought, which is work in this modal,
+     * but its footer already names the outstanding merchants and a batch that far along is being
+     * read rather than searched.
      */
-    function quotingOutstanding(batch) {
-        return actionRequired(batch) && batch.stage === 'QUOTING';
+    function orderListOutstanding(batch) {
+        return actionRequired(batch) && ['QUOTING', 'QUOTED'].includes(batch.stage);
     }
 
     /*
@@ -1496,14 +1502,14 @@
                                     What to buy, the way the supplier emails word it - and how each
                                     order is going.
 
-                                    It pulses while this batch is late at the quoting, which is the
-                                    one step the footer under the card asks for and this modal is
-                                    where it gets done - see quotingOutstanding().
+                                    It pulses while this batch is late at the quoting or at the
+                                    ordering, the two steps the footer under the card asks for that
+                                    this modal is where they get done - see orderListOutstanding().
                                 -->
                                 <CardButtonYellow
                                     label="Material order"
                                     :sublabel="categoryLabel(batch)"
-                                    :attention="quotingOutstanding(batch)"
+                                    :attention="orderListOutstanding(batch)"
                                     :disabled="isEmptyOpenBatch(batch)"
                                     :title="isEmptyOpenBatch(batch)
                                         ? 'Nothing is waiting on the open batch yet'

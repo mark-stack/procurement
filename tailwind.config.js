@@ -341,9 +341,9 @@ export default {
              * A button on a card that is behind, breathing so it is found.
              *
              * The Nesting page's action footer says what somebody has to go and do about a late
-             * batch, and for "Complete quoting" the thing to do is open one of the three buttons on
-             * that card - which is a sentence at one end of the card and an unremarkable button at
-             * the other. This is what joins them: the border and a ring around it swell and fade,
+             * batch, and for "Complete quoting" and "Place the order" the thing to do is open one of
+             * the three buttons on that card - which is a sentence at one end of the card and an
+             * unremarkable button at the other. This is what joins them: the border and a ring swell and fade,
              * so the eye goes from the instruction to the button without the page having to grow
              * an arrow.
              *
