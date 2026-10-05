@@ -264,7 +264,7 @@ it('sends past batches nothing but the project names it renders', function () {
     $response = $this->get(route('past.batches.index'))->assertOk();
     $row = collect($response->viewData('page')['props']['pastBatches'])->firstWhere('id', $batch->id);
 
-    expect(array_keys($row))->toBe(['id', 'createdAt', 'projectManagers', 'batchedBy', 'projects', 'cutCount', 'categoryCount'])
+    expect(array_keys($row))->toBe(['id', 'createdAt', 'projectManagers', 'batchedBy', 'projects', 'cutCount', 'categoryCount', 'mine'])
         ->and($row['projects'])->toHaveCount(1)
         //Still just the names: the managers arrive as one joined string, not as the owners themselves
         ->and(array_keys($row['projects'][0]))->toBe(['id', 'name'])
@@ -310,6 +310,56 @@ it('would be a disaster if a batch spanning two managers named only one', functi
 
     expect($row['projectManagers'])->toContain($user->name)
         ->and($row['projectManagers'])->toContain($colleague->name);
+});
+
+it("says which closed batches are the reader's own, for the \"Only my materials\" switch", function () {
+    /*
+     * The switch is a filter over the list the page already holds, so every batch is sent whatever it
+     * is set to and each card says whether it is one of yours. A batch carrying a colleague's job and
+     * none of yours is the one the switch is there to hold back.
+     */
+    $business = createBusiness('biz');
+    $user = createUser(1, $business, false, true);
+    $colleague = createUser(2, $business, false, true);
+
+    $mine = Batch::factory()->forUser($user->id)->create(['done' => true]);
+    pieceOnBatch(createProject($user), $mine);
+
+    //Nested by this user, but none of the work on it is theirs - the batcher is not the owner
+    $theirs = Batch::factory()->forUser($user->id)->create(['done' => true]);
+    pieceOnBatch(createProject($colleague), $theirs);
+
+    $this->actingAs($user);
+
+    $rows = collect($this->get(route('past.batches.index'))->assertOk()
+        ->viewData('page')['props']['pastBatches'])->keyBy('id');
+
+    expect($rows[$mine->id]['mine'])->toBeTrue()
+        ->and($rows[$theirs->id]['mine'])->toBeFalse();
+});
+
+it('would be a disaster if the switch hid a batch the reader uploaded for a colleague', function () {
+    /*
+     * The same widening the Nesting page's switch needed - see NestingIndexController::mineOf. A
+     * draftsman who puts the material lists on for the project managers manages none of them, so a
+     * switch reading the manager alone would open this page empty on every job he has ever uploaded,
+     * every time.
+     */
+    $business = createBusiness('biz');
+    $uploader = createUser(1, $business, false, true);
+    $manager = createUser(2, $business, false, true);
+
+    $batch = Batch::factory()->forUser($manager->id)->create(['done' => true]);
+    $project = createProject($manager);
+    $project->update(['created_by_user_id' => $uploader->id]);
+    pieceOnBatch($project, $batch);
+
+    $this->actingAs($uploader);
+
+    $row = collect($this->get(route('past.batches.index'))->assertOk()
+        ->viewData('page')['props']['pastBatches'])->firstWhere('id', $batch->id);
+
+    expect($row['mine'])->toBeTrue();
 });
 
 it('reads past batches in a fixed number of queries however many batches it holds', function () {

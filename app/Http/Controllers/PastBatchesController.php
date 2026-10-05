@@ -6,6 +6,7 @@ use App\Formatters\SupplierFormatter;
 use App\Models\Business;
 use App\Models\Piece;
 use App\Models\Project;
+use App\Models\User;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -26,7 +27,8 @@ class PastBatchesController extends Controller
      */
     public function __invoke(): Response
     {
-        $business = auth()->user()->business;
+        $user = auth()->user();
+        $business = $user->business;
 
         $pastBatches = $business->batches()
             ->with('user:id,name')
@@ -37,6 +39,8 @@ class PastBatchesController extends Controller
         $batchIds = $pastBatches->pluck('id');
         $projectsByBatch = $this->projectsByBatch($batchIds);
         $projectManagersByBatch = $this->projectManagersByBatch($batchIds);
+        //Which of them carry work of this user's own, which is what the page's switch filters on
+        $mineBatchIds = $this->mineBatchIds($batchIds, $user);
         /*
          * The two numbers under the card's buttons, which are the Nesting card's own - see
          * NestingIndex.vue's cutLabel() and categoryLabel(). A closed batch's card reads the same as
@@ -71,6 +75,8 @@ class PastBatchesController extends Controller
                 'projects' => $projectsByBatch->get($pastBatch->id, collect()),
                 'cutCount' => $cutCountByBatch->get($pastBatch->id, 0),
                 'categoryCount' => $categoryCountByBatch->get($pastBatch->id, 0),
+                //Whether the "Only my materials" switch keeps this card - see mineBatchIds()
+                'mine' => in_array((int) $pastBatch->id, $mineBatchIds, true),
             ];
         }
 
@@ -137,6 +143,34 @@ class PastBatchesController extends Controller
                 ->values()
                 ->join(', ', ' and ')
             );
+    }
+
+    /**
+     * The batches carrying work of this user's own, which is the whole of what the switch asks.
+     *
+     * NestingIndexController::mineOf's question of a closed batch, and answered to the same rule: a
+     * job you manage, or one you put on the system for a colleague - Project::scopeManagedBy, which
+     * is the query form of the isManagedBy that page asks per project. The two pages must not differ
+     * about whose batch something is: a batch that was yours while it was live is still yours the day
+     * after it closes, and a draftsman who uploads for the managers all day would otherwise find this
+     * page empty - which is the same trap the Nesting switch was widened to avoid.
+     *
+     * One query for the page, like everything else here, and ids rather than a flag per row - the
+     * list only grows, and a per-batch read is the nine-queries-a-row shape this screen was trimmed
+     * back from.
+     *
+     * @return array<int, int>
+     */
+    private function mineBatchIds(Collection $batchIds, User $user): array
+    {
+        return Piece::query()
+            ->whereIn('batch_id', $batchIds)
+            ->whereIn('project_id', Project::query()->managedBy($user->id)->select('id'))
+            ->distinct()
+            ->pluck('batch_id')
+            //Cast, the column having no cast on it - the ids it is compared against come off Batch rows
+            ->map(fn ($batchId) => (int) $batchId)
+            ->all();
     }
 
     /**

@@ -1,6 +1,6 @@
 <script setup>
     //General Imports
-    import {ref} from "vue";
+    import {computed, ref} from "vue";
     import {Head, Link} from "@inertiajs/vue3";
     import axios from "axios";
 
@@ -31,6 +31,63 @@
      * same thing with loadingBatchId, for the same reason.
      */
     const loadingBatchId = ref(null);
+
+    /*
+     * Whether to show only the batches carrying your own jobs, on by default - the Nesting page's
+     * switch, on the page that needs it more.
+     *
+     * Nothing ever leaves this list: a business a year in has every batch it has ever bought here,
+     * and all but a few of them are somebody else's. Your own finished work is what somebody opens
+     * this page to look back at, and the switch is there for the times the whole shop's record is
+     * what is wanted.
+     *
+     * A batch is yours when one of the projects on it is yours: a job you manage, or one you
+     * uploaded for a colleague. The server says so per card - see PastBatchesController::mineBatchIds.
+     *
+     * Remembered per browser, under this page's own key: it is a view somebody chooses, and the
+     * choice they make about the record of finished work is not the one they make about the live
+     * page. Fails quiet, the way the Nesting page's does - a browser that refuses localStorage still
+     * has the switch, it just opens on the default next time.
+     */
+    const ONLY_MINE_KEY = 'pastBatches.onlyMine';
+
+    const onlyMine = ref(readOnlyMinePreference());
+
+    function readOnlyMinePreference(){
+        try {
+            return window.localStorage.getItem(ONLY_MINE_KEY) !== 'false';
+        } catch (error) {
+            return true;
+        }
+    }
+
+    function toggleOnlyMine(value){
+        onlyMine.value = value;
+
+        try {
+            window.localStorage.setItem(ONLY_MINE_KEY, value ? 'true' : 'false');
+        } catch (error) {
+            //A browser that will not keep it still has the switch; it is just back on next visit
+        }
+    }
+
+    //Computed
+    /*
+     * The cards the switch leaves on the page. Every card here is a closed batch - there is no open
+     * batch to hold back the way the Nesting page holds one - so the filter is the whole list.
+     *
+     * A filter over a list the page already holds, so flicking the switch costs nothing: the server
+     * sends every batch whatever it is set to, and each card says whether it is one of yours.
+     */
+    const visibleBatches = computed(() => onlyMine.value
+        ? props.pastBatches.filter(batch => batch.mine)
+        : props.pastBatches);
+
+    /*
+     * How many cards the switch is holding back, so turning it off is an offer rather than a guess.
+     * Named for what the user would see, which is why it counts against the whole list.
+     */
+    const hiddenCount = computed(() => props.pastBatches.length - visibleBatches.value.length);
 
     /*
      * The two modals the cards open, and the state each needs - NestingIndex.vue's, to the letter.
@@ -206,21 +263,54 @@
             a different application to the one page the rest of the app now is.
         -->
         <section class="container max-w-4xl px-4 mx-auto py-6">
+            <!-- Wraps rather than squeezes: the switch and the count do not fit a phone beside the title -->
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <h1 class="text-lg font-semibold text-gray-800">
                     Past batches
                 </h1>
 
-                <!-- The list only grows, so say how big it is rather than leaving it to scrolling -->
-                <span v-if="pastBatches.length" class="text-xs text-gray-500">
-                    {{ pastBatches.length }} closed {{ pastBatches.length === 1 ? 'batch' : 'batches' }}
-                </span>
+                <div class="flex items-center gap-3">
+                    <!--
+                        The list only grows, so say how big it is rather than leaving it to scrolling -
+                        and say it of what is on the page, the switch having a say in that.
+                    -->
+                    <span v-if="visibleBatches.length" class="text-xs text-gray-500">
+                        {{ visibleBatches.length }} closed {{ visibleBatches.length === 1 ? 'batch' : 'batches' }}
+                    </span>
+
+                    <!--
+                        Your own jobs only, on by default - see onlyMine. The Nesting page's switch, to
+                        the markup: the two pages are read one after the other and a control that
+                        looked or behaved differently here would be a second thing to learn.
+                    -->
+                    <button
+                        type="button"
+                        role="switch"
+                        :aria-checked="onlyMine"
+                        :title="onlyMine
+                            ? 'Showing only closed batches carrying your own projects'
+                            : 'Showing every closed batch in the business'"
+                        @click="toggleOnlyMine(!onlyMine)"
+                        class="inline-flex items-center gap-2 text-sm font-medium text-gray-600 transition-colors duration-150 hover:text-gray-800"
+                    >
+                        <span
+                            class="relative inline-flex items-center h-5 transition-colors duration-150 rounded-full w-9 shrink-0"
+                            :class="onlyMine ? 'bg-blue-600' : 'bg-gray-300'"
+                        >
+                            <span
+                                class="inline-block w-4 h-4 transition-transform duration-150 bg-white rounded-full shadow"
+                                :class="onlyMine ? 'translate-x-[1.125rem]' : 'translate-x-0.5'"
+                            ></span>
+                        </span>
+                        Only my materials
+                    </button>
+                </div>
             </div>
 
             <!-- One card per closed batch, full width, newest first - the order the controller sends -->
             <div class="flex flex-col gap-3 mt-4">
                 <div
-                    v-for="batch in pastBatches"
+                    v-for="batch in visibleBatches"
                     :key="batch.id"
                     class="bg-white border border-gray-200 shadow-sm rounded-xl"
                 >
@@ -328,7 +418,51 @@
                     Nothing here yet. A batch lands in past batches once its steel is all in and it
                     is marked done.
                 </div>
+
+                <!--
+                    The business has closed batches and none of them are yours. The page is not empty -
+                    the switch is holding the rest back - so this offers the way out rather than
+                    leaving the switch to be found, which on a record nobody presses anything on is
+                    the difference between an empty page and a filtered one.
+                -->
+                <div
+                    v-else-if="onlyMine && !visibleBatches.length"
+                    class="px-4 py-6 text-sm text-center text-gray-500 bg-white border border-gray-200 border-dashed rounded-xl"
+                >
+                    <p>
+                        None of your projects are on a closed batch.
+                    </p>
+                    <button
+                        type="button"
+                        @click="toggleOnlyMine(false)"
+                        class="mt-2 font-semibold text-blue-700 underline hover:text-blue-900"
+                    >
+                        Show the business's {{ hiddenCount }}
+                        {{ hiddenCount === 1 ? 'batch' : 'batches' }}
+                    </button>
+                </div>
             </div>
+
+            <!--
+                And when the switch is hiding some but not all of them, it says so under the list: a
+                page that quietly drops a colleague's batch is how somebody comes to believe a job was
+                never bought. Nothing to say when the switch is off, or when it happens to be hiding
+                nothing - and nothing here when it has hidden every batch, which the box above says at
+                more length.
+            -->
+            <p
+                v-if="onlyMine && hiddenCount > 0 && visibleBatches.length"
+                class="mt-3 text-xs text-center text-gray-500"
+            >
+                {{ hiddenCount }} {{ hiddenCount === 1 ? 'other batch' : 'other batches' }} in the business
+                <button
+                    type="button"
+                    @click="toggleOnlyMine(false)"
+                    class="font-semibold text-blue-700 underline hover:text-blue-900"
+                >
+                    Show {{ hiddenCount === 1 ? 'it' : 'them' }}
+                </button>
+            </p>
         </section>
     </AuthenticatedLayout>
 
