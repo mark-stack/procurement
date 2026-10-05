@@ -24,6 +24,7 @@ use Illuminate\Support\Collection;
  * @property \Illuminate\Support\Carbon|null $cut_at When somebody recorded that it has been cut
  * @property array<int, string>|null $ordered_supplier_groups The groups bought off the application
  * @property array<int, string>|null $quoted_supplier_groups The groups priced off the application
+ * @property array<int, string>|null $delivered_supplier_groups The groups whose steel somebody marked in
  */
 class Batch extends Model
 {
@@ -78,6 +79,12 @@ class Batch extends Model
              * migration, and BatchMarkGroupQuotedController for the press that writes one.
              */
             'quoted_supplier_groups' => 'array',
+            /*
+             * And the step after both of them - the groups on this batch whose material somebody
+             * watched come off the truck, there being no order on the application to book in against.
+             * See the 2026_10_05_110000 migration, and BatchMarkGroupDeliveredController.
+             */
+            'delivered_supplier_groups' => 'array',
         ];
     }
 
@@ -523,6 +530,33 @@ class Batch extends Model
     }
 
     /**
+     * And the step after that one: whether every merchant on this batch has had its steel marked in.
+     *
+     * The same thing "All delivered" claims in one press, arrived at a block at a time - see
+     * BatchMarkGroupDeliveredController. A card whose every block says "Delivered" has its material
+     * in the rack, which is what its pill says, and the menu item that would say it again has nothing
+     * left to record.
+     *
+     * The marks alone, like the bought question above, and for the same reason: the batches these are
+     * asked of have no order on the application to book in. A merchant with a sent order is delivered
+     * when that order is received, the mark is refused on its block, and a batch carrying one has left
+     * the Quoting column for a card that does not offer "All delivered" at all.
+     *
+     * Measured against the same merchants as the two questions above, and false for a batch with no
+     * merchants, for the same reason - see NestingIndexController::fullyMarkedDeliveredBatchIds.
+     */
+    public function everySupplierGroupDelivered(Business $business): bool
+    {
+        $required = $this->supplierGroupsRequired($business);
+
+        if ($required === []) {
+            return false;
+        }
+
+        return array_diff($required, $this->delivered_supplier_groups ?? []) === [];
+    }
+
+    /**
      * The merchants this batch has to buy from - the supplier groups its material falls into.
      *
      * The card's own "Material order" count, and the list both questions above are measured against:
@@ -557,19 +591,25 @@ class Batch extends Model
     /**
      * Whether the steel on this batch is in the rack, however the shop got it there.
      *
-     * Two ways to be delivered, because there are two ways to buy. A batch ordered through the
-     * application is delivered when every sent order on it has been booked in and nothing on the job
-     * is still unbought - the same test the Nesting page's DELIVERED pill is drawn from (see
-     * NestingIndexController::fullyDeliveredBatchIds). A batch bought over the phone has no order to
-     * book in and says so with the mark instead.
+     * Three ways to be delivered, because there are two ways to buy and the phone has two spellings.
+     * A batch ordered through the application is delivered when every sent order on it has been
+     * booked in and nothing on the job is still unbought - the same test the Nesting page's DELIVERED
+     * pill is drawn from (see NestingIndexController::fullyDeliveredBatchIds). A batch bought over
+     * the phone has no order to book in and says so with a mark instead: "All delivered" on the card
+     * menu for the whole job, or the order list's own mark on every one of its blocks.
+     *
+     * That last one has to count here or the block marks are a trap. They are what puts DELIVERED on
+     * the card and what greys "All delivered" once the last block is in, so a batch answered a
+     * merchant at a time would reach a pill saying its steel is in, over a menu offering "Cut" and
+     * "Move to done" that both 403 - the one state in the application a shop could not get out of.
      *
      * Asked of one batch, so it runs BatchStages::of rather than the page's grouped query: the pages
      * that draw a card per batch already know the answer and pass it in. This is for the press -
      * BatchMarkCutController - which has one batch and must not take the card's word for it.
      */
-    public function isDelivered(): bool
+    public function isDelivered(Business $business): bool
     {
-        if ($this->delivered_at !== null) {
+        if ($this->delivered_at !== null || $this->everySupplierGroupDelivered($business)) {
             return true;
         }
 

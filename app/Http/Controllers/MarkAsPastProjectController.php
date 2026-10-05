@@ -29,11 +29,15 @@ class MarkAsPastProjectController extends Controller
          * it, and a batch whose steel has not arrived is not finished whatever a stale tab believes.
          *
          * The gate is told whether the batch is delivered rather than working it out, because the
-         * card already knows from the pill it drew - see Batch::isDelivered for the two ways of
+         * card already knows from the pill it drew - see Batch::isDelivered for the three ways of
          * being delivered and NestingIndexController::milestoneOf for how the card reads them.
          */
         abort_if(
-            ! (new PrerequisiteConditions)->markBatchDone($request->user(), $batch, $batch->isDelivered()),
+            ! (new PrerequisiteConditions)->markBatchDone(
+                $request->user(),
+                $batch,
+                $batch->isDelivered($request->user()->business),
+            ),
             403,
         );
 
