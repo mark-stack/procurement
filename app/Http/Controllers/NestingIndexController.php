@@ -363,12 +363,27 @@ class NestingIndexController extends Controller
                      * order behind it and what the pill says is read off the orders and their
                      * deliveries - a mark set there could only contradict them, which is why the
                      * gate refuses it too (PrerequisiteConditions::markBatchQuoted).
+                     *
+                     * The pill is what answers "is every merchant already priced" for the quoted one.
+                     * Anything but QUOTING in this column means the prices are in - a sent quote per
+                     * group, every block marked quoted, or every block marked bought, which are the
+                     * three readings milestoneOf has just taken - and a press that claims it again
+                     * has nothing to record. The card said Quoted over a live "All quoted" until this.
+                     *
+                     * The ordered one is given the narrower fact rather than the pill, because the
+                     * pill moving on is no reason to grey it: QUOTED is precisely the batch somebody
+                     * is about to buy. What stops it is the blocks having been bought one at a time,
+                     * which is the reading that put ORDERED on the card to begin with.
                      */
                     'prerequisiteMarkQuoted' => $stage === BatchStages::QUOTING
-                        ? (new PrerequisiteConditions)->markBatchQuoted($user, $batch)
+                        ? (new PrerequisiteConditions)->markBatchQuoted($user, $batch, $milestone !== 'QUOTING')
                         : null,
                     'prerequisiteMarkOrdered' => $stage === BatchStages::QUOTING
-                        ? (new PrerequisiteConditions)->markBatchOrdered($user, $batch)
+                        ? (new PrerequisiteConditions)->markBatchOrdered(
+                            $user,
+                            $batch,
+                            in_array($batch->id, $fullyMarkedOrdered, true),
+                        )
                         : null,
                     //And "Delivered", which is the same kind of mark: the steel turned up, nobody named
                     'prerequisiteMarkDelivered' => $stage === BatchStages::QUOTING

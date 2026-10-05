@@ -412,10 +412,18 @@ class PrerequisiteConditions
      * Refused once the batch has been called bought: ordering is the step after quoting, and a batch
      * that has passed it is not waiting for a price. Nothing undoes either mark yet, so the item greys
      * once it has been used rather than offering to set a date that is already set.
+     *
+     * And refused once every merchant on the batch has been priced one at a time - $everyGroupPriced,
+     * which is Batch::everySupplierGroupPriced for the press and the card's own pill for the menu. A
+     * shop that works the order list block by block arrives at the same place this press jumps to, and
+     * the menu item was still sitting there offering to do it again: the card already read Quoted, or
+     * Ordered, over a live "All quoted". The caller is given the question because the page has already
+     * answered it for the whole column and must not be made to ask again per card.
      */
-    public function markBatchQuoted(User $user, Batch $batch): bool
+    public function markBatchQuoted(User $user, Batch $batch, bool $everyGroupPriced): bool
     {
         return $this->canMarkBatchMilestone($user, $batch)
+            && ! $everyGroupPriced
             && $batch->quoted_at === null
             && $batch->ordered_at === null
             && $batch->delivered_at === null;
@@ -427,10 +435,16 @@ class PrerequisiteConditions
      * Allowed on a batch nobody has marked quoted: a shop that rings the merchant and buys in the one
      * call has not skipped a step this application can see, and refusing would make the page insist on
      * a mark that records nothing anybody did.
+     *
+     * Refused, like the quoted one above, once every merchant on the batch has been bought from one
+     * at a time - $everyGroupBought, which is Batch::everySupplierGroupBought for the press and the
+     * card's own answer for the menu. Note that being fully priced is no bar at all: a batch with
+     * every price in is exactly the batch somebody is about to buy.
      */
-    public function markBatchOrdered(User $user, Batch $batch): bool
+    public function markBatchOrdered(User $user, Batch $batch, bool $everyGroupBought): bool
     {
         return $this->canMarkBatchMilestone($user, $batch)
+            && ! $everyGroupBought
             && $batch->ordered_at === null
             && $batch->delivered_at === null;
     }

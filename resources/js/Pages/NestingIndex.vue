@@ -728,13 +728,13 @@
     function markQuotedTitle(batch) {
         return batch.prerequisiteMarkQuoted
             ? 'Record that the prices for this batch are in, without naming a supplier'
-            : 'This batch is already marked as quoted or ordered, or it carries no project of yours';
+            : 'Every merchant on this batch is priced already, or it is marked quoted or ordered, or it carries no project of yours';
     }
 
     function markOrderedTitle(batch) {
         return batch.prerequisiteMarkOrdered
             ? 'Record that the material on this batch has been bought, without naming a supplier'
-            : 'This batch is already marked as ordered or delivered, or it carries no project of yours';
+            : 'Every merchant on this batch has been bought from already, or it is marked ordered or delivered, or it carries no project of yours';
     }
 
     function markDeliveredTitle(batch) {

@@ -448,6 +448,77 @@ it('calls the batch quoted once every merchant on it has been marked', function 
         ->and($batch->quoted_supplier_groups)->toBe(['STEEL_MERCHANT']);
 });
 
+it('stops offering "All quoted" once every merchant on the batch is priced', function () {
+    /*
+     * The press has nothing left to record. A shop working the order list block by block arrives
+     * where "All quoted" jumps to, and the card went on offering the jump - a menu with a live "All
+     * quoted" under a pill already reading Quoted.
+     *
+     * Greyed rather than dropped, like every other item in that menu: "this is already done" is what
+     * somebody opened it to find out. And refused by the route as well as the card, because the
+     * colleague who marked the last block did it on somebody else's open dropdown.
+     */
+    [$business, $user, $batch] = batchWithFakedDisk();
+
+    $this->actingAs($user);
+
+    //Still on offer while a price is outstanding
+    $this->get(route('dashboard'))
+        ->assertInertia(fn (Illuminate\Testing\Fluent\AssertableJson $page) => $page
+            ->where('batches.1.prerequisiteMarkQuoted', true)
+            ->etc()
+        );
+
+    $this->post(route('batch.group.quoted', $batch), ['supplier_group' => 'STEEL_MERCHANT'])
+        ->assertRedirect();
+
+    $this->get(route('dashboard'))
+        ->assertInertia(fn (Illuminate\Testing\Fluent\AssertableJson $page) => $page
+            ->where('batches.1.stage', 'QUOTED')
+            ->where('batches.1.prerequisiteMarkQuoted', false)
+            //The step after it is untouched: the prices being in is the reason to buy, not a bar to it
+            ->where('batches.1.prerequisiteMarkOrdered', true)
+            ->etc()
+        );
+
+    $this->post(route('batch.all.quoted', $batch->id))->assertForbidden();
+
+    expect($batch->refresh()->quoted_at)->toBeNull();
+});
+
+it('stops offering either mark on a batch whose every merchant has been bought', function () {
+    /*
+     * The card this was reported from: every block marked ordered, the pill reading Ordered, and
+     * both menu items still blue underneath it.
+     *
+     * "All ordered" is the obvious one - the buying is what has already been recorded. "All quoted"
+     * goes with it because nobody buys steel without a price, which is how the block itself reads a
+     * bought merchant (see the test below), so there is no earlier step left to claim either.
+     */
+    [$business, $user, $batch] = batchWithFakedDisk();
+
+    $this->actingAs($user);
+
+    $this->post(route('batch.group.ordered', $batch), ['supplier_group' => 'STEEL_MERCHANT'])
+        ->assertRedirect();
+
+    $this->get(route('dashboard'))
+        ->assertInertia(fn (Illuminate\Testing\Fluent\AssertableJson $page) => $page
+            ->where('batches.1.stage', 'ORDERED')
+            ->where('batches.1.prerequisiteMarkQuoted', false)
+            ->where('batches.1.prerequisiteMarkOrdered', false)
+            //Still offered: the steel can be bought and not yet have turned up
+            ->where('batches.1.prerequisiteMarkDelivered', true)
+            ->etc()
+        );
+
+    $this->post(route('batch.all.quoted', $batch->id))->assertForbidden();
+    $this->post(route('batch.all.ordered', $batch->id))->assertForbidden();
+
+    expect($batch->refresh()->quoted_at)->toBeNull()
+        ->and($batch->ordered_at)->toBeNull();
+});
+
 it('calls every merchant on the batch quoted when the whole job is marked quoted', function () {
     /*
      * The other direction of the same agreement, and the same shape as the ordered one: "All quoted"

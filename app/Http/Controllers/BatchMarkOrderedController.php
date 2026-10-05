@@ -31,7 +31,20 @@ class BatchMarkOrderedController extends Controller
 
         $user = $request->user();
 
-        abort_if(! (new PrerequisiteConditions)->markBatchOrdered($user, $batch), 403);
+        /*
+         * "Has every merchant been bought from already" worked out here rather than taken from the
+         * card that greyed the item, for the reason BatchMarkQuotedController does the same: the
+         * colleague who marked the last block ordered in the order list did it while this dropdown
+         * was open on somebody else's screen.
+         */
+        abort_if(
+            ! (new PrerequisiteConditions)->markBatchOrdered(
+                $user,
+                $batch,
+                $batch->everySupplierGroupBought($user->business),
+            ),
+            403,
+        );
 
         $batch->update([
             'ordered_at' => now(),

@@ -449,6 +449,112 @@ class Batch extends Model
     }
 
     /**
+     * Whether every merchant this batch has to buy from already has a price against it.
+     *
+     * The question "All quoted" exists to answer, asked of a batch that may have been answering it a
+     * block at a time: the order list marks one supplier group quoted (BatchMarkGroupQuotedController),
+     * the quotes screen sends one quote per group, and a group somebody has bought was priced before
+     * they bought it. When none of the three leaves a merchant unpriced there is nothing for the
+     * batch-wide mark to record, and the card greys it.
+     *
+     * Measured the three ways the Nesting page's pill measures it, and each of them all-or-nothing,
+     * because the card and the press have to give the same answer - see
+     * NestingIndexController::fullyQuotedBatchIds and the two methods beside it.
+     *
+     * False for a batch whose material belongs to no supplier group the business's plan covers, for
+     * the reason those methods answer no: an empty list of merchants is nobody to have been priced
+     * by, not a finished job.
+     *
+     * Asked of one batch, like isDelivered() below and for the same reason: the page that draws a
+     * card per batch has worked this out for the whole column in a handful of queries and passes its
+     * answer in. This is for the press - BatchMarkQuotedController - which has one batch and must not
+     * take the card's word for it.
+     */
+    public function everySupplierGroupPriced(Business $business): bool
+    {
+        $required = $this->supplierGroupsRequired($business);
+
+        if ($required === []) {
+            return false;
+        }
+
+        //A sent quote, not a quote row: a row is minted the moment anybody opens the quotes screen
+        $sentQuoteGroups = $this->quotes()
+            ->where('quote_sent', true)
+            ->pluck('supplier_category')
+            ->all();
+
+        foreach ([$sentQuoteGroups, $this->quoted_supplier_groups ?? [], $this->ordered_supplier_groups ?? []] as $priced) {
+            if (array_diff($required, $priced) === []) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * And the step after it: whether every merchant on this batch has already been bought from.
+     *
+     * The same thing "All ordered" claims in one press, arrived at a block at a time - see
+     * BatchMarkGroupOrderedController. A card whose every block says "Ordered" has had its material
+     * bought, which is what its pill says, and the menu item that would say it again has nothing left
+     * to record.
+     *
+     * The marks alone, where the priced question above reads three things. A real order sent to a
+     * merchant is the one route this does not have to look at, because the gate in front of it stops
+     * there already: PrerequisiteConditions::canMarkBatchMilestone refuses every supplier-free mark
+     * the moment a sent order exists on the batch, a batch with one having left the Quoting column
+     * for a stage where the card does not offer these presses at all.
+     *
+     * Measured against the same merchants as everySupplierGroupPriced, and false for a batch with no
+     * merchants, for the same reason - see NestingIndexController::fullyMarkedOrderedBatchIds, which
+     * is where the card gets its own answer.
+     */
+    public function everySupplierGroupBought(Business $business): bool
+    {
+        $required = $this->supplierGroupsRequired($business);
+
+        if ($required === []) {
+            return false;
+        }
+
+        return array_diff($required, $this->ordered_supplier_groups ?? []) === [];
+    }
+
+    /**
+     * The merchants this batch has to buy from - the supplier groups its material falls into.
+     *
+     * The card's own "Material order" count, and the list both questions above are measured against:
+     * a batch is fully priced or fully bought when nothing on this list is outstanding. Read off the
+     * pieces and the business's plan, the way NestingIndexController::supplierGroupsFor reads it for
+     * a whole column at once.
+     *
+     * Empty where the business's plan covers none of the material on the batch, which both callers
+     * treat as "no" rather than as "nothing outstanding": there is nobody here to have been quoted or
+     * bought from.
+     *
+     * @return array<int, string>
+     */
+    private function supplierGroupsRequired(Business $business): array
+    {
+        $productCategories = $this->pieces()
+            ->distinct()
+            ->pluck('product_category')
+            ->all();
+
+        $required = [];
+
+        foreach ((new SupplierFormatter)->supplierGroups($business) as $supplierGroup => $includedProducts) {
+            if (array_intersect($productCategories, $includedProducts) !== []) {
+                $required[] = (string) $supplierGroup;
+            }
+        }
+
+        return $required;
+    }
+
+    /**
      * Whether the steel on this batch is in the rack, however the shop got it there.
      *
      * Two ways to be delivered, because there are two ways to buy. A batch ordered through the
