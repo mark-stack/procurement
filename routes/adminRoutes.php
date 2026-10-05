@@ -17,6 +17,7 @@ use App\Http\Controllers\AdminTemplateReviewController;
 use App\Http\Controllers\AdminTemplateScreenshotController;
 use App\Http\Controllers\AdminTemplateTestController;
 use App\Http\Controllers\AdminUserIndexController;
+use App\Http\Controllers\ProofController;
 use App\Http\Controllers\ResendWelcomeEmailController;
 use App\Http\Controllers\TemplateController;
 use App\Http\Middleware\AdminMiddleware;
@@ -145,6 +146,20 @@ Route::prefix('admin')->name('admin.')->middleware([AdminMiddleware::class, 'ver
     //page explains the algorithm either way and defaults to the admin's own
     Route::get('nesting-algorithm/{business?}', AdminNestingAlgorithmController::class)->name('nesting.algorithm');
 });
+
+/*
+ * Proof: three nesting lifecycles run end to end, offcuts-of-offcuts included.
+ *
+ * Admin-only and gated exactly as the group above is, but at /proof rather than /admin/proof - it is the
+ * page you open in front of somebody to answer "does the nesting actually work", and a url you can say out
+ * loud is worth more here than tidiness in the routes file.
+ *
+ * It writes nothing and reads nothing: every scenario is fixed and nested in memory, so this is a GET with
+ * no model binding and no business to scope to. See Services\NestingProof.
+ */
+Route::get('proof', ProofController::class)
+    ->middleware([AdminMiddleware::class, 'verified'])
+    ->name('proof');
 
 //Outside the group on purpose: while impersonating, isAdmin() reads the impersonated
 //user's email, so AdminMiddleware would block the only route back out
