@@ -337,6 +337,16 @@
                                     label="Nesting Algorithm"
                                     icon="fa-solid fa-calculator"
                                 />
+                                <!--
+                                    Proof
+                                    The algorithm page explains what the model charges for; this one runs
+                                    it over three lifecycles and shows the plans, offcuts-of-offcuts and all.
+                                -->
+                                <NavButton
+                                    :route="route('proof')"
+                                    label="Proof"
+                                    icon="fa-solid fa-flask"
+                                />
                                 <!-- Telescope: not an Inertia page, so it stays a plain link -->
                                 <a href="/telescope/exceptions" :class="[panelLink, 'text-gray-600 hover:bg-gray-100 hover:text-gray-700']">
                                     <i class="w-4 text-center fa-solid fa-bug"></i>
