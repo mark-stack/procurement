@@ -471,7 +471,7 @@ it('presses the button the warning asks for, and opens the order list of what it
      * the press itself now, and then the order list of the batch it produced: somebody told their
      * steel has to go out today needs the materials to put in front of a merchant.
      *
-     * The same press the card's own "Lock before quoting" makes - PressStartQuoting - so the batch,
+     * The same press the card's own "Lock batch for quoting" makes - PressStartQuoting - so the batch,
      * the nest and the notifications to the colleagues swept up in it are identical either way.
      */
     seededCatalogue();

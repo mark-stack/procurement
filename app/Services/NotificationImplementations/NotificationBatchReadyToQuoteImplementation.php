@@ -141,7 +141,7 @@ class NotificationBatchReadyToQuoteImplementation implements NotificationInterfa
      * It used to send the reader to the page the button is on and leave them to find it. That is the
      * one screen in the application they were already being told about, and the press is the whole
      * point of the warning - so the green action is now the press itself, run through the same
-     * PressStartQuoting the card's own "Lock before quoting" runs: the same gate, the same nesting,
+     * PressStartQuoting the card's own "Lock batch for quoting" runs: the same gate, the same nesting,
      * the same notifications to the colleagues whose work goes into the batch.
      *
      * And then the order list of the batch it just made, which is what somebody warned that their

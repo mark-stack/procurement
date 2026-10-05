@@ -28,6 +28,8 @@ onUnmounted(() => document.removeEventListener('keydown', closeOnEscape));
 const widthClass = computed(() => {
     return {
         48: 'w-48',
+        //Room for an item whose label is a sentence rather than a word - see NestingIndex.vue
+        60: 'w-60',
     }[props.width.toString()];
 });
 

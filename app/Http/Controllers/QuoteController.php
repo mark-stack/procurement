@@ -19,7 +19,7 @@ class QuoteController extends Controller
      * calling it could tell. A batch's quotes are unwound by BatchController::destroy.
      */
     /**
-     * The Nesting page's "Lock before quoting", pressed from the open batch card.
+     * The Nesting page's "Lock batch for quoting", pressed from the open batch card.
      *
      * The press itself is PressStartQuoting, which the bell's green action on a fabrication deadline
      * warning runs too - same gate, same nesting, same notifications. All that is left here is how a

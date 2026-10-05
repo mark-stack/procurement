@@ -1125,8 +1125,9 @@
     });
 
     /*
-     * There is deliberately nothing here that presses "Lock before quoting" as the page arrives, and
-     * the flash this page reads is only ever about opening a modal rather than about making a write.
+     * There is deliberately nothing here that presses "Lock batch for quoting" as the page arrives,
+     * and the flash this page reads is only ever about opening a modal rather than about making a
+     * write.
      *
      * A fabrication deadline email landed here carrying one for a while and had the page post on
      * arrival. It cannot work: this page is Inertia, its own arrival is a visit, and Inertia runs
@@ -1151,7 +1152,7 @@
             <!--
                 What the bell's green action could not do, where it could not do it.
 
-                That button presses "Lock before quoting" and lands here, so a press that was refused
+                That button presses "Lock batch for quoting" and lands here, so a press that was refused
                 has to say so on the page it lands on - otherwise a colleague having got to the column
                 first looks exactly like a successful one: the bell row goes, the page redraws, and
                 nothing anybody can see explains why there is no new batch. The two refusals are both
@@ -1556,7 +1557,8 @@
                                     not open an empty box and the buttons still line up down the page.
                                 -->
                                 <div class="flex justify-end w-8 shrink-0">
-                                    <Dropdown v-if="hasMenu(batch)" align="right" width="48">
+                                    <!-- Wide enough for "Lock batch for quoting" to stay on one line -->
+                                    <Dropdown v-if="hasMenu(batch)" align="right" width="60">
                                         <template #trigger>
                                             <button
                                                 type="button"
@@ -1606,7 +1608,7 @@
                                                         : 'text-gray-400 cursor-not-allowed'"
                                                 >
                                                     <i class="fa-solid fa-circle-arrow-down text-xs"></i>
-                                                    Lock before quoting
+                                                    Lock batch for quoting
                                                 </button>
                                             </template>
 
@@ -1784,7 +1786,32 @@
                             :stage="batch.stage"
                             :days-behind="batch.daysBehindCriticalPath"
                             :deadline="batch.criticalPathDeadline"
-                        />
+                        >
+                            <!--
+                                "Action required: start quoting this batch" with the press that
+                                starts it, at the other end of the same strip. The only step whose
+                                instruction is carried out by one press on this page: the footer
+                                named the job and then left it in the three-dot menu, which is the
+                                one part of the card nobody opens unless they already know what is
+                                in it. Same confirmStartQuoting(), same gate, same reason when it
+                                is greyed - see the menu item it repeats.
+                            -->
+                            <template v-if="batch.id === null" #action>
+                                <button
+                                    type="button"
+                                    :disabled="!canStartQuoting"
+                                    :title="startQuotingTitle"
+                                    @click="confirmStartQuoting()"
+                                    class="inline-flex items-center gap-1.5 px-2.5 h-7 text-xs font-semibold transition-colors duration-150 bg-white border rounded-lg shadow-sm"
+                                    :class="canStartQuoting
+                                        ? 'border-green-300 text-green-800 hover:bg-green-50 hover:border-green-400'
+                                        : 'border-gray-200 text-gray-400 cursor-not-allowed'"
+                                >
+                                    <i class="fa-solid fa-circle-arrow-down text-[11px]"></i>
+                                    Lock batch for quoting
+                                </button>
+                            </template>
+                        </ActionRequiredFooter>
 
                         <!--
                             Or, on the open batch, that there is nothing to do about it yet and why

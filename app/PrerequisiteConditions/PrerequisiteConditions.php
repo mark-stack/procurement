@@ -471,6 +471,23 @@ class PrerequisiteConditions
     }
 
     /**
+     * And the quoted mark said of one merchant - the order list's "Quoted" on a single block.
+     *
+     * The same gate as the ordered one above, for the same reason: this speaks for a merchant rather
+     * than for the job, so a sent order on another block of the batch is none of its business.
+     *
+     * Looser than markBatchQuoted, which refuses once the batch has been called quoted, ordered or
+     * delivered outright. Those three are the whole job, and a second claim about the whole job is a
+     * contradiction; a merchant's price coming in after somebody pressed "All ordered" is just a late
+     * price on a job that was bought, and recording it costs nothing. Whether this particular group
+     * is already priced is the caller's question - see BatchMarkGroupQuotedController.
+     */
+    public function markBatchGroupQuoted(User $user, Batch $batch): bool
+    {
+        return $this->canChangeBatchItself($user, $batch);
+    }
+
+    /**
      * And "Cut" - the saw has been through it.
      *
      * The one mark that is not about buying, which is why it does not sit behind

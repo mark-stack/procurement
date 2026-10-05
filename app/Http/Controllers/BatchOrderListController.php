@@ -73,15 +73,41 @@ class BatchOrderListController extends Controller
         $markedGroups = $batch === null ? [] : ($batch->ordered_supplier_groups ?? []);
 
         /*
+         * And the same two questions about the step before it: which merchants have had their price
+         * marked in from a block, and whether this user may mark another. Separate from the ordered
+         * mark because they are separate presses on separate days - the block offers the quoted one
+         * while the batch is still being priced and the ordered one after.
+         */
+        $quotedGroups = $batch === null ? [] : ($batch->quoted_supplier_groups ?? []);
+
+        /*
+         * Plus the merchants whose price came back through the quotes screen, which is the other way
+         * a group is priced. A sent quote rather than a quote row, the way the card's QUOTED pill
+         * counts one (NestingIndexController::fullyQuotedBatchIds): a row is minted per supplier the
+         * moment anybody opens the quotes screen, long before a price was asked of anybody.
+         */
+        $sentQuoteGroups = $batch === null
+            ? []
+            : $batch->quotes()
+                ->where('quote_sent', true)
+                ->pluck('supplier_category')
+                ->filter()
+                ->all();
+
+        /*
          * And the same claim made about the whole job rather than one merchant - "All ordered" on the
          * Nesting card. Read here rather than written across the groups when that press lands: it is
          * one fact about the batch, and copying it into a list of names would leave the two to drift
          * apart the moment the batch's material changes.
          */
         $wholeBatchOrdered = $batch?->ordered_at !== null;
+        $wholeBatchQuoted = $batch?->quoted_at !== null;
         $canMarkOrdered = $batch === null
             ? null
             : (new PrerequisiteConditions)->markBatchGroupOrdered(auth()->user(), $batch);
+        $canMarkQuoted = $batch === null
+            ? null
+            : (new PrerequisiteConditions)->markBatchGroupQuoted(auth()->user(), $batch);
 
         /*
          * And the certificates attached to the batch itself rather than to one of its orders, in one
@@ -97,6 +123,15 @@ class BatchOrderListController extends Controller
             $orders = $ordersByGroup[$supplierGroup] ?? new EloquentCollection;
             //First wins where a group somehow has two sent orders, as on the quotes/orders card
             $order = $orders->firstWhere('order_sent', true);
+
+            /*
+             * Bought, by any of the three routes - see the key below for what they are. Lifted out of
+             * the array because the quoted question is asked in terms of it: material nobody could
+             * have bought without agreeing a price for it.
+             */
+            $ordered = $order !== null
+                || $wholeBatchOrdered
+                || in_array($supplierGroup, $markedGroups, true);
 
             $productCategories = collect($pieces)
                 ->pluck('product_category')
@@ -122,10 +157,33 @@ class BatchOrderListController extends Controller
                  * about every merchant on it. The mark is kept separate underneath because only one
                  * of the three has an order behind it to show.
                  */
-                'ordered' => $order !== null || $wholeBatchOrdered || in_array($supplierGroup, $markedGroups, true),
+                'ordered' => $ordered,
                 'orderedByMark' => $order === null
                     && ($wholeBatchOrdered || in_array($supplierGroup, $markedGroups, true)),
                 'purchaseOrderNumber' => $order?->purchase_order_number,
+                /*
+                 * And whether its price is in, which is the step the block offers before that one.
+                 *
+                 * Read the same way as ordered, off the same three kinds of evidence: a quote that
+                 * went out and came back through the quotes screen, the mark somebody put on this
+                 * block for a merchant they rang (BatchMarkGroupQuotedController), or the card's
+                 * "All quoted" said of the whole job at once.
+                 *
+                 * And a fourth that is not a quote at all: a group that has been bought. Nobody
+                 * orders steel without knowing what it costs, so a block reading "Ordered" over a
+                 * "Mark as quoted" button would be asking for a step that is behind it - which is
+                 * what the batch-wide "All ordered" does to a batch nobody marked quoted first.
+                 */
+                'quoted' => $ordered
+                    || $wholeBatchQuoted
+                    || in_array($supplierGroup, $quotedGroups, true)
+                    || in_array($supplierGroup, $sentQuoteGroups, true),
+                /*
+                 * And whether this block may offer that mark. Asked of the same user and batch as
+                 * canMarkOrdered, and separately, because the two gates are allowed to differ - see
+                 * PrerequisiteConditions::markBatchGroupQuoted.
+                 */
+                'canMarkQuoted' => $canMarkQuoted,
                 /*
                  * And whether this block may offer the mark. False where somebody else's job is on
                  * the batch or it is closed, and null on the pending card, which has no batch to

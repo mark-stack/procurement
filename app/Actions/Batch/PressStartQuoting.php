@@ -12,7 +12,7 @@ use Lorisleiva\Actions\Concerns\AsAction;
 use Throwable;
 
 /**
- * The "Lock before quoting" press, whole: the gate, the nesting, and telling the colleagues.
+ * The "Lock batch for quoting" press, whole: the gate, the nesting, and telling the colleagues.
  *
  * StartQuoting below this is the write - it claims the steel, creates the batch and saves the nest,
  * and it is deliberately ignorant of who is allowed to call it. This is everything around that write

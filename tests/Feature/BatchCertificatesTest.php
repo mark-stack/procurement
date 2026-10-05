@@ -379,6 +379,165 @@ it('would be a disaster if a colleague with no job on the batch could mark a mer
     expect($batch->refresh()->ordered_supplier_groups)->toBeNull();
 });
 
+it('marks one merchant on the order list quoted, without asking anybody for a price', function () {
+    /*
+     * The step the order list offers before the ordered one, and it exists for the same shop: the
+     * steel goes out through the quotes screen and the timber is priced over the phone, so a batch
+     * can be half priced and the batch-wide "All quoted" is the wrong size of answer.
+     *
+     * It writes a name onto the batch and nothing else - no quote row, no order, nobody contacted.
+     */
+    [$business, $user, $batch] = batchWithFakedDisk();
+
+    $this->actingAs($user);
+    $this->withoutExceptionHandling();
+
+    $before = collect($this->getJson(route('batch.order.list', $batch))->json('orderList.groups'))
+        ->firstWhere('supplierGroup', 'STEEL_MERCHANT');
+
+    //A nested batch nobody has a price for: the block offers the quoted mark, not the ordered one
+    expect($before['quoted'])->toBeFalse()
+        ->and($before['ordered'])->toBeFalse()
+        ->and($before['canMarkQuoted'])->toBeTrue();
+
+    $this->post(route('batch.group.quoted', $batch), ['supplier_group' => 'STEEL_MERCHANT'])
+        ->assertRedirect();
+
+    $after = collect($this->getJson(route('batch.order.list', $batch))->json('orderList.groups'))
+        ->firstWhere('supplierGroup', 'STEEL_MERCHANT');
+
+    expect($after['quoted'])->toBeTrue()
+        //Priced, and still unbought - which is the whole point of there being two marks
+        ->and($after['ordered'])->toBeFalse()
+        ->and($after['canMarkOrdered'])->toBeTrue()
+        ->and($batch->refresh()->quoted_supplier_groups)->toBe(['STEEL_MERCHANT'])
+        ->and($batch->quotes()->count())->toBe(0)
+        ->and($batch->orders()->count())->toBe(0)
+        //And the batch itself is untouched: one merchant is not the whole job
+        ->and($batch->quoted_at)->toBeNull()
+        ->and($batch->ordered_supplier_groups)->toBeNull();
+});
+
+it('calls the batch quoted once every merchant on it has been marked', function () {
+    /*
+     * The card and the order list have to agree about the prices the way they agree about the
+     * buying: a batch whose only block says "Quoted" has its prices in, and a pill still reading
+     * Quoting over it is the page contradicting itself.
+     *
+     * And the way back stays open, unlike the ordered mark's. Prices coming in changes nothing about
+     * whether the nest can be thrown away - see PrerequisiteConditions, condition 9.
+     */
+    [$business, $user, $batch] = batchWithFakedDisk();
+
+    $this->actingAs($user);
+    $this->withoutExceptionHandling();
+
+    $this->post(route('batch.group.quoted', $batch), ['supplier_group' => 'STEEL_MERCHANT'])
+        ->assertRedirect();
+
+    $this->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Illuminate\Testing\Fluent\AssertableJson $page) => $page
+            ->where('batches.1.stage', 'QUOTED')
+            ->where('batches.1.prerequisiteUndoStartQuoting', true)
+            ->etc()
+        );
+
+    //The batch-wide mark is untouched - one merchant at a time is a different record of the same fact
+    expect($batch->refresh()->quoted_at)->toBeNull()
+        ->and($batch->quoted_supplier_groups)->toBe(['STEEL_MERCHANT']);
+});
+
+it('calls every merchant on the batch quoted when the whole job is marked quoted', function () {
+    /*
+     * The other direction of the same agreement, and the same shape as the ordered one: "All quoted"
+     * on the Nesting card is a claim about every merchant on the job, so no block may go on offering
+     * to mark a price in that the card says is already in.
+     */
+    [$business, $user, $batch] = batchWithFakedDisk();
+
+    $this->actingAs($user);
+    $this->withoutExceptionHandling();
+
+    $this->post(route('batch.all.quoted', $batch->id))->assertRedirect();
+
+    $groups = collect($this->getJson(route('batch.order.list', $batch))->json('orderList.groups'));
+
+    expect($groups)->not->toBeEmpty();
+
+    foreach ($groups as $group) {
+        expect($group['quoted'])->toBeTrue()
+            //Priced and not bought: the block moves on to offering the ordered mark
+            ->and($group['ordered'])->toBeFalse();
+    }
+
+    //And nothing was written into the per-merchant list to say so
+    expect($batch->refresh()->quoted_supplier_groups)->toBeNull();
+});
+
+it('reads a merchant that has been bought as priced too', function () {
+    /*
+     * Nobody orders steel without knowing what it costs. A block showing "Ordered" over a "Mark as
+     * quoted" button would be asking for the step behind it - which is exactly what a batch bought
+     * through "All ordered" without anybody pressing quoted first would otherwise look like.
+     */
+    [$business, $user, $batch] = batchWithFakedDisk();
+
+    $this->actingAs($user);
+    $this->withoutExceptionHandling();
+
+    $this->post(route('batch.group.ordered', $batch), ['supplier_group' => 'STEEL_MERCHANT'])
+        ->assertRedirect();
+
+    $group = collect($this->getJson(route('batch.order.list', $batch))->json('orderList.groups'))
+        ->firstWhere('supplierGroup', 'STEEL_MERCHANT');
+
+    expect($group['ordered'])->toBeTrue()
+        ->and($group['quoted'])->toBeTrue()
+        //Read off the order rather than written down: nothing says this merchant was ever quoted
+        ->and($batch->refresh()->quoted_supplier_groups)->toBeNull();
+});
+
+it('would be a disaster if the open batch could have a merchant marked quoted', function () {
+    /*
+     * There is no batch to mark, and nothing on that card should be being priced yet: its nest is a
+     * suggestion the next upload changes.
+     */
+    [$business, $user] = batchWithFakedDisk();
+
+    $this->actingAs($user);
+    $this->withoutExceptionHandling();
+
+    $orderList = $this->getJson(route('batch.order.list'))->assertOk()->json('orderList');
+
+    expect($orderList['batch_id'])->toBeNull();
+
+    foreach ($orderList['groups'] as $group) {
+        expect($group['canMarkQuoted'])->toBeNull();
+    }
+});
+
+it('would be a disaster if a colleague with no job on the batch could mark a merchant quoted', function () {
+    /*
+     * The same line every press on a batch draws: you have to be a project manager on it. A price
+     * written onto somebody else's steel is the step their own card is waiting on.
+     */
+    [$business, $owner, $batch] = batchWithFakedDisk();
+
+    $this->actingAs(createUser(2, $business, false, true));
+
+    $this->post(route('batch.group.quoted', $batch), ['supplier_group' => 'STEEL_MERCHANT'])
+        ->assertForbidden();
+
+    //And another business cannot reach the batch at all
+    $this->actingAs(createUser(1, createBusiness('somebody else'), false, true));
+
+    $this->post(route('batch.group.quoted', $batch), ['supplier_group' => 'STEEL_MERCHANT'])
+        ->assertForbidden();
+
+    expect($batch->refresh()->quoted_supplier_groups)->toBeNull();
+});
+
 it('leaves the certificates behind when the batch they belong to is re-nested', function () {
     /*
      * Re-nesting deletes the batch, its quotes, its draft orders and the offcuts it cut. A

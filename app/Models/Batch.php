@@ -23,6 +23,7 @@ use Illuminate\Support\Collection;
  * @property \Illuminate\Support\Carbon|null $delivered_at When somebody called its material arrived
  * @property \Illuminate\Support\Carbon|null $cut_at When somebody recorded that it has been cut
  * @property array<int, string>|null $ordered_supplier_groups The groups bought off the application
+ * @property array<int, string>|null $quoted_supplier_groups The groups priced off the application
  */
 class Batch extends Model
 {
@@ -71,6 +72,12 @@ class Batch extends Model
              * group is computed rather than stored; see the 2026_10_03_140000 migration.
              */
             'ordered_supplier_groups' => 'array',
+            /*
+             * And the step before it, counted the same way - the groups on this batch whose price
+             * came in somewhere other than through the quotes screen. See the 2026_10_05_100000
+             * migration, and BatchMarkGroupQuotedController for the press that writes one.
+             */
+            'quoted_supplier_groups' => 'array',
         ];
     }
 

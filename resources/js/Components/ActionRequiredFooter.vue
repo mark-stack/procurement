@@ -17,6 +17,13 @@
      * and being priced is late at the quoting, whatever happens after. See
      * NestingIndexController::milestoneOf() for the steps and criticalPathDeadline() for which of the
      * lead times each of them still owes - the two are the same list read from opposite ends.
+     *
+     * The instruction can be carried out from here, where the page has a press that carries it out:
+     * the #action slot holds that press, right-aligned at the far end of the strip. The slot is the
+     * caller's rather than this component's because which press clears a footer is the page's
+     * business - this one only knows what is outstanding, not what on the screen would fix it - and
+     * most steps have no single press at all, so the slot is usually empty and the strip is the
+     * sentence it has always been.
      */
     //General Imports
     import {computed} from 'vue';
@@ -100,5 +107,15 @@
             </template>
             {{ behindLabel }}
         </span>
+
+        <!--
+            And the press that clears it, if the page has one. Pushed to the other end of the strip
+            rather than left beside the sentence: the instruction is read left to right and the
+            thing to press is where a card's buttons already are, so the footer reads as "this, and
+            here is how" instead of as a sentence with a button in the middle of it.
+        -->
+        <div v-if="$slots.action" class="ml-auto">
+            <slot name="action"></slot>
+        </div>
     </div>
 </template>
