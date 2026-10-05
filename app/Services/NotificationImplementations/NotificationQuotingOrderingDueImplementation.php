@@ -37,11 +37,18 @@ class NotificationQuotingOrderingDueImplementation implements NotificationInterf
          * 4) At least 1 day since last reminder
          * 5) Order coverage < 100%
          * 6) Not notified already
+         *
+         * (3) used to be a query scope, and it asked the database for a window counted on the
+         * platform's default lead times rather than on each business's own - and only ever against
+         * date_materials_required, a column no project created since October carries, so this
+         * reminder had quietly stopped selecting anybody at all. It is a question about a project and
+         * its business now; see Project::isDueForQuotingAndOrdering.
          */
         $quoteDueProjects = Project::query()
             ->active()                       //1) Project is active (not done)
-            ->dueForQuotingAndOrdering()     //3) Between [critical path + 1 day] and [critical path] days before planned project material received date
-            ->get();
+            ->datedAndChaseable()            //Cheap half of (3) - a project with no date is never due
+            ->get()
+            ->filter(fn (Project $project) => $project->isDueForQuotingAndOrdering()); //3)
 
         //Projects that still deserve a reminder, whether or not one is sent this run
         $stillDue = [];
@@ -105,7 +112,12 @@ class NotificationQuotingOrderingDueImplementation implements NotificationInterf
     public function sendNotification(object $recipient, object $otherObject): void
     {
         $project = $otherObject;
-        $message = $this->message($project->date_materials_required, $project->name);
+        //The day the steel is wanted however this project records it, spelled the way the bell
+        //spells it - see Project::materialsRequiredOn and notificationData() below
+        $message = $this->message(
+            $project->materialsRequiredOn()?->format('j M y'),
+            $project->name,
+        );
         $recipient->notify(new QuoteDueEmail($project, $recipient, $message));
     }
 
@@ -205,11 +217,20 @@ class NotificationQuotingOrderingDueImplementation implements NotificationInterf
         return $notificationData;
     }
 
-    public function message(string $string_1, string $string_2): string
+    /**
+     * Nullable, because a notification row can outlive the date it was sent about.
+     *
+     * The bell re-renders every message from the row's own data each time it is drawn, and a row
+     * written before the stored date was resolved - or about a project whose date has since been
+     * cleared - hands this a null. Declared as a plain string, that is a TypeError thrown while
+     * rendering somebody's bell, which takes the whole page with it rather than one line of it.
+     */
+    public function message(?string $string_1, ?string $string_2): string
     {
         $materialsDate = $string_1;
         $projectName = $string_2;
 
-        return 'The materials for "'.$projectName.'" are due to be quoted so they can be received before '.$materialsDate;
+        return 'The materials for "'.$projectName.'" are due to be quoted so they can be received before '
+            .($materialsDate ?? 'the date this job needs them');
     }
 }

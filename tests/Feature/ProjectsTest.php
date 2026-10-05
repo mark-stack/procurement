@@ -767,3 +767,258 @@ it('would be a disaster if the hourly checks could not ask for active projects',
 });
 
 //todo more
+
+/**
+ * The edit modal's payload for a project, with whatever is being changed overridden.
+ *
+ * Written out rather than built field by field in each test because the modal posts the whole
+ * project back on every edit - a rename carries the dates with it - and that is exactly the shape
+ * the date rules have to hold against.
+ */
+function editProjectPayload(Project $project, array $changes = []): array
+{
+    return array_merge([
+        'name' => $project->name,
+        'reference' => $project->reference,
+        'date_materials_required' => $project->date_materials_required,
+        'date_fabrication_begins' => $project->date_fabrication_begins
+            ? substr((string) $project->date_fabrication_begins, 0, 10)
+            : null,
+    ], $changes);
+}
+
+it('would be a disaster if a fabrication date could be deleted off a project that has one', function () {
+    /**
+     * The date is required to create a project and was nullable to edit one, so it could be emptied -
+     * and emptying it is not a correction, it is the one edit that silences everything built on it.
+     * The card loses its required-by pill, its critical path and the "Action required" footer; the
+     * fabrication deadline warning stops selecting the project; and the two deadline reminders stop
+     * considering it. A red card could be cleared by deleting the field that made it red.
+     */
+    $business = createBusiness('gmail');
+    $user = createUser(1, $business, false, true);
+
+    $project = createProject($user);
+    $project->update(['date_fabrication_begins' => now()->addDays(10)->toDateString()]);
+    $project = $project->fresh();
+
+    $this->actingAs($user)
+        ->from('/dashboard')
+        ->put(route('projects.update', $project->id), editProjectPayload($project, [
+            'date_fabrication_begins' => null,
+        ]))
+        ->assertInvalid(['date_fabrication_begins']);
+
+    expect($project->fresh()->date_fabrication_begins)->not->toBeNull();
+});
+
+it('lets an older project with no fabrication date be renamed without inventing one', function () {
+    /**
+     * The other side of the rule above. Projects created before the date was asked for carry none
+     * (see the add_date_fabrication_begins migration), and their owners must still be able to rename
+     * them - and to give them a date later - rather than being held at a field they cannot fill in
+     * honestly.
+     */
+    $business = createBusiness('gmail');
+    $user = createUser(1, $business, false, true);
+
+    $project = createProject($user);
+    $project->update(['date_fabrication_begins' => null]);
+    $project = $project->fresh();
+
+    $this->actingAs($user)
+        ->from('/dashboard')
+        ->put(route('projects.update', $project->id), editProjectPayload($project, [
+            'name' => 'Renamed project',
+        ]))
+        ->assertValid();
+
+    expect($project->fresh()->name)->toBe('Renamed project');
+});
+
+it('would be a disaster if steel already in the rack could be re-dated', function () {
+    /**
+     * Nothing asked where a project had got to before letting its fabrication date move, so a job on
+     * a delivered batch accepted a date two years in the past. The card goes on printing a
+     * required-by date for a delivered batch, so the page would be showing steel that is in the rack
+     * as having been wanted on a day it was not - the one reading of this edit that cannot be undone
+     * by making the next decision differently.
+     */
+    $business = createBusiness('gmail');
+    $user = createUser(1, $business, false, true);
+
+    $project = createProject($user);
+    $project->update(['date_fabrication_begins' => now()->addDays(10)->toDateString()]);
+    $project = $project->fresh();
+
+    pieceOnBatch($project, Batch::factory()->forUser($user->id)->create([
+        'done' => false,
+        'delivered_at' => now(),
+    ]));
+
+    $this->actingAs($user)
+        ->from('/dashboard')
+        ->put(route('projects.update', $project->id), editProjectPayload($project, [
+            'date_fabrication_begins' => now()->subYears(2)->toDateString(),
+        ]))
+        ->assertInvalid(['date_fabrication_begins']);
+
+    expect($project->fresh()->date_fabrication_begins)
+        ->toContain(now()->addDays(10)->toDateString());
+
+    //And the rest of the form still saves - a job finishing is no reason to be stuck with a typo
+    $this->actingAs($user)
+        ->from('/dashboard')
+        ->put(route('projects.update', $project->id), editProjectPayload($project, [
+            'name' => 'Renamed after delivery',
+        ]))
+        ->assertValid();
+
+    expect($project->fresh()->name)->toBe('Renamed after delivery');
+});
+
+it('lets a slipping job be re-dated while its steel is still being bought', function () {
+    /**
+     * The other side of that rule, and the ordinary case: jobs slip, and while the batch is still
+     * being quoted or bought the page has to say so. Only a batch with nothing left outstanding
+     * settles the date.
+     */
+    $business = createBusiness('gmail');
+    $user = createUser(1, $business, false, true);
+
+    $project = createProject($user);
+    $project->update(['date_fabrication_begins' => now()->addDays(10)->toDateString()]);
+    $project = $project->fresh();
+
+    pieceOnBatch($project, Batch::factory()->forUser($user->id)->create(['done' => false]));
+
+    $this->actingAs($user)
+        ->from('/dashboard')
+        ->put(route('projects.update', $project->id), editProjectPayload($project, [
+            'date_fabrication_begins' => now()->addDays(20)->toDateString(),
+        ]))
+        ->assertValid();
+
+    expect($project->fresh()->date_fabrication_begins)
+        ->toContain(now()->addDays(20)->toDateString());
+});
+
+it('records who moved a fabrication date, and what it was before', function () {
+    /**
+     * The date every deadline on the job is counted back from stays editable after the steel has
+     * been quoted and bought, which is exactly when a change to it is worth being able to account
+     * for. The column is overwritten in place and the page derives its dates at read time, so
+     * without a log the old deadline is nowhere at all. Order, Piece, Product, Template and
+     * MaterialCertificate have recorded their changes for a while; the project did not.
+     */
+    $business = createBusiness('gmail');
+    $user = createUser(1, $business, false, true);
+
+    $project = createProject($user);
+    $project->update(['date_fabrication_begins' => now()->addDays(10)->toDateString()]);
+    $project = $project->fresh();
+
+    $this->actingAs($user)
+        ->from('/dashboard')
+        ->put(route('projects.update', $project->id), editProjectPayload($project, [
+            'date_fabrication_begins' => now()->addDays(20)->toDateString(),
+        ]))
+        ->assertValid();
+
+    $change = App\Models\RecordChange::query()
+        ->where('record_type', $project->getMorphClass())
+        ->where('record_id', $project->id)
+        ->where('event', App\Models\RecordChange::UPDATED)
+        ->latest('id')
+        ->first();
+
+    expect($change)->not->toBeNull()
+        ->and($change->user_id)->toBe($user->id)
+        ->and($change->changes)->toHaveKey('date_fabrication_begins')
+        ->and($change->changes['date_fabrication_begins'][0])->toContain(now()->addDays(10)->toDateString())
+        ->and($change->changes['date_fabrication_begins'][1])->toContain(now()->addDays(20)->toDateString());
+});
+
+it('tells the other managers on a batch when somebody re-dates it', function () {
+    /**
+     * A batch is bought as one, so the day its steel is wanted is the earliest fabrication date among
+     * the jobs on it - which means one manager moving their own date moves the deadline every
+     * colleague's card is coloured against, and the red "Action required" footer with it. Nothing
+     * told them: they would find out by noticing the batch had gone red, with no way to see why, when
+     * or who. The two batch actions a colleague can take are already reported; this is the third, and
+     * the only one that needs no button pressed.
+     */
+    $business = createBusiness('gmail');
+    $user = createUser(1, $business, false, true);
+    $colleague = createUser(2, $business, false, true);
+
+    $mine = createProject($user);
+    $mine->update(['name' => 'mine', 'date_fabrication_begins' => now()->addDays(30)->toDateString()]);
+    $mine = $mine->fresh();
+
+    $theirs = createProject($colleague);
+    $theirs->update(['name' => 'theirs', 'date_fabrication_begins' => now()->addDays(30)->toDateString()]);
+
+    $batch = Batch::factory()->forUser($colleague->id)->create(['done' => false]);
+    pieceOnBatch($mine, $batch);
+    pieceOnBatch($theirs->fresh(), $batch);
+
+    $this->actingAs($user)
+        ->from('/dashboard')
+        ->put(route('projects.update', $mine->id), editProjectPayload($mine, [
+            'date_fabrication_begins' => now()->addDays(10)->toDateString(),
+        ]))
+        ->assertValid();
+
+    $told = $colleague->fresh()->unreadNotifications()
+        ->where('type', App\Notifications\ColleagueMovedMaterialsDate::class)
+        ->first();
+
+    expect($told)->not->toBeNull()
+        //Their own job is what the message is about, not the one that was edited
+        ->and($told->data['project_id'])->toBe($theirs->id)
+        ->and($told->data['colleague_name'])->toBe($user->name)
+        //And the news is the batch's new day, not the date the colleague typed
+        ->and($told->data['required_by'])->toBe(
+            Project::materialsRequiredDate(now()->addDays(10)->toDateString())->toDateString()
+        );
+
+    //Nobody tells you about your own edit
+    expect($user->fresh()->unreadNotifications()
+        ->where('type', App\Notifications\ColleagueMovedMaterialsDate::class)
+        ->exists())->toBeFalse();
+});
+
+it('says nothing when a re-dated job does not move its batch’s day', function () {
+    /**
+     * The batch's day is the earliest of the jobs on it, so moving a later job's date further out
+     * changes nothing anybody has to act on - and a bell that reports every edit regardless is a bell
+     * people stop reading. Renames are the same: they move no date at all.
+     */
+    $business = createBusiness('gmail');
+    $user = createUser(1, $business, false, true);
+    $colleague = createUser(2, $business, false, true);
+
+    $mine = createProject($user);
+    $mine->update(['name' => 'mine', 'date_fabrication_begins' => now()->addDays(30)->toDateString()]);
+    $mine = $mine->fresh();
+
+    //Earlier, so it is this one that sets the batch's day whatever happens to the other
+    $theirs = createProject($colleague);
+    $theirs->update(['name' => 'theirs', 'date_fabrication_begins' => now()->addDays(10)->toDateString()]);
+
+    $batch = Batch::factory()->forUser($colleague->id)->create(['done' => false]);
+    pieceOnBatch($mine, $batch);
+    pieceOnBatch($theirs->fresh(), $batch);
+
+    $this->actingAs($user)
+        ->from('/dashboard')
+        ->put(route('projects.update', $mine->id), editProjectPayload($mine, [
+            'date_fabrication_begins' => now()->addDays(40)->toDateString(),
+        ]))
+        ->assertValid();
+
+    expect($colleague->fresh()->unreadNotifications()
+        ->where('type', App\Notifications\ColleagueMovedMaterialsDate::class)
+        ->exists())->toBeFalse();
+});

@@ -195,3 +195,99 @@ it('would be a disaster if an unmatched BOM row chased a project manager forever
 
     Notification::assertNotSentTo($user, QuoteDueEmail::class);
 });
+
+it('chases a project that names only a fabrication date', function () {
+    /**
+     * The upload form stopped asking for a materials date in October and asks for the fabrication
+     * start date instead, so every project created since carries null in date_materials_required -
+     * and both of these reminders selected on that column alone. The result was that nothing chased
+     * a modern project at all: the fabrication deadline warning only watches the Nesting column, so
+     * from the moment a batch existed there was no reminder of any kind left in the application.
+     *
+     * One working day between the two dates, which is Project::materialsRequiredDate - the steel has
+     * to be in the shop before the saw starts.
+     */
+    $business = createBusiness('gmail');
+    $user = createUser(1, $business, false, true);
+
+    $project = createProject($user);
+    $project->update([
+        'date_materials_required' => null,
+        'date_fabrication_begins' => now()
+            ->addWeekdays((new Project)->criticalPathDays())
+            ->addWeekdays(1)
+            ->addHours(2),
+    ]);
+
+    expect($project->fresh()->isDueForQuotingAndOrdering())->toBeTrue();
+
+    Notification::fake();
+
+    (new NotificationQuotingOrderingDueImplementation)->hourlyCheck();
+
+    Notification::assertSentTo($user, QuoteDueEmail::class);
+});
+
+it('would be a disaster if a business were chased on the platform’s lead times rather than its own', function () {
+    /**
+     * The window was a query scope, and a local scope runs on a bare model built by the query
+     * builder - so $this->user was null inside it, criticalPathDays() fell back to the platform
+     * default of 2 + 3, and every business was chased on a five-working-day path whatever the two
+     * figures it had set in /profile said. quotingDeadline() on the same project answered with the
+     * business's own, and the two are documented as having to name the same window.
+     *
+     * Ten plus ten here, so a project a fortnight out is well inside this business's path and far
+     * outside the platform's.
+     */
+    $business = createBusiness('gmail');
+    $business->update(['quoting_days' => 10, 'delivery_days' => 10]);
+
+    $user = createUser(1, $business, false, true);
+
+    $project = createProject($user);
+    $project->update([
+        'date_materials_required' => now()->addWeekdays(20)->addHours(2),
+    ]);
+
+    expect($project->fresh()->criticalPathDays())->toBe(20);
+
+    Notification::fake();
+
+    (new NotificationQuotingOrderingDueImplementation)->hourlyCheck();
+
+    Notification::assertSentTo($user, QuoteDueEmail::class);
+});
+
+it('would be a disaster if a project with no date at all silenced every reminder on the platform', function () {
+    /**
+     * The hourly job runs the three deadline checks in order and the tentative-date one is first. A
+     * project with a tentative date and no materials date handed its message() a null where a string
+     * was declared, which is a TypeError - so that one project stopped every reminder behind it, for
+     * every business, until it aged out of the two-day window. The job caught nothing.
+     *
+     * Both halves are fixed. This covers the first: the shape that used to throw, run through the
+     * whole job, with a genuinely due project behind it that has to come out the other side. The
+     * second - the try/catch that keeps one check's failure off the other two - is not asserted here,
+     * because NotificationService::implementations() is a hardcoded list with nothing to inject a
+     * throwing implementation into.
+     */
+    $business = createBusiness('gmail');
+    $user = createUser(1, $business, false, true);
+
+    //Tentative, with neither date - the shape that used to throw
+    $tentative = createProject($user);
+    $tentative->update([
+        'tentative' => true,
+        'date_materials_required' => null,
+        'date_fabrication_begins' => null,
+    ]);
+
+    //And a job that genuinely is due, whose manager must still be told
+    projectDueForQuoting($user);
+
+    Notification::fake();
+
+    (new App\Jobs\HourlyNotificationsJob)->handle();
+
+    Notification::assertSentTo($user, QuoteDueEmail::class);
+});

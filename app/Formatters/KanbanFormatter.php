@@ -46,8 +46,14 @@ class KanbanFormatter
             ->map(fn ($date) => Carbon::parse($date))
             ->min();
 
+        /*
+         * Working days, matching the window the warning itself opens on - see
+         * FabricationDeadlineQuoting::triggerProject. Counted in calendar days here, this printed a
+         * date two days later than the day the chasing actually starts, and could land the promise
+         * on a Sunday.
+         */
         return $earliest
-            ?->subDays(FabricationDeadlineQuoting::DAYS_BEFORE_FABRICATION)
+            ?->subWeekdays(FabricationDeadlineQuoting::DAYS_BEFORE_FABRICATION)
             ->toDateString();
     }
 

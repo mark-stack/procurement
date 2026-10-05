@@ -10,8 +10,8 @@ namespace App\Enums;
  *
  *  Built, hourly:      TENTATIVE_MATERIALS_DATE_CORRECT, QUOTE_DUE, QUOTE_OVERDUE
  *  Built, event-driven: COLLEAGUE_JOINED, A_COLLEAGUE_QUOTED_YOUR_MATERIALS,
- *                       A_COLLEAGUE_ORDERED_YOUR_MATERIALS, BATCH_READY_TO_QUOTE,
- *                       A_COLLEAGUE_IS_ORDERING_THIS_BATCH_TODAY
+ *                       A_COLLEAGUE_ORDERED_YOUR_MATERIALS, A_COLLEAGUE_MOVED_THE_BATCH_DATE,
+ *                       BATCH_READY_TO_QUOTE, A_COLLEAGUE_IS_ORDERING_THIS_BATCH_TODAY
  *
  * Deliberately not built:
  *
@@ -89,6 +89,16 @@ enum NotificationEnums: string
 
     //Order by a colleague
     case A_COLLEAGUE_ORDERED_YOUR_MATERIALS = 'A_COLLEAGUE_ORDERED_YOUR_MATERIALS';
+
+    /*
+     * A colleague moved the fabrication date on their own job and re-dated the batch yours is on.
+     *
+     * The third of the "a colleague did this to your batch" set, and the one that takes no button
+     * press: a batch's materials are wanted on the earliest fabrication date among the jobs on it, so
+     * one manager's edit moves the deadline every other manager's card is coloured against. See
+     * App\Notifications\ColleagueMovedMaterialsDate.
+     */
+    case A_COLLEAGUE_MOVED_THE_BATCH_DATE = 'A_COLLEAGUE_MOVED_THE_BATCH_DATE';
 
     //Order approval required
     case ORDER_APPROVAL_REQUIRED = 'ORDER_APPROVAL_REQUIRED';

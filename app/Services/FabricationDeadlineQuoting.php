@@ -54,6 +54,10 @@ class FabricationDeadlineQuoting
      * constant deliberately - it is the day the *column* stops waiting, which is a decision about
      * batching rather than about any one project's deadline - but it is the next thing to make a
      * preference if a business asks for it.
+     *
+     * Counted in working days wherever it is used - see triggerProject() and
+     * KanbanFormatter::orderingTriggerDate. It used to be counted in calendar days in both, which put
+     * the one number on this page in a different unit to every lead time it is measured against.
      */
     public const int DAYS_BEFORE_FABRICATION = 5;
 
@@ -227,7 +231,17 @@ class FabricationDeadlineQuoting
      */
     public function triggerProject(Collection $projects): ?Project
     {
-        $deadline = Carbon::now()->addDays(self::DAYS_BEFORE_FABRICATION)->endOfDay();
+        /*
+         * Working days, like every other deadline in the application.
+         *
+         * This counted calendar days, which made it the one date on the board measured in a different
+         * unit to the lead times it exists to protect: a Monday start warned about on the Wednesday
+         * before gave the shop five days of which two were a weekend nobody prices or delivers on, so
+         * the warning arrived inside the critical path it was meant to sit outside. Carbon::addWeekdays
+         * steps over it, and the constant keeps the meaning it is named for - five days of work before
+         * the first cut.
+         */
+        $deadline = Carbon::now()->addWeekdays(self::DAYS_BEFORE_FABRICATION)->endOfDay();
 
         return $projects
             ->filter(fn (Project $project) => $project->date_fabrication_begins !== null

@@ -11,10 +11,10 @@ use Illuminate\Support\Facades\Auth;
  *
  * Model events rather than a call at each call site, for the reason BelongsToSandbox gives about its
  * global scope: a line that has to be remembered is a line that will be forgotten once, and once is
- * enough to leave the one change an auditor asks about unrecorded. Six models carry this - Order,
- * Piece, MaterialCertificate, Product, Template and Supplier - and between them they hold what was
- * bought, what was cut, the evidence behind it, the catalogue it was matched against, the rules the
- * demand was read with and who supplied it.
+ * enough to leave the one change an auditor asks about unrecorded. Order, Piece, MaterialCertificate,
+ * Product, Template and Project carry this, and between them they hold what was bought, what was cut,
+ * the evidence behind it, the catalogue it was matched against, the rules the demand was read with -
+ * and, with the project, the date all of it was being bought against.
  *
  * What this does NOT catch, and deliberately:
  *

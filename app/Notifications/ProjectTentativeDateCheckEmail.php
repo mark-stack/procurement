@@ -48,7 +48,13 @@ class ProjectTentativeDateCheckEmail extends Notification implements ShouldQueue
         return [
             'project_id' => $this->project->id,
             'project_name' => $this->project->name,
-            'date_materials_required' => $this->project->date_materials_required,
+            /*
+             * The day the steel is wanted, resolved rather than copied off the column: a project
+             * created since the upload form started asking for a fabrication date instead carries
+             * null there, and the bell renders this row's wording off this value for as long as the
+             * row is unread. See Project::materialsRequiredOn.
+             */
+            'date_materials_required' => $this->project->materialsRequiredOn()?->toDateString(),
         ];
     }
 }
