@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Casts\NestedState;
+use App\Enums\ScrapSourceEnums;
 use App\Formatters\SupplierFormatter;
 use App\Models\Concerns\BelongsToSandbox;
 use App\Services\BatchStages;
@@ -228,11 +229,24 @@ class Batch extends Model
             ->get();
     }
 
-    public function scrap(): Collection
+    /**
+     * The steel this batch destroyed, a row per drop.
+     *
+     * Written when the nest is saved and read back here. It used to answer with an empty collection
+     * and a todo on it, which made "how much did this batch scrap" look like a question with the
+     * answer none - the figure was only ever in the per-bar totals inside nested_state, where nothing
+     * could add it up across batches, across months or across sections.
+     *
+     * Constrained to the nest drops rather than taking every row with this batch_id on it. A cleanout
+     * names the batch that originally cut the offcut it weighed in, so an unfiltered relation would
+     * report steel written off the rack a year later as part of what this nest wasted. See
+     * App\Enums\ScrapSourceEnums: the two are not the same quantity.
+     *
+     * @return HasMany<Scrap, $this>
+     */
+    public function scrap(): HasMany
     {
-        //todo scrap is not tracked as its own record yet - see the per-bar scrap totals in
-        //NestingFormatter::singleRun, which are what the nesting screens report
-        return collect([]);
+        return $this->hasMany(Scrap::class)->where('source', ScrapSourceEnums::NEST_DROP);
     }
 
     /**

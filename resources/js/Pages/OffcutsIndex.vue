@@ -75,13 +75,27 @@
                 </Link>
 
                 <!-- The page had no heading at all, and no statement of what it is for -->
-                <header class="mt-4">
-                    <h1 class="text-2xl font-semibold text-gray-900 dark:text-gray-100">Offcuts</h1>
-                    <p class="mt-1 max-w-3xl text-sm text-gray-600 dark:text-gray-400">
-                        The steel in your yard that a nest has already paid for. Every batch nested
-                        from here on draws on this list before it buys anything, so a piece listed
-                        here that is not really in the rack is a bar the next job will be short.
-                    </p>
+                <header class="mt-4 sm:flex sm:items-start sm:justify-between sm:gap-x-6">
+                    <div>
+                        <h1 class="text-2xl font-semibold text-gray-900 dark:text-gray-100">Offcuts</h1>
+                        <p class="mt-1 max-w-3xl text-sm text-gray-600 dark:text-gray-400">
+                            The steel in your yard that a nest has already paid for. Every batch nested
+                            from here on draws on this list before it buys anything, so a piece listed
+                            here that is not really in the rack is a bar the next job will be short.
+                        </p>
+                    </div>
+
+                    <!--
+                        The other end of the same story. Everything on this page is steel that was
+                        kept; the scrap report is what happened to the steel that was not, and it is
+                        where the cleanout tab's decisions end up.
+                    -->
+                    <Link
+                        class="mt-3 inline-flex shrink-0 items-center gap-x-2 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-600 transition-colors duration-200 hover:border-gray-400 hover:text-blue-600 dark:border-gray-600 dark:text-gray-300 dark:hover:text-blue-400 sm:mt-0"
+                        :href="route('scrap.index')"
+                    >
+                        Scrap report <span aria-hidden="true">&rarr;</span>
+                    </Link>
                 </header>
 
                 <!-- Tabs -->
