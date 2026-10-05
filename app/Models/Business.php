@@ -420,7 +420,7 @@ class Business extends Model
 
     /*
      * currentProjects() and pastProjects() lived here and are gone. Nothing called either of them -
-     * the board builds its columns from KanbanFormatter and past projects from PastProjectsController -
+     * the board builds its columns from KanbanFormatter and past batches from PastBatchesController -
      * and currentProjects() was quietly wrong in a way that would have bitten whoever reached for it
      * next: its "projects without batch yet" half used Project::scopeWithoutBatch, which was
      * whereRelation("pieces.batch", "done", false) and so matched projects that DO have a batch. It

@@ -111,7 +111,7 @@ function projectCard(Project $project, User $user): array
 /**
  * A sent order on a batch, which is what moves it off the Quoting column.
  *
- * Its own name for the same reason as above - PastProjectsTest declares pastProjectOrder().
+ * Its own name for the same reason as above - PastBatchesTest declares pastBatchOrder().
  */
 function nestingPageSentOrder(User $user, Batch $batch, string $supplierCategory = 'STEEL_MERCHANT'): Order
 {
@@ -298,7 +298,7 @@ it('says Delivered when the steel has turned up, not when the last order went ou
         );
 });
 
-it('leaves a finished batch to /past-projects, however much of it is mine', function () {
+it('leaves a finished batch to /past-batches, however much of it is mine', function () {
     /*
      * There is nothing on a delivered batch left to nest or to buy, which is every button a card
      * carries, and that list only grows - it would bury the handful of batches somebody opened this page
@@ -1685,13 +1685,13 @@ it('would be a disaster if another business could mark a batch delivered or cut'
     expect($batch->refresh()->cut_at)->toBeNull();
 });
 
-it('carries a finished batch off the page and into past projects', function () {
+it('carries a finished batch off the page and into past batches', function () {
     /*
      * The one press on this menu that takes a card away, and for weeks there was not one anywhere in
      * the application: "Move to done" was on the board, the board was deleted, and the sweep that
      * closes a batch on the business's behalf can only see batches bought through the quotes screen -
      * which nothing writes any anymore. So every batch a shop made stayed live for ever, this page grew
-     * by a card a job, and Past Projects could never gain another row.
+     * by a card a job, and Past Batches could never gain another row.
      *
      * Offered on the two cards "Cut" is offered on, and for the same reason: a job is over when its
      * steel is in, however the steel got there.
@@ -1727,7 +1727,7 @@ it('carries a finished batch off the page and into past projects', function () {
             ->where('batches.1.prerequisiteMarkDone', true)
         );
 
-    $this->post(route('mark.as.past.project', $batch->id))->assertRedirect();
+    $this->post(route('mark.as.past.batch', $batch->id))->assertRedirect();
 
     expect((bool) $batch->refresh()->done)->toBeTrue();
 
@@ -1736,8 +1736,8 @@ it('carries a finished batch off the page and into past projects', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page->has('batches', 1));
 
-    //Read from Past Projects instead
-    $this->get(route('past.projects.index'))->assertOk();
+    //Read from Past Batches instead
+    $this->get(route('past.batches.index'))->assertOk();
 });
 
 it('would be a disaster if a batch still waiting for its steel could be closed', function () {
@@ -1758,7 +1758,7 @@ it('would be a disaster if a batch still waiting for its steel could be closed',
 
     $this->actingAs($user);
 
-    $this->post(route('mark.as.past.project', $batch->id))->assertForbidden();
+    $this->post(route('mark.as.past.batch', $batch->id))->assertForbidden();
 
     expect((bool) $batch->refresh()->done)->toBeFalse();
 });
@@ -1789,7 +1789,7 @@ it('would be a disaster if a colleague with no job on the batch could close it',
             ->where('batches.1.prerequisiteMarkDone', false)
         );
 
-    $this->post(route('mark.as.past.project', $batch->id))->assertForbidden();
+    $this->post(route('mark.as.past.batch', $batch->id))->assertForbidden();
 
     expect((bool) $batch->refresh()->done)->toBeFalse();
 });
@@ -1807,7 +1807,7 @@ it("would be a disaster if another business could close a batch", function () {
 
     $this->actingAs(createUser(1, createBusiness('somebody else'), false, true));
 
-    $this->post(route('mark.as.past.project', $batch->id))->assertForbidden();
+    $this->post(route('mark.as.past.batch', $batch->id))->assertForbidden();
 
     expect((bool) $batch->refresh()->done)->toBeFalse();
 });

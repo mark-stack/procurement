@@ -2,15 +2,25 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Order;
+use App\Formatters\SupplierFormatter;
+use App\Models\Business;
 use App\Models\Piece;
 use App\Models\Project;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class PastProjectsController extends Controller
+class PastBatchesController extends Controller
 {
+    /**
+     * The parts a set of pieces comes to, summed in SQL.
+     *
+     * NestingIndexController's, to the character - the two pages print this number under the same
+     * button, and a batch that said "148 cuts" while it was live must not say something else once it
+     * is closed. See that constant for why actual_qty is cast and why the rows are not counted.
+     */
+    private const string CUT_SUM = 'sum(cast(actual_qty as decimal(14,4)))';
+
     /**
      * Handle the incoming request.
      */
@@ -27,7 +37,14 @@ class PastProjectsController extends Controller
         $batchIds = $pastBatches->pluck('id');
         $projectsByBatch = $this->projectsByBatch($batchIds);
         $projectManagersByBatch = $this->projectManagersByBatch($batchIds);
-        $ordersQtyByBatch = $this->ordersQtyByBatch($batchIds);
+        /*
+         * The two numbers under the card's buttons, which are the Nesting card's own - see
+         * NestingIndex.vue's cutLabel() and categoryLabel(). A closed batch's card reads the same as
+         * a live one, so it has to carry the same figures, and both are bulk lookups like everything
+         * else on this page.
+         */
+        $cutCountByBatch = $this->cutCountByBatch($batchIds);
+        $categoryCountByBatch = $this->categoryCountByBatch($batchIds, $business);
 
         /*
          * This list only ever grows - the per-batch lookups this used to make were
@@ -52,11 +69,12 @@ class PastProjectsController extends Controller
                 //Who nested it. A different question, so it gets a line of its own
                 'batchedBy' => $pastBatch->user->name,
                 'projects' => $projectsByBatch->get($pastBatch->id, collect()),
-                'ordersQty' => $ordersQtyByBatch->get($pastBatch->id, 0),
+                'cutCount' => $cutCountByBatch->get($pastBatch->id, 0),
+                'categoryCount' => $categoryCountByBatch->get($pastBatch->id, 0),
             ];
         }
 
-        return Inertia::render('PastProjectsIndex', [
+        return Inertia::render('PastBatchesIndex', [
             'pastBatches' => $pastBatchesWithExtraData,
         ]);
     }
@@ -122,22 +140,51 @@ class PastProjectsController extends Controller
     }
 
     /**
-     * How many orders each batch actually needed, keyed by batch id.
+     * How many parts each batch came to, keyed by batch id - the BOM button's second line.
      *
-     * Counted as unique supplier categories, the way BatchService::totalOrdersQty defines it: an Order
-     * row is firstOrCreate'd for every supplier group the moment someone opens the quote screen, so a
-     * plain orders count reported drafts nobody ever placed. The join drops orders with no quote,
-     * which carry no supplier category - the same ones that method skips.
+     * The pieces' quantities summed rather than the piece rows counted, because a piece is a line of
+     * demand: one of them with an actual_qty of 12 is twelve cuts off the saw. One grouped query for
+     * the page, like every other lookup here.
      *
      * @return Collection<int, int>
      */
-    private function ordersQtyByBatch(Collection $batchIds): Collection
+    private function cutCountByBatch(Collection $batchIds): Collection
     {
-        return Order::query()
-            ->join('quotes', 'quotes.id', '=', 'orders.quote_id')
-            ->whereIn('orders.batch_id', $batchIds)
-            ->groupBy('orders.batch_id')
-            ->selectRaw('orders.batch_id as batch_id, count(distinct quotes.supplier_category) as qty')
-            ->pluck('qty', 'batch_id');
+        return Piece::query()
+            ->whereIn('batch_id', $batchIds)
+            ->groupBy('batch_id')
+            ->selectRaw('batch_id, '.self::CUT_SUM.' as cuts')
+            ->pluck('cuts', 'batch_id')
+            ->map(fn ($cuts) => (int) round((float) $cuts));
+    }
+
+    /**
+     * How many merchants each batch was bought from, keyed by batch id - the Material order line.
+     *
+     * The supplier groups this batch's material falls into, which is the number of blocks the modal
+     * that button opens draws (BatchOrderListController groups the stock the same way). Read off the
+     * material rather than off the Order rows, which is what this page used to count: a batch bought
+     * over the phone and marked ordered by hand has no order row and every one of those cards claimed
+     * nothing had been bought for it.
+     *
+     * A pair per batch per product category, which is a handful of rows however big the jobs are.
+     *
+     * @return Collection<int|string, int<0, max>>
+     */
+    private function categoryCountByBatch(Collection $batchIds, Business $business): Collection
+    {
+        $formatter = new SupplierFormatter;
+        $supplierGroups = $formatter->supplierGroups($business);
+
+        return Piece::query()
+            ->select(['batch_id', 'product_category'])
+            ->whereIn('batch_id', $batchIds)
+            ->distinct()
+            ->get()
+            ->groupBy('batch_id')
+            ->map(fn (Collection $rows): int => count($formatter->groupsFor(
+                $rows->pluck('product_category')->all(),
+                $supplierGroups,
+            )));
     }
 }

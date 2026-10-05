@@ -214,7 +214,7 @@ it('never guesses at when a delivery nobody dated arrived', function () {
     expect(collect((new KanbanFormatter)->deliveredColumn($business))->first()['info']['allDelivered'])
         ->toBeTrue();
 
-    $this->post(route('mark.as.past.project', $batch))->assertRedirect();
+    $this->post(route('mark.as.past.batch', $batch))->assertRedirect();
 
     expect((bool) $batch->fresh()->done)->toBeTrue();
 });
@@ -223,7 +223,7 @@ it('would be a disaster if it closed a batch carrying material nobody ever order
     /*
      * A material row that never matched a product has no piece, so it can never be ordered and it holds
      * the batch in the Ordering column - BatchStages says so, and the board draws it there. Its sent
-     * orders can still all have arrived, and closing on that alone would make a past project out of a
+     * orders can still all have arrived, and closing on that alone would make a past batch out of a
      * job with steel missing from it.
      */
     $business = createBusiness('biz');
@@ -289,7 +289,7 @@ it('closes the batch when the schedule runs it', function () {
     [$batch] = deliveredBatch($user, now()->subDays(7)->toDateTimeString());
 
     $this->artisan('batches:mark-delivered-done')
-        ->expectsOutputToContain('Batches moved to past projects: 1')
+        ->expectsOutputToContain('Batches moved to past batches: 1')
         ->assertSuccessful();
 
     expect((bool) $batch->fresh()->done)->toBeTrue();
@@ -338,7 +338,7 @@ it('closes a batch bought over the phone, five days after somebody said the stee
      * The shop that rings the merchant has no order to book in, so its finished batches never reach
      * the Delivering column at all - they sit in Quoting with "Delivered" on the card. This sweep
      * only ever looked at that column, so those batches were closed by nothing: the Nesting page grew
-     * by a card a job and Past Projects could gain no rows.
+     * by a card a job and Past Batches could gain no rows.
      *
      * Counted from the mark, which is the same event a goods receipt records - the day somebody said
      * the steel arrived - just written by a person rather than by the orders screen.

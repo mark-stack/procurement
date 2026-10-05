@@ -150,7 +150,7 @@ it('leaves a batch whose orders are all delivered closeable by the controller it
 
     expect(deliveredColumnRow($batch)['allDelivered'])->toBeTrue();
 
-    $this->post(route('mark.as.past.project', $batch))->assertRedirect();
+    $this->post(route('mark.as.past.batch', $batch))->assertRedirect();
 
     expect((bool) $batch->fresh()->done)->toBeTrue();
 });

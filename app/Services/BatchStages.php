@@ -23,7 +23,7 @@ use Illuminate\Support\Collection;
  *  - ORDERING: at least one order has gone in, and some material on it is still unordered.
  *  - DELIVERING: every material row on every project of the batch points at a sent order.
  *
- * A batch that is done is on none of them - it is a past project.
+ * A batch that is done is on none of them - it is a past batch.
  */
 class BatchStages
 {

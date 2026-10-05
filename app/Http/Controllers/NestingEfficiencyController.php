@@ -25,7 +25,7 @@ class NestingEfficiencyController extends Controller
      *
      * Live batches only, matching the cards the page draws: a finished batch has no card to put a
      * percentage on, and unpacking its nest to answer nobody is the most expensive thing this page could
-     * do - that is a list which only grows. A finished batch's nest is read from /past-projects.
+     * do - that is a list which only grows. A finished batch's nest is read from /past-batches.
      *
      * The pending card is not in here. It has no saved nest, so its efficiency can only come from
      * running the suggestion, which is what DownloadUsageController answers - the same request the

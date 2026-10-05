@@ -42,4 +42,32 @@ class SupplierFormatter
 
         return $output;
     }
+
+    /**
+     * Which of those groups a given lot of material falls into.
+     *
+     * The names are the keys of supplierGroups() above, which is what a quote records in
+     * supplier_category, so the answer can be compared against one directly.
+     *
+     * Here rather than in a controller because two screens count the same thing off it: the Nesting
+     * card's "Material order" line, and the same line on a closed batch's card under Past Batches.
+     * Two copies of this would let the two pages disagree about how many merchants a batch is bought
+     * from, which is the number each of them prints under a button that opens the blocks themselves.
+     *
+     * @param  array<int, string|null>  $productCategories
+     * @param  array<string, array<int, string>>  $supplierGroups
+     * @return array<int, string>
+     */
+    public function groupsFor(array $productCategories, array $supplierGroups): array
+    {
+        $matched = [];
+
+        foreach ($supplierGroups as $supplierGroup => $includedProducts) {
+            if (array_intersect($productCategories, $includedProducts) !== []) {
+                $matched[] = (string) $supplierGroup;
+            }
+        }
+
+        return $matched;
+    }
 }

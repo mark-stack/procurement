@@ -22,7 +22,7 @@ use App\Http\Controllers\DownloadMaterialCertificateController;
 use App\Http\Controllers\DownloadMaterialListFileController;
 use App\Http\Controllers\DownloadNesting;
 use App\Http\Controllers\DownloadUsageController;
-use App\Http\Controllers\MarkAsPastProjectController;
+use App\Http\Controllers\MarkAsPastBatchController;
 use App\Http\Controllers\MarkNotificationStatusController;
 use App\Http\Controllers\MaterialCertificateController;
 use App\Http\Controllers\MaterialListFileController;
@@ -36,7 +36,7 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderMarkDeliveredController;
 use App\Http\Controllers\OrderSentController;
 use App\Http\Controllers\OrderUndoSentController;
-use App\Http\Controllers\PastProjectsController;
+use App\Http\Controllers\PastBatchesController;
 use App\Http\Controllers\PricebookController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
@@ -128,9 +128,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
          */
         Route::resource('projects', ProjectController::class)->only(['store', 'update', 'destroy']);
 
-        //Past Projects
-        Route::get("past-projects", PastProjectsController::class)->name("past.projects.index");
-        Route::post("mark-as-past-project/{batch}", MarkAsPastProjectController::class)->name("mark.as.past.project");
+        //Past batches, not past projects: the page lists closed batches, and names the jobs on each
+        Route::get("past-batches", PastBatchesController::class)->name("past.batches.index");
+        Route::post("mark-as-past-batch/{batch}", MarkAsPastBatchController::class)->name("mark.as.past.batch");
 
         //Products
         //Upload only - the standalone product page was superseded by the Bill of Materials modal

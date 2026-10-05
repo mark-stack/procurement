@@ -101,7 +101,7 @@ class Project extends Model
      * Has this job been all the way through and come out the other side?
      *
      * True once the project has reached a batch and every batch it reached is done - which is
-     * exactly what Past Projects lists, because PastProjectsController reads the same closed
+     * exactly what Past Batches lists, because PastBatchesController reads the same closed
      * batches. Deliberately not the same question as Project::done: the batch flag is written by
      * MarkAsDone and is one-way, while the project flag is the owner's own filing of it.
      *
