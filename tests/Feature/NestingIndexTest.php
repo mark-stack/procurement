@@ -427,8 +427,14 @@ it('tells the pending card the day it stops being pending', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->has('batches', 1)
             ->where('batches.0.stage', 'NESTING')
+            /*
+             * Working days back off the fabrication date, matching the window the warning itself
+             * opens on. Written as the subtraction rather than as "12 minus 5 days", which happened
+             * to agree with it on the day it was written and would not on another.
+             */
             ->where('batches.0.orderingTriggerDate', now()
-                ->addDays(12 - FabricationDeadlineQuoting::DAYS_BEFORE_FABRICATION)
+                ->addDays(12)
+                ->subWeekdays(FabricationDeadlineQuoting::DAYS_BEFORE_FABRICATION)
                 ->toDateString())
         );
 });
@@ -2491,5 +2497,51 @@ it("would be a disaster if another business's batches were listed", function () 
         ->assertInertia(fn (Assert $page) => $page
             ->has('batches', 1)
             ->where('batches.0.id', null)
+        );
+});
+
+it('counts the delivery back off the lead time the merchant actually quoted', function () {
+    /*
+     * quoted_lead_time has been written by the quotes screen since there was one and was read by
+     * nothing at all, so a batch whose steel the merchant has said is a fortnight out was still being
+     * counted back on the three days the business set as its general case. That is the moment the
+     * card matters most - the prices are in, the order is the next press - and it was the moment it
+     * was least informed.
+     *
+     * The deadline a QUOTED batch is held to is the delivery it still owes, so it moves from the
+     * business's figure to the merchant's.
+     */
+    $business = createBusiness('biz');
+    $user = createUser(1, $business, false, true);
+
+    expect((int) $business->delivery_days)->toBe(3);
+
+    $project = nestingPageProject($user, now()->addDays(40)->toDateString());
+
+    $batch = Batch::factory()->forUser($user->id)->create(['done' => false]);
+    Piece::query()->where('project_id', $project->id)->update(['batch_id' => $batch->id]);
+
+    //Priced, with a real lead time on it, and nothing ordered yet
+    Quote::create([
+        'user_id' => $user->id,
+        'batch_id' => $batch->id,
+        'supplier_category' => 'STEEL_MERCHANT',
+        'supplier_quote_reference' => null,
+        'quote_sent' => true,
+        'quoted_price' => null,
+        'quoted_lead_time' => 14,
+    ]);
+
+    $requiredBy = Project::materialsRequiredDate(now()->addDays(40)->toDateString());
+
+    $this->actingAs($user);
+
+    $this->withoutExceptionHandling();
+    $this->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('batches.1.stage', 'QUOTED')
+            ->where('batches.1.criticalPathDeadline', $requiredBy->copy()->subWeekdays(14)->toDateString())
+            ->etc()
         );
 });

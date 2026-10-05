@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToSandbox;
+use App\Models\Concerns\RecordsChanges;
 use App\Observers\ProjectObserver;
 use App\Services\ProductService;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -22,8 +23,19 @@ use Illuminate\Support\Facades\Auth;
 #[ObservedBy([ProjectObserver::class])]
 class Project extends Model
 {
-    /** @use HasFactory<\Database\Factories\ProjectFactory> */
-    use BelongsToSandbox, HasFactory;
+    /**
+     * @use HasFactory<\Database\Factories\ProjectFactory>
+     *
+     * RecordsChanges because the fabrication date is the fixed point every deadline on the Nesting
+     * page is counted back from, and it stays editable after the steel has been quoted and bought -
+     * which is exactly when a change to it is worth being able to account for. Who moved it, from
+     * what to what, and when, is otherwise nowhere: the column is overwritten in place and the page
+     * derives every date it prints at read time, so the old deadline leaves no trace at all.
+     *
+     * It catches the rename too, which is the other thing a project carries that the whole business
+     * reads - see RecordsChanges for what model events do and do not pick up.
+     */
+    use BelongsToSandbox, HasFactory, RecordsChanges;
 
     /**
      * How long a name and a reference are allowed to be.
@@ -382,9 +394,34 @@ class Project extends Model
         return $materialQuotingDays + $longestDeliveryDays;
     }
 
-    public function daysUntilCriticalPathDeadline(): string
+    public function daysUntilCriticalPathDeadline(): ?string
     {
-        return $this->criticalPathDeadline()->diffForHumans();
+        return $this->criticalPathDeadline()?->diffForHumans();
+    }
+
+    /**
+     * The day this job's steel has to be at the workshop - however this project says so.
+     *
+     * The typed-in column where there is one, and the fabrication date less one working day where
+     * there is not. Those are the same fact recorded two ways: date_materials_required is what the
+     * upload form used to ask for, and date_fabrication_begins is what it asks for now (see the
+     * add_date_fabrication_begins migration), so a project created either side of that change has
+     * exactly one of them.
+     *
+     * Everything below that counts back from "the day the materials are wanted" reads this rather
+     * than the column, which is what stops the deadlines being answerable only for projects created
+     * before October. Carbon::parse(null) answers *now*, so reading the column directly did not fail
+     * on a modern project - it silently placed the job's deadline a week either side of today.
+     *
+     * Null only when the project names neither date, which is a project nothing can chase.
+     */
+    public function materialsRequiredOn(): ?Carbon
+    {
+        if (filled($this->date_materials_required)) {
+            return Carbon::parse($this->date_materials_required);
+        }
+
+        return self::materialsRequiredDate($this->date_fabrication_begins);
     }
 
     /**
@@ -401,30 +438,33 @@ class Project extends Model
      * Carbon::subWeekdays is what steps over the weekend. A figure of zero leaves the date alone -
      * the shop that collects off the rack the morning it needs the steel - which is why these can be
      * read off a date that is itself already a working day without being nudged off it.
+     *
+     * Null where the project names no date at all, rather than a deadline counted back from today -
+     * see materialsRequiredOn().
      */
-    public function quotingDeadline(): Carbon
+    public function quotingDeadline(): ?Carbon
     {
         $materialQuotingDays = $this->quotingDays();
         $longestDeliveryDays = $this->longestDeliveryDays();
         $totalDays = $materialQuotingDays + $longestDeliveryDays;
 
-        return Carbon::parse($this->date_materials_required)->subWeekdays($totalDays);
+        return $this->materialsRequiredOn()?->subWeekdays($totalDays);
     }
 
-    public function orderingDeadline(): Carbon
+    public function orderingDeadline(): ?Carbon
     {
         $longestDeliveryDays = $this->longestDeliveryDays();
         $totalDays = $longestDeliveryDays;
 
-        return Carbon::parse($this->date_materials_required)->subWeekdays($totalDays);
+        return $this->materialsRequiredOn()?->subWeekdays($totalDays);
     }
 
-    public function deliveryDeadline(): Carbon
+    public function deliveryDeadline(): ?Carbon
     {
-        return Carbon::parse($this->date_materials_required);
+        return $this->materialsRequiredOn();
     }
 
-    public function criticalPathDeadline(): Carbon
+    public function criticalPathDeadline(): ?Carbon
     {
         return $this->quotingDeadline();
     }
@@ -459,23 +499,93 @@ class Project extends Model
             : null;
     }
 
-    //Local scopes
-    public function scopeDueForQuotingAndOrdering(Builder $query): void
+    /**
+     * The same day for a set of jobs bought as one - the earliest of them.
+     *
+     * A batch is nested, quoted and delivered in one go, so its steel is wanted on the day the first
+     * of its jobs needs it; a later job on the same batch is not a reason to hold the lot back. That
+     * is the day the Nesting page's cards print and are coloured off.
+     *
+     * Here rather than in the page that draws it, because it is now asked in two places: by the card,
+     * and by the edit that moves a project's fabrication date - which has to know whether the batch's
+     * day actually changed before telling the other managers on it that it did. Two copies of this
+     * would let the card and the notification name different days for the same steel.
+     *
+     * Null when no job on the batch names a fabrication date - see materialsRequiredDate.
+     *
+     * @param  Collection<int, Project>  $projects
+     */
+    public static function earliestMaterialsRequiredDate(Collection $projects): ?Carbon
     {
-        /**
-         * Critical path = quoting time + delivery time
-         * Between [critical path + 1 day] and [critical path] days before planned project material received date
-         *
-         * Working days, matching the deadlines above - the window this opens has to be the same
-         * window quotingDeadline() names, or the job that chases a project and the card that says
-         * whether it is late would be reading off two different critical paths.
-         */
+        $earliest = $projects
+            ->pluck('date_fabrication_begins')
+            ->filter()
+            ->map(fn ($date) => Carbon::parse($date))
+            ->min();
+
+        return self::materialsRequiredDate($earliest?->toDateString());
+    }
+
+    /**
+     * Is this job inside the window where its materials are due to be quoted and ordered?
+     *
+     * Critical path = quoting time + delivery time. "Due" is the one day between [critical path + 1]
+     * and [critical path] working days before the steel is wanted.
+     *
+     * This was a query scope - Project::query()->dueForQuotingAndOrdering() - and that is what was
+     * wrong with it. A local scope runs on a bare model built by the query builder, so $this->user
+     * was null inside it and criticalPathDays() fell all the way back to the platform defaults of
+     * 2 + 3. Every business on the platform was chased on a five-working-day path, whatever the two
+     * figures it had set in /profile said, while quotingDeadline() on the same project answered with
+     * the business's own - the two were documented as having to name the same window and could not.
+     * Asked of a real project, criticalPathDays() walks to the manager's business and gets it right.
+     *
+     * Working days throughout, matching the deadlines above and the card on the Nesting page.
+     *
+     * False for a project that names no date at all: there is no path to be due against, and nothing
+     * should be chasing it.
+     */
+    public function isDueForQuotingAndOrdering(): bool
+    {
+        $requiredOn = $this->materialsRequiredOn();
+
+        if ($requiredOn === null) {
+            return false;
+        }
+
         $startRange = Carbon::now()->addWeekdays($this->criticalPathDays())->startOfDay();
         $endRange = Carbon::now()->addWeekdays($this->criticalPathDays() + 1)->endOfDay();
 
-        $query->whereBetween('date_materials_required', [$startRange, $endRange]);
+        return $requiredOn->betweenIncluded($startRange, $endRange);
     }
 
+    /**
+     * And past it: less than [critical path] working days before the steel is wanted.
+     *
+     * Cut at the START of the day isDueForQuotingAndOrdering() opens on, not the end of it. The two
+     * windows used to overlap across that whole day - a materials date exactly the critical path
+     * away satisfied both - so on that one day the project manager got "the materials are due to be
+     * quoted" and "the deadline has passed, quote today" about the same project in the same hourly
+     * run. Two reminders that contradict each other teach people to read neither.
+     *
+     * "<" against the same instant "due" opens on, so the boundary belongs to exactly one of them
+     * and there is no day in between that neither claims. Working days on both sides, for the same
+     * reason: the boundary is only shared while the two count the same way.
+     */
+    public function isOverdueForQuotingAndOrdering(): bool
+    {
+        $requiredOn = $this->materialsRequiredOn();
+
+        if ($requiredOn === null) {
+            return false;
+        }
+
+        return $requiredOn->lessThan(
+            Carbon::now()->addWeekdays($this->criticalPathDays())->startOfDay(),
+        );
+    }
+
+    //Local scopes
     public function scopeActive(Builder $query): void
     {
         /**
@@ -494,26 +604,25 @@ class Project extends Model
      * person to reach for it. scopeUnBatchedPieces() below is the one that answers what it claimed to.
      */
 
-    public function scopeOverdueForQuotingAndOrdering(Builder $query): void
+    /**
+     * The projects the two deadline reminders have to consider, cheaply.
+     *
+     * Which of them are actually due is isDueForQuotingAndOrdering() and its overdue twin, and both
+     * of those have to be asked of a real project - they read the manager's business for its lead
+     * times, and half the projects on the platform carry the day the steel is wanted as a fabrication
+     * date rather than as the typed-in column. Neither question can be put to the database.
+     *
+     * So this is the part that can: a project naming no date at all can never be due, and there is no
+     * point loading one. The manager and their business come with it because every candidate is about
+     * to be asked for both.
+     */
+    public function scopeDatedAndChaseable(Builder $query): void
     {
-        /**
-         * Critical path = quoting time + delivery time
-         * Less than [critical path] before planned project material received date
-         *
-         * Cut at the START of the day dueForQuotingAndOrdering() opens on, not the end of it. The two
-         * windows used to overlap across that whole day - a materials date exactly the critical path
-         * away satisfied both - so on that one day the project manager got "the materials are due to be
-         * quoted" and "the deadline has passed, quote today" about the same project in the same hourly
-         * run. Two reminders that contradict each other teach people to read neither.
-         *
-         * "<" against the same instant "due" opens on, so the boundary belongs to exactly one of them
-         * and there is no day in between that neither claims. Working days on both sides, for the
-         * same reason: the boundary is only shared while the two count the same way.
-         */
-        $deadline = Carbon::now()->addWeekdays($this->criticalPathDays())->startOfDay();
-
-        // Query the database
-        $query->where('date_materials_required', '<', $deadline);
+        $query->with('user.business')
+            ->where(function (Builder $query) {
+                $query->whereNotNull('date_materials_required')
+                    ->orWhereNotNull('date_fabrication_begins');
+            });
     }
 
     public function scopeThisBusiness(Builder $query, Business $business): void

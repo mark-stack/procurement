@@ -79,7 +79,20 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
     public function sendNotification(object $recipient, object $otherObject): void
     {
         $project = $otherObject;
-        $message = $this->message($project->date_materials_required, $project->name);
+        /*
+         * The day the steel is wanted however this project records it - the typed-in column, or the
+         * fabrication date less a working day (Project::materialsRequiredOn).
+         *
+         * It was the column alone, and a tentative project created since the upload form stopped
+         * asking for one carries null there. message() declared both arguments as plain strings, so
+         * that null was a TypeError - thrown inside HourlyNotificationsJob, out of the first
+         * implementation on the list, which took the two deadline checks behind it down with it for
+         * every business on the platform until the project aged out of the two-day window.
+         */
+        $message = $this->message(
+            $project->materialsRequiredOn()?->format('j M y'),
+            $project->name,
+        );
         $recipient->notify(new ProjectTentativeDateCheckEmail($project, $recipient, $message));
     }
 
@@ -191,7 +204,10 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
         $notificationData = null;
 
         if ($this->isCorrectClass($notification)) {
-            $materialsDate = $notification->data['date_materials_required'] ?? null;
+            //Spelled the way the other two reminders spell it, rather than as the raw column value
+            $materialsDate = ($notification->data['date_materials_required'] ?? null)
+                ? Carbon::parse($notification->data['date_materials_required'])->format('j M y')
+                : null;
             $projectName = $notification->data['project_name'] ?? null;
 
             $message = $this->message($materialsDate, $projectName);
@@ -211,10 +227,21 @@ class NotificationMaterialsDateImplementation implements NotificationInterface
         return $notificationData;
     }
 
-    public function message(string $string_1, string $string_2): string
+    /**
+     * Nullable on both sides - see sendNotification above for what a null used to cost, and
+     * NotificationQuotingOrderingDueImplementation::message for why the bell can hand one over.
+     *
+     * A project with no date at all is asked about differently rather than asked about with a hole in
+     * the sentence: "the tentative materials date of  for 'Job'" is a question nobody can answer.
+     */
+    public function message(?string $string_1, ?string $string_2): string
     {
         $materialsDate = $string_1;
         $projectName = $string_2;
+
+        if ($materialsDate === null) {
+            return "Is the date materials are needed for '".$projectName."' still open? Set it on the project.";
+        }
 
         return 'Is the tentative materials date of '.$materialsDate." for '".$projectName."' still correct?";
     }

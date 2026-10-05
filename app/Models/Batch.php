@@ -189,6 +189,31 @@ class Batch extends Model
             ->get();
     }
 
+    /**
+     * The jobs on this batch and the day each of them starts on the saw, with their managers.
+     *
+     * What the batch's own required-by date is worked out from - the earliest of these, less a
+     * working day (Project::earliestMaterialsRequiredDate) - and who has to be told when that day
+     * moves. projects() above would answer both and loads the whole material tree to do it; this is
+     * the four columns the answer actually needs, in the shape projectApprovalFlags() and
+     * projectSummaries() established.
+     *
+     * Deliberately NOT memoised, unlike its two neighbours. The one caller asks it twice about the
+     * same batch in the same request - once before a project's fabrication date is saved and once
+     * after - and a memo would hand back the old dates both times, which is a change that silently
+     * reports itself as no change at all.
+     *
+     * @return EloquentCollection<int, Project>
+     */
+    public function projectDates(): EloquentCollection
+    {
+        return Project::query()
+            ->select(['id', 'name', 'user_id', 'date_fabrication_begins'])
+            ->with('user:id,name,business_id')
+            ->whereIn('id', $this->pieces()->distinct()->pluck('project_id'))
+            ->get();
+    }
+
     public function oldOffcuts(): Collection
     {
         return Offcut::query()

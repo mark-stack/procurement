@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Imports\ExcelImport;
 use App\Http\Requests\StoreProjectRequest;
 use App\Http\Requests\UpdateProjectRequest;
+use App\Models\Batch;
 use App\Models\MaterialListFile;
 use App\Models\Project;
 use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\CsvService;
+use App\Services\NotificationImplementations\NotificationColleagueMovedDateImplementation;
 use App\Services\TemplateLearningService;
 use App\Services\TemplateService;
 use Illuminate\Support\Facades\DB;
@@ -254,13 +256,57 @@ class ProjectController extends Controller
         return back()->with('project', $project);
     }
 
+    /**
+     * Rename a job, or move the day it starts on the saw.
+     *
+     * The second of those is not a private fact about one project. A batch is quoted, bought and
+     * delivered as one, and the day its steel has to be at the workshop is the earliest fabrication
+     * date among the jobs on it - so moving yours can move the deadline of every colleague whose work
+     * is on the same batch, and their card is coloured off it. UpdateProjectRequest decides whether
+     * the move is allowed at all (PrerequisiteConditions::moveFabricationDate); this tells the people
+     * it lands on, which is the half nothing did.
+     *
+     * Only the live batches. A done one has nothing left to be late for, and the gate above has
+     * already refused the edit where every batch carrying this steel is finished.
+     */
     public function update(UpdateProjectRequest $request, Project $project): RedirectResponse
     {
         Gate::authorize('owned', $project);
 
         $validated = $request->validated();
 
+        $user = auth()->user();
+
+        /*
+         * The batches this job is on, with the day each of them is currently wanted by - read before
+         * the save, because that is the only moment the old day still exists anywhere. The column is
+         * overwritten in place and every date on the page is derived from it at read time.
+         */
+        $liveBatches = Batch::query()
+            ->active()
+            ->whereIn('id', $project->pieces()->whereNotNull('batch_id')->distinct()->pluck('batch_id'))
+            ->get();
+
+        $datesBefore = $liveBatches->mapWithKeys(fn (Batch $batch) => [
+            $batch->id => Project::earliestMaterialsRequiredDate($batch->projectDates())?->toDateString(),
+        ]);
+
         $project->update($validated);
+
+        $notifier = new NotificationColleagueMovedDateImplementation;
+
+        foreach ($liveBatches as $batch) {
+            //Re-read: projectDates() is deliberately not memoised, so this sees the date just saved
+            $projectsOnBatch = $batch->projectDates();
+            $requiredBy = Project::earliestMaterialsRequiredDate($projectsOnBatch);
+
+            //A rename, or a move that the earlier date of some other job on the batch absorbs
+            if (($datesBefore[$batch->id] ?? null) === $requiredBy?->toDateString()) {
+                continue;
+            }
+
+            $notifier->notifyBatchManagers($batch, $projectsOnBatch, $user, $requiredBy);
+        }
 
         return back();
     }

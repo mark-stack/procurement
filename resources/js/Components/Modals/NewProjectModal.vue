@@ -144,11 +144,39 @@
         .filter(([key]) => key !== 'name' && key !== 'date_fabrication_begins')
         .map(([, message]) => message));
 
+    /**
+     * The date joins the name in holding the save, but only for a project that already has one.
+     *
+     * Emptying the field is not a correction - it is what silences the required-by pill, the critical
+     * path the card is coloured against, and the warning that chases the Nesting column. The server
+     * refuses it (UpdateProjectRequest); this says so before the round trip, and says nothing at all
+     * for the older projects that carry no date and are free to be given one or left alone.
+     */
+    const editDateCleared = computed(() =>
+        !!props.editProject?.date_fabrication_begins
+        && !formProjectCreate.date_fabrication_begins
+    );
+
     const editSaveDisabled = computed(() =>
         formProjectCreate.processing
         || freezeView.value
         || projectName.value === ""
+        || editDateCleared.value
     );
+
+    const editDisabledReason = computed(() => {
+        if(formProjectCreate.processing || freezeView.value){
+            return null;
+        }
+        if(projectName.value === ""){
+            return "Enter a project name to continue.";
+        }
+        if(editDateCleared.value){
+            return "Every deadline on this job is counted back from its fabrication date. Move it if it is wrong - it can't be left empty.";
+        }
+
+        return null;
+    });
 
     /**
      * One label for every step, so a screen reader announced "Add new project" while
@@ -272,14 +300,38 @@
         //Edit mode
         if(props.editProject){
             let url = route("projects.update",props.editProject.id);
-            formProjectCreate.put(url, {
-                preserveScroll: true,
-                onSuccess: () => {
-                    //Close modal
-                    freezeView.value = false;
-                    emit('closeModalOnSuccess');
-                },
-            });
+
+            /*
+             * Only the four fields the edit form is actually about. The form object is shared with
+             * create, so without this an edit also posted the attached spreadsheets, the colleague
+             * the job is for and the tentative flag - none of which UpdateProjectRequest accepts, and
+             * the last of which the edit screen does not even draw. A field that is posted and
+             * silently dropped is a field somebody will one day expect to have saved.
+             *
+             * transform() rather than a hand-built payload, so the form keeps its own errors and
+             * processing state against the inputs on screen.
+             */
+            formProjectCreate
+                .transform((data) => ({
+                    name: data.name,
+                    reference: data.reference,
+                    date_materials_required: data.date_materials_required,
+                    date_fabrication_begins: data.date_fabrication_begins,
+                }))
+                .put(url, {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        //Close modal
+                        freezeView.value = false;
+                        emit('closeModalOnSuccess');
+                    },
+                    /*
+                     * The transform is sticky, and this same form object is what "add project" posts
+                     * next - so it has to be put back or the following create would post four fields
+                     * and no spreadsheet.
+                     */
+                    onFinish: () => formProjectCreate.transform((data) => data),
+                });
         }
         /**
          Create mode:
@@ -621,18 +673,23 @@
                                     When fabrication begins.
 
                                     Shown here as well as on the way in, because a date that is
-                                    required and then unchangeable is a typo nobody can fix. Not
-                                    "required" on this form: projects created before the question was
-                                    asked carry no date, and the owner must still be able to rename one
-                                    without being made to invent a fabrication date for it.
+                                    required and then unchangeable is a typo nobody can fix. Required
+                                    only for a project that already has one - projects created before
+                                    the question was asked carry no date, and the owner must still be
+                                    able to rename one without being made to invent a fabrication date
+                                    for it. Emptying a date the job does have is the one edit the
+                                    server refuses; see editDateCleared.
                                 -->
                                 <div>
-                                    <label for="edit-project-fabrication-date" class="text-gray-700 dark:text-gray-200 ml-1">When does fabrication begin?</label>
+                                    <label for="edit-project-fabrication-date" class="text-gray-700 dark:text-gray-200 ml-1">
+                                        When does fabrication begin?{{ editProject?.date_fabrication_begins ? ' *' : '' }}
+                                    </label>
                                     <input
                                         id="edit-project-fabrication-date"
                                         v-model="formProjectCreate.date_fabrication_begins"
                                         type="date"
                                         class="w-full px-4 py-2 text-gray-700 bg-white border rounded-md dark:bg-gray-900 dark:text-gray-300 dark:border-gray-600 focus:border-blue-400 dark:focus:border-blue-300 focus:outline-none focus:ring focus:ring-blue-300 focus:ring-opacity-40"
+                                        :required="!! editProject?.date_fabrication_begins"
                                         :disabled="formProjectCreate.processing || freezeView"
                                     >
                                     <div v-if="formProjectCreate.errors.date_fabrication_begins" class="text-sm text-red-500">
@@ -653,10 +710,10 @@
                                     </button>
                                     <!-- Say why the button is dead rather than leaving the user guessing -->
                                     <p
-                                        v-if="editSaveDisabled && !formProjectCreate.processing && !freezeView"
+                                        v-if="editDisabledReason"
                                         class="text-sm text-gray-500 dark:text-gray-400 mt-2 text-center"
                                     >
-                                        Enter a project name to continue.
+                                        {{ editDisabledReason }}
                                     </p>
                                 </div>
                             </div>

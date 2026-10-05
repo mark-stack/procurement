@@ -282,6 +282,56 @@ class PrerequisiteConditions
             $condition_2;
     }
 
+    /**
+     * May this user move the day this job's fabrication begins?
+     *
+     * Its manager, while there is still a batch the date could make a difference to.
+     *
+     * The date is not decoration: every deadline the Nesting page prints is counted back from it, and
+     * a batch's day is the earliest fabrication date among the jobs on it, so moving one re-dates the
+     * whole batch for every colleague whose work is on it. While the steel is still being quoted,
+     * bought or waited on, that is exactly right - jobs slip, and the page has to say so.
+     *
+     * Once it has all arrived it is not. A delivered or cut batch has met its date or missed it, and
+     * the race is over; re-dating it then does not change what anybody has to do, it changes what the
+     * record says was asked for. The card goes on printing a required-by date, so the page would be
+     * showing steel that is in the rack as having been wanted on a day it was not. That is the one
+     * reading of this edit that cannot be undone by making the next decision differently, which is
+     * why it is the only one refused.
+     *
+     * The name and the reference stay editable throughout - they are how the business recognises the
+     * job, and a job finishing is no reason to be stuck with a typo in it.
+     *
+     * 1) PROJECT: This user may edit it at all - its manager, in their own business
+     * 2) BATCH: At least one batch carrying its steel is still live, or it has no batch yet
+     */
+    public function moveFabricationDate(User $user, Project $project): bool
+    {
+        //1) PROJECT: This user may edit it at all
+        $condition_1 = $this->editProject($user, $project);
+
+        //2) BATCH: Something is still outstanding
+        $batchIds = $project->pieces()
+            ->whereNotNull('batch_id')
+            ->distinct()
+            ->pluck('batch_id');
+
+        /*
+         * Nothing nested yet is the ordinary case - a project in the Nesting column, where the date
+         * is doing the most work it ever does. It answers yes without a batch to ask about.
+         */
+        $condition_2 = $batchIds->isEmpty() || Batch::query()
+            ->whereIn('id', $batchIds)
+            ->get()
+            ->contains(fn (Batch $batch) => ! $batch->done
+                && $batch->cut_at === null
+                && ! $batch->isDelivered($user->business));
+
+        return
+            $condition_1 &&
+            $condition_2;
+    }
+
     public function markProjectDone(User $user, Project $project): bool
     {
         /**

@@ -409,8 +409,9 @@ it('would be a disaster if the board promised an ordering date nothing kept to',
 
     $triggerDate = $column['orderingTriggerDate'];
 
+    //Working days, which is the unit the warning's own window is counted in - see triggerProject()
     expect($triggerDate)->toBe(
-        now()->addDays(12)->subDays(FabricationDeadlineQuoting::DAYS_BEFORE_FABRICATION)->toDateString()
+        now()->addDays(12)->subWeekdays(FabricationDeadlineQuoting::DAYS_BEFORE_FABRICATION)->toDateString()
     );
 
     //Nothing is said the day before the date the board gave

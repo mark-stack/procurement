@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Project;
 use App\Services\Interfaces\NotificationInterface;
 use App\Services\NotificationImplementations\NotificationBatchReadyToQuoteImplementation;
+use App\Services\NotificationImplementations\NotificationColleagueMovedDateImplementation;
 use App\Services\NotificationImplementations\NotificationColleagueOrderedImplementation;
 use App\Services\NotificationImplementations\NotificationColleagueOrderingTodayImplementation;
 use App\Services\NotificationImplementations\NotificationColleagueQuotedImplementation;
@@ -51,6 +52,13 @@ class NotificationService
             new NotificationNewColleagueImplementation,
             new NotificationColleagueQuotedImplementation,
             new NotificationColleagueOrderedImplementation,
+            /*
+             * And the third thing a colleague can do to your batch: move the fabrication date on
+             * their own job, which re-dates the whole batch because its deadline is the earliest of
+             * them. The only one of the three that needs no button pressed - see
+             * ColleagueMovedMaterialsDate.
+             */
+            new NotificationColleagueMovedDateImplementation,
 
             /*
              * The fabrication deadline warnings, for a business whose shop is about to start cutting

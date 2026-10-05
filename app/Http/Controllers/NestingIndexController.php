@@ -391,6 +391,23 @@ class NestingIndexController extends Controller
         }
 
         /*
+         * The longest lead time each batch's merchants have quoted for it, where any of them has.
+         *
+         * One grouped query for the page, like the counts below it. Only the sent quotes: a draft
+         * quote carries whatever was typed into the form before anybody was asked, and the question
+         * here is what a merchant has actually committed to. See criticalPathDeadline(), which counts
+         * the delivery back off this in preference to the business's general figure.
+         */
+        $quotedLeadTimes = Quote::query()
+            ->whereIn('batch_id', $batchIds)
+            ->where('quote_sent', true)
+            ->whereNotNull('quoted_lead_time')
+            ->groupBy('batch_id')
+            ->selectRaw('batch_id, max(quoted_lead_time) as lead_time')
+            ->get()
+            ->keyBy('batch_id');
+
+        /*
          * How many parts are on each batch, in one grouped query for the page rather than a count per
          * card.
          *
@@ -442,10 +459,13 @@ class NestingIndexController extends Controller
              * from the card menu sits in the Quoting column and has been bought, and holding it to
              * the day it should have stopped quoting would chase it for a job already done.
              */
+            $leadTime = $quotedLeadTimes->get($batch['id'])?->lead_time;
+
             $batches[$index]['criticalPathDeadline'] = $this->criticalPathDeadline(
                 $batches[$index]['materialsRequiredDate'],
                 $batch['stage'],
                 $business,
+                $leadTime === null ? null : (int) $leadTime,
             );
             $batches[$index]['daysBehindCriticalPath'] = $this->daysBehindCriticalPath(
                 $batches[$index]['criticalPathDeadline'],
@@ -497,14 +517,9 @@ class NestingIndexController extends Controller
      */
     private function materialsRequiredDate(Collection $projects): ?string
     {
-        $earliest = $projects
-            ->pluck('date_fabrication_begins')
-            ->filter()
-            ->map(fn ($date) => Carbon::parse($date))
-            ->min();
-
-        return Project::materialsRequiredDate($earliest?->toDateString())
-            ?->toDateString();
+        //The subtraction and the "earliest of them" are both the model's - see
+        //Project::earliestMaterialsRequiredDate for why this stopped being a second copy of it
+        return Project::earliestMaterialsRequiredDate($projects)?->toDateString();
     }
 
     /**
@@ -542,11 +557,27 @@ class NestingIndexController extends Controller
      *  - No required-by date, so there is no path to be behind on. The pill is not drawn at all.
      *  - DELIVERED or CUT. The steel is in; the batch met its path, whatever today is.
      */
-    private function criticalPathDeadline(?string $requiredDate, string $milestone, Business $business): ?string
-    {
+    private function criticalPathDeadline(
+        ?string $requiredDate,
+        string $milestone,
+        Business $business,
+        ?int $quotedDeliveryDays = null,
+    ): ?string {
         if ($requiredDate === null) {
             return null;
         }
+
+        /*
+         * The delivery the card still owes: the longest lead time the merchants have actually quoted
+         * for this batch, where they have quoted one, and the business's own figure otherwise.
+         *
+         * quoted_lead_time has been written by the quotes screen since there was one and was read by
+         * nothing at all, so a batch whose steel the merchant has said is six weeks out was still
+         * being counted back on the three days the business set as its general case. The specific
+         * number beats the general one, and the longest of them is the batch's: it is bought as one
+         * and it is not delivered until the slowest merchant has delivered.
+         */
+        $deliveryDays = $quotedDeliveryDays ?? (int) $business->delivery_days;
 
         $daysStillToSpend = match ($milestone) {
             /*
@@ -555,14 +586,14 @@ class NestingIndexController extends Controller
              * batch out with the merchants is being priced now: the quoting is the work in hand, not
              * work it has finished, and the card has to owe it.
              */
-            'NESTING', 'QUOTING' => (int) $business->quoting_days + (int) $business->delivery_days,
+            'NESTING', 'QUOTING' => (int) $business->quoting_days + $deliveryDays,
             /*
              * Priced, part way through being bought, or bought outright - and in all three the thing
              * still to come is the delivery, which is the lead time the steel takes to turn up once
              * it has been paid for. Placing the order is the press that sits between them and takes
              * no lead time of its own, so the three owe the same.
              */
-            'QUOTED', 'ORDERING', 'ORDERED' => (int) $business->delivery_days,
+            'QUOTED', 'ORDERING', 'ORDERED' => $deliveryDays,
             //DELIVERED, CUT, and anything a later milestone adds past them
             default => null,
         };

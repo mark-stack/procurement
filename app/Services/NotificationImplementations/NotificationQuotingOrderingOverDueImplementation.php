@@ -37,11 +37,16 @@ class NotificationQuotingOrderingOverDueImplementation implements NotificationIn
          * 4) At least 1 day since last reminder
          * 5) Order coverage < 100%
          * 6) Not notified already
+         *
+         * (3) was a query scope reading the platform's default lead times instead of the business's,
+         * against a column modern projects do not carry - see the same change in
+         * NotificationQuotingOrderingDueImplementation, and Project::isOverdueForQuotingAndOrdering.
          */
         $quoteDueProjects = Project::query()
             ->active()                        //1) Project is active (not done)
-            ->overdueForQuotingAndOrdering()  //3) Less than [critical path] before planned project material received date
-            ->get();
+            ->datedAndChaseable()             //Cheap half of (3) - a project with no date is never late
+            ->get()
+            ->filter(fn (Project $project) => $project->isOverdueForQuotingAndOrdering()); //3)
 
         //Projects that still deserve a reminder, whether or not one is sent this run
         $stillDue = [];
@@ -99,7 +104,11 @@ class NotificationQuotingOrderingOverDueImplementation implements NotificationIn
     public function sendNotification(object $recipient, object $otherObject): void
     {
         $project = $otherObject;
-        $message = $this->message($project->date_materials_required, $project->name);
+        //See the same call in NotificationQuotingOrderingDueImplementation
+        $message = $this->message(
+            $project->materialsRequiredOn()?->format('j M y'),
+            $project->name,
+        );
         $recipient->notify(new QuoteOverdueEmail($project, $recipient, $message));
     }
 
@@ -199,7 +208,11 @@ class NotificationQuotingOrderingOverDueImplementation implements NotificationIn
         return $notificationData;
     }
 
-    public function message(string $string_1, string $string_2): string
+    /**
+     * Nullable for the reason NotificationQuotingOrderingDueImplementation::message gives - the bell
+     * redraws old rows, and a null here used to be a TypeError thrown while rendering the page.
+     */
+    public function message(?string $string_1, ?string $string_2): string
     {
         $materialsDate = $string_1;
         $projectName = $string_2;
