@@ -1,6 +1,6 @@
 <script setup>
     //General Imports
-    //...
+    import { computed } from "vue";
 
     //Component Imports
     //...
@@ -19,7 +19,34 @@
     //...
 
     //Variables
-    //...
+    /*
+     * One row per bar that carries its own mark.
+     *
+     * Identical bars are consolidated into one "3 off" row, but each of them is cut for real and each
+     * leaves its own offcut under its own mark. Listing all three marks inside a single drop block
+     * said nothing about which bar to go and find: the yard reads a row, walks to the saw, and needs
+     * the bar in front of it to carry one mark. So a consolidated row that produced more than one
+     * offcut is drawn as that many separate bars, each "1 off" and each marked once.
+     *
+     * Rows that produced no offcut, or one, are left consolidated - there is nothing to tell apart.
+     */
+    const displayBars = computed(() => {
+        let rows = [];
+
+        Object.values(props.utilisedBars ?? {}).forEach(bar => {
+            let marks = offcutMarks(bar);
+
+            if(marks.length > 1){
+                marks.forEach(mark => rows.push({bar: bar, count: 1, marks: [mark]}));
+
+                return;
+            }
+
+            rows.push({bar: bar, count: bar.count, marks: marks});
+        });
+
+        return rows;
+    });
 
     //Shared Methods
     import shared from "@/Shared/shared.js";
@@ -79,8 +106,8 @@
         return bar.result.unique_mark ? [bar.result.unique_mark] : [];
     }
 
-    function offcutMarksLabel(bar){
-        return offcutMarks(bar).map(mark => '"'+mark+'"').join(', ');
+    function marksLabel(marks){
+        return marks.map(mark => '"'+mark+'"').join(', ');
     }
 
     function smallCuts(bar){
@@ -97,19 +124,19 @@
 </script>
 
 <template>
-    <div v-for="bar in utilisedBars" class="pt-4 pb-4">
+    <div v-for="row in displayBars" class="pt-4 pb-4">
         <div class="grid grid-cols-2">
             <div>
-                <span class="font-bold">{{bar.count}} off {{ parseFloat(bar.result['bar_length']).toLocaleString() }}{{ displayUnits() }}:</span> <span>Unused: {{bar.result.unused.toLocaleString()}}{{ displayUnits() }} <small class="ml-2">used {{getEfficiencyPct(bar.result['bar_length'],bar.result.unused)}}%</small></span>
+                <span class="font-bold">{{row.count}} off {{ parseFloat(row.bar.result['bar_length']).toLocaleString() }}{{ displayUnits() }}:</span> <span>Unused: {{row.bar.result.unused.toLocaleString()}}{{ displayUnits() }} <small class="ml-2">used {{getEfficiencyPct(row.bar.result['bar_length'],row.bar.result.unused)}}%</small></span>
             </div>
-            <div v-if="smallCuts(bar).length > 0" class="text-right">
+            <div v-if="smallCuts(row.bar).length > 0" class="text-right">
                 <span class="font-semibold">Small cuts* </span>
-                <span v-for="(piece,index) in smallCuts(bar)">{{index > 0 ? ', ' : ''}}<b>{{piece.length}}</b> {{'('+piece.letter+')'}}</span>
+                <span v-for="(piece,index) in smallCuts(row.bar)">{{index > 0 ? ', ' : ''}}<b>{{piece.length}}</b> {{'('+piece.letter+')'}}</span>
             </div>
         </div>
         <div class="shadow w-full bg-red-200 flex flex-row border-2 border-black" style="height:30px">
             <div
-                v-for="piece in getPieces(bar)"
+                v-for="piece in getPieces(row.bar)"
                 class="font-bold bg-blue-100 text-xs leading-none py-2 text-center border-r-4 border-black"
                 :style="'width: '+piece.lengthPercentage+'%'"
             >
@@ -137,13 +164,13 @@
                  offcuts actually become records. ">" drew an offcut exactly on the threshold as scrap
                  while an offcut record was banked for it. -->
             <div
-                v-if="bar.result.unused >= bar.result.scrap_threshold_mm"
+                v-if="row.bar.result.unused >= row.bar.result.scrap_threshold_mm"
                 class="bg-green-100 text-xs leading-none py-2 text-center text-black border-r-4 border-black"
-                :style="'width: '+(bar.result.unused/bar.result['bar_length']*100)+'%'"
+                :style="'width: '+(row.bar.result.unused/row.bar.result['bar_length']*100)+'%'"
             >
-                <!-- One mark per bar in the count, not just the first one -->
+                <!-- One mark per bar, because a consolidated row that made several is split above -->
                 <p v-if="batched" class="font-bold italic px-1 break-words">
-                    <small>{{offcutMarks(bar).length > 1 ? 'marks' : 'mark'}}</small> {{offcutMarksLabel(bar)}}
+                    <small>{{row.marks.length > 1 ? 'marks' : 'mark'}}</small> {{marksLabel(row.marks)}}
                 </p>
                 <p v-else class="font-bold italic">
                     Reuse
