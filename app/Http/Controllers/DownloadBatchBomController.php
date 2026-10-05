@@ -58,6 +58,24 @@ class DownloadBatchBomController extends Controller
          */
         $projectNames = $projects->pluck('name', 'id');
 
+        /*
+         * And who runs each of those jobs, for the column beside the project's name.
+         *
+         * The project manager - Project::$user_id - rather than whoever put the material list on the
+         * system for them, which the files list above the table already names per upload. A batch is
+         * several jobs bought as one, so "whose steel is this row" is the question somebody reading it
+         * is actually asking, and on a card carrying four colleagues' work the project name alone does
+         * not answer it.
+         *
+         * Read off the relation both branches above already eager-load (Batch::projects and
+         * Business::projectsReadyForBatching both load user), so this costs nothing. Null where that
+         * account has since been deleted, which the table prints as an empty cell - the same thing the
+         * files list does with an uploader who has gone.
+         */
+        $projectManagers = $projects->mapWithKeys(
+            fn (Project $project) => [$project->id => $project->user?->name]
+        );
+
         $rawMaterialQuotes = RawMaterialQuote::query()
             ->with('piece.order', 'piece.quotes')
             ->whereIn('project_id', $projectNames->keys())
@@ -70,6 +88,7 @@ class DownloadBatchBomController extends Controller
         foreach ($rawMaterialQuotes as $rawMaterialQuote) {
             $rows[] = $this->row(
                 $projectNames->get($rawMaterialQuote->project_id, ''),
+                $projectManagers->get($rawMaterialQuote->project_id),
                 $rawMaterialQuote,
                 $business,
             );
@@ -218,13 +237,23 @@ class DownloadBatchBomController extends Controller
     /**
      * One material row, as the table prints it.
      *
-     * The same fields the per-project BOM draws, plus the project it came from - that column is the
-     * reason this table exists, since a batch is several jobs bought as one.
+     * The same fields the per-project BOM draws, plus the project it came from and who runs it -
+     * those two columns are the reason this table exists, since a batch is several jobs bought as one.
+     *
+     * The assembly mark the per-project BOM prints is deliberately not among them. It is a reference
+     * into the drawing the material was taken off, which is a thing read while working on that one
+     * job - and this table is read to find out whose steel is on a shared batch, where the column was
+     * spending its width on a mark nobody could place without first knowing the project anyway. The
+     * per-project BOM still prints it (BomEditModal).
      *
      * @return array<string, mixed>
      */
-    private function row(string $projectName, RawMaterialQuote $rawMaterialQuote, Business $business): array
-    {
+    private function row(
+        string $projectName,
+        ?string $projectManager,
+        RawMaterialQuote $rawMaterialQuote,
+        Business $business,
+    ): array {
         $nestingFormatter = new NestingFormatter;
 
         /*
@@ -245,6 +274,8 @@ class DownloadBatchBomController extends Controller
         return [
             'id' => $rawMaterialQuote->id,
             'project' => $projectName,
+            //Null where the manager's account has gone; the table draws that as an empty cell
+            'project_manager' => $projectManager,
             'description' => $rawMaterialQuote->description,
             'product_label' => ($match && $match['status'] === 'EXACT')
                 ? ($match['decodedOption']['product_derived_label'] ?? null)
@@ -253,7 +284,6 @@ class DownloadBatchBomController extends Controller
             'length_required' => $rawMaterialQuote->length_required,
             'width_required' => $rawMaterialQuote->width_required,
             'sub_qty' => $rawMaterialQuote->sub_qty,
-            'assembly_mark' => $rawMaterialQuote->assembly_mark,
             'status' => $rawMaterialQuote->status(),
         ];
     }

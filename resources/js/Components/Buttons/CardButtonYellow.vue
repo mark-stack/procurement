@@ -17,6 +17,18 @@
          * which is what every board card draws.
          */
         sublabel: String,
+        /**
+         * Pulse the border, for a button the card above it is telling somebody to press.
+         *
+         * The Nesting page turns it on for "Material order" while a batch is late at the quoting or
+         * at the ordering - the footer says "Complete quoting" or "Place the order" and both of them
+         * get done in the modal behind that button. Off by default, and worth keeping that way: two
+         * glowing buttons on one card is a card with nothing marked out on it.
+         *
+         * Ignored on a disabled button. A greyed button that pulses is pointing at something that
+         * cannot be pressed, which is the one thing worse than not pointing at all.
+         */
+        attention: Boolean,
     });
 
     //Methods
@@ -37,6 +49,17 @@
         }
         else{
             getClass = getClass + " border-gray-300 bg-white text-gray-600 shadow-sm hover:border-orange-200 hover:bg-orange-50 hover:text-orange-700 focus-visible:ring-orange-400";
+
+            /*
+             * The glow, over the resting border above it rather than instead of it: the animation
+             * drives border-colour, so the class it overrides has to stay for the frame before it
+             * starts and for a reader whose browser is not running it. motion-reduce leaves them on
+             * that resting colour, with the orange one named here so the button is still picked out
+             * of the row - a reduced-motion reader loses the movement, not the mark.
+             */
+            if(props.attention){
+                getClass = getClass + " animate-border-glow motion-reduce:animate-none motion-reduce:border-orange-400";
+            }
         }
 
         return getClass;

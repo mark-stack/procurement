@@ -1,7 +1,7 @@
 <script setup>
     //General Imports
-    import {computed, onMounted, ref} from "vue";
-    import {Head, Link, useForm} from "@inertiajs/vue3";
+    import {computed, onMounted, ref, watch} from "vue";
+    import {Head, Link, useForm, usePage} from "@inertiajs/vue3";
     import axios from "axios";
 
     //Component Imports
@@ -12,6 +12,7 @@
     import StagePill from "@/Components/StagePill.vue";
     import RequiredByPill from "@/Components/RequiredByPill.vue";
     import ActionRequiredFooter from "@/Components/ActionRequiredFooter.vue";
+    import WaitingToQuoteFooter from "@/Components/WaitingToQuoteFooter.vue";
     import PageLoadingOverlay from "@/Components/PageLoadingOverlay.vue";
     import BatchBomModal from "@/Components/Modals/BatchBomModal.vue";
     import BatchCertificatesModal from "@/Components/Modals/BatchCertificatesModal.vue";
@@ -253,6 +254,67 @@
     function actionRequired(batch) {
         return batch.daysBehindCriticalPath >= 1
             && ! ['ORDERED', 'DELIVERED', 'CUT'].includes(batch.stage);
+    }
+
+    /*
+     * Whether this card's "Material order" button is the one the footer is asking for.
+     *
+     * "Action required: Complete quoting" is an instruction at one end of the card and an
+     * unremarkable button at the other, and the gap between them is the reader's to close: the
+     * prices come in through the Material order list, which is where each merchant on the batch is
+     * marked quoted and then ordered. The button glows so the sentence has somewhere to point.
+     *
+     * Two steps, because both of them are finished in that modal and nowhere else on this page.
+     * QUOTING is the prices coming in, "Mark as quoted" a block at a time; QUOTED is "Place the
+     * order", which is the "Mark as ordered" on the same blocks once they are priced. That second
+     * one used to be left out on the grounds that an order is placed from the card menu - true only
+     * of "All ordered", which buys the whole batch in one press and is the shortcut rather than the
+     * step. Per-merchant ordering lives in the modal, so that is where the footer points.
+     *
+     * Not on the other two late steps. Every late card has a footer and every card has these
+     * buttons, so a glow on all of them would be a page of pulsing borders saying nothing. NESTING
+     * wants the open batch locked, which its own footer now offers a button for. ORDERING is
+     * deliberately left alone: some of its material is still unbought, which is work in this modal,
+     * but its footer already names the outstanding merchants and a batch that far along is being
+     * read rather than searched.
+     */
+    function orderListOutstanding(batch) {
+        return actionRequired(batch) && ['QUOTING', 'QUOTED'].includes(batch.stage);
+    }
+
+    /*
+     * Whether this card is the open batch with time still in hand, which is what puts the green
+     * footer under it.
+     *
+     * The other thing a card can have outstanding is nothing at all, and on this one card that is
+     * worth saying out loud. The open batch is the only batch an upload can join, it gets better the
+     * longer it is left - a bigger nest and a bulk price - and the page offers "Start quoting" on it
+     * from the moment the first material lands. Somebody who presses that on a card holding one job
+     * has not done anything wrong, which is the problem: nothing on the card told them that waiting
+     * was free, or until when. The dialog behind the button says so (startQuotingDialog), and saying
+     * it only once the button has been pressed is saying it to the people who already decided.
+     *
+     * Three things, and all three are about this card rather than about batches in general:
+     *
+     *  - The open batch. Every other card on the page has been nested and cannot take material, so
+     *    there is nothing for them to fill up with and no advice to give about waiting.
+     *  - Something on it. An empty card already says "Nothing waiting yet" on its face, and advice to
+     *    wait for more of nothing is a footer under a card nobody has used.
+     *  - Not already behind. That one is the ordering deadline's business and is decided inside the
+     *    footer, off the date - see WaitingToQuoteFooter.
+     *
+     * And not while ActionRequiredFooter is drawn, which is the condition that is here rather than in
+     * the component. The two footers measure different days: this one counts calendar days to the day
+     * the warning emails fire, that one counts working days past the critical path the business's own
+     * lead times set. A business with long lead times can be past the second while still short of the
+     * first (FabricationDeadlineQuoting::DAYS_BEFORE_FABRICATION says as much), and a card telling
+     * somebody to start quoting today and to sit tight for another three days is a card that has
+     * stopped being read. Late wins: it is the one of the two that costs something.
+     */
+    function waitingToQuote(batch) {
+        return batch.id === null
+            && !isEmptyOpenBatch(batch)
+            && !actionRequired(batch);
     }
 
     /**
@@ -666,13 +728,13 @@
     function markQuotedTitle(batch) {
         return batch.prerequisiteMarkQuoted
             ? 'Record that the prices for this batch are in, without naming a supplier'
-            : 'This batch is already marked as quoted or ordered, or it carries no project of yours';
+            : 'Every merchant on this batch is priced already, or it is marked quoted or ordered, or it carries no project of yours';
     }
 
     function markOrderedTitle(batch) {
         return batch.prerequisiteMarkOrdered
             ? 'Record that the material on this batch has been bought, without naming a supplier'
-            : 'This batch is already marked as ordered or delivered, or it carries no project of yours';
+            : 'Every merchant on this batch has been bought from already, or it is marked ordered or delivered, or it carries no project of yours';
     }
 
     function markDeliveredTitle(batch) {
@@ -1011,10 +1073,78 @@
         showNewProjectModal.value = true;
     }
 
+    /*
+     * Why the page is being shown, where it was the bell that sent somebody here.
+     *
+     * Both are flashes rather than query strings, because both are about this one arrival - see
+     * HandleInertiaRequests. openOrderList is the batch the green action on a fabrication deadline
+     * warning just created; warning is what it says instead when that press could not run.
+     */
+    const flashOpenOrderList = computed(() => usePage().props.flash?.openOrderList ?? null);
+    const flashWarning = computed(() => usePage().props.flash?.warning ?? null);
+    //Dismissed by hand, the flash itself living as long as the props do
+    const warningDismissed = ref(false);
+
     //Lifecycle
     onMounted(() => {
         downloadEfficiencies();
     });
+
+    /**
+     * The order list of the batch the bell just made, opened on arrival.
+     *
+     * The green action on a fabrication deadline warning is the press and then this: somebody told
+     * their steel has to go out today needs the materials to put in front of a merchant, not the
+     * page the button was on. See NotificationBatchReadyToQuoteImplementation::markGreen.
+     *
+     * A watcher rather than onMounted, which is the thing that does not work here: the bell posts
+     * with preserveState, so a press made from this page updates the props of the component already
+     * on screen without ever mounting it again - and the press is made from this page most of the
+     * time, the bell being in the layout above it. Immediate, so the other way in still works: the
+     * bell pressed from /profile arrives here as a fresh mount with the flash already set.
+     *
+     * The card is looked up rather than built, because showOrderList() reads the batch for its title
+     * and holds it for the refresh after a merchant is marked ordered - a stub with an id on it would
+     * open a modal headed "Open batch". Nothing happens if it is not there, which is the switch
+     * having hidden it: that cannot be the case for a batch you just created yourself, and silence
+     * beats opening a modal over a card the reader cannot see.
+     */
+    watch(flashOpenOrderList, batchId => {
+        if (batchId === null) {
+            return;
+        }
+
+        const batch = props.batches.find(candidate => candidate.id === batchId);
+
+        if (batch) {
+            showOrderList(batch);
+        }
+    }, {immediate: true});
+
+    /*
+     * And a fresh refusal is a fresh notice, however the last one was got rid of. Same reason as
+     * above: the page is not remounted between two presses, so without this the second warning is
+     * hidden by the first one's dismissal.
+     */
+    watch(flashWarning, () => {
+        warningDismissed.value = false;
+    });
+
+    /*
+     * There is deliberately nothing here that presses "Lock batch for quoting" as the page arrives,
+     * and the flash this page reads is only ever about opening a modal rather than about making a
+     * write.
+     *
+     * A fabrication deadline email landed here carrying one for a while and had the page post on
+     * arrival. It cannot work: this page is Inertia, its own arrival is a visit, and Inertia runs
+     * ordinary visits one at a time and interrupts the one in flight when a new one starts. The POST
+     * cancelled the visit that was still settling, so the steel was nested and the answer thrown
+     * away - a card still showing an open batch that a refresh revealed had been quoted.
+     *
+     * The email signs the reader in and leaves them here now, a button away from the press. The one
+     * caller that still makes it from outside this page is the bell's green action, which does it on
+     * the server before redirecting - see NotificationBatchReadyToQuoteImplementation::markGreen.
+     */
 </script>
 
 <template>
@@ -1025,6 +1155,33 @@
         <PageLoadingOverlay v-if="pageLoading" />
 
         <section class="container max-w-4xl px-4 mx-auto py-6">
+            <!--
+                What the bell's green action could not do, where it could not do it.
+
+                That button presses "Lock batch for quoting" and lands here, so a press that was refused
+                has to say so on the page it lands on - otherwise a colleague having got to the column
+                first looks exactly like a successful one: the bell row goes, the page redraws, and
+                nothing anybody can see explains why there is no new batch. The two refusals are both
+                answered by reading this page rather than by pressing again, which is why this is a
+                notice to dismiss and not an action. See markGreen().
+            -->
+            <div
+                v-if="flashWarning && !warningDismissed"
+                class="flex items-start gap-2 px-4 py-3 mb-4 text-sm border rounded-lg bg-amber-50 border-amber-200 text-amber-900"
+            >
+                <i class="fa-solid fa-triangle-exclamation text-[13px] mt-0.5 opacity-80"></i>
+                <p class="flex-1">{{ flashWarning }}</p>
+                <button
+                    type="button"
+                    title="Dismiss"
+                    aria-label="Dismiss"
+                    @click="warningDismissed = true"
+                    class="transition-colors duration-150 text-amber-700 hover:text-amber-900"
+                >
+                    <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+            </div>
+
             <!-- Wraps rather than squeezes: the switch and the button do not fit a phone beside the title -->
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <h1 class="text-lg font-semibold text-gray-800">
@@ -1341,10 +1498,18 @@
                                     @click="showBom(batch)"
                                 />
 
-                                <!-- What to buy, the way the supplier emails word it - and how each order is going -->
+                                <!--
+                                    What to buy, the way the supplier emails word it - and how each
+                                    order is going.
+
+                                    It pulses while this batch is late at the quoting or at the
+                                    ordering, the two steps the footer under the card asks for that
+                                    this modal is where they get done - see orderListOutstanding().
+                                -->
                                 <CardButtonYellow
                                     label="Material order"
                                     :sublabel="categoryLabel(batch)"
+                                    :attention="orderListOutstanding(batch)"
                                     :disabled="isEmptyOpenBatch(batch)"
                                     :title="isEmptyOpenBatch(batch)
                                         ? 'Nothing is waiting on the open batch yet'
@@ -1398,7 +1563,8 @@
                                     not open an empty box and the buttons still line up down the page.
                                 -->
                                 <div class="flex justify-end w-8 shrink-0">
-                                    <Dropdown v-if="hasMenu(batch)" align="right" width="48">
+                                    <!-- Wide enough for "Lock batch for quoting" to stay on one line -->
+                                    <Dropdown v-if="hasMenu(batch)" align="right" width="60">
                                         <template #trigger>
                                             <button
                                                 type="button"
@@ -1448,7 +1614,7 @@
                                                         : 'text-gray-400 cursor-not-allowed'"
                                                 >
                                                     <i class="fa-solid fa-circle-arrow-down text-xs"></i>
-                                                    Lock before quoting
+                                                    Lock batch for quoting
                                                 </button>
                                             </template>
 
@@ -1626,6 +1792,43 @@
                             :stage="batch.stage"
                             :days-behind="batch.daysBehindCriticalPath"
                             :deadline="batch.criticalPathDeadline"
+                        >
+                            <!--
+                                "Action required: start quoting this batch" with the press that
+                                starts it, at the other end of the same strip. The only step whose
+                                instruction is carried out by one press on this page: the footer
+                                named the job and then left it in the three-dot menu, which is the
+                                one part of the card nobody opens unless they already know what is
+                                in it. Same confirmStartQuoting(), same gate, same reason when it
+                                is greyed - see the menu item it repeats.
+                            -->
+                            <template v-if="batch.id === null" #action>
+                                <button
+                                    type="button"
+                                    :disabled="!canStartQuoting"
+                                    :title="startQuotingTitle"
+                                    @click="confirmStartQuoting()"
+                                    class="inline-flex items-center gap-1.5 px-2.5 h-7 text-xs font-semibold transition-colors duration-150 bg-white border rounded-lg shadow-sm"
+                                    :class="canStartQuoting
+                                        ? 'border-green-300 text-green-800 hover:bg-green-50 hover:border-green-400'
+                                        : 'border-gray-200 text-gray-400 cursor-not-allowed'"
+                                >
+                                    <i class="fa-solid fa-circle-arrow-down text-[11px]"></i>
+                                    Lock batch for quoting
+                                </button>
+                            </template>
+                        </ActionRequiredFooter>
+
+                        <!--
+                            Or, on the open batch, that there is nothing to do about it yet and why
+                            leaving it to fill is the cheaper choice - see waitingToQuote() for the
+                            card it belongs to, and WaitingToQuoteFooter for the deadline that decides
+                            whether the advice is still true. The two footers are exclusive: the green
+                            one is suppressed on a card the amber one has already claimed.
+                        -->
+                        <WaitingToQuoteFooter
+                            v-if="waitingToQuote(batch)"
+                            :deadline="batch.orderingTriggerDate"
                         />
                     </div>
                 </template>

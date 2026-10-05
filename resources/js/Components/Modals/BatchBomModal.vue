@@ -326,8 +326,18 @@
                                 <th scope="col" class="px-4 py-3.5 text-sm font-normal text-left text-gray-500">
                                     Quantity
                                 </th>
+                                <!--
+                                    And whose job it is. The project name alone does not say that on a
+                                    batch carrying four colleagues' work, and this table is read to
+                                    find out who to go and ask about a row.
+
+                                    It replaced the assembly mark, which is a reference into the
+                                    drawing the material came off - useful while working on one job,
+                                    and unplaceable here without first knowing which job it belongs
+                                    to. The per-project BOM still prints it.
+                                -->
                                 <th scope="col" class="px-4 py-3.5 text-sm font-normal text-left text-gray-500">
-                                    Reference
+                                    Project Manager
                                 </th>
                             </tr>
                         </thead>
@@ -354,8 +364,14 @@
                                 <td class="px-4 py-4 text-sm font-medium text-gray-800 whitespace-nowrap">
                                     {{ displayQuantity(row) }}
                                 </td>
-                                <td class="px-4 py-4 text-sm italic font-medium text-gray-800 whitespace-nowrap">
-                                    {{ row.assembly_mark ? ('"'+row.assembly_mark+'"') : '' }}
+                                <!--
+                                    Capitalised the way the uploader's name is in the files list
+                                    above, those being the same kind of fact about the same people -
+                                    names are typed in at registration and arrive however they were
+                                    typed. Empty where that account has since been deleted.
+                                -->
+                                <td class="px-4 py-4 text-sm font-medium text-gray-800 whitespace-nowrap">
+                                    {{ row.project_manager ? shared.capitalizeWords(row.project_manager) : '' }}
                                 </td>
                             </tr>
                         </tbody>

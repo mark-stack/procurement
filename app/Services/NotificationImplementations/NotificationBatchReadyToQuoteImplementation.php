@@ -2,6 +2,7 @@
 
 namespace App\Services\NotificationImplementations;
 
+use App\Actions\Batch\PressStartQuoting;
 use App\Models\Project;
 use App\Models\User;
 use App\Notifications\BatchReadyToQuoteEmail;
@@ -63,7 +64,7 @@ class NotificationBatchReadyToQuoteImplementation implements NotificationInterfa
         $recipient->notify(new BatchReadyToQuoteEmail(
             $project,
             $recipient,
-            $this->message($this->fabricationDate($project), $project->name),
+            $this->message($this->materialsRequiredDate($project), $project->name),
         ));
     }
 
@@ -134,12 +135,57 @@ class NotificationBatchReadyToQuoteImplementation implements NotificationInterfa
         };
     }
 
+    /**
+     * Press the button this notification exists to ask for, and open what it produced.
+     *
+     * It used to send the reader to the page the button is on and leave them to find it. That is the
+     * one screen in the application they were already being told about, and the press is the whole
+     * point of the warning - so the green action is now the press itself, run through the same
+     * PressStartQuoting the card's own "Lock batch for quoting" runs: the same gate, the same nesting,
+     * the same notifications to the colleagues whose work goes into the batch.
+     *
+     * And then the order list of the batch it just made, which is what somebody warned that their
+     * steel has to go out today actually needs - the materials to put in front of a merchant. They
+     * land on the Nesting page with that modal already open and can read or copy the lists from
+     * there; closing it leaves them on the page with the new batch on it.
+     *
+     * Read before the press, because the press is what makes it untrue: the moment the column is
+     * nested, FabricationDeadlineQuoting stops naming these projects and would mark this row read on
+     * its next sweep anyway. Doing it here means the bell is right immediately rather than within
+     * the hour.
+     *
+     * A refusal leaves the notification read all the same: a warning that cannot be cleared is one
+     * people learn to ignore, and every reason the press can refuse is answered by reading the page
+     * rather than by pressing this again.
+     *
+     * Those reasons all held when the row was sent - projectsToWarn asks the same gate, as the same
+     * user, and will not chase a read-only business at all - and a row can sit unread in a bell for
+     * as long as somebody leaves it there. A colleague quoting the column, or a trial lapsing, is
+     * what happens in between.
+     */
     public function markGreen(DatabaseNotification $notification): RedirectResponse
     {
-        //"Start quoting" - the board is where that button is
         $notification->markAsRead();
 
-        return redirect()->route('dashboard');
+        $press = PressStartQuoting::run(auth()->user());
+
+        /*
+         * Every way this can fail reads the same way from here: a sentence on the page they land on.
+         * The press itself is what tells them apart - a lapsed account, a colleague who got there
+         * first, a nesting that threw - and all four are answered by reading that page rather than by
+         * pressing this again.
+         */
+        if ($press['refusal'] !== null) {
+            return redirect()->route('dashboard')->with('warning', $press['refusal']);
+        }
+
+        /*
+         * Which modal to open, rather than a query string on the url. It is a one-off instruction
+         * about this arrival - flash is gone by the next request - where ?orderList=12 would sit in
+         * the address bar reopening the modal on every refresh and every back button. See
+         * NestingIndex.vue.
+         */
+        return redirect()->route('dashboard')->with('openOrderList', $press['batch']->id);
     }
 
     public function markRed(DatabaseNotification $notification): RedirectResponse
@@ -172,31 +218,58 @@ class NotificationBatchReadyToQuoteImplementation implements NotificationInterfa
             return null;
         }
 
-        $fabricationDate = $notification->data['date_fabrication_begins'] ?? null;
+        /*
+         * Worked back off the fabrication date the row has carried since this notification existed,
+         * rather than stored beside it. Every row already in a bell holds that date and none of them
+         * hold the required-by one, so deriving it is what keeps an old row readable - a new field
+         * would have left yesterday's warnings printing "received by soon".
+         */
+        $materialsRequiredDate = Project::materialsRequiredDate(
+            $notification->data['date_fabrication_begins'] ?? null
+        );
 
         return [
             'id' => $notification->id,
             'message' => $this->message(
-                $fabricationDate ? Carbon::parse($fabricationDate)->format('j M y') : 'soon',
+                $materialsRequiredDate ? $materialsRequiredDate->format('j M') : 'soon',
                 $projectName,
             ),
             'timestamp' => $notification->created_at->diffForHumans(),
+            /*
+             * One button, and all it does is take the row out of the bell.
+             *
+             * This used to offer the press itself - "Start quoting", green, with "Ok" beside it -
+             * and nesting a column is a purchase. A bell is read in a hurry, often on a phone, and
+             * a pair of boxes where the big friendly one buys steel is the wrong place to put that
+             * decision. The warning says what the deadline is; the press lives on the card that
+             * names the materials, which is where somebody can see what they are committing to.
+             */
             'trafficLights' => [
-                'green' => ['Start quoting', '(Go to board)'],
-                'yellow' => ['Ok', '(Dismiss)'],
-                'red' => null,
+                'read' => ['Read', null],
             ],
         ];
     }
 
+    /**
+     * What the bell and the email both say, in one place.
+     *
+     * The day named is when the steel has to be at the workshop - one working day before the first
+     * cut, Project::materialsRequiredDate - and not the day fabrication begins, which is what this
+     * used to print. They are a day apart, and the required-by day is the one the Nesting page's
+     * cards carry, so naming the other one had the warning and the card the reader goes to answer it
+     * talking about different dates.
+     *
+     * $string_2 is the project name, and the sentence no longer uses it. The parameter stays because
+     * NotificationInterface fixes the arity for every implementation, and both callers go on passing
+     * it rather than a placeholder - the name is still on the row (toArray) and still what the
+     * clearing works off, so the day this wants it back there is nothing to put back.
+     */
     public function message(string $string_1, string $string_2): string
     {
-        $fabricationDate = $string_1;
-        $projectName = $string_2;
+        $materialsRequiredDate = $string_1;
 
-        return 'Fabrication on "'.$projectName.'" begins '.$fabricationDate
-            .', and its materials are still waiting to be nested. Start quoting to take them into a'
-            .' batch with everything else in the column - this one needs to go out to suppliers today.';
+        return 'Your batch materials need to be received by '.$materialsRequiredDate
+            .', so the critical path requires the materials to be quoted today';
     }
 
     protected function notificationClassWithPath(): string
@@ -204,10 +277,17 @@ class NotificationBatchReadyToQuoteImplementation implements NotificationInterfa
         return "App\Notifications\\".$this->getNotificationClass();
     }
 
-    private function fabricationDate(Project $project): string
+    /**
+     * The day this job's steel has to be at the workshop, as the sentence prints it.
+     *
+     * "soon" where the project names no fabrication date to work it back off. That cannot happen on
+     * the way in - FabricationDeadlineQuoting::triggerProject picks the trigger by that very date -
+     * but the wording has to hold for the bell, which re-renders rows written long ago.
+     */
+    private function materialsRequiredDate(Project $project): string
     {
-        return $project->date_fabrication_begins
-            ? Carbon::parse($project->date_fabrication_begins)->format('j M y')
-            : 'soon';
+        return Project::materialsRequiredDate($project->date_fabrication_begins)
+            ?->format('j M')
+            ?? 'soon';
     }
 }

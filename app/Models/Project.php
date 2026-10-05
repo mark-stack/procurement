@@ -429,6 +429,36 @@ class Project extends Model
         return $this->quotingDeadline();
     }
 
+    /**
+     * The day a job's material has to be at the workshop, read off the day its fabrication begins.
+     *
+     * One working day before the first cut: the steel has to be in the shop before the saw starts,
+     * and a Monday start wants it there on the Friday rather than on a Sunday nobody can take a
+     * delivery on. Carbon::subWeekdays is what steps over the weekend, so the day this answers is
+     * always one the business is open.
+     *
+     * Static and given the date rather than read off $this, because the three callers hold it in
+     * three different shapes: the Nesting page works it off the earliest fabrication date among the
+     * jobs on a card, the fabrication deadline warning works it off the trigger project, and the bell
+     * works it off the date stored on a notification row that may be weeks old. They were one
+     * subtraction of one working day in one place and a second one about to be written somewhere
+     * else - which is the drift that leaves two screens printing different days for the same steel.
+     *
+     * Deliberately not the date_materials_required column. That is a date somebody may have typed in
+     * and is null on every project created since the fabrication date replaced it as the thing asked
+     * for, where this is always answerable for a job that names a fabrication date at all.
+     *
+     * Null when it does not - projects created before the date was asked for (see the
+     * add_date_fabrication_begins migration). Those have no deadline to print and nothing will chase
+     * them.
+     */
+    public static function materialsRequiredDate(?string $dateFabricationBegins): ?Carbon
+    {
+        return $dateFabricationBegins
+            ? Carbon::parse($dateFabricationBegins)->subWeekdays(1)
+            : null;
+    }
+
     //Local scopes
     public function scopeDueForQuotingAndOrdering(Builder $query): void
     {

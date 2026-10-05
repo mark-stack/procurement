@@ -75,6 +75,16 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'warning' => fn () => $request->session()->get('warning'),
+                /*
+                 * A batch whose order list should be open when the page it is on draws. Set by the
+                 * bell's green action on a fabrication deadline warning, which presses "Lock before
+                 * quoting" and sends the reader to the batch it just made - see
+                 * NotificationBatchReadyToQuoteImplementation::markGreen.
+                 *
+                 * Flash rather than a query string, because it is an instruction about one arrival:
+                 * ?orderList=12 would sit in the address bar reopening the modal on every refresh.
+                 */
+                'openOrderList' => fn () => $request->session()->get('openOrderList'),
                 "project" => fn () => $request->session()->get('project'),
                 //What the master materials screen said about the last edit it saved or refused
                 'materials' => fn () => $request->session()->get('materials'),

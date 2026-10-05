@@ -223,6 +223,13 @@ class NestingIndexController extends Controller
         $fullyMarkedOrdered = $this->fullyMarkedOrderedBatchIds($staged[BatchStages::QUOTING], $supplierGroups);
 
         /*
+         * And the same of the quoted mark, which the modal offers a block at a time while the batch
+         * is being priced. Same reason again: a batch whose every block says "Quoted" cannot leave
+         * the card saying the prices are still out.
+         */
+        $fullyMarkedQuoted = $this->fullyMarkedQuotedBatchIds($staged[BatchStages::QUOTING], $supplierGroups);
+
+        /*
          * And the offcuts each batch being quoted has already handed on, which is the other half of
          * that question: a batch whose offcuts a later nest has cut into cannot be unpicked, because
          * unpicking it deletes them. One query for the column, like the one above it and for the same
@@ -305,7 +312,8 @@ class NestingIndexController extends Controller
                     $batch,
                     $stage,
                     in_array($batch->id, $delivered, true),
-                    in_array($batch->id, $fullyQuoted, true),
+                    in_array($batch->id, $fullyQuoted, true)
+                        || in_array($batch->id, $fullyMarkedQuoted, true),
                     in_array($batch->id, $fullyMarkedOrdered, true),
                 );
 
@@ -355,12 +363,27 @@ class NestingIndexController extends Controller
                      * order behind it and what the pill says is read off the orders and their
                      * deliveries - a mark set there could only contradict them, which is why the
                      * gate refuses it too (PrerequisiteConditions::markBatchQuoted).
+                     *
+                     * The pill is what answers "is every merchant already priced" for the quoted one.
+                     * Anything but QUOTING in this column means the prices are in - a sent quote per
+                     * group, every block marked quoted, or every block marked bought, which are the
+                     * three readings milestoneOf has just taken - and a press that claims it again
+                     * has nothing to record. The card said Quoted over a live "All quoted" until this.
+                     *
+                     * The ordered one is given the narrower fact rather than the pill, because the
+                     * pill moving on is no reason to grey it: QUOTED is precisely the batch somebody
+                     * is about to buy. What stops it is the blocks having been bought one at a time,
+                     * which is the reading that put ORDERED on the card to begin with.
                      */
                     'prerequisiteMarkQuoted' => $stage === BatchStages::QUOTING
-                        ? (new PrerequisiteConditions)->markBatchQuoted($user, $batch)
+                        ? (new PrerequisiteConditions)->markBatchQuoted($user, $batch, $milestone !== 'QUOTING')
                         : null,
                     'prerequisiteMarkOrdered' => $stage === BatchStages::QUOTING
-                        ? (new PrerequisiteConditions)->markBatchOrdered($user, $batch)
+                        ? (new PrerequisiteConditions)->markBatchOrdered(
+                            $user,
+                            $batch,
+                            in_array($batch->id, $fullyMarkedOrdered, true),
+                        )
                         : null,
                     //And "Delivered", which is the same kind of mark: the steel turned up, nobody named
                     'prerequisiteMarkDelivered' => $stage === BatchStages::QUOTING
@@ -489,8 +512,11 @@ class NestingIndexController extends Controller
      * The earliest fabrication start among the jobs on it, less one working day: the steel has to be
      * in the shop before the saw starts, and a job starting on the Monday wants it there on the
      * Friday - not on the Sunday, when the yard is shut and nobody is there to take a delivery.
-     * Carbon::subWeekdays is what steps over the weekend, so the date printed is always a day the
-     * business is open.
+     *
+     * The subtraction itself is Project::materialsRequiredDate, which the fabrication deadline
+     * warning and the bell read the same day off - the card and the email that chases it cannot be a
+     * day apart about when the steel is wanted. All this adds is which of the jobs on the card sets
+     * it, which is the earliest of them.
      *
      * Deliberately not KanbanFormatter::orderingTriggerDate, which is a different day about a
      * different thing: that one is when the open batch has to stop waiting and be quoted, five days
@@ -512,9 +538,8 @@ class NestingIndexController extends Controller
             ->map(fn ($date) => Carbon::parse($date))
             ->min();
 
-        return $earliest
-            ?->subWeekdays(1)
-            ->toDateString();
+        return Project::materialsRequiredDate($earliest?->toDateString())
+            ?->toDateString();
     }
 
     /**
@@ -712,8 +737,9 @@ class NestingIndexController extends Controller
      *
      *  - QUOTING: nested and out with the suppliers, with a price still missing for at least one of the
      *    merchants it has to be bought from - including a batch nobody has sent a quote request for yet.
-     *  - QUOTED: every supplier group on the batch has a sent quote behind it, and no order has gone in.
-     *    Both of these are the Quoting column, which does not distinguish them.
+     *  - QUOTED: every supplier group on the batch has a price in - a sent quote behind it, or the
+     *    order list's own mark on its block - and no order has gone in. Both of these are the Quoting
+     *    column, which does not distinguish them.
      *  - ORDERING: an order has gone in and there is material on the job nobody has bought yet, which
      *    is the Ordering column.
      *  - ORDERED: it is all bought, and some of it has not arrived (the Delivering column).
@@ -728,7 +754,8 @@ class NestingIndexController extends Controller
      * "It has been bought" has a second spelling, and the pill has to accept it: the order list marks
      * one merchant at a time, and a batch whose every merchant has been marked there is as bought as
      * one somebody called bought in a single press. A card still reading Quoting over a modal whose
-     * only block says Ordered is the page disagreeing with itself.
+     * only block says Ordered is the page disagreeing with itself. "The prices are in" has the same
+     * second spelling, and is folded into $everyCategoryQuoted by the caller for the same reason.
      *
      * That last one is the whole reason this is not a relabelling of the columns. The Delivering column
      * means every material row points at a sent order, which is a statement about the paperwork going
@@ -898,6 +925,61 @@ class NestingIndexController extends Controller
         }
 
         return $fullyOrdered;
+    }
+
+    /**
+     * And the same of the step before it - the ones whose every merchant has been marked quoted.
+     *
+     * The order list offers that mark on a block while the batch is still being priced (see
+     * BatchMarkGroupQuotedController), and the card has to agree with the modal here too: a batch
+     * whose every block says "Quoted" has its prices in, which is what the card's own "All quoted"
+     * claims in a single press.
+     *
+     * Measured against the same list of merchants as the two methods above, and answering no for a
+     * batch whose material belongs to no supplier group the business's plan covers, for the same
+     * reason: an empty list of merchants is nobody to have been priced by, not a finished job.
+     *
+     * Costs nothing until somebody uses the mark. A batch with no marks on it cannot answer yes, so
+     * a page of them never reaches the query.
+     *
+     * @param  Collection<int, \App\Models\Batch>  $quoting
+     * @param  array<string, array<int, string>>  $supplierGroups
+     * @return array<int, int>
+     */
+    private function fullyMarkedQuotedBatchIds(Collection $quoting, array $supplierGroups): array
+    {
+        $marked = $quoting->filter(fn (Batch $batch) => ($batch->quoted_supplier_groups ?? []) !== []);
+
+        if ($marked->isEmpty()) {
+            return [];
+        }
+
+        $categoriesByBatch = Piece::query()
+            ->select(['batch_id', 'product_category'])
+            ->whereIn('batch_id', $marked->pluck('id')->all())
+            ->distinct()
+            ->get()
+            ->groupBy('batch_id')
+            ->map(fn ($rows) => $rows->pluck('product_category')->all());
+
+        $fullyQuoted = [];
+
+        foreach ($marked as $batch) {
+            $required = $this->supplierGroupsFor(
+                $categoriesByBatch->get($batch->id, []),
+                $supplierGroups,
+            );
+
+            if ($required === []) {
+                continue;
+            }
+
+            if (array_diff($required, $batch->quoted_supplier_groups ?? []) === []) {
+                $fullyQuoted[] = (int) $batch->id;
+            }
+        }
+
+        return $fullyQuoted;
     }
 
     /**

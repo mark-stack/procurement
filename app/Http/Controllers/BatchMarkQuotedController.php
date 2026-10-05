@@ -31,8 +31,20 @@ class BatchMarkQuotedController extends Controller
         /*
          * The same gate the card greys the item with, asked again here - a menu item is a suggestion,
          * and this is the thing that decides. See PrerequisiteConditions::markBatchQuoted.
+         *
+         * "Is every merchant already priced" is worked out for this batch rather than taken from the
+         * card, which is where the page reads it off its own pill. A stale menu is exactly the case
+         * this is guarding: the colleague who marked the last block quoted in the order list did it
+         * on somebody else's open dropdown.
          */
-        abort_if(! (new PrerequisiteConditions)->markBatchQuoted($user, $batch), 403);
+        abort_if(
+            ! (new PrerequisiteConditions)->markBatchQuoted(
+                $user,
+                $batch,
+                $batch->everySupplierGroupPriced($user->business),
+            ),
+            403,
+        );
 
         $batch->update([
             'quoted_at' => now(),

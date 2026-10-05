@@ -9,8 +9,9 @@
      * certificates that arrived with it. They are one merchant's business either way, so they are one
      * card rather than two places to look.
      *
-     * One block can also be marked ordered from here, for the merchant somebody rang rather than sent
-     * a quote request to - see markOrdered(). Nothing is placed by it.
+     * One block can also be marked quoted and then ordered from here, for the merchant somebody rang
+     * rather than sent a quote request to - see markQuoted() and markOrdered(). Nothing is asked for
+     * or placed by either.
      *
      * The open batch is the exception to all of it. That card is still taking material, its nest is a
      * suggestion that changes with the next upload, and anything bought off it would be bought twice -
@@ -109,7 +110,11 @@
     }
 
     //Forms
-    //The one press this modal has - see markOrdered()
+    //The two presses this modal has - see markQuoted() and markOrdered()
+    const formMarkQuoted = useForm({
+        supplier_group: null,
+    });
+
     const formMarkOrdered = useForm({
         supplier_group: null,
     });
@@ -138,6 +143,30 @@
 
     function selectTab(group, key) {
         openTabs.value[group.supplierGroup] = key;
+    }
+
+    /**
+     * "Quoted" on one block - this merchant's price is in, from somewhere other than here.
+     *
+     * The step before the one below, and the one a block offers while the batch is still being
+     * priced: a nested batch nobody has a price for used to show "Mark as ordered" on every block,
+     * which is the press after next - and pressing it is how a card skips the Quoted pill entirely.
+     *
+     * It asks nobody for anything and writes no quote row, the same way the ordered mark places no
+     * order - see BatchMarkGroupQuotedController. Marking every merchant on the batch is the card's
+     * "All quoted" said one merchant at a time, and the card reads QUOTED once the last one is in.
+     */
+    function markQuoted(group) {
+        if (formMarkQuoted.processing) {
+            return;
+        }
+
+        formMarkQuoted.supplier_group = group.supplierGroup;
+
+        formMarkQuoted.post(route('batch.group.quoted', props.orderList.batch_id), {
+            preserveScroll: true,
+            onSuccess: () => emit('refresh'),
+        });
     }
 
     /**
@@ -269,7 +298,7 @@
                         </div>
 
                         <!--
-                            Whether this merchant has been ordered from yet. Green carries the
+                            How far this merchant has got: priced, then bought. Green carries the
                             purchase order number where somebody has typed one in; an order placed
                             with the number still blank is just as ordered, and says so rather than
                             reading "Order: " with nothing after it.
@@ -282,16 +311,42 @@
                                 The press for a merchant somebody rang. Beside the pill it changes
                                 rather than down in the tab, because it is the answer to the word
                                 that pill is showing - and it says "Mark as", because nothing is
-                                bought by pressing it. See markOrdered().
+                                asked for or bought by pressing it.
 
-                                Only where there is something to say: a group with an order behind it
-                                is already ordered, and the open batch must not be ordered from at
-                                all. Hidden rather than greyed, unlike the card menu's marks - this
-                                is a block in a list of blocks, and a dead button on each of them
-                                would be the loudest thing in the modal.
+                                One button, and which one is the step this block is actually at: a
+                                merchant nobody has a price from is marked quoted, and a merchant
+                                whose price is in is marked ordered. The block offered the ordered
+                                one from the moment the batch was nested, which on a batch still out
+                                for prices is the press after next, and taking it is how a card goes
+                                from Quoting to Ordered without ever reading Quoted.
+
+                                It is not a gate. A shop that rings one merchant and buys in the
+                                same call presses twice here, or presses "All ordered" on the card
+                                menu, which is offered from Quoting exactly as it was before - see
+                                PrerequisiteConditions::markBatchOrdered.
+
+                                Only where there is something to say: a group already bought has
+                                both steps behind it, and the open batch must not be quoted or
+                                ordered from at all. Hidden rather than greyed, unlike the card
+                                menu's marks - this is a block in a list of blocks, and a dead
+                                button on each of them would be the loudest thing in the modal.
                             -->
                             <button
-                                v-if="!group.ordered && group.canMarkOrdered && !isOpenBatch"
+                                v-if="!group.quoted && group.canMarkQuoted && !isOpenBatch"
+                                type="button"
+                                @click="markQuoted(group)"
+                                :disabled="formMarkQuoted.processing"
+                                :title="'Record that the price for the '
+                                    + shared.supplierGroupLabel(group.supplierGroup)
+                                    + ' material is in, without asking for a quote here'"
+                                class="inline-flex items-center h-8 gap-1.5 px-2.5 text-xs font-semibold text-blue-800 transition-colors duration-150 bg-white border border-blue-300 rounded-lg shadow-sm hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400"
+                            >
+                                <i class="fa-solid fa-tags text-[10px]"></i>
+                                Mark as quoted
+                            </button>
+
+                            <button
+                                v-else-if="!group.ordered && group.canMarkOrdered && !isOpenBatch"
                                 type="button"
                                 @click="markOrdered(group)"
                                 :disabled="formMarkOrdered.processing"
@@ -304,21 +359,34 @@
                                 Mark as ordered
                             </button>
 
+                            <!--
+                                And the word for where it has got to, in the colour the card's own
+                                pill uses for that step: the price in but nothing bought is blue,
+                                the way "All quoted" is on the card menu, and it is one state rather
+                                than two pills because a bought merchant was priced first.
+                            -->
                             <p
                                 :class="group.ordered
                                     ? 'text-green-800 bg-green-100'
-                                    : 'text-yellow-800 bg-yellow-100'"
+                                    : (group.quoted
+                                        ? 'text-blue-800 bg-blue-100'
+                                        : 'text-yellow-800 bg-yellow-100')"
                                 class="inline-flex items-center h-8 gap-1.5 px-2.5 text-xs font-semibold rounded-lg shrink-0"
                             >
                                 <i
-                                    :class="group.ordered ? 'fa-solid fa-check' : 'fa-regular fa-clock'"
+                                    :class="group.ordered || group.quoted
+                                        ? 'fa-solid fa-check'
+                                        : 'fa-regular fa-clock'"
                                     class="text-[10px]"
                                 ></i>
                                 <template v-if="group.ordered">
                                     {{ group.purchaseOrderNumber ? 'Order: ' + group.purchaseOrderNumber : 'Ordered' }}
                                 </template>
+                                <template v-else-if="group.quoted">
+                                    Quoted
+                                </template>
                                 <template v-else>
-                                    Not ordered
+                                    Not quoted
                                 </template>
                             </p>
                         </div>
@@ -373,10 +441,48 @@
                             there is no stamp on it, and the lines are the whole of what it says.
                         -->
                         <div class="relative mt-3">
+                            <!--
+                                Room at the top right for the Copy button that sits in it, so the
+                                first lines stop short of the button rather than running under it.
+                                A line long enough to reach it is long enough to scroll, and the
+                                button is opaque: scrolled far enough, text passes behind it and is
+                                read by scrolling on. The padding is what keeps that rare rather
+                                than routine - most sections and grades are well short of it.
+                            -->
                             <pre
                                 :class="isOpenBatch ? 'min-h-[5.5rem] sm:min-h-[6.5rem]' : null"
-                                class="p-3 overflow-x-auto text-sm text-gray-800 rounded-lg bg-gray-50"
+                                class="p-3 pr-24 overflow-x-auto text-sm text-gray-800 rounded-lg bg-gray-50"
                             >{{ group.lines.join('\n') }}</pre>
+
+                            <!--
+                                In the corner of the lines it copies, rather than under them or in
+                                the heading. This is the one tab whose contents go into a mail, and a
+                                Copy button up beside the supplier's name would sit next to the
+                                Certificates tab as well - inviting somebody to think it copies those.
+
+                                One button per group rather than one for the modal: the lists go to
+                                different suppliers, and nobody sends a timber merchant the steel.
+
+                                Not drawn on the open batch at all. Copying is how this list leaves
+                                the screen and reaches a merchant, and that card's nest is a
+                                suggestion the next upload changes - which is what the watermark
+                                below occupies this same corner to say.
+                            -->
+                            <button
+                                v-if="!isOpenBatch"
+                                type="button"
+                                @click="copyGroup(group)"
+                                :title="'Copy the ' + shared.supplierGroupLabel(group.supplierGroup) + ' list'"
+                                class="absolute inline-flex items-center h-8 gap-1.5 px-2.5 text-xs font-semibold text-gray-600 transition-colors duration-150 bg-white border border-gray-300 rounded-lg shadow-sm top-2 right-2 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800"
+                            >
+                                <i
+                                    :class="copiedGroup === group.supplierGroup
+                                        ? 'fa-solid fa-check text-green-600'
+                                        : 'fa-regular fa-copy'"
+                                    class="text-[11px]"
+                                ></i>
+                                {{ copiedGroup === group.supplierGroup ? 'Copied' : 'Copy' }}
+                            </button>
 
                             <div
                                 v-if="isOpenBatch"
@@ -387,37 +493,6 @@
                                     Do not order
                                 </span>
                             </div>
-                        </div>
-
-                        <!--
-                            Under the lines it copies, rather than in the heading: this is the one tab
-                            whose contents go into a mail, and a Copy button sitting beside a list of
-                            certificates invites somebody to think it copies those.
-
-                            One button per group rather than one for the modal - the lists go to
-                            different suppliers, and nobody sends a timber merchant the steel. Below
-                            rather than over the lines, which scroll sideways: a bar section and its
-                            grade is a long line, and a button floating on top of it hides the end.
-
-                            Not drawn on the open batch at all. Copying is how this list leaves the
-                            screen and reaches a merchant, and that card's nest is a suggestion that
-                            the next upload changes.
-                        -->
-                        <div v-if="!isOpenBatch" class="flex justify-end mt-2">
-                            <button
-                                type="button"
-                                @click="copyGroup(group)"
-                                :title="'Copy the ' + shared.supplierGroupLabel(group.supplierGroup) + ' list'"
-                                class="inline-flex items-center h-8 gap-1.5 px-2.5 text-xs font-semibold text-gray-600 transition-colors duration-150 bg-white border border-gray-300 rounded-lg shadow-sm hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800"
-                            >
-                                <i
-                                    :class="copiedGroup === group.supplierGroup
-                                        ? 'fa-solid fa-check text-green-600'
-                                        : 'fa-regular fa-copy'"
-                                    class="text-[11px]"
-                                ></i>
-                                {{ copiedGroup === group.supplierGroup ? 'Copied' : 'Copy' }}
-                            </button>
                         </div>
                     </div>
 

@@ -337,6 +337,39 @@ export default {
             boxShadow: {
                 outline: '0 0 0 3px rgba(101, 31, 255, 0.4)',
             },
+            /**
+             * A button on a card that is behind, breathing so it is found.
+             *
+             * The Nesting page's action footer says what somebody has to go and do about a late
+             * batch, and for "Complete quoting" and "Place the order" the thing to do is open one of
+             * the three buttons on that card - which is a sentence at one end of the card and an
+             * unremarkable button at the other. This is what joins them: the border and a ring swell and fade,
+             * so the eye goes from the instruction to the button without the page having to grow
+             * an arrow.
+             *
+             * Border and box-shadow rather than opacity, which is what Tailwind's own animate-pulse
+             * fades - a button that dims and brightens reads as loading, or as broken, rather than
+             * as one being pointed at. Two seconds, which is slow enough to be a glow rather than a
+             * blink, and the colour is the orange CardButtonYellow already hovers to.
+             *
+             * Switched off under prefers-reduced-motion at the call site (motion-reduce:animate-none),
+             * where the border is left on its resting colour - still marked out, just not moving.
+             */
+            keyframes: {
+                'border-glow': {
+                    '0%, 100%': {
+                        borderColor: '#ffb74d',
+                        boxShadow: '0 0 0 0 rgba(255, 152, 0, 0)',
+                    },
+                    '50%': {
+                        borderColor: '#f57c00',
+                        boxShadow: '0 0 0 4px rgba(255, 152, 0, 0.25)',
+                    },
+                },
+            },
+            animation: {
+                'border-glow': 'border-glow 2s ease-in-out infinite',
+            },
         },
     },
     variants: {
