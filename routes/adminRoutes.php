@@ -23,6 +23,7 @@ use App\Http\Controllers\MeasuresController;
 use App\Http\Controllers\ProofController;
 use App\Http\Controllers\ResendWelcomeEmailController;
 use App\Http\Controllers\TemplateController;
+use App\Http\Controllers\TwoDimensionalNestingController;
 use App\Http\Middleware\AdminMiddleware;
 use App\Http\Middleware\PlatformProductMiddleware;
 use Illuminate\Support\Facades\Route;
@@ -169,6 +170,17 @@ Route::prefix('admin')->name('admin.')->middleware([AdminMiddleware::class, 'ver
      * the algorithm either way. There is no equivalent fallback for a write.
      */
     Route::patch('nesting-algorithm/{business}', AdminNestingSettingsController::class)->name('nesting.settings.update');
+
+    /*
+     * 2D nesting: a proof of concept, and inside the admin group rather than beside /proof because that
+     * is what it is. /proof is a page you open in front of a customer to answer "does the nesting
+     * actually work"; this one answers "would the same idea work on plate", which is a question for us.
+     *
+     * It writes nothing, reads nothing and binds no model - every scenario is fixed and nested in memory,
+     * so this is a GET with no parameters and no business to scope to. There is no plate nesting anywhere
+     * else in the application for it to be scoped to in any case.
+     */
+    Route::get('2d-nesting', TwoDimensionalNestingController::class)->name('nesting.2d');
 });
 
 /*
