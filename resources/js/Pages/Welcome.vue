@@ -6,7 +6,6 @@
     //Component Imports
     import SavingsCalculator from "@/Components/SavingsCalculator.vue";
     import LandingNav from "@/Components/Nav/LandingNav.vue";
-    import Nesting from "@/Components/Nesting/Nesting.vue";
     import CadLogosBanner from "@/Components/CadLogosBanner.vue";
 
     //Shared Imports
@@ -14,7 +13,6 @@
 
     //Props
     const props = defineProps({
-        sampleNestingData: Object,
         //config('billing.trial_days') - what a signup will actually be granted
         trialDays: Number,
     });
@@ -63,8 +61,28 @@
     //Both calculators on the page share these, so the hero figure and the one further down agree
     const calculatorInputs = reactive({
         annualSpendMillions:1.5,
-        yieldGainPct:5,
-        scrapRefundPct:13,
+        /*
+         * What the shop wastes on the saw today, as a share of what it buys.
+         *
+         * Ten points, which is deliberately a little kinder to the trade than the trade deserves:
+         * manual nesting on sections runs nearer 12% (about 88% yield), and that is the pair of figures
+         * the 50% below is derived from. Starting the reader at 10 understates the saving rather than
+         * overstating it, and a hero figure that turns out to be low once somebody checks their own
+         * yield is the only direction this page can afford to be wrong in.
+         */
+        currentWastePct:10,
+        /*
+         * How much of that waste goes away, and the number in the hero headline. Fifty, because twelve
+         * points of waste become about six once the same cut list is nested across every live project
+         * and against the offcuts already on the rack - good 1D nesting on sections against nesting it
+         * by hand, 94% against 88%.
+         *
+         * THE HEADLINE READS THIS. Every piece of copy that states the claim - the hero, the "where
+         * the 50% comes from" band, the calculator - takes it from here, so dragging the slider moves
+         * all of them together and the page cannot end up asserting one figure above a dollar saving
+         * worked out from another. Nothing types "50".
+         */
+        wasteReductionPct:50,
     });
 
     const plan = {
@@ -80,7 +98,13 @@
 
 
     //Shared Methods
-    const {savingsDisplay, termDisplay, costPerMonth} = useSavings(calculatorInputs, plan);
+    const {
+        nestedWastePct,
+        materialRecoveredPct,
+        savingsDisplay,
+        termDisplay,
+        costPerMonth,
+    } = useSavings(calculatorInputs, plan);
 
     /*
         The cost model section below. Kept as data rather than markup because it is a list that will
@@ -145,7 +169,7 @@
 </script>
 
 <template>
-    <Head title="Steel Nesting" />
+    <Head title="Halve your steel cutting waste | SteelNesting.com.au" />
 
     <!-- Nav -->
     <LandingNav/>
@@ -156,9 +180,12 @@
             <div class="mb-10 lg:max-w-lg lg:pr-5 lg:mb-0">
                 <div class="max-w-xl mb-16">
                     <h2 class="max-w-lg mb-6 font-sans text-5xl font-bold tracking-tight text-gray-900 sm:leading-none">
-                        Maximum steel nesting efficiency could save you
-                        <span class="inline-block text-orange-900">${{savingsDisplay}} in <u>waste</u> {{termDisplay}}</span>
+                        {{calculatorInputs.wasteReductionPct}}% less cutting <u>waste</u>, so you spend
+                        <span class="inline-block text-orange-900">${{savingsDisplay}} less on steel {{termDisplay}}</span>
                     </h2>
+                    <p class="max-w-lg text-base text-gray-700 md:text-lg">
+                        Steel nesting for Australian fabricators.
+                    </p>
                 </div>
                 <div class="flex flex-col items-center md:flex-row">
                     <Link
@@ -195,10 +222,67 @@
         </div>
     </div>
 
+    <!--
+        Where the headline figure comes from.
+
+        The claim in the hero is the specific, checkable kind, so the first thing under it is the
+        arithmetic behind it rather than a feature list. Every figure here is read off the calculator's
+        own sliders, so moving one moves this block too - a reader who tells the page their yield is
+        already good sees a smaller claim, not ours repeated at them.
+    -->
+    <div class="bg-gray-900">
+        <div class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">
+            <div class="max-w-3xl mb-10 md:mx-auto sm:text-center">
+                <h2 class="mb-6 font-sans text-4xl font-bold leading-none tracking-tight text-white md:mx-auto">
+                    Where the {{calculatorInputs.wasteReductionPct}}% comes from
+                </h2>
+            </div>
+            <div class="grid max-w-screen-lg gap-8 mx-auto text-gray-300 md:grid-cols-3">
+                <div>
+                    <p class="mb-2 text-3xl font-extrabold text-white">{{100 - calculatorInputs.currentWastePct}}%</p>
+                    <h6 class="mb-2 text-lg font-bold text-white">Nesting a cut list by hand</h6>
+                    <p class="text-sm">
+                        Yield on sections lands somewhere near here. The other
+                        {{calculatorInputs.currentWastePct}}% is drops too short to use, saw kerf, and
+                        offcuts that go back on the rack and are never reached for again.
+                    </p>
+                </div>
+                <div>
+                    <p class="mb-2 text-3xl font-extrabold text-white">{{100 - nestedWastePct}}%</p>
+                    <h6 class="mb-2 text-lg font-bold text-white">The same list, nested here</h6>
+                    <p class="text-sm">
+                        {{nestedWastePct}}% waste instead of {{calculatorInputs.currentWastePct}}%,
+                        because the same thousand-combination search runs across every live project at
+                        once and draws on the offcuts you already own before it buys a bar.
+                    </p>
+                </div>
+                <div>
+                    <p class="mb-2 text-3xl font-extrabold text-white">{{materialRecoveredPct}}%</p>
+                    <h6 class="mb-2 text-lg font-bold text-white">Off your steel bill</h6>
+                    <p class="text-sm">
+                        {{calculatorInputs.wasteReductionPct}}% of the waste gone, which is
+                        {{materialRecoveredPct}}% of what you buy becoming structure instead of scrap.
+                        Less whatever the merchant already pays you to weigh it in &mdash; that part
+                        was never yours to save twice.
+                    </p>
+                </div>
+            </div>
+            <p class="max-w-screen-lg mx-auto mt-10 text-sm text-center text-gray-400">
+                A shop already running good 1D nesting has less than this to win, and a shop nesting by
+                eye on a whiteboard has more, which is why both figures are yours to set and not ours
+                to assert. And you do not have to take them on faith either way: every nest the
+                application runs records what it actually achieved at the time &mdash; used, scrapped
+                and kerfed against what it consumed &mdash; so your own yield is there month by month
+                from the first job. <Link :href="route('try.nesting')" class="underline hover:text-white">Try
+                it on a worked example</Link>, run through the real algorithm, with the checks shown.
+            </p>
+        </div>
+    </div>
+
     <div class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">
         <div class="mb-16 md:mx-auto sm:text-center">
             <h2 class="text-center max-w-3xl mb-6 font-sans text-5xl font-bold leading-none tracking-tight text-gray-900 md:mx-auto">
-                How to reach maximum steel nesting efficiency?
+                How that waste comes out
             </h2>
         </div>
         <div class="grid gap-8 row-gap-0 lg:grid-cols-3">
@@ -255,20 +339,20 @@
         <div class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">
             <div class="max-w-4xl mb-12 md:mx-auto sm:text-center">
                 <h2 class="max-w-4xl mb-6 font-sans text-5xl font-bold leading-none tracking-tight text-gray-900 md:mx-auto">
-                    The tightest nest is not the cheapest nest
+                    Cutting the waste means cutting the dollars
                 </h2>
                 <p class="text-base text-gray-700 md:text-lg">
-                    Most nesting software ranks plans on yield: the arrangement that leaves the fewest millimetres
-                    on the floor wins. That is the wrong question, because millimetres are not comparable across
-                    sections and are not comparable to time at all. Saving 500mm of 65x65 angle is worth about
-                    <strong>$6</strong>. Saving 500mm of 500UB is worth about <strong>$90</strong>. The same nesting
-                    decision is right for one and wrong for the other — and neither number says anything about the
-                    quarter hour it might take to chase.
+                    Waste is not millimetres, it is money, and the two do not move together. Saving 500mm of
+                    65x65 angle is worth about <strong>$6</strong>. Saving 500mm of 500UB is worth about
+                    <strong>$90</strong>. Software that ranks plans on yield alone counts those as the same
+                    win — which is how a shop ends up reading {{100 - nestedWastePct}}% on paper with a rack
+                    full of metre-long stubs nobody will ever cut, and no less steel going out the door.
                 </p>
                 <p class="mt-4 text-base text-gray-700 md:text-lg">
                     So every candidate nest here is scored in <strong>dollars</strong>. Material converts through the
                     section's mass and your steel price; labour converts through a duration and your hourly rate.
-                    Best of a thousand combinations means the cheapest to actually produce, not the tightest on paper.
+                    Best of a thousand combinations means the cheapest to actually produce — which is what makes
+                    what comes off your waste the part that was costing you something.
                 </p>
             </div>
 
@@ -358,6 +442,15 @@
                         <!--https://apps.autodesk.com/INVNTOR/en/Detail/Index?id=4775763541516569961&appLang=en&os=Win64-->
                     </tr>
                 </thead>
+                <!--
+                    EVERY ROW IS IN HEADER ORDER: SteelNesting, StruMIS, Tekla, 1d-solutions, smartcut,
+                    astrokettle, opticutter. The rows below used to run 1d-solutions, astrokettle,
+                    opticutter, smartcut instead - invisible on the rows where those four share a value,
+                    and wrong on the two where they do not. The price row published astrokettle's $48
+                    under smartcut's heading, opticutter's $34 under astrokettle's and smartcut's $26
+                    under opticutter's. Keep the trailing comments on every cell: they are what makes a
+                    mis-ordered row show up while it is being edited rather than after it ships.
+                -->
                 <tbody class="divide-y divide-gray-200">
                     <tr class="bg-white">
                         <td class="py-3 font-medium text-gray-800">Cross-project nesting</td>
@@ -365,9 +458,9 @@
                         <td class="text-center">✅</td><!--StruMIS-->
                         <td class="text-center">✅</td><!--Tekla PowerFab-->
                         <td class="text-center text-xs">❌</td><!--1d-solutions-->
+                        <td class="text-center text-xs">❌</td><!--smartcut-->
                         <td class="text-center text-xs">❌</td><!--astrokettle-->
                         <td class="text-center text-xs">❌</td><!--opticutter-->
-                        <td class="text-center text-xs">❌</td><!--smartcut-->
                     </tr>
                     <tr class="bg-gray-50">
                         <td class="py-3 font-medium text-gray-800">Offcut Inventory</td>
@@ -375,9 +468,9 @@
                         <td class="text-center">✅</td><!--StruMIS-->
                         <td class="text-center">✅</td><!--Tekla PowerFab-->
                         <td class="text-center text-xs">❌</td><!--1d-solutions-->
+                        <td class="text-center text-xs">❌</td><!--smartcut-->
                         <td class="text-center text-xs">❌</td><!--astrokettle-->
                         <td class="text-center text-xs">❌</td><!--opticutter-->
-                        <td class="text-center text-xs">❌</td><!--smartcut-->
                     </tr>
 
                     <tr class="bg-white">
@@ -386,9 +479,9 @@
                         <td class="text-center">✅</td><!--StruMIS-->
                         <td class="text-center">✅</td><!--Tekla PowerFab-->
                         <td class="text-center text-xs">❌</td><!--1d-solutions-->
+                        <td class="text-center text-xs">❌</td><!--smartcut-->
                         <td class="text-center text-xs">❌</td><!--astrokettle-->
                         <td class="text-center text-xs">❌</td><!--opticutter-->
-                        <td class="text-center text-xs">❌</td><!--smartcut-->
                     </tr>
                     <tr class="bg-gray-50">
                         <td class="py-3 font-medium text-gray-800">Range of stock lengths</td>
@@ -396,9 +489,9 @@
                         <td class="text-center">✅</td><!--StruMIS-->
                         <td class="text-center">✅</td><!--Tekla PowerFab-->
                         <td class="text-center">✅</td><!--1d-solutions-->
+                        <td class="text-center">✅</td><!--smartcut-->
                         <td class="text-center">✅</td><!--astrokettle-->
                         <td class="text-center">✅</td><!--opticutter-->
-                        <td class="text-center">✅</td><!--smartcut-->
                     </tr>
                     <tr class="bg-white">
                         <td class="py-3 font-medium text-gray-800">FIFO (First in first out)</td>
@@ -406,9 +499,9 @@
                         <td class="text-center">✅</td><!--StruMIS-->
                         <td class="text-center">✅</td><!--Tekla PowerFab-->
                         <td class="text-center text-xs">❌</td><!--1d-solutions-->
+                        <td class="text-center text-xs">❌</td><!--smartcut-->
                         <td class="text-center text-xs">❌</td><!--astrokettle-->
                         <td class="text-center text-xs">❌</td><!--opticutter-->
-                        <td class="text-center text-xs">❌</td><!--smartcut-->
                     </tr>
                     <tr class="bg-gray-50">
                         <td class="py-3 font-medium text-gray-800">Mitre cuts</td>
@@ -416,9 +509,9 @@
                         <td class="text-center">✅</td><!--StruMIS-->
                         <td class="text-center">✅</td><!--Tekla PowerFab-->
                         <td class="text-center text-xs">❌</td><!--1d-solutions-->
+                        <td class="text-center text-xs">❌</td><!--smartcut-->
                         <td class="text-center text-xs">❌</td><!--astrokettle-->
                         <td class="text-center text-xs">❌</td><!--opticutter-->
-                        <td class="text-center text-xs">❌</td><!--smartcut-->
                     </tr>
                     <tr class="bg-white">
                         <td class="py-3 font-medium text-gray-800">Multiple CAD</td>
@@ -426,9 +519,9 @@
                         <td class="text-center">✅</td><!--StruMIS-->
                         <td class="text-center">❌</td><!--Tekla PowerFab-->
                         <td class="text-center">✅</td><!--1d-solutions-->
+                        <td class="text-center">✅</td><!--smartcut-->
                         <td class="text-center">✅</td><!--astrokettle-->
                         <td class="text-center">✅</td><!--opticutter-->
-                        <td class="text-center">✅</td><!--smartcut-->
                     </tr>
                     <tr class="bg-gray-50">
                         <td class="py-3 font-medium text-gray-800">Bulk Import</td>
@@ -436,9 +529,9 @@
                         <td class="text-center">✅</td><!--StruMIS-->
                         <td class="text-center">✅</td><!--Tekla PowerFab-->
                         <td class="text-center">✅<br><small>Tedious</small></td><!--1d-solutions-->
+                        <td class="text-center">✅<br><small>Tedious</small></td><!--smartcut-->
                         <td class="text-center">✅<br><small>Tedious</small></td><!--astrokettle-->
                         <td class="text-center">✅<br><small>Tedious</small></td><!--opticutter-->
-                        <td class="text-center">✅<br><small>Tedious</small></td><!--smartcut-->
                     </tr>
                     <tr class="bg-white">
                         <td class="py-3 font-medium text-gray-800">A4 print formatted</td>
@@ -446,9 +539,9 @@
                         <td class="text-center">✅</td><!--StruMIS-->
                         <td class="text-center">✅</td><!--Tekla PowerFab-->
                         <td class="text-center">✅</td><!--1d-solutions-->
+                        <td class="text-center">✅</td><!--smartcut-->
                         <td class="text-center text-xs">❌</td><!--astrokettle-->
                         <td class="text-center">✅</td><!--opticutter-->
-                        <td class="text-center">✅</td><!--smartcut-->
                     </tr>
                     <tr class="bg-gray-50">
                         <td class="py-3 font-medium text-gray-800">Designed for<br>Australian Standards</td>
@@ -456,9 +549,9 @@
                         <td class="text-center text-xs">❌</td><!--StruMIS-->
                         <td class="text-center text-xs">❌</td><!--Tekla PowerFab-->
                         <td class="text-center text-xs">❌</td><!--1d-solutions-->
+                        <td class="text-center text-xs">❌</td><!--smartcut-->
                         <td class="text-center text-xs">❌</td><!--astrokettle-->
                         <td class="text-center text-xs">❌</td><!--opticutter-->
-                        <td class="text-center text-xs">❌</td><!--smartcut-->
                     </tr>
                     <tr class="bg-white">
                         <!--
@@ -471,9 +564,9 @@
                         <td class="text-center text-gray-900 font-bold">$2,000+</td><!--StruMIS-->
                         <td class="text-center text-gray-900 font-bold">$2,000+</td><!--Tekla PowerFab-->
                         <td class="text-center text-gray-900 font-bold">$88</td><!--1d-solutions-->
+                        <td class="text-center text-gray-900 font-bold">$26</td><!--smartcut-->
                         <td class="text-center text-gray-900 font-bold">$48</td><!--astrokettle-->
                         <td class="text-center text-gray-900 font-bold">$34</td><!--opticutter-->
-                        <td class="text-center text-gray-900 font-bold">$26</td><!--smartcut-->
                     </tr>
                 </tbody>
             </table>
@@ -484,7 +577,7 @@
     <div class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">
         <div class="mb-16 md:mx-auto sm:text-center">
             <h2 class="text-center max-w-4xl mb-6 font-sans text-5xl font-bold leading-none tracking-tight text-gray-900 md:mx-auto">
-                An <u>unrivaled</u> nesting software for Australian fabricators would require:
+                The <u>waste</u> is the point. The rest just has to work.
             </h2>
         </div>
         <div class="grid max-w-screen-lg mx-auto space-y-6 lg:grid-cols-2 lg:space-y-0 lg:divide-x">
@@ -541,25 +634,13 @@
                     </div>
                 </div>
             </div>
+            <!--
+                "Simple order tracking - a clear Kanban view of active orders" was here until the board
+                was deleted. There is no Kanban view to show anybody now: the screen, its route and its
+                gate all went, and /nesting carries the workflow. A promise on the landing page outlives
+                the feature behind it unless it is taken down with it.
+            -->
             <div class="space-y-6 sm:px-16">
-                <div class="flex flex-col max-w-md sm:flex-row">
-                    <div class="mb-4 mr-4">
-                        <div class="flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50">
-                            <svg class="w-8 h-8 text-deep-purple-accent-400 sm:w-10 sm:h-10" stroke="currentColor" viewBox="0 0 52 52">
-                                <polygon stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" points="29 13 14 29 25 29 23 39 38 23 27 23"></polygon>
-                            </svg>
-                        </div>
-                    </div>
-                    <div>
-                        <h6 class="mb-3 text-xl font-bold leading-5">
-                            Simple order tracking
-                        </h6>
-                        <p class="text-sm text-gray-900">
-                            Track quoting to delivery of nested batches, with a clear Kanban view of active orders
-                        </p>
-                    </div>
-                </div>
-
                 <div class="flex flex-col max-w-md sm:flex-row">
                     <div class="mb-4 mr-4">
                         <div class="flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50">
@@ -614,7 +695,7 @@
     <div class="px-4 pb-16 pt-28 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8">
         <div class="max-w-5xl mb-10 md:mx-auto sm:text-center md:mb-12">
             <h2 class="max-w-5xl mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">
-                See the financial effect of even modest yield increases
+                See what cutting your waste is worth
             </h2>
         </div>
 
@@ -643,40 +724,12 @@
         >
     </div>
 
-    <div
-        v-if="sampleNestingData"
-        id="nesting"
-        class="px-4 py-16 mx-auto sm:max-w-xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20"
-    >
-        <div class="max-w-7xl mb-10 md:mx-auto md:mb-12">
-            <h2 class="text-center max-w-5xl mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">
-                Example nesting 200PFC across 2 projects
-            </h2>
-            <div class="px-4 py-8 mx-auto max-w-5xl">
-                <div class="grid gap-3 grid-cols-2">
-                    <div
-                        v-for="check in sampleNestingData.checks"
-                        class="flex gap-x-2"
-                    >
-                        <i
-                            :class="check.result ? 'fa-solid fa-check bg-teal-accent-400' : 'fa-solid fa-xmark bg-orange-400'"
-                            class="flex items-center justify-center text-lg rounded-full w-6 h-6"
-                        ></i>
-                        <span class="font-semibold text-sm">{{check.description}}{{check.number !== null ? (' ('+check.number+(check.suffix ?? '')+')') : ''}}</span>
-                    </div>
-                </div>
-            </div>
-            <Nesting
-                :width="900"
-                :projectsReadyForBatching="sampleNestingData.projectsReadyForBatching"
-                :lettersProjectArray="sampleNestingData.lettersProjectArray"
-                :usage="sampleNestingData.usage"
-                :piecesGroupedBySupplierGroup="sampleNestingData.piecesGroupedBySupplierGroup"
-                :currentSupplierGroup="Object.keys(sampleNestingData.piecesGroupedBySupplierGroup.assigned)[0]"
-            />
-        </div>
-    </div>
-
+    <!--
+        "Example nesting 200PFC across 2 projects" was here: the real algorithm run live, with its
+        checks. It lives on its own page now, /try-nesting, which is where the band above sends anyone
+        who wants to see the number proved rather than asserted. Nothing was lost but the scroll - and
+        the nesting run the landing page was doing on every single hit to draw it.
+    -->
     <div class="px-4 py-16 mx-auto sm:max-w-7xl md:max-w-full lg:max-w-screen-xl md:px-24 lg:px-8 lg:py-20">
         <div class="max-w-7xl mb-10 md:mx-auto sm:text-center lg:max-w-7xl md:mb-12">
             <h2 id="pricing" class="max-w-7xl mb-6 font-sans text-3xl font-bold leading-none tracking-tight text-gray-900 sm:text-4xl md:mx-auto">

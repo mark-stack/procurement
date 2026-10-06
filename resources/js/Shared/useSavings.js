@@ -8,7 +8,7 @@ import {computed} from "vue";
  * left the others quietly disagreeing on the same screen. Everything now derives from
  * here instead.
  *
- * @param {{annualSpendMillions: number, yieldGainPct: number, scrapRefundPct: number}} inputs reactive, driven by the sliders
+ * @param {{annualSpendMillions: number, currentWastePct: number, wasteReductionPct: number}} inputs reactive, driven by the sliders
  * @param {{years: number, whichPlan: string, fullPriceMultiYear: number, multiYearTermYears: ?number, fullPriceAnnual: number, fullPriceMonthly: number, fullPriceWeekly: number, firstYearDiscount: number}} plan fixed for the page
  */
 export default function useSavings(inputs, plan){
@@ -18,8 +18,34 @@ export default function useSavings(inputs, plan){
     const weeksPerYear = 52;
     const monthsPerYear = 12;
 
+    /*
+     * What the merchant pays to weigh an offcut back in, as a share of what the steel cost.
+     *
+     * A constant rather than a slider. It is a figure out of the reader's own merchant agreement that
+     * they will not have to hand on a landing page, and asking them for it put a control next to the
+     * saving that only ever made the saving smaller. Thirteen points is the rate the application's own
+     * cost model defaults to, so the calculator and the product agree on it.
+     */
+    const scrapRefundPct = 13;
+
     //What is left after the first year discount, e.g. 10% off = 0.9
     const fractionalPrice = (100-plan.firstYearDiscount)/100;
+
+    /**
+     * What the saw still wastes once the cut list is nested here, e.g. 10% of spend at a 50%
+     * reduction becomes 5%.
+     */
+    const nestedWastePct = computed(() => round1(inputs.currentWastePct * (1 - (inputs.wasteReductionPct/100))));
+
+    /**
+     * The share of annual spend that stops being waste and becomes structure - the part of today's
+     * waste the nest wins back, and the only thing the saving is struck on.
+     *
+     * Derived from the two figures the reader sets rather than entered beside them. The slider used to
+     * ask for this directly, as "extra material yield", which left them to work backwards to what it
+     * meant about their own waste.
+     */
+    const materialRecoveredPct = computed(() => round1(inputs.currentWastePct - nestedWastePct.value));
 
     /**
      * Material no longer bought, less the scrap value those offcuts would have been sold
@@ -28,9 +54,8 @@ export default function useSavings(inputs, plan){
      */
     const savings = computed(() => {
         const annualSpend = inputs.annualSpendMillions * 1000000;
-        const yieldGain = inputs.yieldGainPct/100; //e.g 5% = 0.05
-        const annualMaterialSaved = annualSpend * yieldGain;
-        const annualScrapRefund = annualMaterialSaved * (inputs.scrapRefundPct/100);
+        const annualMaterialSaved = annualSpend * (materialRecoveredPct.value/100);
+        const annualScrapRefund = annualMaterialSaved * (scrapRefundPct/100);
 
         return plan.years * (annualMaterialSaved - annualScrapRefund);
     });
@@ -178,6 +203,14 @@ export default function useSavings(inputs, plan){
     }
 
     /**
+     * One decimal place, as a number rather than a string, so half a point of waste reads as "5.5"
+     * and a whole one as "6" rather than "6.0".
+     */
+    function round1(value){
+        return Math.round(value*10)/10;
+    }
+
+    /**
      * "$65K" under a million, "$1.4M" above it. Compares on the absolute value so a negative
      * amount cannot fall through to the wrong branch.
      */
@@ -189,5 +222,16 @@ export default function useSavings(inputs, plan){
         return (amount/1000000).toFixed(1) + "M";
     }
 
-    return {savings, savingsDisplay, termDisplay, priceOverSavingsPeriod, roi, roiDisplay, costPerMonth};
+    return {
+        scrapRefundPct,
+        nestedWastePct,
+        materialRecoveredPct,
+        savings,
+        savingsDisplay,
+        termDisplay,
+        priceOverSavingsPeriod,
+        roi,
+        roiDisplay,
+        costPerMonth,
+    };
 }

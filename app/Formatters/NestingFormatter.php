@@ -482,6 +482,10 @@ class NestingFormatter
                      * scrap threshold is banked, so only scrap and saw kerf are waste by this measure.
                      * Higher than efficiency, and the two answer different questions - this one is about
                      * the skip, where efficiency is about what the job cost to make.
+                     *
+                     * The same formula shareNotDestroyed() applies to a single nest, summed across the
+                     * screen first and divided once. Both must keep agreeing: the pair of names below
+                     * is what the application means by waste, and the landing page now sells on it.
                      */
                     'effectiveEfficiency' => $totalMaterial === 0
                         ? 0
@@ -1249,24 +1253,35 @@ class NestingFormatter
              */
             'cost' => $best['cost'],
             /*
-             * "Effective efficiency": the share of every millimetre handled that was NOT destroyed.
+             * The two percentages this nest can be read on, under the names usageStats() uses for the
+             * same two formulas. They answer different questions and they must not be confused:
+             * efficiency is what the job cost to make, effectiveEfficiency is what went in the skip.
              *
-             * An offcut at or over the scrap threshold goes back into inventory, so it is not waste - only
-             * scrap and saw kerf are. Judging a nest on used/total instead made drawing on offcuts you
-             * already own look like a worse nest than buying new steel, because the whole offcut went
-             * into the denominator while the reusable remainder of it counted for nothing.
+             * BOTH KEYS USED TO BE ONE. 'effectiveEfficiency' here carried used/consumed - the
+             * efficiency formula - while the key of that name in usageStats() carried the share not
+             * destroyed. One name, two meanings, and the Proof page read this one under the heading
+             * "Not destroyed": a nest that banked a 6,100mm drop off a new bar and scrapped nothing at
+             * all published "49.2% not destroyed", which is the one thing the figure was certainly not
+             * saying. Now the landing page sells the business on halved waste, a page of ours quietly
+             * disagreeing with itself about what waste means is not something to leave standing.
              */
-            'effectiveEfficiency' => $this->effectiveEfficiency($totals),
+            'efficiency' => $this->efficiency($totals),
+            'effectiveEfficiency' => $this->shareNotDestroyed($totals),
         ];
     }
 
     /**
-     * The share of the material this nest consumed that left as finished pieces. See
-     * meterageAlgorithm() and usageStats(), which charges the whole nest the same way.
+     * The share of the material this nest consumed that left as finished pieces, and what the job cost
+     * to make. See materialConsumed() for why new stock and offcuts are charged differently, and
+     * usageStats(), which charges the whole nest the same way under the same name.
+     *
+     * A drop banked off a new bar counts against this, because the business bought it and it is not in
+     * the structure. That is correct for this question and wrong for the other one - see
+     * shareNotDestroyed().
      *
      * @param  array{oldStock: array<string, int>, newStock: array<string, int>}  $totals
      */
-    public function effectiveEfficiency(array $totals): float
+    public function efficiency(array $totals): float
     {
         $consumed = $this->materialConsumed($totals);
 
@@ -1277,6 +1292,33 @@ class NestingFormatter
         $used = $totals["oldStock"]["used"] + $totals["newStock"]["used"];
 
         return round(($used / $consumed * 100), 1);
+    }
+
+    /**
+     * "Effective efficiency": the share of every millimetre handled that was NOT destroyed.
+     *
+     * An offcut at or over the scrap threshold goes back into inventory, so it is not waste - only
+     * scrap and saw kerf are. Higher than efficiency(), and deliberately: this is the question about
+     * the skip, so a drop banked for reuse is deferral rather than loss and does not count against it.
+     *
+     * The same formula usageStats() applies to a whole screen's worth of nests, kept to the millimetre
+     * so the two agree - the denominator is every millimetre handled, bought or drawn, which is not
+     * materialConsumed().
+     *
+     * @param  array{oldStock: array<string, int>, newStock: array<string, int>}  $totals
+     */
+    public function shareNotDestroyed(array $totals): float
+    {
+        $handled = $totals["newStock"]["total"] + $totals["oldStock"]["total"];
+
+        if ($handled <= 0) {
+            return 0;
+        }
+
+        $destroyed = $totals["newStock"]["scrap"] + $totals["oldStock"]["scrap"]
+            + ($totals["newStock"]["kerf"] ?? 0) + ($totals["oldStock"]["kerf"] ?? 0);
+
+        return round((($handled - $destroyed) / $handled * 100), 1);
     }
 
     /**

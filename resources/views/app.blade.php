@@ -6,6 +6,19 @@
 
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
 
+        {{-- The value proposition, where a crawler can read it without running any JavaScript.
+
+             Here rather than in the landing page's own <Head>: there is no Inertia SSR, so a meta tag
+             declared in a Vue page only exists once the bundle has run. The landing page is the one
+             page anybody indexes, and every other page in the application is behind a login, so one
+             server-rendered description covering the product is right for all of them. If a second
+             public page ever wants its own, it belongs in the controller, not duplicated here - two
+             descriptions on one document is worse than this one. --}}
+        <meta name="description" content="Steel nesting software that halves cutting waste, so you spend less on steel. Cross-project nesting and offcut tracking, built for Australian fabricators.">
+        <meta property="og:title" content="{{ config('app.name', 'Laravel') }}">
+        <meta property="og:description" content="Steel nesting software that halves cutting waste, so you spend less on steel.">
+        <meta property="og:type" content="website">
+
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
         {{-- 700 is here because headings use font-bold; without it the browser fakes the weight --}}
