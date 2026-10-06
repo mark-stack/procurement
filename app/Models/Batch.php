@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Casts\NestedState;
+use App\Enums\NestingEnums;
 use App\Enums\ScrapSourceEnums;
 use App\Formatters\SupplierFormatter;
 use App\Models\Concerns\BelongsToSandbox;
@@ -13,11 +14,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Collection;
 
 /**
  * @property array<string, array<int, object>> $nested_state The saved nesting, keyed by nesting algo
  * @property array<int, string>|null $letters_project_array The project letters stamped on that nesting
+ * @property array<string, float|int>|null $nesting_settings The kerf, scrap threshold and cost coefficients that nest was run on
  * @property int|null $sandbox_user_id The user whose test mode nested this, or null for a real batch
  * @property \Illuminate\Support\Carbon|null $quoted_at When somebody called this batch quoted outright
  * @property \Illuminate\Support\Carbon|null $ordered_at When somebody called it bought outright
@@ -58,6 +61,12 @@ class Batch extends Model
         return [
             'nested_state' => NestedState::class,
             'letters_project_array' => 'array',
+            /*
+             * The business's kerf, scrap threshold and cost coefficients as they stood when this
+             * nest was saved - see Services\NestingSettings and the 2026_10_06_110000 migration.
+             * Null on every batch nested before that, which is a fallback rather than a fault.
+             */
+            'nesting_settings' => 'array',
             /*
              * The supplier-free marks the Nesting page's card menu sets - "All quoted", "All
              * ordered", "Delivered" and "Cut". Dates rather than flags, because the question asked of
@@ -247,6 +256,49 @@ class Batch extends Model
     public function scrap(): HasMany
     {
         return $this->hasMany(Scrap::class)->where('source', ScrapSourceEnums::NEST_DROP);
+    }
+
+    /**
+     * What this batch measured: its yield when it was nested, and whether its steel arrived in time.
+     *
+     * One row, written at two moments by App\Services\BatchMeasurements. The figures on it are a
+     * reading of the nest taken when the nest was saved, so this is deliberately not derived from
+     * nested_state on the way out - that is the recomputation it exists to replace.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne<BatchMeasurement, $this>
+     */
+    public function measurement(): HasOne
+    {
+        return $this->hasOne(BatchMeasurement::class);
+    }
+
+    /**
+     * What this nest was costed at in dollars, as it was costed - material plus labour, summed over
+     * the products on the batch. See Services\NestingCostModel.
+     *
+     * Read out of the saved nest, where the search wrote the winning candidate's score when it
+     * picked it (NestingFormatter::nestFromParts). It is not re-struck here, which is the whole
+     * point: the coefficients behind it are editable, so a figure re-derived today would answer
+     * "what would this batch cost if we nested it now" to a question that asked what it cost.
+     *
+     * Null when nothing on the batch is costed by that model - a bolts-only batch is bought by the
+     * box and never nested into bars - rather than zero, which reads as a job that cost nothing.
+     */
+    public function nestCost(): ?float
+    {
+        $cost = null;
+
+        foreach ($this->nested_state[NestingEnums::METERAGE->value] ?? [] as $product) {
+            $productCost = $product->nested['cost'] ?? null;
+
+            if ($productCost === null) {
+                continue;
+            }
+
+            $cost = ($cost ?? 0.0) + (float) $productCost;
+        }
+
+        return $cost;
     }
 
     /**

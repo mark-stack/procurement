@@ -97,6 +97,30 @@
     }
 
     /**
+     * What this batch was costed at, to the dollar.
+     *
+     * Whole dollars: it is material plus shop-floor time at a rate somebody typed into their
+     * profile, so the cents are arithmetic rather than a price anybody was charged.
+     */
+    function costLabel(batch){
+        return '$' + Math.round(Number(batch.cost)).toLocaleString();
+    }
+
+    /**
+     * How the delivery went against the day the steel was wanted.
+     *
+     * Early is reported as on time rather than as "3 days early", because the measure is whether
+     * the workshop was held up and nothing was gained by the steel arriving on the Tuesday.
+     */
+    function deliveryLabel(batch){
+        if(batch.daysLate > 0){
+            return batch.daysLate + (batch.daysLate === 1 ? ' day late' : ' days late');
+        }
+
+        return 'On time';
+    }
+
+    /**
      * The batch's material list, across every project on it.
      *
      * The modal opens straight away on its own spinner rather than behind a full-page overlay - the
@@ -266,6 +290,57 @@
                                 <span class="inline-flex items-center gap-1.5 rounded-md bg-gray-50 px-2 py-1 text-[11px] font-semibold text-gray-600 ring-1 ring-inset ring-gray-200">
                                     <i class="fa-regular fa-calendar text-[10px] text-gray-400"></i>
                                     Nested {{ batch.createdAt }}
+                                </span>
+
+                                <!--
+                                    What the nest achieved, as it was measured at the time. Only on
+                                    the batches that have a measurement - every batch nested before
+                                    they were recorded prints nothing rather than a zero.
+                                -->
+                                <span
+                                    v-if="batch.efficiency !== null && batch.efficiency !== undefined"
+                                    title="The share of the steel this nest consumed that left as a finished part, as it was measured when the nest was saved"
+                                    class="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200"
+                                >
+                                    <i class="fa-solid fa-chart-pie text-[10px] text-emerald-500"></i>
+                                    {{ Number(batch.efficiency).toFixed(1) }}% yield
+                                </span>
+
+                                <!--
+                                    And what it was costed at - the figure the search actually picked
+                                    this plan on, not what the same plan would cost at today's rates.
+                                    A batch whose rates were not kept with it says so in the hover
+                                    rather than quietly reading as a record.
+                                -->
+                                <span
+                                    v-if="batch.cost !== null && batch.cost !== undefined"
+                                    :title="batch.costRetained
+                                        ? 'Material and labour, costed on the rates in force when this batch was nested'
+                                        : 'Nested before the rates were kept with the nest, so this is today\'s valuation of that plan rather than what it was costed at'"
+                                    class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold ring-1 ring-inset"
+                                    :class="batch.costRetained
+                                        ? 'bg-gray-50 text-gray-600 ring-gray-200'
+                                        : 'bg-gray-50 text-gray-400 ring-gray-200'"
+                                >
+                                    <i class="fa-solid fa-coins text-[10px] text-gray-400"></i>
+                                    {{ costLabel(batch) }}
+                                </span>
+
+                                <!--
+                                    Whether the steel turned up on the day. Measured when it landed,
+                                    against the date that stood then - see BatchMeasurements, and
+                                    why that date cannot be looked up again afterwards.
+                                -->
+                                <span
+                                    v-if="batch.daysLate !== null && batch.daysLate !== undefined"
+                                    :title="'Delivered ' + batch.deliveredOn"
+                                    class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold ring-1 ring-inset"
+                                    :class="batch.daysLate > 0
+                                        ? 'bg-red-50 text-red-700 ring-red-200'
+                                        : 'bg-blue-50 text-blue-700 ring-blue-200'"
+                                >
+                                    <i class="fa-regular fa-clock text-[10px] opacity-60"></i>
+                                    {{ deliveryLabel(batch) }}
                                 </span>
                             </div>
                         </div>

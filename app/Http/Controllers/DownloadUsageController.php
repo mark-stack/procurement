@@ -23,6 +23,13 @@ class DownloadUsageController extends Controller
      * draws: on login, on every redraw after a press, on every return to the tab. So the answer is
      * cached, and the card's sublabel is the only thing that reads it - the nest somebody acts on comes
      * from SuggestedNestingController, which is never cached and always runs.
+     *
+     * NOTHING HERE IS A MEASUREMENT, and that is why this one is allowed to be recomputed. It is a
+     * forecast of work nobody has committed to: there is no batch, so there are no settings retained
+     * against one, and today's offcuts and today's price book are the right things to answer with
+     * because that is what the nest would be cut from if it were approved now. A figure that is
+     * retained is a figure about something that happened - see App\Services\BatchMeasurements, which
+     * writes one down the moment this forecast becomes a nest.
      */
     public function __invoke(Request $request): JsonResponse
     {

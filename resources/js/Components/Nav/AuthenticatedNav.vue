@@ -288,6 +288,17 @@
                                     label="Offcuts"
                                     icon="fa-solid fa-scissors"
                                 />
+                                <!--
+                                    Measures. Yield, scrap and on-time delivery by month, and the
+                                    one page here that is about the yard rather than about a job -
+                                    which is why it is in the menu where scrap is not. Scrap is one
+                                    of its three columns and is reached through it.
+                                -->
+                                <NavButton
+                                    :route="route('measures.index')"
+                                    label="Measures"
+                                    icon="fa-solid fa-chart-line"
+                                />
                                 <!-- Profile -->
                                 <NavButton
                                     :route="route('profile.edit')"

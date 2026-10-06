@@ -251,6 +251,11 @@ it('sends past batches nothing but the project names it renders', function () {
      * The table labels each row with project names and reads nothing else off them. This used to ship
      * Batch::projects() - every project's owner and its whole raw material quote tree - plus a
      * nestingData prop plucked from the saved nesting that no page has ever read.
+     *
+     * The five measurement fields beside them are five scalars off one eager-loaded row per batch
+     * (App\Models\BatchMeasurement), and are nulls here because this fixture batch has no nest and
+     * no delivery. They are the card's yield, cost and lateness pills - which deliberately do NOT
+     * come from unpacking nested_state, the thing this test exists to keep off the page.
      */
     $business = createBusiness('biz');
     $user = createUser(1, $business, false, true);
@@ -264,11 +269,18 @@ it('sends past batches nothing but the project names it renders', function () {
     $response = $this->get(route('past.batches.index'))->assertOk();
     $row = collect($response->viewData('page')['props']['pastBatches'])->firstWhere('id', $batch->id);
 
-    expect(array_keys($row))->toBe(['id', 'createdAt', 'projectManagers', 'batchedBy', 'projects', 'cutCount', 'categoryCount'])
+    expect(array_keys($row))->toBe([
+        'id', 'createdAt', 'projectManagers', 'batchedBy', 'projects', 'cutCount', 'categoryCount',
+        'cost', 'costRetained', 'efficiency', 'daysLate', 'deliveredOn',
+    ])
         ->and($row['projects'])->toHaveCount(1)
         //Still just the names: the managers arrive as one joined string, not as the owners themselves
         ->and(array_keys($row['projects'][0]))->toBe(['id', 'name'])
-        ->and($row['projectManagers'])->toBeString();
+        ->and($row['projectManagers'])->toBeString()
+        //A batch with nothing measured says so with nulls rather than with a zero yield
+        ->and($row['cost'])->toBeNull()
+        ->and($row['efficiency'])->toBeNull()
+        ->and($row['daysLate'])->toBeNull();
 });
 
 it('would be a disaster if past batches credited a batch to the wrong person', function () {

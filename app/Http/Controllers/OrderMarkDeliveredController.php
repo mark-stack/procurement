@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\ReceiveOrderRequest;
 use App\Models\Order;
+use App\Services\BatchMeasurements;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -60,6 +61,19 @@ class OrderMarkDeliveredController extends Controller
 
             $order->save();
         });
+
+        /*
+         * The batch this receipt may have just completed.
+         *
+         * A batch is delivered when every sent order on it has been booked in, so the receipt that
+         * books in the last one is the moment its steel is all in the yard - and the moment the
+         * promise it was bought against can be measured. Asked of the batch rather than assumed from
+         * this receipt, because a job usually buys from more than one merchant; see
+         * Services\BatchMeasurements, which the two by-hand marks call in exactly the same way.
+         */
+        if ($order->batch !== null) {
+            (new BatchMeasurements)->recordDelivery($order->batch, $request->user()->business);
+        }
 
         /*
          * The mill certificates are not written here. The delivery screen attaches them through

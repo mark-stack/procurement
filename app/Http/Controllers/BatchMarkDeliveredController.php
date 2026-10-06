@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Batch;
 use App\PrerequisiteConditions\PrerequisiteConditions;
+use App\Services\BatchMeasurements;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -49,6 +50,15 @@ class BatchMarkDeliveredController extends Controller
             'delivered_at' => now(),
             'delivered_by_user_id' => $user->id,
         ]);
+
+        /*
+         * And the measurement that goes with it: the day the steel was wanted, the day it arrived,
+         * and the gap. Taken now rather than worked out later, because the day it was wanted is the
+         * earliest fabrication date on the batch and that date stays editable - see
+         * Services\BatchMeasurements. Every press that can complete a delivery calls this; the one
+         * that finishes the job is the one that records it.
+         */
+        (new BatchMeasurements)->recordDelivery($batch, $user->business);
 
         return back();
     }

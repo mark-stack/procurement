@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Formatters\SupplierFormatter;
 use App\Models\Batch;
 use App\PrerequisiteConditions\PrerequisiteConditions;
+use App\Services\BatchMeasurements;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -66,6 +67,15 @@ class BatchMarkGroupDeliveredController extends Controller
 
             $batch->update(['delivered_supplier_groups' => array_values($marked)]);
         }
+
+        /*
+         * Asked after every block, answered only by the one that completes the set.
+         *
+         * Services\BatchMeasurements puts the question to the batch rather than taking this press's
+         * word for it, so a job delivered a merchant at a time is measured on the day the last of
+         * its steel landed - and the blocks pressed before it record nothing.
+         */
+        (new BatchMeasurements)->recordDelivery($batch, $user->business);
 
         return back();
     }

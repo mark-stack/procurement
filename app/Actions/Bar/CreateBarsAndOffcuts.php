@@ -6,8 +6,11 @@ use App\Enums\NestingEnums;
 use App\Formatters\UniqueLetterIDGenerator;
 use App\Models\Bar;
 use App\Models\Batch;
+use App\Models\Business;
 use App\Models\Cut;
 use App\Models\Offcut;
+use App\Services\BatchMeasurements;
+use App\Services\NestingSettings;
 use App\Services\ScrapLedger;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
@@ -298,6 +301,25 @@ class CreateBarsAndOffcuts
          */
         $batch->letters_project_array = $lettersProjectArray;
 
+        /*
+         * And the figures this nest was run on: the kerf, the scrap threshold and every coefficient
+         * the cost model priced it with.
+         *
+         * The same instinct as the scrap_threshold_mm written onto each bar above, applied to the
+         * settings that belong to the whole nest rather than to one bar of it. Without it a batch's
+         * recorded cost moved whenever somebody edited the labour rate, which means it was never a
+         * record of anything - see Services\NestingSettings.
+         *
+         * Written before the save below, and before the ledger reads it back: every valuation of
+         * this batch from here on is struck against these figures rather than against whatever the
+         * business's are on the day somebody asks.
+         */
+        $business = $batch->user?->business;
+
+        if ($business instanceof Business) {
+            $batch->nesting_settings = NestingSettings::inForce($business);
+        }
+
         $batch->save();
 
         /*
@@ -309,6 +331,15 @@ class CreateBarsAndOffcuts
          * that number agree by construction. See Services\ScrapLedger.
          */
         (new ScrapLedger)->recordNest($batch);
+
+        /*
+         * And what the nest achieved, as a row that can be added up across a month.
+         *
+         * After the ledger and after the save, for the same reason: it reads the nest back off the
+         * batch rather than being handed it, so the yield written down here and the yield the
+         * Nesting page draws from nested_state are one reading. See Services\BatchMeasurements.
+         */
+        (new BatchMeasurements)->recordNest($batch);
     }
 
     /**
