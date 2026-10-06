@@ -89,9 +89,14 @@ class BatchMeasurements
              * the nest. It is false on every batch nested before they were, and a report that prints
              * those dollars the same way as the rest would be presenting a current valuation as a
              * historical record.
+             *
+             * Null on a nest that could not place every cut, because the figure the search minimised
+             * carries a billion-dollar penalty per unplaced cut and that is a ranking device rather
+             * than money. The count is recorded beside it so the null says which kind of null it is.
              */
             'cost' => $batch->nestCost(),
             'cost_from_retained_settings' => NestingSettings::wasRetained($batch),
+            'unmade_cuts' => $batch->unmadeCuts(),
         ];
 
         if ($existing !== null) {

@@ -264,6 +264,25 @@
                     </section>
 
                     <!--
+                        The one line here that is about a problem rather than about steel. A nest that
+                        could not place every cut is a job somebody has to find material for, and it
+                        is also why that batch carries no cost - see Batch::nestCost().
+                    -->
+                    <section
+                        v-if="(provenance.incomplete ?? 0) > 0"
+                        class="mt-6 rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-4 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-900/10 dark:text-amber-200"
+                    >
+                        <p>
+                            {{ provenance.incomplete }}
+                            {{ provenance.incomplete === 1 ? 'batch in this window has' : 'batches in this window have' }}
+                            cuts no bar or offcut could hold - parts longer than any length the
+                            supplier sells. The yield above is of the steel that was nested; those
+                            batches carry no cost, because the figure the nest ranks an unplaceable
+                            cut with is a penalty rather than money.
+                        </p>
+                    </section>
+
+                    <!--
                         Where the figures came from. Only ever says something when there is something
                         to say - a window of batches that all retained their settings prints nothing.
                     -->

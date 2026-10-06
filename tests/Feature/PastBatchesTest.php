@@ -271,7 +271,7 @@ it('sends past batches nothing but the project names it renders', function () {
 
     expect(array_keys($row))->toBe([
         'id', 'createdAt', 'projectManagers', 'batchedBy', 'projects', 'cutCount', 'categoryCount',
-        'cost', 'costRetained', 'efficiency', 'daysLate', 'deliveredOn',
+        'cost', 'costRetained', 'unmadeCuts', 'efficiency', 'daysLate', 'deliveredOn',
     ])
         ->and($row['projects'])->toHaveCount(1)
         //Still just the names: the managers arrive as one joined string, not as the owners themselves

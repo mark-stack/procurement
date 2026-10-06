@@ -86,9 +86,17 @@ class PastBatchesController extends Controller
                  * reader asking what it cost. costRetained says whether those coefficients were
                  * kept with the nest; a batch from before they were still shows a figure, and the
                  * card says which kind of figure it is rather than printing both alike.
+                 *
+                 * unmadeCuts is why a batch that was nested can still have no cost: the figure the
+                 * search ranks an unplaceable cut with is a billion dollars and is not money. The
+                 * card says what it is instead, which is the more useful thing anyway.
                  */
                 'cost' => $pastBatch->measurement?->cost,
                 'costRetained' => (bool) $pastBatch->measurement?->cost_from_retained_settings,
+                //Cast rather than coalesced: a batch with no measurement has nothing unplaced, and
+                //null casts to 0 - where "?? 0" on the right of a nullsafe reads to PHPStan as a
+                //null check that cannot fire
+                'unmadeCuts' => (int) $pastBatch->measurement?->unmade_cuts,
                 'efficiency' => $pastBatch->measurement?->efficiency,
                 //Null for a batch delivered before deliveries were measured, or one that promised no date
                 'daysLate' => $pastBatch->measurement?->days_late,

@@ -281,11 +281,22 @@ class Batch extends Model
      * point: the coefficients behind it are editable, so a figure re-derived today would answer
      * "what would this batch cost if we nested it now" to a question that asked what it cost.
      *
-     * Null when nothing on the batch is costed by that model - a bolts-only batch is bought by the
-     * box and never nested into bars - rather than zero, which reads as a job that cost nothing.
+     * NULL FOR A NEST THAT DID NOT PLACE EVERY CUT, and that is the important one. The cost the
+     * search minimised carries UNMADE_CUT_PENALTY - a billion dollars a cut - so that nothing can
+     * buy its way past a part the workshop does not get. That makes it a perfectly good number to
+     * RANK candidates by and not a number of dollars: the first backfill over real data turned up
+     * two batches "costed" at five billion, both of them five cuts that no stock length could hold.
+     * A sentinel is not money, so it is not reported as money. See unmadeCuts().
+     *
+     * Also null when nothing on the batch is costed by that model - a bolts-only batch is bought by
+     * the box and never nested into bars - rather than zero, which reads as a job that cost nothing.
      */
     public function nestCost(): ?float
     {
+        if ($this->unmadeCuts() > 0) {
+            return null;
+        }
+
         $cost = null;
 
         foreach ($this->nested_state[NestingEnums::METERAGE->value] ?? [] as $product) {
@@ -299,6 +310,26 @@ class Batch extends Model
         }
 
         return $cost;
+    }
+
+    /**
+     * How many cuts on this batch no bar and no offcut could hold.
+     *
+     * The nest records them per product as "tooLong" - a cut longer than the longest length its
+     * supplier sells, so the plan was saved knowing the workshop does not get that part. It is the
+     * one thing in a saved nest that is not a measurement of steel but a measurement of a problem,
+     * and it is what explains a missing cost rather than leaving that null to read like a
+     * bolts-only batch.
+     */
+    public function unmadeCuts(): int
+    {
+        $unmade = 0;
+
+        foreach ($this->nested_state[NestingEnums::METERAGE->value] ?? [] as $product) {
+            $unmade += count($product->nested['tooLong'] ?? []);
+        }
+
+        return $unmade;
     }
 
     /**

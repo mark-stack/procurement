@@ -251,6 +251,11 @@ class MeasuresReport
      * valuation rather than a record - see Services\NestingSettings. The millimetres and the
      * percentages beside it are unaffected either way: those are measurements of steel, not of money.
      *
+     * The incomplete count is the other reason a batch here has no cost, and it is the one worth
+     * acting on: a nest that could not place every cut is a job somebody has to find material for,
+     * and it is the only thing on this page that is a measurement of a problem rather than of steel.
+     * See Batch::nestCost(), which refuses to report the penalty the search ranks those with.
+     *
      * @param  array<int, BatchMeasurement>  $rows
      * @return array<string, int>
      */
@@ -258,8 +263,13 @@ class MeasuresReport
     {
         $costed = 0;
         $retained = 0;
+        $incomplete = 0;
 
         foreach ($rows as $row) {
+            if ($row->isIncomplete()) {
+                $incomplete++;
+            }
+
             if ($row->cost === null) {
                 continue;
             }
@@ -274,6 +284,7 @@ class MeasuresReport
         return [
             'costed' => $costed,
             'costed_on_retained_settings' => $retained,
+            'incomplete' => $incomplete,
         ];
     }
 }

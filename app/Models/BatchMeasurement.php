@@ -30,8 +30,9 @@ use Illuminate\Support\Carbon;
  * @property float $scrap_mm What was destroyed
  * @property float $efficiency The share of consumed material that became parts
  * @property float $effective_efficiency The share that was not destroyed
- * @property float|null $cost What the nest was costed at, in dollars
+ * @property float|null $cost What the nest was costed at, in dollars - null when it did not place every cut
  * @property bool $cost_from_retained_settings Whether that cost was struck on the settings the nest actually ran on
+ * @property int $unmade_cuts Cuts no bar or offcut could hold, which is why a cost may be missing
  * @property Carbon|null $required_on The day the steel was wanted, as that day stood when it arrived
  * @property Carbon|null $delivered_on The day it arrived
  * @property int|null $days_late Calendar days between the two - negative is early, null is nothing to measure against
@@ -62,6 +63,7 @@ class BatchMeasurement extends Model
             'effective_efficiency' => 'float',
             'cost' => 'float',
             'cost_from_retained_settings' => 'boolean',
+            'unmade_cuts' => 'integer',
             'days_late' => 'integer',
         ];
     }
@@ -117,5 +119,16 @@ class BatchMeasurement extends Model
     public function onTime(): ?bool
     {
         return $this->days_late === null ? null : $this->days_late <= 0;
+    }
+
+    /**
+     * Whether the nest behind this measurement left parts the workshop does not get.
+     *
+     * The yield figures are still true of the steel that WAS nested - an unmade cut consumed none -
+     * but the cost is missing on one of these, and this is what says why. See Batch::nestCost().
+     */
+    public function isIncomplete(): bool
+    {
+        return $this->unmade_cuts > 0;
     }
 }

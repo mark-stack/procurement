@@ -158,7 +158,9 @@ it('reports the cost a batch was costed at, not what it would cost today', funct
 
     expect($measurement->cost)->toEqualWithDelta($costedAt, 0.01)
         //And it says the rates behind it were kept, which is what makes it a record rather than a valuation
-        ->and($measurement->cost_from_retained_settings)->toBeTrue();
+        ->and($measurement->cost_from_retained_settings)->toBeTrue()
+        //This nest placed every cut, so the figure carries no penalty and is money
+        ->and($measurement->unmade_cuts)->toBe(0);
 
     $business->labour_rate_per_hour = 500.00;
     $business->material_cost_per_tonne = 9000.00;
@@ -166,6 +168,60 @@ it('reports the cost a batch was costed at, not what it would cost today', funct
 
     expect($batch->fresh()->nestCost())->toEqualWithDelta($costedAt, 0.01)
         ->and($batch->fresh()->measurement->cost)->toEqualWithDelta($costedAt, 0.01);
+});
+
+it('would be a disaster if an unplaceable cut were reported as a five-billion-dollar batch', function () {
+    /*
+     * Found by running the backfill over real data: two batches "costed" at $5,000,022,477 and
+     * $5,000,007,268, both of them five 8,000mm cuts of angle that no purchasable length could hold.
+     *
+     * NestingCostModel::cost() charges UNMADE_CUT_PENALTY - a billion dollars - per cut nothing can
+     * hold, so that no amount of material saving buys a candidate past a part the workshop does not
+     * get. As a way of ranking candidates that is exactly right and it is why it is that size. It is
+     * not a number of dollars, and it must never be reported as one.
+     */
+    [$business, , $batch] = nestedBatch([[15000, 2], [1700, 3]]);
+
+    expect($batch->unmadeCuts())->toBe(2)
+        //Not a billion-dollar job. No answer at all, which is the honest one
+        ->and($batch->nestCost())->toBeNull();
+
+    $measurement = $batch->measurement;
+
+    expect($measurement->cost)->toBeNull()
+        //And the count is what stops that null reading like a bolts-only batch
+        ->and($measurement->unmade_cuts)->toBe(2)
+        ->and($measurement->isIncomplete())->toBeTrue()
+        /*
+         * The yield is still true of the steel that WAS nested. An unmade cut consumed nothing, so
+         * there is nothing for it to count against - losing the whole measurement over it would
+         * throw away a real reading of real steel.
+         */
+        ->and($measurement->consumed_mm)->toBeGreaterThan(0)
+        ->and($measurement->efficiency)->toBeGreaterThan(0);
+
+    //The report counts it as the problem it is, and leaves it out of the costed batches
+    $report = (new MeasuresReport)->forBusiness($business);
+
+    expect($report['provenance']['incomplete'])->toBe(1)
+        ->and($report['provenance']['costed'])->toBe(0);
+});
+
+it('tells a closed batch\'s card what it could not place, instead of a cost', function () {
+    [, $user, $batch] = nestedBatch([[15000, 2], [1700, 3]]);
+
+    $batch->done = true;
+    $batch->save();
+
+    $this->actingAs($user)
+        ->get(route('past.batches.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('PastBatchesIndex')
+            ->where('pastBatches.0.cost', null)
+            ->where('pastBatches.0.unmadeCuts', 2)
+            //The yield it did achieve is still on the card
+            ->whereNot('pastBatches.0.efficiency', null)
+        );
 });
 
 it('writes down what a nest achieved at the moment it is saved', function () {
