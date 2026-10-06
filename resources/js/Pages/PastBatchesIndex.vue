@@ -107,6 +107,13 @@
     }
 
     /**
+     * The parts this nest could not place, said as parts rather than as a figure.
+     */
+    function unmadeCutsLabel(batch){
+        return batch.unmadeCuts + (batch.unmadeCuts === 1 ? ' cut unplaced' : ' cuts unplaced');
+    }
+
+    /**
      * How the delivery went against the day the steel was wanted.
      *
      * Early is reported as on time rather than as "3 days early", because the measure is whether
@@ -324,6 +331,22 @@
                                 >
                                     <i class="fa-solid fa-coins text-[10px] text-gray-400"></i>
                                     {{ costLabel(batch) }}
+                                </span>
+
+                                <!--
+                                    And the reason a nested batch may show no cost at all: cuts no
+                                    bar or offcut could hold. The nest ranks one of those with a
+                                    billion-dollar penalty so nothing can buy its way past a part
+                                    the workshop does not get - a ranking device, not money, so it
+                                    is reported as what it is.
+                                -->
+                                <span
+                                    v-if="batch.unmadeCuts > 0"
+                                    title="These cuts were longer than any length the supplier sells, so the nest could not place them. The yield beside this is of the steel that was nested."
+                                    class="inline-flex items-center gap-1.5 rounded-md bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-200"
+                                >
+                                    <i class="fa-solid fa-triangle-exclamation text-[10px] text-amber-500"></i>
+                                    {{ unmadeCutsLabel(batch) }}
                                 </span>
 
                                 <!--
