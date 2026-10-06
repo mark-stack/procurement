@@ -139,6 +139,17 @@ class ScrapLedger
         $barIds = $this->barIdsFor($batch, $products);
         $barCursor = 0;
 
+        /*
+         * Priced on the figures this nest was actually run on, not on the business's figures today.
+         *
+         * A batch nested in February and valued in June was being valued at June's steel price and
+         * June's recovery rate, so the kilograms were history and the dollars beside them were a
+         * current opinion - which is the whole gap this closes. The retained snapshot is a carrier
+         * for those numbers rather than the business itself (see Services\NestingSettings), and a
+         * batch nested before it existed falls back to the live business exactly as it always did.
+         */
+        $costSettings = NestingSettings::asOf($batch, $business);
+
         //One cost model per section, not one per drop - a batch is a handful of sections
         $models = [];
         $rows = [];
@@ -149,7 +160,7 @@ class ScrapLedger
                 : null;
 
             $key = $kgPerM ?? 'default';
-            $model = $models[$key] ??= new NestingCostModel($business, $kgPerM);
+            $model = $models[$key] ??= new NestingCostModel($costSettings, $kgPerM);
 
             //Null means the catalogue had no mass for this section, so the model is pricing it at the
             //business default - which the row has to say, or a guess reads like a measurement
@@ -160,7 +171,7 @@ class ScrapLedger
             //New stock: a bar whose leftover did not reach the threshold is scrapped rather than racked
             foreach ($product->nested['utilisedBars'] ?? [] as $utilisedBar) {
                 $drop = (float) ($utilisedBar['result']['unused'] ?? 0);
-                $threshold = $this->thresholdIn($utilisedBar['result'] ?? [], $business);
+                $threshold = $this->thresholdIn($utilisedBar['result'] ?? [], $costSettings);
                 $count = (int) ($utilisedBar['count'] ?? 0);
 
                 /*
@@ -227,13 +238,17 @@ class ScrapLedger
      * 1,200mm offcut it banked before then - those pieces are on the rack. Judging an old nest by
      * today's figure would invent scrap that never happened and lose the offcut it really produced.
      *
+     * The fallback is now the batch's retained settings rather than the live business, which makes
+     * the two copies of this figure say the same thing: the per-bar stamp is the exact one and this
+     * is the batch-wide one behind it. Only a batch older than both lands on today's number.
+     *
      * @param  array<string, mixed>  $result
      */
-    private function thresholdIn(array $result, Business $business): float
+    private function thresholdIn(array $result, Business $settings): float
     {
         $threshold = $result['scrap_threshold_mm'] ?? null;
 
-        return $threshold === null ? (float) $business->scrap_threshold_mm : (float) $threshold;
+        return $threshold === null ? (float) $settings->scrap_threshold_mm : (float) $threshold;
     }
 
     /**

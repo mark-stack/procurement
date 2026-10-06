@@ -29,7 +29,13 @@ class PastBatchesController extends Controller
         $business = auth()->user()->business;
 
         $pastBatches = $business->batches()
-            ->with('user:id,name')
+            /*
+             * The measurement alongside the batcher, because the one thing this page could never say
+             * about a finished job was how it went. One row per batch, loaded in one query with the
+             * rest - what it carries was written when the nest was saved and when the steel landed,
+             * so nothing here is re-nested to produce it. See App\Services\BatchMeasurements.
+             */
+            ->with(['user:id,name', 'measurement'])
             ->inactive()
             ->latest()
             ->get();
@@ -71,6 +77,22 @@ class PastBatchesController extends Controller
                 'projects' => $projectsByBatch->get($pastBatch->id, collect()),
                 'cutCount' => $cutCountByBatch->get($pastBatch->id, 0),
                 'categoryCount' => $categoryCountByBatch->get($pastBatch->id, 0),
+                /*
+                 * What this batch measured, and nulls where it measured nothing.
+                 *
+                 * The cost is the figure the nest was PICKED on, read back out of the measurement
+                 * rather than struck again here - the coefficients behind it are editable, so a
+                 * batch re-costed on this page would answer "what would this job cost today" to a
+                 * reader asking what it cost. costRetained says whether those coefficients were
+                 * kept with the nest; a batch from before they were still shows a figure, and the
+                 * card says which kind of figure it is rather than printing both alike.
+                 */
+                'cost' => $pastBatch->measurement?->cost,
+                'costRetained' => (bool) $pastBatch->measurement?->cost_from_retained_settings,
+                'efficiency' => $pastBatch->measurement?->efficiency,
+                //Null for a batch delivered before deliveries were measured, or one that promised no date
+                'daysLate' => $pastBatch->measurement?->days_late,
+                'deliveredOn' => $pastBatch->measurement?->delivered_on?->toDateString(),
             ];
         }
 

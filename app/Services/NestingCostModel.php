@@ -73,8 +73,13 @@ class NestingCostModel
      * stops discriminating and returns whichever plan it happened to build first.
      *
      * A zero a business has actually chosen still reads as zero - the attribute is present then.
+     *
+     * Public because this is also the list of what a nest has to retain to be re-costed afterwards -
+     * see Services\NestingSettings, which snapshots every key here onto the batch so a historic
+     * batch keeps reporting the cost it was costed at. Two lists would drift the moment a
+     * coefficient was added, and the half that drifted would be the one nothing reads back.
      */
-    private const DEFAULTS = [
+    public const array DEFAULTS = [
         'labour_rate_per_hour' => 50.00,
         'material_cost_per_tonne' => 2000.00,
         /*

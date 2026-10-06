@@ -398,6 +398,7 @@ class NestingFormatter
                 "totalReusable" => 0,
                 "totalKerf" => 0,
                 "totalScrap" => 0,
+                "totalConsumed" => 0,
                 'efficiency' => 0,
                 'effectiveEfficiency' => 0,
             ],
@@ -452,6 +453,17 @@ class NestingFormatter
                     "totalReusable" => $totalReusable,
                     "totalKerf" => $totalKerf,
                     "totalScrap" => $totalScrap,
+                    /*
+                     * The denominator both percentages below are struck against, reported alongside
+                     * them rather than left implicit - see materialConsumed() for why it is not simply
+                     * purchased plus offcut.
+                     *
+                     * Retained with the rest when a nest is measured (Services\BatchMeasurements), and
+                     * that is what it is here for: a month's yield has to be the month's used over the
+                     * month's consumed, summed first and divided once. Averaging a month of per-batch
+                     * percentages gives a two-cut job the same say as one that bought six tonnes.
+                     */
+                    "totalConsumed" => $totalConsumed,
                     /*
                      * Efficiency: the share of the material this nest consumed that left as a finished
                      * piece, and the headline figure on the nesting screens.

@@ -28,7 +28,7 @@ The side effect is worth having: a frontend build that does not compile now fail
 PHPStan runs at level 5 over `app/` (`phpstan.neon`), with `--memory-limit=1G` because the default
 128M is not enough to finish.
 
-Accepted PHPStan errors: 23
+Accepted PHPStan errors: 22
 
 That line is the gate. `scripts/phpstan-gate.php` reads the number from it, so there is one copy of
 it and it sits next to the reasoning for it. **A rise fails the build. A drop does not** - it prints
@@ -38,34 +38,37 @@ real count is a gate that has quietly stopped gating.
 PHPStan's own baseline file would have been the conventional choice and was turned down twice over.
 It suppresses the errors it records, so the accepted list stops being read and the concession
 becomes permanent and invisible; and with `reportUnmatchedIgnoredErrors` on by default, it fails the
-build of whoever *fixes* one. The count gate prints all 23 on every run instead.
+build of whoever *fixes* one. The count gate prints all 22 on every run instead.
 
-### What the 23 are, and why they are accepted
+### What the 22 are, and why they are accepted
 
-Thirteen of the twenty-three are one tooling limitation, not thirteen problems:
+Thirteen of the twenty-two are one tooling limitation, not thirteen problems:
 
 | Count | Identifier | What it is |
 | --- | --- | --- |
 | 13 | `method.notFound` | Larastan loses the concrete model and reports a relation as an undefined method on `Illuminate\Database\Eloquent\Model`. Calls like `->projects()` and `->projectApprovalFlags()` exist and are exercised by the suite. In `AttachPiecesToOrder`, `AttachPiecesToQuote`, `DetachPiecesFromOrder`, `KanbanFormatter` (×3), `PastProjectsController`, `HandleInertiaRequests`, `Product`, `PrerequisiteConditions` (×2), `BatchService` |
-| 3 | `argument.unresolvableType` | The same inference loss reaching `array_values` and `usort`, which then have no element type to check. `Batch:310`, `BatchService:43` (×2) |
+| 3 | `argument.unresolvableType` | The same inference loss reaching `array_values` and `usort`, which then have no element type to check. `Batch:459`, `BatchService:43` (×2) |
 | 1 | `return.type` | `Offcut::batchFrom()` is declared `Batch` and Larastan widens the query result to `Model`. Same cause |
 
 Those seventeen are all the generic-model inference gap. The honest fixes are annotations and
 `@return` docblocks rather than behaviour changes, which is why they are accepted rather than
 patched around with `ignoreErrors` - an ignore pattern would hide the real ones underneath.
 
-The remaining six are specific, and each is a small real thing nobody has got to yet:
+The remaining five are specific, and each is a small real thing nobody has got to yet:
 
 | Where | Identifier | Why it is accepted for now |
 | --- | --- | --- |
-| `TestingFormatter:151` | `property.nonObject` | Reads `->value` off `grade`, a plain `text` column with no cast. It works only while the attribute still holds the enum it was assigned in the same request, which is what the sample BOMs do (`TestingFormatter:76`, `:199`). It would return null against a quote reloaded from the database. Test-support code, reached only from `tests/Pest.php` - so a latent defect in a fixture path, not in anything a customer runs |
-| `Project:398` | `argument.type` | `orderBy('created_at', 'DESC')` - uppercase where the signature now says `'asc'\|'desc'`. Correct SQL, wrong case. A one-character fix nobody has made |
-| `Project:385` | `larastan.noUnnecessaryCollectionCall` | A `pluck` done in PHP that the database could have done. Performance advice on a small collection |
-| `Batch:278` | `nullsafe.neverNull` | `?->name ?? ...` where the left side cannot be null. Harmless belt-and-braces |
-| `PrerequisiteConditions:62` | `booleanAnd.leftAlwaysTrue` | One of six `$condition_n` flags that PHPStan can prove is always true. Worth looking at, because a prerequisite that cannot fail is a check that is not checking |
+| `TestingFormatter:158` | `property.nonObject` | Reads `->value` off `grade`, a plain `text` column with no cast. It works only while the attribute still holds the enum it was assigned in the same request, which is what the sample BOMs do. It would return null against a quote reloaded from the database. Test-support code, reached only from `tests/Pest.php` - so a latent defect in a fixture path, not in anything a customer runs |
+| `Project:686` | `argument.type` | `orderBy('created_at', 'DESC')` - uppercase where the signature now says `'asc'\|'desc'`. Correct SQL, wrong case. A one-character fix nobody has made |
+| `Project:630` | `larastan.noUnnecessaryCollectionCall` | A `pluck` done in PHP that the database could have done. Performance advice on a small collection |
+| `PrerequisiteConditions:61` | `booleanAnd.leftAlwaysTrue` | One of six `$condition_n` flags that PHPStan can prove is always true. Worth looking at, because a prerequisite that cannot fail is a check that is not checking |
 | `DataClassificationService:756` | `booleanOr.rightAlwaysFalse` | As above, on the right of an `\|\|` |
 
-None of the six changes what the application does today. All six are worth clearing, and clearing
+The sixth used to be a `nullsafe.neverNull` on `Batch` - a `?->name ?? ...` whose left side could not
+be null - and it went with the code around it. That is why the line above now reads 22; the count had
+been left at 23 after the fix, which is the drift the gate's own warning exists to catch.
+
+None of the five changes what the application does today. All five are worth clearing, and clearing
 any of them should lower the number on the `Accepted PHPStan errors:` line in the same change.
 
 ## Pint is installed, and deliberately not run
