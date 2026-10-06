@@ -289,16 +289,11 @@
                                     icon="fa-solid fa-scissors"
                                 />
                                 <!--
-                                    Measures. Yield, scrap and on-time delivery by month, and the
-                                    one page here that is about the yard rather than about a job -
-                                    which is why it is in the menu where scrap is not. Scrap is one
-                                    of its three columns and is reached through it.
+                                    Measures stood here, and is admin-only now. It is read one
+                                    business at a time, from the users list, so there is no "my own
+                                    figures" page left for this menu - or for the Admin block
+                                    below - to link to.
                                 -->
-                                <NavButton
-                                    :route="route('measures.index')"
-                                    label="Measures"
-                                    icon="fa-solid fa-chart-line"
-                                />
                                 <!-- Profile -->
                                 <NavButton
                                     :route="route('profile.edit')"

@@ -20,6 +20,17 @@
             type: Object,
             required: true,
         },
+        /**
+         * Whose figures these are - {id, name, domain}.
+         *
+         * The page is admin-only and reached one business at a time from the users list, so it has
+         * to say which business it is showing: yield and on-time delivery are the same three
+         * percentages whoever they belong to.
+         */
+        business: {
+            type: Object,
+            required: true,
+        },
         /** How many months the figures cover. */
         months: {
             type: Number,
@@ -81,19 +92,48 @@
         return value === null || value === undefined ? '0%' : `${Math.max(Math.min(Number(value), 100), 0)}%`;
     }
 
+    //The business goes back in the url, not just the months: without it every window button
+    //walks off the customer being read and onto the admin's own empty yard
     function showWindow(months){
-        router.get(route('measures.index'), {months}, {preserveScroll: true, preserveState: true});
+        router.get(
+            route('measures.index', props.business.id),
+            {months},
+            {preserveScroll: true, preserveState: true},
+        );
     }
 </script>
 
 <template>
-    <Head title="Measures" />
+    <Head :title="`Measures - ${business.name}`" />
 
     <AuthenticatedLayout>
         <div class="py-8">
             <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
                 <header>
-                    <h1 class="text-2xl font-semibold text-gray-900 dark:text-gray-100">Measures</h1>
+                    <!--
+                        Back to where this page is reached from. The window buttons below move
+                        between months of one business, and nothing else on the page leaves it.
+                    -->
+                    <Link
+                        :href="route('admin.users.index')"
+                        class="text-sm text-blue-500 underline"
+                    >
+                        &larr; Users
+                    </Link>
+
+                    <h1 class="mt-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">Measures</h1>
+
+                    <!--
+                        Whose figures, named directly under the heading. Three percentages look the
+                        same for every yard, so a page read one business at a time has to say which
+                        one is on screen.
+                    -->
+                    <p class="mt-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {{ business.name }}
+                        <span v-if="business.domain" class="font-normal text-gray-500 dark:text-gray-400">
+                            &middot; {{ business.domain }}
+                        </span>
+                    </p>
                     <p class="mt-1 max-w-3xl text-sm text-gray-600 dark:text-gray-400">
                         Three things a month can be judged on: how much of the steel became a part,
                         how much of it was destroyed, and how often it was in the yard by the day it

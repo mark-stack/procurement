@@ -17,6 +17,7 @@ use App\Http\Controllers\AdminTemplateReviewController;
 use App\Http\Controllers\AdminTemplateScreenshotController;
 use App\Http\Controllers\AdminTemplateTestController;
 use App\Http\Controllers\AdminUserIndexController;
+use App\Http\Controllers\MeasuresController;
 use App\Http\Controllers\ProofController;
 use App\Http\Controllers\ResendWelcomeEmailController;
 use App\Http\Controllers\TemplateController;
@@ -146,6 +147,25 @@ Route::prefix('admin')->name('admin.')->middleware([AdminMiddleware::class, 'ver
     //page explains the algorithm either way and defaults to the admin's own
     Route::get('nesting-algorithm/{business?}', AdminNestingAlgorithmController::class)->name('nesting.algorithm');
 });
+
+/*
+ * Measures: yield, scrap and on-time delivery by month, for one business.
+ *
+ * Admin-only and gated exactly as the group above is, but at /measures rather than /admin/measures,
+ * for the same reason /proof is - the url is older than the gate, and moving it would break every
+ * link to it that is already written down.
+ *
+ * {business?} rather than the signed-in user's own business, which is how the page read until now:
+ * an admin's own yard has no batches on it, so a page about one business's month-by-month figures
+ * has to be told which business. The users list links here one row at a time, and the optional
+ * parameter falls back the way /admin/nesting-algorithm does.
+ *
+ * A read, and only a read - every figure on the page was written down by the event it measures, so
+ * there is nothing here for anybody to submit. See App\Services\MeasuresReport.
+ */
+Route::get('measures/{business?}', MeasuresController::class)
+    ->middleware([AdminMiddleware::class, 'verified'])
+    ->name('measures.index');
 
 /*
  * Proof: three nesting lifecycles run end to end, offcuts-of-offcuts included.

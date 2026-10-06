@@ -26,7 +26,6 @@ use App\Http\Controllers\MarkAsPastBatchController;
 use App\Http\Controllers\MarkNotificationStatusController;
 use App\Http\Controllers\MaterialCertificateController;
 use App\Http\Controllers\MaterialListFileController;
-use App\Http\Controllers\MeasuresController;
 use App\Http\Controllers\NestingEfficiencyController;
 use App\Http\Controllers\NestingIndexController;
 use App\Http\Controllers\OffcutController;
@@ -242,14 +241,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('scrap', ScrapController::class)->only(['index']);
 
         /*
-         * And the three measures that scrap is one of: how much of the steel became a part, how much
-         * went in the skip, and how often it was there on the day.
+         * The three measures that scrap is one of - how much of the steel became a part, how much
+         * went in the skip, and how often it was there on the day - stood here, beside the scrap
+         * report they share a window with.
          *
-         * Index only, for the same reason as the resource above and more so - every figure on this
-         * page was written down by the event it measures, so there is nothing here for anybody to
-         * submit. See App\Services\MeasuresReport.
+         * They are in routes/adminRoutes.php now, at the same /measures url. Nothing about the page
+         * changed except who may open it: it reads one business's figures a month at a time, which
+         * is a question asked of a customer rather than by one. See App\Services\MeasuresReport.
          */
-        Route::resource('measures', MeasuresController::class)->only(['index']);
 
         /*
          * Orders
