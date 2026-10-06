@@ -2,12 +2,10 @@
 
 namespace App\Http\Resources;
 
-use App\Enums\GradeEnums;
 use App\Enums\MaterialEnums;
-use App\Enums\ProductEnums;
-use App\Enums\SurfaceEnums;
-use App\Services\ProductRules;
+use App\Services\CatalogueTrust;
 use App\Services\ProductService;
+use App\Services\SupplierGroupCosts;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -38,6 +36,7 @@ class ProductResource extends JsonResource
     public function toArray(Request $request): array
     {
         $usage = static::$usage[$this->id] ?? null;
+        $trust = new CatalogueTrust;
 
         return [
             'id' => $this->id,
@@ -53,6 +52,21 @@ class ProductResource extends JsonResource
             'material' => $this->material,
             'grade' => $this->grade,
             'surface' => $this->surface,
+
+            /*
+             * The material as a person says it - "Steel", "Timber" - and whether it is steel at all.
+             *
+             * Worded here rather than in the page, because what the column holds is a join key
+             * written the way a database wants it. Null for the one inherited row whose material is
+             * not a value the enum knows: it is already flagged as an invalid value below, and
+             * inventing a label for it would hide the thing the flag is for.
+             */
+            'material_label' => MaterialEnums::tryFrom((string) $this->material)?->label(),
+            'is_steel' => MaterialEnums::tryFrom((string) $this->material)?->isSteel(),
+
+            //Which merchant this is bought from, which is what decides the price per tonne it is
+            //costed at - see Services\SupplierGroupCosts
+            'supplier_group' => SupplierGroupCosts::forCategory($this->product_category),
 
             //Derived from the category, shown so the consequence of the chosen category is visible
             'nesting_algo' => $this->nesting_algo,
@@ -73,62 +87,29 @@ class ProductResource extends JsonResource
             'baseline_supplier' => $this->baseline_supplier,
             'deprecated' => $this->deprecated,
 
+            //Why this row is flagged and being kept anyway, when somebody has decided that
+            'accepted_reason' => $this->accepted_reason,
+
             'usage' => $usage,
 
             /*
-             * Values the catalogue holds that are no longer legal to save. Flagged rather than
-             * hidden: an unflagged row looks correct, so nobody would ever find the anchor rod whose
-             * nominal length is "`50" - a backtick typed for a 1, which matches no piece spec, makes
-             * it unpurchasable, and had been sitting in the spreadsheet unnoticed.
+             * Why this row cannot be relied on, if it cannot. A deprecated product is never flagged
+             * - no nest resolves a mass from one - so this is empty for every retired row.
+             *
+             * A new CatalogueTrust per row rather than one for the page, unlike $usage above: these
+             * checks read only the row's own columns and ask the database nothing, so there is
+             * nothing to share and nothing to amortise.
              */
-            'invalidValues' => $this->invalidValues(),
+            'trust' => $this->deprecated ? [] : $trust->reasonsFor($this->resource),
+
+            /*
+             * Which columns those are, when the reason is a value the catalogue should no longer
+             * hold. Named rather than merely counted: an unflagged row looks correct, so nobody
+             * would ever find the anchor rod whose nominal length was "`50" - a backtick typed for
+             * a 1, which matched no piece spec, made it unpurchasable, and had been sitting in the
+             * spreadsheet unnoticed.
+             */
+            'invalidValues' => $trust->invalidValues($this->resource),
         ];
-    }
-
-    /**
-     * Every column holding something the rules would now refuse.
-     *
-     * Kept in step with ProductRules on purpose: whatever a JSON import would reject, this screen
-     * already says out loud, so a bad row is never only discoverable by trying to import one.
-     *
-     * @return array<int, string>
-     */
-    private function invalidValues(): array
-    {
-        $enums = [
-            'product_category' => ProductEnums::class,
-            'material' => MaterialEnums::class,
-            'grade' => GradeEnums::class,
-            'surface' => SurfaceEnums::class,
-        ];
-
-        $invalid = [];
-
-        foreach ($enums as $column => $enum) {
-            $value = (string) $this->{$column};
-
-            //A blank is inherited, not invalid - the spreadsheet stored one for every unanswered cell
-            if ($value === '') {
-                continue;
-            }
-
-            if ($enum::tryFrom($value) === null) {
-                $invalid[] = $column;
-            }
-        }
-
-        foreach (ProductRules::MEASUREMENTS as $column) {
-            $value = $this->{$column};
-
-            if ($value === null || $value === '') {
-                continue;
-            }
-
-            if (! is_numeric($value)) {
-                $invalid[] = $column;
-            }
-        }
-
-        return $invalid;
     }
 }

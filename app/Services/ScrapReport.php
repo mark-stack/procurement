@@ -56,6 +56,12 @@ class ScrapReport
             ->get([
                 'id', 'source', 'scrapped_at', 'product_category', 'product_derived_label',
                 'length', 'weight_kg', 'value', 'recovered_value', 'bar_id', 'offcut_id',
+                /*
+                 * Whether this row's mass was the catalogue's or the business default. Every figure
+                 * on the row is derived from it, so it is what lets the totals below say how much
+                 * of themselves rests on an assumption - see tally().
+                 */
+                'kg_per_m_estimated',
             ]);
 
         return [
@@ -285,7 +291,7 @@ class ScrapReport
         //'' rather than null: PHP array keys cannot be null, and a null cast to one silently becomes ''
         $key = $projectId === null ? '' : $projectId;
 
-        $grouped[$key] ??= ['pieces' => 0, 'length_mm' => 0.0, 'weight_kg' => 0.0, 'value' => 0.0, 'recovered_value' => 0.0, 'net_loss' => 0.0];
+        $grouped[$key] ??= ['pieces' => 0, 'length_mm' => 0.0, 'weight_kg' => 0.0, 'estimated_weight_kg' => 0.0, 'value' => 0.0, 'recovered_value' => 0.0, 'net_loss' => 0.0];
 
         /*
          * Counted as a whole piece against every project it is shared with, while the weight and the
@@ -296,6 +302,11 @@ class ScrapReport
         $grouped[$key]['pieces']++;
         $grouped[$key]['length_mm'] += $row->length * $share;
         $grouped[$key]['weight_kg'] += $row->weight_kg * $share;
+
+        if ($row->kg_per_m_estimated) {
+            $grouped[$key]['estimated_weight_kg'] += $row->weight_kg * $share;
+        }
+
         $grouped[$key]['value'] += $row->value * $share;
         $grouped[$key]['recovered_value'] += $row->recovered_value * $share;
         $grouped[$key]['net_loss'] += $row->netLoss() * $share;
@@ -310,6 +321,15 @@ class ScrapReport
      * about one piece - what the rack still thought this was worth when somebody gave up on it -
      * and that question does not add up across a quarter.
      *
+     * estimated_weight_kg IS among them, and it is not a second measurement of scrap. It is how much
+     * of the figure beside it was worked out from a mass nobody recorded: the cost model falls back
+     * to the business default when the catalogue has no kg/m for a section (see
+     * Services\NestingCostModel), and that default is one flat number for light angle and heavy
+     * beam alike. A month whose weight is entirely estimated is not a wrong figure, but it is a
+     * different kind of figure to one read off real sections, and a yield objective set against it
+     * would be measuring the default rather than the yard. Carried through the per-project split
+     * the same way the weight is, so the shares still add back up.
+     *
      * @param  array<int, Scrap>  $rows
      * @return array<string, mixed>
      */
@@ -319,6 +339,7 @@ class ScrapReport
             'pieces' => count($rows),
             'length_mm' => 0.0,
             'weight_kg' => 0.0,
+            'estimated_weight_kg' => 0.0,
             'value' => 0.0,
             'recovered_value' => 0.0,
             'net_loss' => 0.0,
@@ -330,6 +351,10 @@ class ScrapReport
             $totals['value'] += $row->value;
             $totals['recovered_value'] += $row->recovered_value;
             $totals['net_loss'] += $row->netLoss();
+
+            if ($row->kg_per_m_estimated) {
+                $totals['estimated_weight_kg'] += $row->weight_kg;
+            }
         }
 
         return $this->rounded($totals);
@@ -353,6 +378,7 @@ class ScrapReport
             'pieces' => $totals['pieces'],
             'length_mm' => round($totals['length_mm'], 1),
             'weight_kg' => round($totals['weight_kg'], 1),
+            'estimated_weight_kg' => round($totals['estimated_weight_kg'], 1),
             'value' => round($totals['value'], 2),
             'recovered_value' => round($totals['recovered_value'], 2),
             'net_loss' => round($totals['net_loss'], 2),

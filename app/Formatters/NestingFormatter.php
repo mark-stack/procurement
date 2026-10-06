@@ -14,6 +14,7 @@ use App\Models\Product;
 use App\Models\User;
 use App\Services\NestingCostModel;
 use App\Services\ProductService;
+use App\Services\SupplierGroupCosts;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Random\Engine\Mt19937;
@@ -1455,6 +1456,23 @@ class NestingFormatter
             $candidateLengths[] = (int) $offcut['length'];
         }
 
+        /*
+         * Which merchant this section is bought from, so a price per tonne of steel is not applied
+         * to a metre of timber. Derived from the category rather than carried on the spec: the
+         * supplier group is a property of the product implementation, and a spec assembled from
+         * piece columns has never held one.
+         *
+         * Narrowed rather than cast, and the null check is spelled out rather than written as a
+         * nullsafe. A spec is a bare object built from whatever the importer classified, so
+         * product_category may not be set on it at all - and "$spec?->product_category" would read
+         * an undefined property, which this suite promotes to an exception. The coalesce is what
+         * makes the absent case an absent category rather than a warning.
+         *
+         * A category that resolves to no merchant costs the nest on the yard's own figures, exactly
+         * as every nest was costed before merchants existed.
+         */
+        $category = $newPieceSpec === null ? null : ($newPieceSpec->product_category ?? null);
+
         return new NestingCostModel(
             $business,
             /*
@@ -1463,6 +1481,7 @@ class NestingFormatter
              */
             isset($newPieceSpec->kg_per_m) ? (float) $newPieceSpec->kg_per_m : null,
             count($candidateLengths) > 0 ? max($candidateLengths) : null,
+            SupplierGroupCosts::forCategory(is_string($category) ? $category : null),
         );
     }
 

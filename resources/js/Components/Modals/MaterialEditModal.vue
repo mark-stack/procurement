@@ -55,6 +55,7 @@
             pack_size_3: p?.pack_size_3 ?? "",
             kg_per_m: p?.kg_per_m ?? "",
             baseline_supplier: p?.baseline_supplier ?? "",
+            accepted_reason: p?.accepted_reason ?? "",
             deprecated: p?.deprecated ?? false,
         };
     }
@@ -71,6 +72,22 @@
 
     const usage = computed(() => props.product?.usage ?? null);
     const specLocked = computed(() => usage.value?.specLocked === true);
+
+    /**
+     * Why this row is on the catalogue's trust report, if it is - the reason keys defined on
+     * App\Services\CatalogueTrust.
+     *
+     * A product being created carries none: there is nothing to accept about a row that does not
+     * exist yet, and the form's own rules already refuse most of what would put one here.
+     */
+    const trust = computed(() => props.product?.trust ?? []);
+
+    /*
+     * The acceptance box is offered to a flagged row, and to one that already carries an acceptance
+     * - otherwise a reason recorded earlier would become uneditable the moment the row was
+     * corrected, with no way to clear the note that no longer applies.
+     */
+    const canAccept = computed(() => trust.value.length > 0 || (props.product?.accepted_reason ?? "") !== "");
 
     const isSpecColumn = (column) => specColumns.value.includes(column);
     const isLocked = (column) => specLocked.value && isSpecColumn(column);
@@ -124,7 +141,11 @@
      * which is what it was actually built to.
      */
     function deprecateAndCopy(){
-        emit("duplicate", {...form.data(), deprecated: false});
+        /*
+         * accepted_reason is deliberately not carried over. It says why the ORIGINAL row was being
+         * kept as it stands, and the whole point of this button is that it no longer is.
+         */
+        emit("duplicate", {...form.data(), accepted_reason: "", deprecated: false});
     }
 
     /*
@@ -356,6 +377,41 @@
                         />
                         <InputError :message="form.errors.baseline_supplier" class="mt-1"/>
                     </label>
+
+                    <!--
+                        The other half of a catalogue review: a row that is flagged and is going to
+                        stay as it is. The catalogue's only stainless hex bolt carries its grade in
+                        its description and always will; seven LVL rows have no grade because nobody
+                        grades LVL that way. Without somewhere to say so the report never empties,
+                        and a report that cannot reach zero stops being read.
+
+                        Who accepted it and when is not asked for here - saving this is a product
+                        edit like any other, and RecordsChanges already writes down both.
+                    -->
+                    <div v-if="canAccept" class="px-3 py-3 mt-4 border rounded-lg border-amber-200 bg-amber-50/60">
+                        <p class="text-sm font-medium text-amber-900">
+                            This row is on the trust report
+                        </p>
+
+                        <ul class="mt-1 ml-4 text-xs list-disc text-amber-800">
+                            <li v-for="reason in trust" :key="reason">{{ reason.replace(/_/g, " ") }}</li>
+                        </ul>
+
+                        <label class="block mt-2">
+                            <span class="text-sm font-medium text-gray-700">
+                                Accepted because
+                                <span class="font-normal text-gray-500">(leave empty to keep it outstanding)</span>
+                            </span>
+                            <textarea
+                                v-model="form.accepted_reason"
+                                rows="2"
+                                maxlength="1000"
+                                placeholder="e.g. LVL is not graded this way, so the blank is correct"
+                                class="w-full mt-1 text-sm border-gray-300 rounded-md shadow-sm"
+                            ></textarea>
+                            <InputError :message="form.errors.accepted_reason" class="mt-1"/>
+                        </label>
+                    </div>
 
                     <label class="flex items-start gap-2 mt-4">
                         <input v-model="form.deprecated" type="checkbox" class="mt-1 rounded"/>

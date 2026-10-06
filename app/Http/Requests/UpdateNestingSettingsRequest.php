@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Services\NestingCostModel;
 use App\Services\NestingSettings;
+use App\Services\SupplierGroupCosts;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -84,6 +85,22 @@ class UpdateNestingSettingsRequest extends FormRequest
             ];
         }
 
+        /*
+         * The per-merchant overrides, which are the same five coefficients under the same bounds -
+         * a timber price is still a price per tonne and a typo in one is still a typo. What differs
+         * is that every one of them is OPTIONAL: an empty box is how a merchant says "whatever the
+         * yard charges", which is the state almost every merchant is in for almost every business.
+         *
+         * Nested rules rather than one 'array' rule, so a bad figure is reported against the box it
+         * was typed in rather than against the whole section.
+         */
+        $rules['cost_overrides'] = ['sometimes', 'array'];
+        $rules['cost_overrides.*'] = ['array'];
+
+        foreach (NestingCostModel::MERCHANT_COEFFICIENTS as $key) {
+            $rules['cost_overrides.*.'.$key] = ['nullable', ...$this->rulesFor($key)];
+        }
+
         return $rules;
     }
 
@@ -135,7 +152,59 @@ class UpdateNestingSettingsRequest extends FormRequest
     {
         return [
             fn (Validator $validator) => $this->guardRetentionAgainstPurchase($validator),
+            fn (Validator $validator) => $this->guardOverrideKeys($validator),
         ];
+    }
+
+    /**
+     * Single purpose: refuse an override set naming something that is not a merchant, or a
+     * coefficient that is not one a merchant gets to decide.
+     *
+     * Refused rather than dropped, which is the opposite of what SupplierGroupCosts::normalise does
+     * on the reading side - and deliberately. Normalising is for a snapshot written months ago
+     * whose world has moved on, where throwing is not an option and ignoring is the only safe
+     * answer. This is somebody typing now, and a figure silently discarded on the way in is the
+     * worst outcome available: the form comes back looking saved and the nest does not change.
+     *
+     * The labour rate is the one worth naming in the message. It is the plausible mistake - it
+     * looks like a cost, and it is not the merchant's.
+     */
+    private function guardOverrideKeys(Validator $validator): void
+    {
+        $overrides = $this->input('cost_overrides');
+
+        if (! is_array($overrides)) {
+            return;
+        }
+
+        foreach ($overrides as $group => $coefficients) {
+            if (! is_string($group) || ! SupplierGroupCosts::exists($group)) {
+                $validator->errors()->add('cost_overrides', sprintf(
+                    '"%s" is not a supplier group this application buys from.',
+                    is_string($group) ? $group : gettype($group),
+                ));
+
+                continue;
+            }
+
+            if (! is_array($coefficients)) {
+                continue;
+            }
+
+            $unknown = array_diff(array_keys($coefficients), NestingCostModel::MERCHANT_COEFFICIENTS);
+
+            foreach ($unknown as $key) {
+                $validator->errors()->add('cost_overrides.'.$group, sprintf(
+                    '%s is the same for every merchant, so it cannot be set per supplier group. '
+                    .'What a merchant may differ on is %s.',
+                    str_replace('_', ' ', (string) $key),
+                    implode(', ', array_map(
+                        fn (string $allowed): string => str_replace('_', ' ', $allowed),
+                        NestingCostModel::MERCHANT_COEFFICIENTS,
+                    )),
+                ));
+            }
+        }
     }
 
     /**
@@ -175,7 +244,7 @@ class UpdateNestingSettingsRequest extends FormRequest
     /**
      * The validated settings, as the columns want them.
      *
-     * @return array<string, float|int>
+     * @return array<string, mixed>
      */
     public function settings(): array
     {
@@ -188,6 +257,19 @@ class UpdateNestingSettingsRequest extends FormRequest
                 ? (int) $value
                 : (float) $value;
         }
+
+        /*
+         * Normalised, which is what drops the empty boxes - a merchant whose every field was left
+         * blank disappears from the set rather than being stored as a row of nulls. The column then
+         * says what is true: this business has nothing to say about that merchant.
+         *
+         * Null rather than [] when nothing is left, so the column reads the same as it does for a
+         * business that has never opened this section. Nothing downstream distinguishes them, but
+         * an empty object is a decision somebody made and null is the absence of one.
+         */
+        $overrides = SupplierGroupCosts::normalise($this->validated()['cost_overrides'] ?? []);
+
+        $settings[NestingSettings::OVERRIDES_KEY] = $overrides === [] ? null : $overrides;
 
         return $settings;
     }

@@ -206,6 +206,23 @@
                                 {{ scrap.pieces }} separate drops ·
                                 <Link class="underline hover:no-underline" :href="route('scrap.index', {months})">the detail</Link>
                             </p>
+
+                            <!--
+                                An objective is a number with a target, and this page is where one
+                                gets set. So it has to say when the number was derived from a mass
+                                nobody recorded: the cost model falls back to one flat kg/m for
+                                every section the catalogue cannot price, which on a heavy beam is
+                                out by a factor of four. Correcting it is a catalogue job - see the
+                                trust report on Admin > Master Materials.
+                            -->
+                            <p
+                                v-if="scrap.estimated_weight_kg > 0"
+                                class="mt-2 text-xs text-amber-900 dark:text-amber-200"
+                                title="No product in the catalogue carried a mass per metre for these sections, so the business default was used instead"
+                            >
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                                {{ kilograms(scrap.estimated_weight_kg) }} kg from an assumed mass
+                            </p>
                         </div>
 
                         <div class="rounded-xl border border-blue-200 bg-blue-50/60 px-4 py-4 dark:border-blue-900/40 dark:bg-blue-900/10">

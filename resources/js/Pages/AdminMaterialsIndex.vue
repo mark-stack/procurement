@@ -1,12 +1,13 @@
 <script setup>
     //General Imports
     import {Head, Link, router, usePage} from "@inertiajs/vue3";
-    import {computed, ref, watch} from "vue";
+    import {computed, nextTick, ref, watch} from "vue";
 
     //Component Imports
     import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
     import MaterialEditModal from "@/Components/Modals/MaterialEditModal.vue";
     import MaterialImportModal from "@/Components/Modals/MaterialImportModal.vue";
+    import CatalogueReviewModal from "@/Components/Modals/CatalogueReviewModal.vue";
     import ConfirmModal from "@/Components/Modals/ConfirmModal.vue";
     import useConfirm from "@/Shared/useConfirm.js";
 
@@ -17,6 +18,16 @@
         options: Object,
         categoryDefinitions: Object,
         totals: Object,
+
+        /**
+         * What cannot be relied on in here: {products, outstanding, accepted, reasons: [{reason,
+         * label, hint, outstanding, accepted}]}. Worded server side, in App\Services\CatalogueTrust,
+         * so the panel and the record a review writes cannot drift apart.
+         */
+        trust: Object,
+
+        //The last few reviews, newest first. Empty when nobody has ever recorded one
+        reviews: Array,
     });
 
     //Shared Methods
@@ -26,6 +37,15 @@
     const search = ref(props.filters.search);
     const category = ref(props.filters.category);
     const status = ref(props.filters.status);
+
+    /*
+     * Which trust finding the table is narrowed to, or "" for the whole catalogue. Not a select
+     * alongside the three above: it is set by clicking a count on the panel, so the number somebody
+     * read and the rows they land on are the same question asked twice.
+     */
+    const trustFilter = ref(props.filters.trust);
+
+    const reviewing = ref(false);
 
     /**
      * The product open in the modal. `null` closed, `{}` creating from scratch, and a plain object
@@ -37,6 +57,12 @@
 
     //Computed
     const isEmptyCatalogue = computed(() => props.totals.active === 0 && props.totals.deprecated === 0);
+
+    //The most recent review, which is the one the heading answers "when" with
+    const lastReview = computed(() => props.reviews[0] ?? null);
+
+    //The reviews behind the latest, shown as a cadence rather than as a log
+    const earlierReviews = computed(() => props.reviews.slice(1));
 
     /*
      * Flashed by the preview endpoint, which writes nothing. It survives a redirect back to this
@@ -58,11 +84,34 @@
             search: search.value,
             category: category.value,
             status: status.value,
+            trust: trustFilter.value,
         }, {
             preserveState: true,
             preserveScroll: true,
             replace: true,
         });
+    }
+
+    /**
+     * Narrow the table to one trust finding, or back out of it.
+     *
+     * Status goes back to "active" with it, because the report only ever covers active rows - a
+     * filter showing "the 30 products with no mass" while the status select said "deprecated"
+     * would show nothing at all and look broken.
+     */
+    function filterByTrust(reason){
+        trustFilter.value = trustFilter.value === reason ? "" : reason;
+
+        filtersMovedBySelf = true;
+
+        if(trustFilter.value !== ""){
+            status.value = "active";
+        }
+
+        applyFilters();
+
+        //Released after the watcher has had its chance to see the move and ignore it
+        nextTick(() => filtersMovedBySelf = false);
     }
 
     /*
@@ -74,7 +123,19 @@
         clearTimeout(searchTimer);
         searchTimer = setTimeout(applyFilters, 350);
     });
-    watch([category, status], applyFilters);
+
+    /*
+     * filterByTrust() may move the status select as well as the filter, and it navigates itself -
+     * without this the watcher would fire a second identical request off the back of that move.
+     */
+    let filtersMovedBySelf = false;
+    watch([category, status], () => {
+        if(filtersMovedBySelf){
+            return;
+        }
+
+        applyFilters();
+    });
 
     function edit(product){
         prefill.value = null;
@@ -166,6 +227,37 @@
         };
     }
 
+    /**
+     * Reason key => its wording, off the panel. One source for both, so a row's badge and the count
+     * that led somebody to it say the same thing.
+     */
+    const reasonWording = computed(() => Object.fromEntries(
+        props.trust.reasons.map(reason => [reason.reason, reason]),
+    ));
+
+    /**
+     * The findings to badge on one row.
+     *
+     * invalid_value is left out: it has its own badge that names the offending COLUMNS, which is
+     * the only form of it anybody can act on - "a column holding the wrong kind of value" without
+     * saying which column is a worse message than the one already there.
+     */
+    function trustBadges(product){
+        return (product.trust ?? [])
+            .filter(reason => reason !== "invalid_value")
+            .map(reason => reasonWording.value[reason])
+            .filter(Boolean);
+    }
+
+    //"TIMBER_MERCHANT" as somebody would say it. Shown only beside a non-steel row, where "which
+    //merchant" is the reason the row is costed differently from everything around it
+    function merchantLabel(supplierGroup){
+        return supplierGroup
+            .toLowerCase()
+            .replace(/_/g, " ")
+            .replace(/^./, character => character.toUpperCase());
+    }
+
     //The three measurements worth showing in a row, in the order a section is spoken about
     function dimensions(product){
         return [product.nominal_height, product.nominal_width, product.nominal_length]
@@ -225,6 +317,123 @@
                         import a JSON export from another environment, or add products here.
                     </p>
 
+                    <!--
+                        Whether these figures can be relied on.
+
+                        At the top, above the catalogue rather than on a page of its own: kg/m here
+                        is what every tonne price, offcut valuation and scrap write-off in the
+                        application is derived through, and a product with no mass looks exactly
+                        like one with a mass on every other screen there is.
+                    -->
+                    <section
+                        v-if="!isEmptyCatalogue"
+                        class="px-4 py-4 mt-6 border rounded-lg"
+                        :class="trust.outstanding > 0 ? 'border-amber-300 bg-amber-50/60' : 'border-gray-200 bg-gray-50'"
+                    >
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <h2 class="text-sm font-semibold text-gray-900">Review and trust</h2>
+
+                                <p v-if="lastReview" class="mt-1 text-sm text-gray-600">
+                                    Last reviewed <b>{{ lastReview.reviewed_at_label }}</b>
+                                    by {{ lastReview.by }}, over {{ lastReview.products_reviewed }} products
+                                    <template v-if="lastReview.outstanding > 0">
+                                        with {{ lastReview.outstanding }} outstanding
+                                    </template>
+                                    <template v-else>
+                                        with nothing outstanding
+                                    </template>.
+                                </p>
+
+                                <!--
+                                    Said plainly rather than left blank. An unreviewed catalogue is
+                                    the state every catalogue starts in, and it is the one thing an
+                                    audit of a measuring instrument asks about first.
+                                -->
+                                <p v-else class="mt-1 text-sm text-gray-600">
+                                    <b>Nobody has recorded a review of this catalogue.</b>
+                                    Its masses per metre decide every tonne price and every offcut
+                                    valuation in the application.
+                                </p>
+
+                                <p v-if="lastReview?.note" class="mt-1 text-sm text-gray-500">
+                                    &ldquo;{{ lastReview.note }}&rdquo;
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
+                                @click="reviewing = true"
+                            >
+                                <i class="mr-1 fa-solid fa-clipboard-check"></i>
+                                Record a review
+                            </button>
+                        </div>
+
+                        <!--
+                            Each finding is the filter that shows it. A count nobody can act on from
+                            where they read it is a count nobody acts on.
+                        -->
+                        <div class="flex flex-wrap gap-2 mt-4">
+                            <button
+                                v-for="reason in trust.reasons"
+                                :key="reason.reason"
+                                type="button"
+                                class="px-3 py-1.5 text-xs text-left border rounded-md"
+                                :class="[
+                                    trustFilter === reason.reason ? 'ring-2 ring-blue-400' : '',
+                                    reason.outstanding > 0
+                                        ? 'border-amber-300 bg-white text-amber-900 hover:bg-amber-50'
+                                        : 'border-gray-200 bg-white text-gray-400 hover:bg-gray-50',
+                                ]"
+                                :title="reason.hint"
+                                @click="filterByTrust(reason.reason)"
+                            >
+                                <b>{{ reason.outstanding }}</b> {{ reason.label }}
+                                <!--
+                                    Accepted rows stay counted, in their own number. A list that
+                                    quietly dropped what somebody decided to live with could never
+                                    say what the decision was.
+                                -->
+                                <span v-if="reason.accepted" class="text-gray-400">
+                                    (+{{ reason.accepted }} accepted)
+                                </span>
+                            </button>
+                        </div>
+
+                        <p class="mt-3 text-xs text-gray-500">
+                            {{ trust.outstanding }} of {{ trust.products }} active products carry
+                            something unresolved, {{ trust.accepted }} have been looked at and kept
+                            deliberately. Deprecated products are not counted &mdash; nothing resolves
+                            a mass from one.
+                            <button
+                                v-if="trustFilter"
+                                type="button"
+                                class="ml-1 text-blue-600 underline"
+                                @click="filterByTrust('')"
+                            >
+                                Show the whole catalogue
+                            </button>
+                            <button
+                                v-else-if="trust.outstanding > 0"
+                                type="button"
+                                class="ml-1 text-blue-600 underline"
+                                @click="filterByTrust('any')"
+                            >
+                                Show every flagged row
+                            </button>
+                        </p>
+
+                        <!-- The cadence, not a log. "Reviewed regularly" is a claim about a series -->
+                        <p v-if="earlierReviews.length" class="mt-2 text-xs text-gray-400">
+                            Earlier reviews:
+                            <span v-for="(review, index) in earlierReviews" :key="review.id">
+                                <template v-if="index">, </template>{{ review.reviewed_at_label }} ({{ review.by }})
+                            </span>
+                        </p>
+                    </section>
+
                     <!-- Filters -->
                     <div class="grid gap-3 mt-6 sm:grid-cols-4">
                         <label class="block sm:col-span-2">
@@ -261,6 +470,7 @@
                             <thead class="bg-gray-50">
                                 <tr class="text-left text-gray-500">
                                     <th scope="col" class="px-4 py-3 font-normal">Product</th>
+                                    <th scope="col" class="px-4 py-3 font-normal">Material</th>
                                     <th scope="col" class="px-4 py-3 font-normal">Spec</th>
                                     <th scope="col" class="px-4 py-3 font-normal">Size</th>
                                     <th scope="col" class="px-4 py-3 font-normal">kg/m</th>
@@ -295,11 +505,68 @@
                                         >
                                             bad {{ product.invalidValues.join(", ") }}
                                         </span>
+
+                                        <!--
+                                            Why this row is on the trust report. Amber rather than
+                                            red: none of these make the row wrong, they make what is
+                                            derived from it an assumption.
+                                        -->
+                                        <span
+                                            v-for="badge in trustBadges(product)"
+                                            :key="badge.reason"
+                                            class="inline-block px-1.5 py-0.5 mt-1 ml-1 text-xs font-semibold rounded"
+                                            :class="product.accepted_reason ? 'text-gray-600 bg-gray-100' : 'text-amber-800 bg-amber-100'"
+                                            :title="badge.hint"
+                                        >
+                                            {{ badge.label.toLowerCase() }}
+                                        </span>
+
+                                        <!--
+                                            Somebody has been here and decided to keep it as it is.
+                                            Shown on the row rather than only in the edit form, so
+                                            a list of flagged rows reads as "these three are
+                                            settled, that one is not".
+                                        -->
+                                        <p v-if="product.accepted_reason" class="mt-1 text-xs italic text-gray-500">
+                                            Accepted: {{ product.accepted_reason }}
+                                        </p>
                                     </td>
+                                    <!--
+                                        What this is made of, said the way a person says it. The
+                                        column it comes from is a join key written the way a
+                                        database wants it - PLAIN_CARBON_STEEL down 1,100 rows says
+                                        nothing, because nearly all of them are. What a reader is
+                                        scanning for is the handful that are not steel, because
+                                        those are priced through a different merchant and weigh
+                                        something else entirely.
+                                    -->
+                                    <td class="px-4 py-3 whitespace-nowrap">
+                                        <span
+                                            v-if="product.material_label"
+                                            :class="product.is_steel ? '' : 'font-medium text-amber-800'"
+                                            :title="product.material"
+                                        >
+                                            {{ product.material_label }}
+                                        </span>
+                                        <span v-else class="text-gray-400">—</span>
+
+                                        <span
+                                            v-if="product.supplier_group && !product.is_steel"
+                                            class="block text-xs text-gray-500"
+                                        >
+                                            {{ merchantLabel(product.supplier_group) }}
+                                        </span>
+                                    </td>
+
                                     <td class="px-4 py-3">
                                         <p>{{ product.product_category }}</p>
+                                        <!--
+                                            Material has its own column now, so it is not repeated
+                                            here - what is left is what distinguishes two products
+                                            of the same category and material.
+                                        -->
                                         <p class="text-xs text-gray-500">
-                                            {{ [product.material, product.grade, product.surface].filter(Boolean).join(" / ") || "—" }}
+                                            {{ [product.grade, product.surface].filter(Boolean).join(" / ") || "—" }}
                                         </p>
                                     </td>
                                     <td class="px-4 py-3 whitespace-nowrap">
@@ -369,7 +636,7 @@
                                 </tr>
 
                                 <tr v-if="products.data.length === 0">
-                                    <td colspan="8" class="px-4 py-8 text-center text-gray-500">
+                                    <td colspan="9" class="px-4 py-8 text-center text-gray-500">
                                         Nothing matches those filters.
                                     </td>
                                 </tr>
@@ -428,6 +695,13 @@
         v-if="importing"
         :plan="importPlan"
         @close="importing = false"
+    />
+
+    <CatalogueReviewModal
+        v-if="reviewing"
+        :trust="trust"
+        @recorded="reviewing = false"
+        @cancel="reviewing = false"
     />
 
     <ConfirmModal

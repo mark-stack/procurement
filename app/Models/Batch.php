@@ -366,28 +366,65 @@ class Batch extends Model
         }
 
         $formatter = new SupplierFormatter;
-        $groups = $formatter->groupsFor($buyingCategories, $formatter->supplierGroups($business));
+        $supplierGroups = $formatter->supplierGroups($business);
 
         /*
-         * At least one, however the categories resolve. A product category that matches no supplier
-         * group still gets bought from somebody, and counting zero orders for it would deduct the
-         * whole overhead rather than the duplication of it.
+         * Counted PER MERCHANT, not as one pool. The flat delivery fee is one of the coefficients a
+         * business may set per supplier group (NestingCostModel::MERCHANT_COEFFICIENTS) - a timber
+         * merchant's truck is not a steel merchant's truck - so a deduction struck at the yard-wide
+         * rate would take back the wrong money the moment anybody set one.
+         *
+         * HOW MANY are deducted is unchanged, deliberately. Only the rate each one is priced at
+         * moves, and only for a business that has said a merchant charges something different.
          */
-        $orders = max(count($groups), 1);
-        $duplicates = count($buyingCategories) - $orders;
+        $countsByGroup = [];
+        $unmatched = 0;
 
-        if ($duplicates < 1) {
-            return 0.0;
+        foreach ($buyingCategories as $category) {
+            $group = null;
+
+            foreach ($supplierGroups as $name => $includedProducts) {
+                if (in_array($category, $includedProducts, true)) {
+                    $group = (string) $name;
+
+                    break;
+                }
+            }
+
+            $group === null ? $unmatched++ : $countsByGroup[$group] = ($countsByGroup[$group] ?? 0) + 1;
         }
 
         $settings = NestingSettings::asOf($this, $business);
 
+        $deduct = 0.0;
+
+        foreach ($countsByGroup as $group => $count) {
+            if ($count < 2) {
+                continue;
+            }
+
+            /*
+             * The overhead is the one cost in the model that does not scale with the section - the
+             * paperwork for a tonne of beam is the paperwork for a length of angle - so a model
+             * built without a mass per metre answers for the whole merchant.
+             */
+            $deduct += ($count - 1) * (new NestingCostModel($settings, null, null, $group))->orderOverheadCost();
+        }
+
         /*
-         * The overhead is the one cost in the model that does not scale with the section - the
-         * paperwork for a tonne of beam is the paperwork for a length of angle - so a model built
-         * without a mass per metre answers for the whole batch.
+         * A product category that matches no supplier group still gets bought from somebody, and
+         * counting zero orders for it would deduct the whole overhead rather than the duplication
+         * of it. So it rides with an order that is already being raised, and only stands as an
+         * order of its own when there is nothing for it to ride with. Priced at the yard's rate,
+         * which is the only honest figure for a merchant nothing can name.
          */
-        return $duplicates * (new NestingCostModel($settings))->orderOverheadCost();
+        $unmatchedDuplicates = $countsByGroup === [] ? max($unmatched - 1, 0) : $unmatched;
+
+        if ($unmatchedDuplicates > 0) {
+            $deduct += $unmatchedDuplicates * (new NestingCostModel($settings))->orderOverheadCost();
+        }
+
+        return $deduct;
     }
 
     /**

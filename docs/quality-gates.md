@@ -47,7 +47,7 @@ Thirteen of the twenty-two are one tooling limitation, not thirteen problems:
 | Count | Identifier | What it is |
 | --- | --- | --- |
 | 13 | `method.notFound` | Larastan loses the concrete model and reports a relation as an undefined method on `Illuminate\Database\Eloquent\Model`. Calls like `->projects()` and `->projectApprovalFlags()` exist and are exercised by the suite. In `AttachPiecesToOrder`, `AttachPiecesToQuote`, `DetachPiecesFromOrder`, `KanbanFormatter` (×3), `PastProjectsController`, `HandleInertiaRequests`, `Product`, `PrerequisiteConditions` (×2), `BatchService` |
-| 3 | `argument.unresolvableType` | The same inference loss reaching `array_values` and `usort`, which then have no element type to check. `Batch:459`, `BatchService:43` (×2) |
+| 3 | `argument.unresolvableType` | The same inference loss reaching `array_values` and `usort`, which then have no element type to check. `Batch:605`, `BatchService:43` (×2) |
 | 1 | `return.type` | `Offcut::batchFrom()` is declared `Batch` and Larastan widens the query result to `Model`. Same cause |
 
 Those seventeen are all the generic-model inference gap. The honest fixes are annotations and
