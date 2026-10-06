@@ -125,7 +125,28 @@
                                         </span>
                                     </td>
                                     <td>
-                                        <span v-if="user.business">{{user.business.domain}}</span>
+                                        <template v-if="user.business">
+                                            <div>{{user.business.domain}}</div>
+                                            <!--
+                                                Measures: what this yard's steel and deliveries came
+                                                to, month by month. Under the domain rather than in
+                                                a column of its own because it is about the business
+                                                and not about this row's user - two people in the
+                                                same business both link to the same figures.
+
+                                                No number beside it, unlike Templates and Emails: a
+                                                yield percentage is only readable next to the months
+                                                either side of it, and a business with nothing
+                                                nested yet is not a problem to go and fix.
+                                            -->
+                                            <Link
+                                                class="text-xs underline text-blue-500"
+                                                :href="route('measures.index',user.business.id)"
+                                                title="Yield, scrap and on-time delivery by month for this business"
+                                            >
+                                                Measures
+                                            </Link>
+                                        </template>
                                         <span v-else class="text-red-500 font-bold">No business</span>
                                     </td>
                                     <td>

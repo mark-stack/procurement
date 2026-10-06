@@ -6,6 +6,7 @@ use App\Models\Batch;
 use App\Models\BatchMeasurement;
 use App\Models\Project;
 use App\Models\Scrap;
+use App\Models\User;
 use App\Services\BatchMeasurements;
 use App\Services\MeasuresReport;
 use App\Services\NestingCostModel;
@@ -507,13 +508,19 @@ it('would be a disaster if one business could read another business\'s measureme
 });
 
 it('carries the three series onto the measures page', function () {
-    [, $user, ] = nestedBatch([[7000, 2], [1700, 7]]);
+    [$business, , ] = nestedBatch([[7000, 2], [1700, 7]]);
 
-    $this->actingAs($user)
-        ->get(route('measures.index'))
+    //The admin nestedBatch already made: every admin fixture shares the one configured
+    //address, so creating a second collides on users.email
+    $admin = User::query()->where('is_admin', true)->firstOrFail();
+
+    $this->actingAs($admin)
+        ->get(route('measures.index', $business->id))
         ->assertInertia(fn (Assert $page) => $page
             ->component('MeasuresIndex')
             ->where('months', MeasuresReport::DEFAULT_MONTHS)
+            ->where('business.id', $business->id)
+            ->where('business.name', $business->name)
             ->where('report.yield.batches', 1)
             ->where('report.scrap.pieces', 3)
             ->has('report.delivery')
@@ -521,13 +528,62 @@ it('carries the three series onto the measures page', function () {
         );
 
     //And a shorter window when one is asked for, anything else falling back rather than reaching the report
-    $this->actingAs($user)
-        ->get(route('measures.index', ['months' => 3]))
+    $this->actingAs($admin)
+        ->get(route('measures.index', [$business->id, 'months' => 3]))
         ->assertInertia(fn (Assert $page) => $page->where('months', 3)->has('report.by_month', 3));
 
-    $this->actingAs($user)
-        ->get(route('measures.index', ['months' => 9999]))
+    $this->actingAs($admin)
+        ->get(route('measures.index', [$business->id, 'months' => 9999]))
         ->assertInertia(fn (Assert $page) => $page->where('months', MeasuresReport::DEFAULT_MONTHS));
+});
+
+it('reads the business in the url, not the one the admin happens to belong to', function () {
+    /*
+     * The whole reason the page takes a parameter. An admin's own business has never nested
+     * anything, so a page that resolved the business from the session would answer every question
+     * about every customer with an empty year.
+     */
+    [$business, , ] = nestedBatch([[7000, 2], [1700, 7]]);
+
+    $admin = User::query()->where('is_admin', true)->firstOrFail();
+
+    //Asked for, the customer's figures
+    $this->actingAs($admin)
+        ->get(route('measures.index', $business->id))
+        ->assertInertia(fn (Assert $page) => $page->where('report.yield.batches', 1));
+
+    //Not asked for, the admin's own - which is empty, and says so rather than borrowing anyone's
+    $this->actingAs($admin)
+        ->get(route('measures.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('business.id', $admin->business_id)
+            ->where('report.yield.batches', 0)
+        );
+});
+
+it('would be a disaster if a customer could read a business\'s measures', function () {
+    /*
+     * The page is one business's yield, scrap and delivery record, and it is now reached by id. A
+     * customer who could open it could read every other yard on the platform by typing a number,
+     * so the gate is the whole of the protection - see routes/adminRoutes.php.
+     */
+    [$business, $user, ] = nestedBatch([[7000, 2], [1700, 7]]);
+
+    $theirs = createBusiness('theirs');
+
+    //Their own business, and somebody else's: a non-admin gets neither
+    $this->actingAs($user)
+        ->get(route('measures.index', $business->id))
+        ->assertRedirect('/');
+
+    $this->actingAs($user)
+        ->get(route('measures.index', $theirs->id))
+        ->assertRedirect('/');
+
+    //And signed out, the login page rather than the board - see AdminMiddleware
+    auth()->logout();
+
+    $this->get(route('measures.index', $business->id))->assertRedirect(route('login'));
 });
 
 it('shows a closed batch what it was costed at, and says when that figure is only a valuation', function () {
