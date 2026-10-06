@@ -358,6 +358,16 @@
                                     label="Proof"
                                     icon="fa-solid fa-flask"
                                 />
+                                <!--
+                                    2D Nesting
+                                    A proof of concept, and nothing else in the application nests plate.
+                                    Whether the offcut philosophy survives the second dimension.
+                                -->
+                                <NavButton
+                                    :route="route('admin.nesting.2d')"
+                                    label="2D Nesting"
+                                    icon="fa-solid fa-border-all"
+                                />
                                 <!-- Telescope: not an Inertia page, so it stays a plain link -->
                                 <a href="/telescope/exceptions" :class="[panelLink, 'text-gray-600 hover:bg-gray-100 hover:text-gray-700']">
                                     <i class="w-4 text-center fa-solid fa-bug"></i>
