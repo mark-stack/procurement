@@ -45,6 +45,13 @@
   here to finish by hand. `TEMPLATE_LEARNING_ENABLED=false` switches the feature off deliberately
 - Health check: `/up`. Optional: `BILLING_DRIVER=stripe` with `STRIPE_SECRET`,
   `STRIPE_WEBHOOK_SECRET` and a price id per card-paid plan
+- `php artisan billing:check` after any change to the billing environment, and once on the server
+  after switching `BILLING_DRIVER`. It asks Stripe about every price id in `config/billing.php` and
+  compares amount, currency, interval, tax behaviour and live/test mode against what the billing
+  page quotes. Worth the step because a wrong price id has no symptom: `canSell()` only asks whether
+  an id is set, so a typo, an archived price or a test-mode id under a live key takes the plan off
+  the billing page in silence and the site goes on selling whatever is left. `--strict` fails on
+  warnings too, for a deploy step that should stop
 
 ### Create a project:
 - Projects page > "+add project to nesting". Modal will popup

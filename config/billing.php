@@ -66,6 +66,11 @@ return [
     | in the Stripe dashboard must be created tax-exclusive and collect_tax turned on for Stripe
     | Tax to add GST at checkout. Left off, customers are charged the bare ex-GST figure.
     |
+    | Decided on 2026-10-06: GST is collected, and .env.example carries BILLING_COLLECT_TAX=true.
+    | The default here stays false, because it is read in environments that have no Stripe account
+    | behind them and a default that assumes Stripe Tax is enabled would fail a checkout rather than
+    | skip a tax. php artisan billing:check warns when the live driver is stripe and this is off.
+    |
     */
 
     'currency' => env('BILLING_CURRENCY', 'aud'),
