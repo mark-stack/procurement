@@ -145,7 +145,17 @@ it('would be a disaster if an offcut was cut up when a bar being bought had the 
      * 5,900mm of the 12,000mm bar left as pieces. The 6,100mm banked off the end is steel the business
      * paid for that is not in the structure, so it is charged here - see materialConsumed().
      */
-    expect($formatter->effectiveEfficiency($totals))->toBe(49.2);
+    expect($formatter->efficiency($totals))->toBe(49.2);
+
+    /*
+     * The same nest on the other question, and the two must not be allowed to collapse back into one.
+     * Nothing was scrapped and the kerf is zero, so NOTHING was destroyed - 100%, against 49.2% for
+     * what the job cost to make. This nest is the whole reason both figures exist: for a while one
+     * method served both names, so the Proof page printed this 49.2% under the heading "Not destroyed".
+     */
+    expect($formatter->shareNotDestroyed($totals))->toBe(100.0)
+        ->and($result['efficiency'])->toBe(49.2)
+        ->and($result['effectiveEfficiency'])->toBe(100.0);
 });
 
 it('would be a disaster if the offcut nesting was not searched along with the packing', function () {
