@@ -2,6 +2,7 @@
 
 namespace App\Billing\Contracts;
 
+use App\Billing\BillingCheck;
 use App\Billing\Plan;
 use App\Billing\SubscriptionState;
 use App\Models\Business;
@@ -9,9 +10,10 @@ use App\Models\Business;
 /**
  * Everything the application is allowed to ask of whoever takes the money.
  *
- * Deliberately small. Five methods is what it takes to sell a subscription and know whether one is
- * live, and anything richer - proration, coupons, usage metering, invoice PDFs - would be a Stripe
- * idea leaking into an interface that Paddle also has to satisfy.
+ * Deliberately small. Six methods is what it takes to sell a subscription, know whether one is live,
+ * and say whether this provider is set up to do either, and anything richer - proration, coupons,
+ * usage metering, invoice PDFs - would be a Stripe idea leaking into an interface that Paddle also
+ * has to satisfy.
  *
  * Implementations are the only place in the codebase allowed to import a provider's SDK.
  */
@@ -59,4 +61,17 @@ interface BillingProvider
      * account of what was cancelled and when.
      */
     public function manageUrl(Business $business, string $returnUrl): ?string;
+
+    /**
+     * Everything that has to be true before this provider can take money, checked against the
+     * provider itself rather than against config.
+     *
+     * canSell() answers the same question from config alone, which is all a page render can afford
+     * and is why a mistyped price id reads as "this plan is not for sale" and withdraws it from the
+     * billing page in silence. This is the expensive version: it may call the provider's API, it is
+     * allowed to be slow, and nothing but php artisan billing:check calls it.
+     *
+     * @return array<int, BillingCheck>
+     */
+    public function preflight(): array;
 }

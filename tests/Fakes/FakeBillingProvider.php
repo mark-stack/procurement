@@ -2,6 +2,7 @@
 
 namespace Tests\Fakes;
 
+use App\Billing\BillingCheck;
 use App\Billing\Contracts\BillingProvider;
 use App\Billing\Plan;
 use App\Billing\SubscriptionState;
@@ -38,6 +39,9 @@ class FakeBillingProvider implements BillingProvider
     /** @var array<int, string> plan keys a checkout was started for, in order */
     public array $checkoutsStarted = [];
 
+    /** @var array<int, BillingCheck> what preflight() reports, for billing:check */
+    public array $checks = [];
+
     public function name(): string
     {
         return 'fake';
@@ -72,5 +76,13 @@ class FakeBillingProvider implements BillingProvider
     public function manageUrl(Business $business, string $returnUrl): ?string
     {
         return $this->manageUrl;
+    }
+
+    /**
+     * @return array<int, BillingCheck>
+     */
+    public function preflight(): array
+    {
+        return $this->checks;
     }
 }
