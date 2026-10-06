@@ -1,9 +1,10 @@
 ---
 id: TASK-008
 title: Master catalogue review record and measurement inputs
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-10-01 01:56'
+updated_date: '2026-10-06 00:22'
 labels:
   - iso-9001
   - clause-7.1.5
