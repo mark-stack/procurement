@@ -26,7 +26,7 @@ class ProductRules
         'nominal_length', 'precise_length', 'nominal_width', 'precise_width',
         'nominal_height', 'precise_height', 'wall',
         'pack_size_1', 'pack_size_2', 'pack_size_3', 'kg_per_m', 'baseline_supplier',
-        'deprecated',
+        'accepted_reason', 'deprecated',
     ];
 
     /**
@@ -96,6 +96,17 @@ class ProductRules
             'certificates' => ['present', 'nullable', 'boolean'],
 
             'baseline_supplier' => ['nullable', 'string', 'max:1000'],
+
+            /*
+             * Why a row the trust report flags is being kept as it is - see Services\CatalogueTrust.
+             *
+             * 'nullable' rather than 'present', unlike every other column here. Everything else on
+             * this list describes the product, so a body that omitted one would be leaving a column
+             * alone by accident; this one describes a DECISION about the product, and a form or an
+             * import that does not mention it is not making that decision. Requiring it present
+             * would also mean every JSON file exported before this column existed was refused.
+             */
+            'accepted_reason' => ['nullable', 'string', 'max:1000'],
 
             'deprecated' => ['required', 'boolean'],
         ];

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdminCatalogueReviewController;
 use App\Http\Controllers\AdminImpersonationController;
 use App\Http\Controllers\AdminMaterialDestroyController;
 use App\Http\Controllers\AdminMaterialExportController;
@@ -104,6 +105,16 @@ Route::prefix('admin')->name('admin.')->middleware([AdminMiddleware::class, 'ver
 
     //GET: reads nothing but the catalogue and changes nothing
     Route::get('materials/export', AdminMaterialExportController::class)->name('materials.export');
+
+    /*
+     * Records that a person has read the catalogue, and what the trust report still said when they
+     * did. POST because it writes, and above materials/{product} because that route binds on a bare
+     * id - "reviewed" is not a product, but nothing in the pattern says so.
+     *
+     * Appended to rather than overwritten: a periodic review is a claim about a sequence of dates,
+     * so each one is its own row. See AdminCatalogueReviewController.
+     */
+    Route::post('materials/reviewed', AdminCatalogueReviewController::class)->name('materials.reviewed');
 
     //PlatformProductMiddleware: {product} resolves by id alone, so without it a mistyped id
     //edits or deletes a business's own private product

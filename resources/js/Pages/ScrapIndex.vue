@@ -161,6 +161,25 @@
                             <p class="text-xs uppercase tracking-wide text-amber-800 dark:text-amber-300">Destroyed</p>
                             <p class="mt-1 text-2xl font-semibold text-amber-900 dark:text-amber-200">{{ kilograms(totals.weight_kg) }} kg</p>
                             <p class="mt-1 text-xs text-amber-800/80 dark:text-amber-300/80">over {{ months }} months</p>
+
+                            <!--
+                                How much of that figure was weighed with a ruler rather than read
+                                off a section. The cost model falls back to one flat mass per metre
+                                when the catalogue has none for a product, and that default is about
+                                right for light angle and four times out on a heavy beam - so a
+                                total that rests on it is a different kind of answer to one that
+                                does not, and the tile says which it is rather than letting an
+                                objective be set against a guess.
+                            -->
+                            <p
+                                v-if="totals.estimated_weight_kg > 0"
+                                class="mt-2 text-xs text-amber-900 dark:text-amber-200"
+                                title="No product in the catalogue carried a mass per metre for these sections, so the business default was used instead"
+                            >
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                                {{ kilograms(totals.estimated_weight_kg) }} kg of it worked out from
+                                an assumed mass
+                            </p>
                         </div>
 
                         <div class="rounded-xl border border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-900">
