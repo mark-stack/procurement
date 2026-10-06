@@ -7,6 +7,7 @@ use App\Billing\SubscriptionState;
 use App\Enums\SupplierGroupEnums;
 use App\Formatters\SupplierFormatter;
 use App\Services\ProductService;
+use App\Services\SupplierGroupCosts;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -174,7 +175,31 @@ class Business extends Model
              */
             'trial_ends_at' => 'datetime',
             'manual_access_until' => 'datetime',
+
+            /*
+             * What each merchant charges, where it is not what the steel merchant charges - see the
+             * migration that added it and Services\SupplierGroupCosts.
+             *
+             * The cast earns its keep twice over. Services\NestingSettings hands a retained snapshot
+             * back as an unsaved Business built from a plain array, so this column arrives already
+             * decoded there and as JSON text everywhere else; the cast is what makes those two the
+             * same object to read from.
+             */
+            'cost_overrides' => 'array',
         ];
+    }
+
+    /**
+     * What this business has said one merchant charges, cleaned up.
+     *
+     * Empty for a merchant it has said nothing about, which is every merchant for almost every
+     * business - a yard that buys only steel never needs to answer this.
+     *
+     * @return array<string, float>
+     */
+    public function merchantCoefficients(string $supplierGroup): array
+    {
+        return SupplierGroupCosts::normalise($this->getAttribute('cost_overrides'))[$supplierGroup] ?? [];
     }
 
     /**

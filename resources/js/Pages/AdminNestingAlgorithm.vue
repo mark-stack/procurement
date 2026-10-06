@@ -20,6 +20,16 @@
         cleanout: Object,
         invariant: Object,
         sections: Object,
+
+        /**
+         * The five dials a merchant may carry its own figure for: [{key, label, unit, yardValue}].
+         * Worded server side off the full settings list, so the two cannot describe "freight"
+         * differently.
+         */
+        merchantCoefficients: Array,
+
+        /** Every supplier group, with what this business has said about it: [{value, label, overrides}]. */
+        merchants: Array,
     });
 
     /*
@@ -61,9 +71,57 @@
      * figures it was run on (Services\NestingSettings), so changing one of these decides the next
      * nest and restates nothing already nested, already scrapped or already measured.
      */
-    const settingsForm = useForm(
-        Object.fromEntries(props.settings.map(setting => [setting.key, setting.value]))
-    );
+    const settingsForm = useForm({
+        ...Object.fromEntries(props.settings.map(setting => [setting.key, setting.value])),
+
+        /*
+         * The per-merchant figures, in the same form as the dials because they are saved by the same
+         * press. Every merchant gets every key, filled with "" where it has no figure of its own -
+         * a sparse object would mean binding an input to a property that does not exist yet, and
+         * Vue cannot track one into existence.
+         *
+         * Bound as strings rather than numbers (no .number modifier on those inputs), which is what
+         * keeps "" distinguishable from 0. v-model.number turns an emptied box into NaN or 0
+         * depending on the browser, and 0 is a real answer here - a timber merchant genuinely pays
+         * nothing for offcuts. The server reads "" as "no override" and 0 as nought.
+         */
+        cost_overrides: Object.fromEntries(props.merchants.map(merchant => [
+            merchant.value,
+            Object.fromEntries(props.merchantCoefficients.map(coefficient => [
+                coefficient.key,
+                merchant.overrides[coefficient.key] ?? "",
+            ])),
+        ])),
+    });
+
+    //Shorthand for the template, which reaches into this twice per input
+    const overridesForm = computed(() => settingsForm.cost_overrides);
+
+    /*
+     * Which merchants are costed differently from the yard, whether because this business said so
+     * or because the platform already knows the material is not steel. Both count: the summary is
+     * answering "does anything in here not follow the dials above", and for timber the answer is
+     * yes before anybody opens it.
+     */
+    const merchantsWithFigures = computed(() => props.merchants
+        .filter(merchant => merchant.hasPlatformFigures
+            || Object.values(merchant.overrides).some(value => value !== null))
+        .map(merchant => merchant.label));
+
+    /*
+     * Open by default when there is something in it. A yard that buys only steel should not have to
+     * read past a section that says nothing about it; one that has set a timber rate should not have
+     * to go looking for it.
+     */
+    const showMerchants = ref(merchantsWithFigures.value.length > 0);
+
+    /*
+     * The errors that belong to the section rather than to one box - an unrecognised merchant, or a
+     * coefficient a merchant does not get to decide. Laravel keys those on the parent.
+     */
+    const overridesError = computed(() => settingsForm.errors.cost_overrides
+        ?? Object.entries(settingsForm.errors).find(([key]) => /^cost_overrides\.[A-Z_]+$/.test(key))?.[1]
+        ?? null);
 
     function saveSettings(){
         settingsForm.patch(route('admin.nesting.settings.update', props.business.id), {
@@ -1054,6 +1112,121 @@
                             <p class="mt-1 text-xs leading-relaxed text-gray-600 sm:mt-0">{{ setting.blurb }}</p>
                         </li>
                     </ul>
+
+                    <!--
+                        Where the yard's figures are not the whole story.
+
+                        Everything above is one number for the business, which is right for a yard
+                        that buys steel and only steel. The catalogue has held LVL all along -
+                        timber, bought from a timber merchant, nested by the metre exactly like a
+                        section - and it was being priced at the steel rate with a scrap-merchant
+                        rebate on every drop that nobody ever paid.
+                    -->
+                    <section class="border-t border-gray-200">
+                        <button
+                            type="button"
+                            class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-gray-50"
+                            @click="showMerchants = !showMerchants"
+                        >
+                            <span>
+                                <span class="text-sm font-semibold text-gray-900">What each merchant charges</span>
+                                <span class="mt-0.5 block text-xs text-gray-600">
+                                    Five of the dials above can differ by supplier. An empty box uses
+                                    whatever its placeholder shows &mdash; the yard figure for most
+                                    merchants, something else where the material is not steel.
+                                </span>
+                            </span>
+
+                            <span class="flex items-center gap-2 whitespace-nowrap">
+                                <span
+                                    v-if="merchantsWithFigures.length"
+                                    class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800"
+                                >
+                                    {{ merchantsWithFigures.join(', ') }}
+                                </span>
+                                <span class="text-xs text-gray-400">{{ showMerchants ? 'Hide' : 'Show' }}</span>
+                            </span>
+                        </button>
+
+                        <div v-if="showMerchants" class="border-t border-gray-100 px-4 py-3">
+                            <p v-if="overridesError" class="mb-3 text-xs font-medium text-red-600">
+                                {{ overridesError }}
+                            </p>
+
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full text-sm">
+                                    <thead>
+                                        <tr class="text-left text-xs text-gray-500">
+                                            <th scope="col" class="py-2 pr-4 font-normal">Merchant</th>
+                                            <th
+                                                v-for="coefficient in merchantCoefficients"
+                                                :key="coefficient.key"
+                                                scope="col"
+                                                class="px-2 py-2 font-normal"
+                                            >
+                                                {{ coefficient.label }}
+                                                <span class="block text-[11px] text-gray-400">{{ coefficient.unit }}</span>
+                                            </th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody class="divide-y divide-gray-100">
+                                        <tr v-for="merchant in merchants" :key="merchant.value">
+                                            <th scope="row" class="py-2 pr-4 text-left text-sm font-medium text-gray-800">
+                                                {{ merchant.label }}
+                                                <!--
+                                                    This merchant already costs differently without
+                                                    anybody here typing anything. Said on the row,
+                                                    because an empty box that falls back to
+                                                    something other than the dial above would
+                                                    otherwise read as "same as steel".
+                                                -->
+                                                <span
+                                                    v-if="merchant.hasPlatformFigures"
+                                                    class="mt-0.5 block text-[11px] font-normal text-gray-500"
+                                                >
+                                                    carries its own figures already
+                                                </span>
+                                            </th>
+
+                                            <td
+                                                v-for="coefficient in merchantCoefficients"
+                                                :key="coefficient.key"
+                                                class="px-2 py-2"
+                                            >
+                                                <!--
+                                                    The yard's own figure as the placeholder, because
+                                                    an empty box only means something if you can see
+                                                    what it falls back to. A typed 0 is a real answer
+                                                    and is kept - a timber merchant pays nothing for
+                                                    offcuts, and that has to beat the yard's rate
+                                                    rather than read as "not set".
+                                                -->
+                                                <input
+                                                    v-model="overridesForm[merchant.value][coefficient.key]"
+                                                    type="number"
+                                                    step="any"
+                                                    :placeholder="String(merchant.fallbacks[coefficient.key] ?? coefficient.yardValue)"
+                                                    :title="merchant.fallbacks[coefficient.key] === null
+                                                        ? 'Empty uses the yard figure, ' + coefficient.yardValue
+                                                        : 'Empty uses the platform figure for this merchant, ' + merchant.fallbacks[coefficient.key]"
+                                                    :disabled="business.isUnsaved || settingsForm.processing"
+                                                    class="w-24 rounded-md border-gray-300 text-sm tabular-nums shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
+                                                    :class="settingsForm.errors['cost_overrides.' + merchant.value + '.' + coefficient.key] ? 'border-red-400' : ''"
+                                                />
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <p class="mt-3 text-xs leading-relaxed text-gray-600">
+                                The labour rate and every handling duration are deliberately absent.
+                                Those are the yard's - one crew, one wage - and a bundle of LVL is
+                                carried by the same people who carry a beam.
+                            </p>
+                        </div>
+                    </section>
 
                     <div v-if="!business.isUnsaved" class="flex flex-wrap items-center gap-3 border-t border-gray-200 bg-gray-50 px-4 py-3">
                         <button

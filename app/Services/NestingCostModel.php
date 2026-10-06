@@ -46,6 +46,13 @@ use App\Models\Business;
  * LABOUR, on the purchase side only - and pointedly not part of what an offcut is valued at. See the
  * invariant note on retention() for why that line has to be held.
  *
+ * NOT EVERYTHING IS STEEL. The five coefficients in MERCHANT_COEFFICIENTS - the price per tonne, both
+ * halves of freight, what the bin pays back and the fallback mass - are resolved per SUPPLIER GROUP
+ * where a business has said what that merchant charges. The catalogue has held LVL since before this
+ * class existed: timber, bought from a timber merchant, nested by the metre exactly like a section, and
+ * costed at the steel rate with a scrap-merchant rebate on every drop that nobody ever paid. Everything
+ * else here stays one figure for the yard, which is the distinction Services\SupplierGroupCosts draws.
+ *
  * Still deliberately NOT modelled, because a nest is built for one product spec at a time and these are
  * properties of the whole order: per-supplier minimum order values, and consolidating products onto a
  * shared stock length. Those need a pass over all the nests together. The flat per-order charges here are
@@ -116,7 +123,38 @@ class NestingCostModel
         'purchase_cost_weight' => 1.0,
     ];
 
+    /**
+     * The coefficients a merchant may differ on, which a nest resolves per supplier group.
+     *
+     * Everything above is one figure for the yard. These five are not, and the catalogue has been
+     * proving it since it grew an LVL row: timber comes from a timber merchant, is nested by the
+     * metre like a section, and was priced at the steel rate because this class had no way to ask
+     * what it was pricing.
+     *
+     * All five are properties of what is being bought or who it is bought from. Nothing about the
+     * yard is here - the labour rate and every handling duration are one crew with one wage, and a
+     * bundle of LVL is carried by the same people who carry a beam. See Services\SupplierGroupCosts,
+     * which draws that line and says why cut_minutes_per_kg_per_m sits on the yard's side of it
+     * despite looking like it belongs here.
+     *
+     * @var array<int, string>
+     */
+    public const array MERCHANT_COEFFICIENTS = [
+        'material_cost_per_tonne',
+        'delivery_cost_per_tonne',
+        'delivery_cost_per_order',
+        'scrap_recovery_rate',
+        'default_kg_per_m',
+    ];
+
     private int $scrapThresholdMm;
+
+    /**
+     * This merchant's coefficients, where it has any of its own.
+     *
+     * @var array<string, float>
+     */
+    private array $merchantCoefficients;
 
     private float $kgPerM;
 
@@ -127,11 +165,29 @@ class NestingCostModel
      */
     private int $referenceLengthMm;
 
+    /**
+     * @param  string|null  $supplierGroup  Which merchant this section is bought from, so the five
+     *                                      coefficients in MERCHANT_COEFFICIENTS can be resolved
+     *                                      against what THAT merchant charges. Null costs it on the
+     *                                      yard's own figures, which is what every nest did before
+     *                                      overrides existed and is still right for a yard that
+     *                                      buys everything from one place.
+     */
     public function __construct(
         private Business $business,
         ?float $kgPerM = null,
         ?int $referenceLengthMm = null,
+        private ?string $supplierGroup = null,
     ) {
+        /*
+         * Resolved before anything else here, because the mass fallback below is one of the five.
+         * A timber merchant's fallback mass is a timber mass; at the yard-wide 10.0 every LVL row
+         * the catalogue cannot weigh is costed as though it were steel bar.
+         */
+        $this->merchantCoefficients = $supplierGroup === null
+            ? []
+            : SupplierGroupCosts::effectiveFor($business, $supplierGroup);
+
         /*
          * Guarded rather than read straight off the model. A null threshold reads as 0, and a threshold of
          * 0 tells the model every offcut is worth banking - a 50mm one included - which is how a rack
@@ -158,14 +214,47 @@ class NestingCostModel
     }
 
     /**
-     * One cost coefficient off the business, falling back when the attribute is not there at all.
-     * See DEFAULTS.
+     * One cost coefficient, resolved against this merchant first, then the yard, then the default.
+     *
+     * The merchant layer only ever holds the five in MERCHANT_COEFFICIENTS, and only for a nest
+     * that was told which merchant it is buying from - so every other coefficient, and every nest
+     * costed without a supplier group, reads exactly as it always did. See DEFAULTS for why the
+     * last fallback is not belt-and-braces.
+     *
+     * A merchant's ZERO is an answer, not an absence. A timber merchant pays nothing for offcuts -
+     * a weighbridge buys metal, and a skip of LVL costs tip fees - so scrap_recovery_rate at 0 for
+     * TIMBER_MERCHANT has to beat the yard's 0.13 rather than read as "not set". That is why
+     * SupplierGroupCosts::normalise drops a blank and keeps a nought.
      */
     private function setting(string $key): float
     {
+        if (isset($this->merchantCoefficients[$key])) {
+            return $this->merchantCoefficients[$key];
+        }
+
         $value = $this->business->getAttribute($key);
 
         return $value === null ? self::DEFAULTS[$key] : (float) $value;
+    }
+
+    /**
+     * Which merchant this model is pricing for, if it was told.
+     *
+     * Read back by anything that has to say whose figures a number came from - see
+     * Http\Controllers\AdminNestingAlgorithmController, where the explainer page works an example
+     * per merchant rather than claiming one set of numbers covers the yard.
+     */
+    public function supplierGroup(): ?string
+    {
+        return $this->supplierGroup;
+    }
+
+    /**
+     * Whether this merchant carries any figures of its own, rather than running on the yard's.
+     */
+    public function hasMerchantCoefficients(): bool
+    {
+        return $this->merchantCoefficients !== [];
     }
 
     /**

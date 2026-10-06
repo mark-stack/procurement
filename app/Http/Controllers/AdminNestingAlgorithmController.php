@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Business;
 use App\Services\NestingCostModel;
 use App\Services\OffcutCleanout;
+use App\Services\SupplierGroupCosts;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -73,6 +74,18 @@ class AdminNestingAlgorithmController extends Controller
                 'isUnsaved' => ! $business->exists,
             ],
             'settings' => $this->settings($business),
+
+            /*
+             * The five dials a merchant may differ on, and what each merchant has been given.
+             *
+             * Sits with the dials rather than in a section of its own, because the question it
+             * answers is a correction to them: everything above is "what the yard charges", and
+             * these say where that is not the whole story. A yard that buys only steel never opens
+             * it and loses nothing by its being there.
+             */
+            'merchantCoefficients' => $this->merchantCoefficients($business),
+            'merchants' => $this->merchants($business),
+
             'referenceLengthMm' => self::REFERENCE_LENGTH_MM,
             /*
              * Per section, because the dollar figures are what the page is for and they move a long way
@@ -101,6 +114,92 @@ class AdminNestingAlgorithmController extends Controller
                 'heavy' => self::HEAVY_KG_PER_M,
             ],
         ]);
+    }
+
+    /**
+     * The five dials a merchant may carry its own figure for, worded off the full list above.
+     *
+     * Read out of settings() rather than written again, so the label and the explanation of what
+     * "freight" means are the same words in both places. The yard's own value rides along as the
+     * placeholder - an empty box means "whatever the yard charges", and the only way to read that
+     * box is to be shown what it would fall back to.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function merchantCoefficients(Business $business): array
+    {
+        $byKey = [];
+
+        foreach ($this->settings($business) as $setting) {
+            $byKey[$setting['key']] = $setting;
+        }
+
+        $coefficients = [];
+
+        foreach (NestingCostModel::MERCHANT_COEFFICIENTS as $key) {
+            $setting = $byKey[$key] ?? null;
+
+            if ($setting === null) {
+                continue;
+            }
+
+            $coefficients[] = [
+                'key' => $key,
+                'label' => $setting['label'],
+                'unit' => $setting['unit'],
+                'yardValue' => $setting['value'],
+            ];
+        }
+
+        return $coefficients;
+    }
+
+    /**
+     * Every merchant the application buys from, with whatever this business has told it about them.
+     *
+     * All of them, not only the ones this business's plan covers. A yard that has had timber
+     * switched off still has LVL nests in its history being re-costed through the retained
+     * snapshot, and a merchant that disappears from the form the moment it stops being bought from
+     * is a figure nobody can correct afterwards.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function merchants(Business $business): array
+    {
+        return array_map(function (array $group) use ($business): array {
+            $own = $business->merchantCoefficients($group['value']);
+            $platform = SupplierGroupCosts::PLATFORM_DEFAULTS[$group['value']] ?? [];
+
+            $overrides = [];
+            $fallbacks = [];
+
+            foreach (NestingCostModel::MERCHANT_COEFFICIENTS as $key) {
+                /*
+                 * Null for anything this business has not answered, which is what the form binds an
+                 * empty box to. A zero is a real answer and survives: a timber merchant pays
+                 * nothing for offcuts, and "0" has to beat the yard's recovery rate rather than
+                 * read as "not set".
+                 */
+                $overrides[$key] = $own[$key] ?? null;
+
+                /*
+                 * What an empty box actually means for this merchant - the platform's figure where
+                 * there is one, the yard's otherwise. Sent so the placeholder can show it: an empty
+                 * box only says something if you can see what it falls back to, and for timber that
+                 * is NOT the number in the dial above.
+                 */
+                $fallbacks[$key] = $platform[$key] ?? null;
+            }
+
+            return [
+                'value' => $group['value'],
+                'label' => $group['label'],
+                'overrides' => $overrides,
+                'fallbacks' => $fallbacks,
+                //Whether the platform has an opinion about this merchant at all, for the wording
+                'hasPlatformFigures' => $platform !== [],
+            ];
+        }, SupplierGroupCosts::all());
     }
 
     /**

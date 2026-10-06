@@ -55,6 +55,19 @@ class NestingSettings
     ];
 
     /**
+     * The per-merchant overrides, retained alongside the flat coefficients.
+     *
+     * Not one of NESTING_KEYS and not one of the cost model's DEFAULTS, because it is neither a
+     * length nor a number - it is a map of group => coefficient => value, and both loops below
+     * cast what they touch to a scalar. Named here so there is one spelling of it.
+     *
+     * It has to be retained for exactly the reason the flat figures do. A yard that sets its timber
+     * rate next month must not restate what last month's LVL nests cost, and a batch bought from a
+     * merchant the business has since stopped using still has to re-cost at that merchant's price.
+     */
+    public const string OVERRIDES_KEY = 'cost_overrides';
+
+    /**
      * What this business's nesting figures are at this moment.
      *
      * Every key is present and every value is resolved - a business whose attribute is missing gets
@@ -67,7 +80,7 @@ class NestingSettings
      * json_encode writes 2000.0 as "2000" - which costs nothing, since every reader of these casts.
      * Worth knowing before writing an identity comparison against one.
      *
-     * @return array<string, float|int>
+     * @return array<string, mixed>
      */
     public static function inForce(Business $business): array
     {
@@ -81,6 +94,22 @@ class NestingSettings
             $value = $business->getAttribute($key);
 
             $settings[$key] = (float) ($value === null ? $default : $value);
+        }
+
+        /*
+         * The EFFECTIVE merchant figures, not the business's own overrides - resolved on the way in
+         * for exactly the reason the loop above resolves every flat coefficient before storing it.
+         * A snapshot recording only what a business had typed would silently pick up tomorrow's
+         * platform defaults, and a batch nested in March would cost differently in May because the
+         * platform changed its mind about what timber costs.
+         *
+         * Omitted entirely when there is nothing to say, so a yard buying from merchants the
+         * platform has no opinion about writes exactly what it wrote before any of this existed.
+         */
+        $overrides = SupplierGroupCosts::effective($business);
+
+        if ($overrides !== []) {
+            $settings[self::OVERRIDES_KEY] = $overrides;
         }
 
         return $settings;

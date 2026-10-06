@@ -181,8 +181,17 @@ class ScrapLedger
                 ? (float) $product->kg_per_m
                 : null;
 
-            $key = $kgPerM ?? 'default';
-            $model = $models[$key] ??= new NestingCostModel($costSettings, $kgPerM);
+            /*
+             * Costed as the merchant it came from, not as steel. A 200mm LVL drop was being valued
+             * at the steel price AND credited a scrap-merchant rebate on the way out - a weighbridge
+             * buys metal, and a timber merchant does not buy LVL offcuts back at all. The supplier
+             * group is resolved off the retained settings like everything else here, so a batch
+             * keeps the merchant rates it was nested on.
+             */
+            $supplierGroup = SupplierGroupCosts::forCategory($product->product_category ?? null);
+
+            $key = ($kgPerM ?? 'default').'|'.($supplierGroup ?? '-');
+            $model = $models[$key] ??= new NestingCostModel($costSettings, $kgPerM, null, $supplierGroup);
 
             //Null means the catalogue had no mass for this section, so the model is pricing it at the
             //business default - which the row has to say, or a guess reads like a measurement
