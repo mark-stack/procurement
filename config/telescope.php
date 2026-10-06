@@ -27,6 +27,11 @@ return [
      *
      * TELESCOPE_ENABLED=true still turns it on in production, deliberately, for an afternoon of
      * chasing something down.
+     *
+     * While it is on, entries are kept for seven days and no longer: telescope:prune runs nightly
+     * from routes/console.php, guarded on this same switch, against the period in
+     * config/retention.php. It is the one thing in this application disposed of automatically,
+     * because it is the one thing that is not a record - see docs/records-retention.md.
      */
     'enabled' => env('TELESCOPE_ENABLED', env('APP_ENV') !== 'production'),
 

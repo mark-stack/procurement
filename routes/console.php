@@ -77,6 +77,37 @@ Schedule::command('billing:trial-reminders')->$frequency();
 Schedule::command('offcuts:cleanout')->{$testMode ? 'everyMinute' : 'quarterly'}();
 
 /*
+ * The grant that makes the change log append-only from outside the application, checked daily.
+ *
+ * Nothing breaks when that grant goes - a restore onto a new server, a managed instance handing out
+ * a user with ALL PRIVILEGES, a migration run as root - and that is exactly the problem. The
+ * application carries on writing the log, append-only in intent and not in fact, and the next person
+ * to find out is an auditor. So it is asked every day, and a wrong answer is a Log::critical as well
+ * as a non-zero exit.
+ *
+ * Daily rather than hourly: a privilege does not change by itself between breakfast and lunch, and
+ * the window this closes is measured in deploys. Nothing to do on SQLite, where it reports success
+ * and says why. See App\Console\Commands\CheckRecordChangeGrant.
+ */
+Schedule::command('records:check-grant')->daily();
+
+/*
+ * Telescope's entries, after a week.
+ *
+ * The one automatic disposal in this application, and the exception that proves the rule in
+ * config/retention.php: nothing on a schedule may delete a *record*, and a Telescope entry is not
+ * one. It is debug output - a request, its parameters and its queries, written on the afternoon
+ * somebody turned the recorder on - so keeping it would mean keeping a second copy of a customer's
+ * data in a table no quality process reads.
+ *
+ * Guarded on the switch because Telescope ships off in production (config/telescope.php) and
+ * pruning a table that was never created is a nightly error in the log for no reason.
+ */
+if (config('telescope.enabled')) {
+    Schedule::command('telescope:prune', ['--hours' => 24 * (int) config('retention.classes.telescope.retain_days')])->daily();
+}
+
+/*
  * The copies of customers' spreadsheets kept against learning attempts nobody picked up.
  *
  * Daily rather than hourly: the window is counted in days and nothing downstream is waiting on it.
