@@ -4,12 +4,12 @@ title: Add a landing page section about ISO 9001 alignment
 status: To Do
 assignee: []
 created_date: '2026-10-01 03:51'
+updated_date: '2026-10-06 09:37'
 labels:
   - iso-9001
   - marketing
   - landing-page
-dependencies:
-  - TASK-011
+dependencies: []
 references:
   - resources/js/Pages/Welcome.vue
   - app/Http/Controllers/LandingController.php
