@@ -9,7 +9,7 @@ import {computed} from "vue";
  * here instead.
  *
  * @param {{annualSpendMillions: number, yieldGainPct: number, scrapRefundPct: number}} inputs reactive, driven by the sliders
- * @param {{years: number, whichPlan: string, fullPriceMultiYear: number, fullPriceAnnual: number, fullPriceMonthly: number, fullPriceWeekly: number, firstYearDiscount: number}} plan fixed for the page
+ * @param {{years: number, whichPlan: string, fullPriceMultiYear: number, multiYearTermYears: ?number, fullPriceAnnual: number, fullPriceMonthly: number, fullPriceWeekly: number, firstYearDiscount: number}} plan fixed for the page
  */
 export default function useSavings(inputs, plan){
     //Above this the ratio stops reading as a real number and starts reading as a sales pitch
@@ -40,9 +40,19 @@ export default function useSavings(inputs, plan){
      * two sides of the ratio always cover the same number of years.
      */
     const priceOverSavingsPeriod = computed(() => {
-        //A single up front payment already covers the whole term
+        /*
+         * A single up front payment covers its OWN term, which is not the period the savings are
+         * measured over and must not be assumed to be. It used to return the lump sum whole against
+         * however many years the page was showing - so a three year licence compared against one
+         * year of savings read as three years of software against one of steel - while costPerMonth
+         * divided the same lump by plan.years, which is the savings period rather than the term.
+         * Two different wrong readings of one number, and both are a single constant away from
+         * being published.
+         */
         if(plan.whichPlan === "MULTI_YEAR"){
-            return plan.fullPriceMultiYear;
+            const term = multiYearTermYears();
+
+            return term === null ? null : plan.fullPriceMultiYear*(plan.years/term);
         }
 
         const annualPrice = annualPriceForPlan();
@@ -115,8 +125,15 @@ export default function useSavings(inputs, plan){
      * Null for an unrecognised plan.
      */
     const costPerMonth = computed(() => {
+        /*
+         * Over the term the lump actually buys, and with no first year discount applied: an up
+         * front multi-year price IS the discount, so taking another slice off it here quoted a
+         * monthly figure nobody could ever pay.
+         */
         if(plan.whichPlan === "MULTI_YEAR"){
-            return Math.round((plan.fullPriceMultiYear*fractionalPrice)/plan.years/monthsPerYear);
+            const term = multiYearTermYears();
+
+            return term === null ? null : Math.round(plan.fullPriceMultiYear/term/monthsPerYear);
         }
 
         const annualPrice = annualPriceForPlan();
@@ -127,6 +144,20 @@ export default function useSavings(inputs, plan){
 
         return Math.round((annualPrice*fractionalPrice)/monthsPerYear);
     });
+
+    /**
+     * How many years the up front multi-year price covers.
+     *
+     * Null when the page has not said, which is the only safe answer: a lump sum is not a price
+     * until you know what it buys, and every reading of it that guesses the term is wrong in a
+     * direction nobody will notice on the page. The callers hide their figure rather than print
+     * one, exactly as they do for an unrecognised plan.
+     */
+    function multiYearTermYears(){
+        const term = Number(plan.multiYearTermYears);
+
+        return Number.isFinite(term) && term > 0 ? term : null;
+    }
 
     /**
      * The recurring plans expressed as one comparable yearly figure. Null when whichPlan is

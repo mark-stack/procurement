@@ -23,7 +23,10 @@ use InvalidArgumentException;
  *
  * @property float $length The drop, in millimetres
  * @property float $weight_kg What that length of this section weighed
- * @property float $value What owning it had cost - landed, freight included
+ * @property float $value What owning it had cost - landed, freight included. The same quantity
+ *                        whichever way the steel was destroyed
+ * @property float|null $carried_value What the rack was carrying it at on the retention curve, for
+ *                                     a cleanout. Null on a nest drop, which was never banked
  * @property float $recovered_value What the weighbridge pays back for the metal alone
  * @property float $kg_per_m The mass per metre the three figures above were worked out from
  * @property bool $kg_per_m_estimated Whether that mass was the business default rather than the catalogue's
@@ -51,6 +54,7 @@ class Scrap extends Model
             'length' => 'float',
             'weight_kg' => 'float',
             'value' => 'float',
+            'carried_value' => 'float',
             'recovered_value' => 'float',
             'kg_per_m' => 'float',
             'kg_per_m_estimated' => 'boolean',
@@ -150,6 +154,12 @@ class Scrap extends Model
      * What this piece of steel actually cost to destroy: what it was worth, less what the bin paid.
      *
      * Derived rather than stored, so it cannot disagree with the two figures it is made of.
+     *
+     * POSITIVE ON EVERY ROW, and that is a property of the two columns rather than a coincidence:
+     * value is the landed cost of the steel and recovered_value is a fraction of the bare cost of
+     * the same steel, so the difference is the share the bin does not pay plus the freight. It went
+     * negative for cleanouts while value held the carried figure instead - see the 2026_10_06
+     * migration that split the two apart. Anything that sums this is relying on the sign.
      */
     public function netLoss(): float
     {

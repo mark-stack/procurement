@@ -8,6 +8,8 @@ use App\Enums\ScrapSourceEnums;
 use App\Formatters\SupplierFormatter;
 use App\Models\Concerns\BelongsToSandbox;
 use App\Services\BatchStages;
+use App\Services\NestingCostModel;
+use App\Services\NestingSettings;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -290,6 +292,15 @@ class Batch extends Model
      *
      * Also null when nothing on the batch is costed by that model - a bolts-only batch is bought by
      * the box and never nested into bars - rather than zero, which reads as a job that cost nothing.
+     *
+     * THE ORDER OVERHEAD IS DE-DUPLICATED HERE, and nowhere else. The cost model charges the fixed
+     * cost of buying - the paperwork, and the truck turning up - once to any nest that buys
+     * anything (NestingCostModel::cost, step 2a). Within one product that is exactly right and it
+     * cannot mis-rank anything, because every candidate that buys carries the same charge. Summed
+     * across a batch it stops being right: five products that each buy carried five lots of
+     * paperwork for what is one trip to one merchant. The per-product scores are left alone - they
+     * are the figures the search minimised and the ones nested_state records - and the duplication
+     * is taken off the batch total, which is the only place it was ever wrong.
      */
     public function nestCost(): ?float
     {
@@ -298,6 +309,7 @@ class Batch extends Model
         }
 
         $cost = null;
+        $buyingCategories = [];
 
         foreach ($this->nested_state[NestingEnums::METERAGE->value] ?? [] as $product) {
             $productCost = $product->nested['cost'] ?? null;
@@ -307,9 +319,75 @@ class Batch extends Model
             }
 
             $cost = ($cost ?? 0.0) + (float) $productCost;
+
+            //Only a product that actually bought new stock was charged the overhead
+            if ((float) ($product->nested['totals']['newStock']['total'] ?? 0) > 0) {
+                $buyingCategories[] = $product->product_category ?? null;
+            }
         }
 
-        return $cost;
+        if ($cost === null) {
+            return null;
+        }
+
+        return $cost - $this->duplicatedOrderOverhead($buyingCategories);
+    }
+
+    /**
+     * The order overhead this batch was charged over and above the orders it actually places.
+     *
+     * One order per MERCHANT, not one per product and not one for the batch: a batch whose steel
+     * comes from two supplier groups really does raise two orders and really does pay for two lots
+     * of paperwork and two trucks. Supplier groups are what the application already groups a
+     * batch's orders by - see Formatters\SupplierFormatter and Batch::orders - so this counts the
+     * same thing the Nesting card's "Material order" line counts.
+     *
+     * Priced on the figures the nest was RUN on (Services\NestingSettings), for the same reason
+     * every other figure about an old batch is: a yard that put its order admin up last month did
+     * not make February's batches more expensive to have nested.
+     *
+     * Zero whenever there is nothing honest to deduct - a batch that bought from one merchant or
+     * none, or one whose business cannot be resolved to price the overhead against. Erring towards
+     * leaving the over-count in place is the safe direction: it overstates what a nest cost, which
+     * is the direction that favours using what is already on the rack.
+     *
+     * @param  array<int, string|null>  $buyingCategories  the product category of each product that bought
+     */
+    private function duplicatedOrderOverhead(array $buyingCategories): float
+    {
+        if (count($buyingCategories) < 2) {
+            return 0.0;
+        }
+
+        $business = $this->user?->business;
+
+        if (! $business instanceof Business) {
+            return 0.0;
+        }
+
+        $formatter = new SupplierFormatter;
+        $groups = $formatter->groupsFor($buyingCategories, $formatter->supplierGroups($business));
+
+        /*
+         * At least one, however the categories resolve. A product category that matches no supplier
+         * group still gets bought from somebody, and counting zero orders for it would deduct the
+         * whole overhead rather than the duplication of it.
+         */
+        $orders = max(count($groups), 1);
+        $duplicates = count($buyingCategories) - $orders;
+
+        if ($duplicates < 1) {
+            return 0.0;
+        }
+
+        $settings = NestingSettings::asOf($this, $business);
+
+        /*
+         * The overhead is the one cost in the model that does not scale with the section - the
+         * paperwork for a tonne of beam is the paperwork for a length of angle - so a model built
+         * without a mass per metre answers for the whole batch.
+         */
+        return $duplicates * (new NestingCostModel($settings))->orderOverheadCost();
     }
 
     /**

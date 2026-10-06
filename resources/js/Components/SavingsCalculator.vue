@@ -55,14 +55,20 @@
             </label>
         </div>
 
-        <!-- Extra yield won back by better nesting, as a share of total spend -->
+        <!--
+            Extra yield won back by better nesting, as a share of total spend.
+
+            Floored at 2 rather than 3. Typical manual nesting on sections runs somewhere near 88%
+            and good 1D nesting near 94%, so three points was already most of the plausible gain and
+            the slider had no conservative end to be pushed to. The default stays at 5.
+        -->
         <div class="flex flex-col items-center p-4">
             <!-- Slider -->
             <input
                 id="calculator-yield-gain"
                 v-model.number="inputs.yieldGainPct"
                 type="range"
-                min="3"
+                min="2"
                 max="7"
                 step="0.5"
                 :aria-valuetext="inputs.yieldGainPct + '% of annual spend'"

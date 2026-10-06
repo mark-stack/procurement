@@ -47,6 +47,13 @@
 
     const savings_period_years = 1;
     const fullPriceMultiYear = 10000;
+    /*
+     * How many years that up front figure buys. Null until the multi-year plan is a real product
+     * with a decided term - a lump sum is not a price until you know what it covers, and useSavings
+     * hides the ROI and the monthly comparison rather than print a figure that guessed. Set this at
+     * the same time as the price above, never separately.
+     */
+    const multiYearTermYears = null;
     const fullPriceAnnual = 2900;
     const fullPriceMonthly = 200;
     const fullPriceWeekly = 39;
@@ -64,6 +71,7 @@
         years: savings_period_years,
         whichPlan,
         fullPriceMultiYear,
+        multiYearTermYears,
         fullPriceAnnual,
         fullPriceMonthly,
         fullPriceWeekly,

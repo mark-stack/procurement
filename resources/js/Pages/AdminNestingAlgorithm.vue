@@ -1,6 +1,6 @@
 <script setup>
     //General Imports
-    import {Head} from '@inertiajs/vue3';
+    import {Head, useForm, usePage} from '@inertiajs/vue3';
     import {computed, ref} from "vue";
 
     //Component Imports
@@ -48,6 +48,38 @@
 
     //Where the x axis sits: under the lower panel
     const AXIS_Y = 196 + 64;
+
+    //Form
+    /*
+     * The dials, editable.
+     *
+     * Seeded from the same list that renders them, so a coefficient added to the cost model turns
+     * up here without this page being touched - and one the server will not accept cannot be
+     * rendered as though it were editable.
+     *
+     * Saving is safe at any moment, which is the only reason this form can exist. A nest keeps the
+     * figures it was run on (Services\NestingSettings), so changing one of these decides the next
+     * nest and restates nothing already nested, already scrapped or already measured.
+     */
+    const settingsForm = useForm(
+        Object.fromEntries(props.settings.map(setting => [setting.key, setting.value]))
+    );
+
+    function saveSettings(){
+        settingsForm.patch(route('admin.nesting.settings.update', props.business.id), {
+            preserveScroll: true,
+            /*
+             * Re-baseline on what was saved. Without this the form keeps comparing against the
+             * values the page loaded with, so a saved change still reads as unsaved and "Put them
+             * back" would undo the save rather than the edit.
+             */
+            onSuccess: () => settingsForm.defaults(),
+        });
+    }
+
+    //Shared data
+    //What the last save said, or what it refused - see AdminNestingSettingsController
+    const savedMessage = computed(() => usePage().props.flash?.nesting);
 
     //Variables
     //Index of the point under the cursor, or null when the pointer is off the plot
@@ -977,21 +1009,75 @@
                         Per business. Only the scrap threshold changes what physically happens in the yard &mdash;
                         the rest change which plan gets chosen.
                     </p>
+                    <!--
+                        Said on the page, not just in the code. The reason an admin can edit these at
+                        all is that a nest keeps the figures it was run on, so nothing already
+                        decided moves underneath them - and that is exactly the thing somebody about
+                        to change a steel price needs to be told before they change it.
+                    -->
+                    <p class="mt-1 text-xs leading-relaxed text-gray-600">
+                        Changing one decides the next nest. Everything already nested keeps the figures it
+                        was run on, so no past batch, scrap row or measurement is restated.
+                    </p>
                 </header>
 
-                <ul class="divide-y divide-gray-100">
-                    <li v-for="setting in settings" :key="setting.key" class="px-4 py-3 sm:flex sm:gap-4">
-                        <div class="sm:w-56 sm:flex-none">
-                            <p class="text-sm font-semibold text-gray-900">{{ setting.label }}</p>
-                            <p class="mt-0.5 flex items-baseline gap-1">
-                                <span class="text-lg font-bold tabular-nums text-gray-900">{{ setting.value }}</span>
-                                <span v-if="setting.unit" class="text-xs text-gray-500">{{ setting.unit }}</span>
-                            </p>
-                            <code class="mt-0.5 block text-[11px] text-gray-400">{{ setting.key }}</code>
-                        </div>
-                        <p class="mt-1 text-xs leading-relaxed text-gray-600 sm:mt-0">{{ setting.blurb }}</p>
-                    </li>
-                </ul>
+                <!-- Nothing to save to: the page fell back to an unsaved business carrying the defaults -->
+                <p v-if="business.isUnsaved" class="border-b border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+                    These are the documented defaults, shown because there is no business to read. Open this
+                    page for a business to change them.
+                </p>
+
+                <form @submit.prevent="saveSettings">
+                    <ul class="divide-y divide-gray-100">
+                        <li v-for="setting in settings" :key="setting.key" class="px-4 py-3 sm:flex sm:gap-4">
+                            <div class="sm:w-56 sm:flex-none">
+                                <label :for="'setting-' + setting.key" class="text-sm font-semibold text-gray-900">
+                                    {{ setting.label }}
+                                </label>
+                                <p class="mt-0.5 flex items-baseline gap-1">
+                                    <input
+                                        :id="'setting-' + setting.key"
+                                        v-model.number="settingsForm[setting.key]"
+                                        type="number"
+                                        step="any"
+                                        :disabled="business.isUnsaved || settingsForm.processing"
+                                        class="w-28 rounded-md border-gray-300 text-lg font-bold tabular-nums text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+                                        :class="settingsForm.errors[setting.key] ? 'border-red-400' : ''"
+                                    />
+                                    <span v-if="setting.unit" class="text-xs text-gray-500">{{ setting.unit }}</span>
+                                </p>
+                                <code class="mt-0.5 block text-[11px] text-gray-400">{{ setting.key }}</code>
+                                <p v-if="settingsForm.errors[setting.key]" class="mt-1 text-xs font-medium text-red-600">
+                                    {{ settingsForm.errors[setting.key] }}
+                                </p>
+                            </div>
+                            <p class="mt-1 text-xs leading-relaxed text-gray-600 sm:mt-0">{{ setting.blurb }}</p>
+                        </li>
+                    </ul>
+
+                    <div v-if="!business.isUnsaved" class="flex flex-wrap items-center gap-3 border-t border-gray-200 bg-gray-50 px-4 py-3">
+                        <button
+                            type="submit"
+                            :disabled="settingsForm.processing || !settingsForm.isDirty"
+                            class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors duration-200 hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                        >
+                            {{ settingsForm.processing ? 'Saving…' : 'Save the dials' }}
+                        </button>
+
+                        <button
+                            v-if="settingsForm.isDirty"
+                            type="button"
+                            class="text-sm font-medium text-gray-600 hover:text-gray-900"
+                            @click="settingsForm.reset()"
+                        >
+                            Put them back
+                        </button>
+
+                        <p v-if="savedMessage" class="text-xs font-medium text-emerald-700">
+                            {{ savedMessage.message }}
+                        </p>
+                    </div>
+                </form>
             </section>
 
             <!--

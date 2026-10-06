@@ -88,6 +88,8 @@ class HandleInertiaRequests extends Middleware
                 "project" => fn () => $request->session()->get('project'),
                 //What the master materials screen said about the last edit it saved or refused
                 'materials' => fn () => $request->session()->get('materials'),
+                //And the same for the nesting algorithm page's dials
+                'nesting' => fn () => $request->session()->get('nesting'),
                 //What a JSON import would do, for review before any of it is applied
                 'materialsImportPlan' => fn () => $request->session()->get('materialsImportPlan'),
                 //The template form, filled in from a sample spreadsheet, with the checks run on it
