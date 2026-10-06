@@ -8,6 +8,7 @@ use App\Models\Bar;
 use App\Models\Batch;
 use App\Models\Cut;
 use App\Models\Offcut;
+use App\Services\ScrapLedger;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -57,6 +58,15 @@ class CreateBarsAndOffcuts
                     $offcutIds = [];
                     $uniqueMarks = [];
 
+                    /*
+                     * And the bars themselves, for the same reason the offcut ids are kept: the saved
+                     * nest is the only durable record of which group of identical bars is which, and
+                     * without the ids on it nothing downstream can get from a group back to the rows
+                     * it wrote. Services\ScrapLedger reads these to hang each scrapped drop on the bar
+                     * it actually came off.
+                     */
+                    $barIds = [];
+
                     for ($i = 1; $i <= $utilisedBar["count"]; $i++) {
                         /*
                          * Create bar
@@ -83,6 +93,8 @@ class CreateBarsAndOffcuts
                             "product_derived_label" => $product->product_derived_label, //200PFC
                             "length" => $utilisedBar["result"]["bar_length"],
                         ]);
+
+                        $barIds[] = $bar->id;
 
                         /*
                          * Record the cuts this particular bar carries.
@@ -142,14 +154,24 @@ class CreateBarsAndOffcuts
                     }
 
                     //Add IDs to serialised nesting data
+                    $nested = $meterageNesting[$index]->nested;
+
+                    /*
+                     * Unconditionally, unlike the offcut ids below. A group whose drop was too short
+                     * to bank produces no offcut at all, and those are exactly the groups the scrap
+                     * ledger needs to name a bar for - writing these only when an offcut happened
+                     * would leave every scrapped bar anonymous.
+                     */
+                    $nested["utilisedBars"][$indexUtilisedBar]["result"]["bar_ids"] = $barIds;
+
                     if(count($offcutIds) > 0){
-                        $nested = $meterageNesting[$index]->nested;
                         $nested["utilisedBars"][$indexUtilisedBar]["result"]["offcut_id"] = $offcutIds[0];
                         $nested["utilisedBars"][$indexUtilisedBar]["result"]["offcut_ids"] = $offcutIds;
                         $nested["utilisedBars"][$indexUtilisedBar]["result"]["unique_mark"] = $uniqueMarks[0];
                         $nested["utilisedBars"][$indexUtilisedBar]["result"]["unique_marks"] = $uniqueMarks;
-                        $meterageNesting[$index]->nested = $nested;
                     }
+
+                    $meterageNesting[$index]->nested = $nested;
                 }
 
                 /*
@@ -277,6 +299,16 @@ class CreateBarsAndOffcuts
         $batch->letters_project_array = $lettersProjectArray;
 
         $batch->save();
+
+        /*
+         * And the steel this plan destroys.
+         *
+         * After the save rather than inside the loops above, because the ledger reads the nest back
+         * off the batch rather than being handed it - which is what lets the same method reconstruct
+         * the scrap of a batch nested long before the table existed, and makes the two readings of
+         * that number agree by construction. See Services\ScrapLedger.
+         */
+        (new ScrapLedger)->recordNest($batch);
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\OffcutRemovalEnums;
+use App\Enums\ScrapSourceEnums;
 use App\Formatters\UniqueLetterIDGenerator;
 use App\Services\ProductService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 
@@ -130,15 +132,29 @@ class Offcut extends Model
      *
      * The reason and the note go with it. Keeping them would leave a row in inventory carrying an
      * explanation of why it is not there.
+     *
+     * And so does the write-off, where there was one. A cleanout records the weight and the money of
+     * steel it believes has gone in a skip (see Services\ScrapLedger); an offcut that is back on the
+     * rack did not, and leaving the row behind would have the same material counted as destroyed and
+     * as available at once - the scrap report over-stating the quarter while the nest cuts parts out
+     * of it. Only this offcut's own cleanout row goes: a nest drop is a fact about a cut plan and has
+     * nothing to do with whether the offcut it came off was later restored.
      */
     public function restoreToInventory(): void
     {
-        $this->forceFill([
-            'removed_at' => null,
-            'removed_by_user_id' => null,
-            'removed_reason' => null,
-            'removed_note' => null,
-        ])->save();
+        DB::transaction(function (): void {
+            Scrap::query()
+                ->where('offcut_id', $this->id)
+                ->where('source', ScrapSourceEnums::CLEANOUT)
+                ->delete();
+
+            $this->forceFill([
+                'removed_at' => null,
+                'removed_by_user_id' => null,
+                'removed_reason' => null,
+                'removed_note' => null,
+            ])->save();
+        });
     }
 
     //Ancestry

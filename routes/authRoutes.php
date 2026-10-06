@@ -46,6 +46,7 @@ use App\Http\Controllers\RawMaterialListBulkDeleteController;
 use App\Http\Controllers\RawMaterialListClarificationsController;
 use App\Http\Controllers\RawMaterialListCustomisationsController;
 use App\Http\Controllers\SandboxController;
+use App\Http\Controllers\ScrapController;
 use App\Http\Controllers\SuggestedNestingController;
 use App\Http\Middleware\BillingWriteAccessMiddleware;
 use Illuminate\Support\Facades\Route;
@@ -229,6 +230,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
          * OffcutScrapController.
          */
         Route::post('offcuts/scrap', OffcutScrapController::class)->name('offcuts.scrap');
+
+        /*
+         * And what all that scrapping came to - the other side of the offcut rack.
+         *
+         * Index only, like the offcuts resource above and for the same reason: scrap is written by
+         * the nest and by the cleanout, never by a form, so the other six verbs had nothing to do.
+         * See ScrapController, which used to be seven empty stubs reachable from nowhere.
+         */
+        Route::resource('scrap', ScrapController::class)->only(['index']);
 
         /*
          * Orders

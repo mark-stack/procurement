@@ -277,7 +277,12 @@
                             </Link>
 
                             <div class="p-1.5 space-y-0.5 border-t border-gray-200">
-                                <!-- Offcuts -->
+                                <!--
+                                    Offcuts, and through it the scrap report - which is not in this
+                                    menu on purpose. Scrap is what happened to the steel the rack
+                                    did not keep, so it is one link off the offcuts page rather than
+                                    a second entry here competing with it.
+                                -->
                                 <NavButton
                                     :route="route('offcuts.index')"
                                     label="Offcuts"
