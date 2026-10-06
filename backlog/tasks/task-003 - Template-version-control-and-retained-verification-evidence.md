@@ -1,9 +1,10 @@
 ---
 id: TASK-003
 title: Template version control and retained verification evidence
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-10-01 01:55'
+updated_date: '2026-10-06 00:21'
 labels:
   - iso-9001
   - clause-8.5.6
@@ -13,7 +14,7 @@ labels:
 dependencies: []
 priority: high
 type: feature
-ordinal: 63500
+ordinal: 2000
 ---
 
 ## Description
