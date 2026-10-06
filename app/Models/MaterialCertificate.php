@@ -9,6 +9,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
+/**
+ * @property \Illuminate\Support\Carbon|null $file_disposed_at
+ */
 class MaterialCertificate extends Model
 {
     /** @use HasFactory<\Database\Factories\MaterialCertificateFactory> */
@@ -26,6 +29,7 @@ class MaterialCertificate extends Model
     {
         return [
             'size_bytes' => 'integer',
+            'file_disposed_at' => 'datetime',
         ];
     }
 
@@ -112,5 +116,54 @@ class MaterialCertificate extends Model
         $this->disk()->delete($this->path);
 
         $this->delete();
+    }
+
+    /**
+     * Has the file behind this row been disposed of under the retention policy?
+     *
+     * Different from "the file is not on the disk", which is what a disk that lost it looks like.
+     * That distinction is the whole reason the column exists - see the 2026_10_06 migration.
+     */
+    public function fileWasDisposedOf(): bool
+    {
+        return $this->file_disposed_at !== null;
+    }
+
+    /**
+     * Delete the file and keep the row, at the end of its retention period.
+     *
+     * Not deleteWithFile() with a different name. That method refuses on anything that is already a
+     * record - a placed order, a closed batch - which by seven years old is every certificate there
+     * is, and rightly so: it exists to stop somebody tidying away evidence they have just decided
+     * they do not like. This is the other thing entirely, the controlled end of a period somebody
+     * wrote down in advance, so it does not ask that question.
+     *
+     * What it will not do is run on its own. The only caller is App\Console\Commands\
+     * DisposeOfExpiredRecords, which refuses without a named person and a reason and writes a
+     * record_dispositions row for the act. A method this blunt reached from anywhere else is how a
+     * retention policy turns into an accident.
+     *
+     * The row survives with everything except the file: the heat, the filename it arrived under,
+     * the merchant, the uploader and the date. Deleting it instead would take the account of what
+     * was received along with the thing received, and that account is small, is itself the record
+     * the certificate was evidence for, and costs nothing to keep.
+     */
+    public function disposeOfFile(): void
+    {
+        if ($this->fileWasDisposedOf()) {
+            return;
+        }
+
+        $this->disk()->delete($this->path);
+
+        /*
+         * Saved through the model, so the change log records the disposal against the certificate
+         * too - RecordsChanges writes an "updated" row naming file_disposed_at. A reader starting
+         * from the certificate finds the date, and one starting from record_dispositions finds the
+         * person; neither has to know the other table exists.
+         */
+        $this->file_disposed_at = now();
+
+        $this->save();
     }
 }
