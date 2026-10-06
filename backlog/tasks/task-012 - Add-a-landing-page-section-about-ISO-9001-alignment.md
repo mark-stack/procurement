@@ -14,7 +14,7 @@ references:
   - resources/js/Pages/Welcome.vue
   - app/Http/Controllers/LandingController.php
 priority: medium
-ordinal: 38500
+ordinal: 57500
 ---
 
 ## Description

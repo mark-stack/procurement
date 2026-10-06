@@ -1,12 +1,13 @@
 ---
 id: TASK-030
 title: Audit editing of fabrication date through the kanban lifecycle
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-01 23:04'
+updated_date: '2026-10-05 10:54'
 labels: []
 dependencies: []
-ordinal: 48500
+ordinal: 31000
 ---
 
 ## Description
