@@ -136,6 +136,15 @@ class OffcutCleanout
                  */
                 'kg_per_m_resolved' => $kgPerM !== null,
                 'worth' => round($worth, 2),
+                /*
+                 * What owning this steel had cost, landed, with nothing taken off for how short it
+                 * is. Not what the decision turns on - that is 'worth' against 'keep_cost' above,
+                 * and this piece is a candidate precisely because the rack is no longer carrying it
+                 * at anything like what it cost. It is here because it is what the scrap ledger
+                 * records as the write-off, and both paths into that table have to mean the same
+                 * thing by it. See Services\ScrapLedger::recordCleanout.
+                 */
+                'landed' => round($model->mmToCost($length), 2),
                 'keep_cost' => round($keepCost, 2),
                 //What the merchant would actually pay for it, which is the other half of the decision
                 'bin_recovers' => round($model->scrapIncome($length), 2),

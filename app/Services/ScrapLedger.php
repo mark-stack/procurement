@@ -36,9 +36,17 @@ class ScrapLedger
     /**
      * Write the scrap a batch's nest left behind, from the nest itself.
      *
-     * Idempotent by batch: a batch that already has scrap rows is left alone. Re-reading a nest and
-     * writing it again would double every figure in the report, and there is no version of this that
-     * wants to happen twice - a re-nest unwinds the batch first, which takes the old rows with it.
+     * Idempotent by batch: a batch that already has NEST DROP rows is left alone. Re-reading a nest
+     * and writing it again would double every figure in the report, and there is no version of this
+     * that wants to happen twice - a re-nest unwinds the batch first, which takes the old rows with
+     * it.
+     *
+     * THE SOURCE FILTER IS LOAD-BEARING, and the lack of it was a silent hole. A cleanout row carries
+     * the batch that originally cut the offcut being weighed in (see recordCleanout), so a batch one
+     * of whose offcuts had already been scrapped off the rack looked, to an unfiltered existence
+     * check, like a batch whose nest was already recorded. The backfill then skipped it for good and
+     * its drops never reached the report. The two sources are not interchangeable - they are not even
+     * the same steel - and only this one is written from the nest.
      *
      * @return int how many rows were written
      */
@@ -60,7 +68,7 @@ class ScrapLedger
             return 0;
         }
 
-        if (Scrap::query()->where('batch_id', $batch->id)->exists()) {
+        if (Scrap::query()->where('batch_id', $batch->id)->where('source', ScrapSourceEnums::NEST_DROP)->exists()) {
             return 0;
         }
 
@@ -110,7 +118,21 @@ class ScrapLedger
 
             'length' => (float) $offcut->length,
             'weight_kg' => ($offcut->length / 1000) * $kgPerM,
-            'value' => (float) $candidate['worth'],
+
+            /*
+             * The LANDED cost of this steel, the same quantity a nest drop records - not what the
+             * rack was carrying it at.
+             *
+             * These two used to be one column and the carried figure is what went into it, which
+             * made netLoss() negative for essentially every piece this list proposes: the carried
+             * value of a remnant below its own racking floor is a fraction of the steel, while the
+             * bin pays 13% of all of it. The ledger was reporting that destroying dead stock earned
+             * the yard money. A write-off is a write-off whatever the rack had stopped valuing it
+             * at - that is the point of writing it off - so value means the steel, and what it was
+             * being carried at is recorded beside it.
+             */
+            'value' => (float) $candidate['landed'],
+            'carried_value' => (float) $candidate['worth'],
             'recovered_value' => (float) $candidate['bin_recovers'],
             'kg_per_m' => $kgPerM,
             //The cleanout says whether the catalogue answered; false here means it did not
@@ -335,6 +357,12 @@ class ScrapLedger
         return [
             'weight_kg' => $model->mmToKg($lengthMm),
             'value' => $model->mmToCost($lengthMm),
+            /*
+             * Null rather than zero. A drop is below the scrap threshold by definition, so the rack
+             * never carried it at anything - which is not the same statement as a remnant the rack
+             * had given up on, and that is the distinction the column exists to keep.
+             */
+            'carried_value' => null,
             'recovered_value' => $model->scrapIncome($lengthMm),
             'kg_per_m' => $model->mmToKg(1000),
             'kg_per_m_estimated' => $massEstimated,

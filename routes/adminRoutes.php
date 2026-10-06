@@ -8,6 +8,7 @@ use App\Http\Controllers\AdminMaterialIndexController;
 use App\Http\Controllers\AdminMaterialStoreController;
 use App\Http\Controllers\AdminMaterialUpdateController;
 use App\Http\Controllers\AdminNestingAlgorithmController;
+use App\Http\Controllers\AdminNestingSettingsController;
 use App\Http\Controllers\AdminNotificationIndexController;
 use App\Http\Controllers\AdminStopImpersonationController;
 use App\Http\Controllers\AdminTemplateAttemptResolveController;
@@ -145,6 +146,17 @@ Route::prefix('admin')->name('admin.')->middleware([AdminMiddleware::class, 'ver
     //{business?}: the cost settings are per business, so an admin can inspect any of them, but the
     //page explains the algorithm either way and defaults to the admin's own
     Route::get('nesting-algorithm/{business?}', AdminNestingAlgorithmController::class)->name('nesting.algorithm');
+
+    /*
+     * And writing them, which until now nothing could do. Every coefficient had a column and an
+     * explainer and no form, so every yard ran on the documented defaults - including no freight
+     * at all, which the model itself calls the main lever on when a remnant gets written off.
+     *
+     * The business is required here where it is optional above: reading the page falls back to the
+     * admin's own business, or to an unsaved one carrying the defaults, because the page explains
+     * the algorithm either way. There is no equivalent fallback for a write.
+     */
+    Route::patch('nesting-algorithm/{business}', AdminNestingSettingsController::class)->name('nesting.settings.update');
 });
 
 /*

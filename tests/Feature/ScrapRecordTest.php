@@ -264,7 +264,9 @@ it('records what the cleanout page said the steel was worth, not a second opinio
 
     $scrap = Scrap::query()->where('offcut_id', $offcut->id)->first();
 
-    expect($scrap->value)->toBe($candidate['worth'])
+    expect($scrap->value)->toBe($candidate['landed'])
+        //What the rack was still carrying it at, recorded beside the steel rather than instead of it
+        ->and($scrap->carried_value)->toBe($candidate['worth'])
         ->and($scrap->recovered_value)->toBe($candidate['bin_recovers'])
         ->and($scrap->kg_per_m)->toBe($candidate['kg_per_m'])
         /*
@@ -274,6 +276,105 @@ it('records what the cleanout page said the steel was worth, not a second opinio
          */
         ->and($candidate['kg_per_m_resolved'])->toBeFalse()
         ->and($scrap->kg_per_m_estimated)->toBeTrue();
+});
+
+it('would be a disaster if weighing in dead stock read as money the yard had made', function () {
+    /*
+     * scraps.value used to hold two different quantities depending on how the steel died: the
+     * landed cost of it for a nest drop, and what the RACK was carrying it at for a cleanout.
+     * recovered_value is 13% of the full bare price either way, so a cleanout netted out negative
+     * and the ledger reported that destroying dead stock had earned the yard money.
+     *
+     * Not an edge case, which is what makes it worth a test of its own. The cleanout only ever
+     * proposes offcuts below the length at which their own section pays for its keep, and across
+     * that band the carried value of anything heavier than light angle is below what the bin pays
+     * for its whole range - so it was every row the page could offer, not an unlucky one.
+     *
+     * The 1.2m 200PFC below is exactly such a piece: the rack had it down to a couple of dollars
+     * and the merchant will pay several for the metal.
+     */
+    $user = offcutsIndexUser();
+    $this->actingAs($user);
+    seedMasterMaterials();
+
+    $batch = batchWithDeliveredOrder($user);
+    $offcut = create_offcut_200PFC(1200, $batch->id);
+    $offcut->created_at = now()->subYears(2);
+    $offcut->save();
+
+    $this->post(route('offcuts.scrap'), ['offcut_ids' => [$offcut->id]]);
+
+    $scrap = Scrap::query()->where('offcut_id', $offcut->id)->first();
+
+    expect($scrap->netLoss())->toBeGreaterThan(0)
+        //The steel, not the book value - and the two are a long way apart on a piece this short
+        ->and($scrap->value)->toBeGreaterThan($scrap->recovered_value)
+        ->and($scrap->carried_value)->toBeLessThan($scrap->value);
+
+    //And the report it feeds says the same, rather than netting a write-off off against a drop
+    $report = (new ScrapReport)->forBusiness($user->business);
+
+    expect($report['totals']['net_loss'])->toBeGreaterThan(0)
+        ->and(collect($report['by_source'])->firstWhere('source', ScrapSourceEnums::CLEANOUT->value)['net_loss'])
+        ->toBeGreaterThan(0);
+});
+
+it('would be a disaster if a nest drop claimed the rack had been carrying it', function () {
+    /*
+     * The other half of the same column. A drop is under the scrap threshold by definition, so it
+     * was never banked and the rack never carried it at anything - which is a different statement
+     * from "the rack had given up on it", and zero would say the second.
+     */
+    [, , $batch] = nestedBatch([[7000, 2], [1700, 7]]);
+
+    $rows = Scrap::query()->where('batch_id', $batch->id)->get();
+
+    expect($rows)->not->toBeEmpty()
+        ->and($rows->every(fn (Scrap $row): bool => $row->carried_value === null))->toBeTrue();
+});
+
+it('would be a disaster if weighing in one old offcut hid its whole batch from the backfill', function () {
+    /*
+     * A cleanout row names the batch that originally CUT the offcut being weighed in, because that
+     * is the only batch the steel was ever part of. The guard that keeps recordNest() from writing
+     * a batch's drops twice used to ask only whether the batch had any scrap at all, and the
+     * backfill excluded batches the same way - so one old stub weighed in off the rack made its
+     * whole batch look like a batch whose nest had already been read.
+     *
+     * The two are not interchangeable and the timing made it worse than a near miss: a cleanout
+     * needs a piece to have sat for a year, so the batches it could silence were exactly the old
+     * ones the backfill exists for. Their drops would never have been recorded at all.
+     */
+    [, $user, $batch] = nestedBatch([[7000, 2], [1700, 7]]);
+
+    //Back to the state of a batch nested before any of this existed
+    Scrap::query()->where('batch_id', $batch->id)->delete();
+
+    /*
+     * An offcut this batch cut out of one already in the yard. Cut from inventory rather than from
+     * new stock so it is available without the batch needing a delivered order of its own - see
+     * Business::availableOffcuts - and two years old, which is what makes it a cleanout candidate.
+     */
+    $parent = create_offcut_200PFC(3000, $batch->id);
+
+    $offcut = create_offcut_200PFC(1200, $batch->id);
+    $offcut->offcut_from_id = $parent->id;
+    $offcut->created_at = now()->subYears(2);
+    $offcut->save();
+
+    $this->actingAs($user)->post(route('offcuts.scrap'), ['offcut_ids' => [$offcut->id]]);
+
+    expect(Scrap::query()->where('batch_id', $batch->id)->where('source', ScrapSourceEnums::CLEANOUT)->count())
+        ->toBe(1);
+
+    $this->artisan('scrap:backfill')->assertSuccessful();
+
+    //The nest's own three drops, still recoverable, and the cleanout untouched beside them
+    $drops = Scrap::query()->where('batch_id', $batch->id)->where('source', ScrapSourceEnums::NEST_DROP)->get();
+
+    expect($drops)->toHaveCount(3)
+        ->and($drops->sum('length'))->toBe(scrapClaimedInNest($batch))
+        ->and(Scrap::query()->where('batch_id', $batch->id)->count())->toBe(4);
 });
 
 it('would be a disaster if restoring an offcut left it counted as destroyed', function () {

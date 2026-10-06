@@ -74,6 +74,18 @@ class NestingCostModel
      *
      * A zero a business has actually chosen still reads as zero - the attribute is present then.
      *
+     * THESE ARE A STARTING POINT, NOT A MEASUREMENT OF ANY PARTICULAR YARD, and every one of them is
+     * editable - see Http\Requests\UpdateNestingSettingsRequest and the admin explainer page. Two are
+     * worth a second look before a business is left on them, because both understate the cost of
+     * keeping steel and so make the model slower to let a remnant go than it should be:
+     *
+     *  - labour_rate_per_hour at $50 is the cost of an hour on the floor, on-costs included. For most
+     *    Australian shops the true figure is higher, and every handling charge here scales with it.
+     *  - offcut_rack_base_minutes at 6 is the WHOLE life of a racked piece - marking it, recording it,
+     *    and every time it is shifted before it is finally used. On a heavy section that is close to a
+     *    single crane move, so a yard that handles its rack a lot is carrying more than this says.
+     *
+
      * Public because this is also the list of what a nest has to retain to be re-costed afterwards -
      * see Services\NestingSettings, which snapshots every key here onto the batch so a historic
      * batch keeps reporting the cost it was costed at. Two lists would drift the moment a
@@ -207,6 +219,15 @@ class NestingCostModel
      * figure would have the bin refunding part of your own delivery bill, which grows the better the
      * recovery rate looks - so the more freight a business pays, the more scrapping would appear to pay it
      * back. It is the opposite: freight makes destroying steel worse, because you bought the delivery too.
+     *
+     * A SHARE OF THE SECTION PRICE IS A SIMPLIFICATION, and worth knowing before leaning on this figure.
+     * A weighbridge pays for the metal and does not care what the section cost: galvanised, a higher
+     * grade or a scarce size all raise material_cost_per_tonne and all raise this with it, where a
+     * merchant would pay the same per tonne for any of them. It is expressed as a share because a yard
+     * can estimate "about an eighth of what we pay for it" far more readily than a dollar figure per
+     * tonne that moves every quarter, and at the documented defaults - $2,000/t and 0.13, so $260/t
+     * against a scrap market somewhere north of $300 - the error is conservative. A yard carrying a much
+     * dearer steel price than its sections really are should set the rate down to compensate.
      */
     public function scrapIncome(float|int $mm): float
     {

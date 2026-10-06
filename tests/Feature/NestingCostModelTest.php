@@ -1,8 +1,11 @@
 <?php
 
+use App\Enums\NestingEnums;
 use App\Formatters\NestingFormatter;
+use App\Models\Batch;
 use App\Models\Business;
 use App\Services\NestingCostModel;
+use App\Services\NestingSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -537,4 +540,60 @@ it('would be a disaster if a business missing the cost settings nested with no o
         ->and($model->mmToCost(1000))->toBeGreaterThan(0.0)
         ->and($model->minutesToCost(60))->toBeGreaterThan(0.0)
         ->and(costOfDrops($model, [2500, 0]))->not->toBe(costOfDrops($model, [1000, 1500]));
+});
+
+it('would be a disaster if a batch paid for one order per product rather than one per merchant', function () {
+    /*
+     * The fixed cost of buying - the paperwork, and the truck turning up - is charged once to any
+     * nest that buys anything (NestingCostModel::cost, step 2a). Within a single product that is
+     * right, and it cannot mis-rank a thing: every candidate that buys carries the same charge.
+     *
+     * Summed across a batch it stops being right. Five products that each buy carried five lots of
+     * paperwork for what is one trip to one merchant, and that figure is what lands in
+     * batch_measurements.cost - so a batch of many small sections was recorded as having cost most
+     * of an hour of admin it never did. The per-product scores stay as the search struck them; the
+     * duplication comes off the batch total.
+     */
+    $business = costModelBusiness();
+    $user = createUser(1, $business, false, true);
+    $batch = Batch::factory()->forUser($user->id)->create();
+
+    //Two PFC products, both buying new stock, both therefore charged the overhead
+    $batch->nested_state = [
+        NestingEnums::METERAGE->value => [
+            ['product_category' => 'PFC', 'nested' => ['cost' => 400.0, 'totals' => ['newStock' => ['total' => 9000]]]],
+            ['product_category' => 'PFC', 'nested' => ['cost' => 300.0, 'totals' => ['newStock' => ['total' => 6000]]]],
+        ],
+    ];
+    $batch->nesting_settings = NestingSettings::inForce($business);
+    $batch->save();
+
+    $overhead = (new NestingCostModel($business))->orderOverheadCost();
+
+    expect($overhead)->toBeGreaterThan(0.0)
+        //700 summed, less the one duplicated order: both sections come from the same merchant
+        ->and($batch->fresh()->nestCost())->toEqualWithDelta(700.0 - $overhead, 0.001);
+});
+
+it('leaves the order overhead alone when only one product bought anything', function () {
+    /*
+     * Nothing is duplicated when nothing was charged twice. The second product here nested
+     * entirely out of the offcut rack, so it never paid for an order and there is nothing to take
+     * off - and a deduction made on the product COUNT rather than on who actually bought would
+     * refund an order this batch really did place.
+     */
+    $business = costModelBusiness();
+    $user = createUser(1, $business, false, true);
+    $batch = Batch::factory()->forUser($user->id)->create();
+
+    $batch->nested_state = [
+        NestingEnums::METERAGE->value => [
+            ['product_category' => 'PFC', 'nested' => ['cost' => 400.0, 'totals' => ['newStock' => ['total' => 9000]]]],
+            ['product_category' => 'PFC', 'nested' => ['cost' => 120.0, 'totals' => ['newStock' => ['total' => 0]]]],
+        ],
+    ];
+    $batch->nesting_settings = NestingSettings::inForce($business);
+    $batch->save();
+
+    expect($batch->fresh()->nestCost())->toEqualWithDelta(520.0, 0.001);
 });

@@ -1,6 +1,9 @@
 <?php
 
+use App\Models\Business;
+use App\Models\User;
 use App\Services\NestingCostModel;
+use App\Services\NestingSettings;
 
 it('would be a disaster if a non-admin could read another business\'s nesting settings', function () {
     $business = createBusiness('Business A');
@@ -320,4 +323,149 @@ it('explains why the rack is cleared on a calendar rather than by the nest', fun
             //The same floor the labour table quotes, so the two halves of the page cannot disagree
             ->and($row['worthRackingFromMm'])->toBe($model->worthRackingFromMm());
     }
+});
+
+/**
+ * A complete set of this business's current figures, with the given keys changed.
+ *
+ * Complete because the form posts every dial at once and the request requires every one of them:
+ * a partial payload is a half-written cost model, and the half that was not written would silently
+ * be whatever the column default happened to be.
+ *
+ * @param  array<string, float|int>  $changes
+ * @return array<string, float|int>
+ */
+function nestingSettingsPayload(Business $business, array $changes = []): array
+{
+    return [...NestingSettings::inForce($business), ...$changes];
+}
+
+it('saves a yard its own freight, which nothing could set before', function () {
+    /*
+     * The gap this closes. Every coefficient had a column, a documented default and an explainer
+     * page, and no write path anywhere in the application - so every installation ran on the same
+     * figures, including no freight at all. The cost model's own documentation says freight is what
+     * makes a yard slower to write a remnant off and that "a business opts in by setting its own
+     * rate"; there was no opt-in to make.
+     */
+    $business = createBusiness('Business A');
+    $admin = createUser(1, $business, true, true);
+
+    /*
+     * Read now and held as numbers, not as a model. A NestingCostModel keeps the Business instance
+     * it was built from, and that instance is the one refreshed below - so a model held across the
+     * save answers with the new figures and compares equal to itself.
+     */
+    $before = new NestingCostModel($business, 5.68, 12000);
+    $landedBefore = $before->landedCostPerTonne();
+    $floorBefore = $before->worthRackingFromMm();
+
+    expect($landedBefore)->toBe(2000.0);
+
+    $this->actingAs($admin)
+        ->patch(route('admin.nesting.settings.update', $business->id), nestingSettingsPayload($business, [
+            'delivery_cost_per_tonne' => 150.00,
+            'kerf_mm' => 3,
+        ]))
+        ->assertRedirect();
+
+    $business->refresh();
+
+    expect((float) $business->delivery_cost_per_tonne)->toBe(150.00)
+        ->and((int) $business->kerf_mm)->toBe(3);
+
+    /*
+     * And it reaches the thing it exists to move. Freight raises what a remnant is worth without
+     * raising the labour of keeping it, so the two curves cross sooner and fewer pieces fall under
+     * the floor - a yard paying for delivery should be slower to bin steel than one collecting it.
+     */
+    $after = new NestingCostModel($business, 5.68, 12000);
+
+    expect($after->landedCostPerTonne())->toBe(2150.0)
+        ->and($after->worthRackingFromMm())->toBeLessThan($floorBefore);
+});
+
+it('would be a disaster if the dials could be set to buy steel in order to rack it', function () {
+    /*
+     * The one constraint between two of these that has to hold. Retained value rises to a slope of
+     * 1.5 x cap at a full stock length, so once that reaches the purchase weight, buying one more
+     * millimetre of bar and racking it pays for itself - and the nest starts buying steel to bank
+     * the remainder. The page already reports this; until there was a form, reporting was all
+     * anything could do about it.
+     *
+     * Refused rather than warned, and the message has to name BOTH settings: they are individually
+     * reasonable and only wrong together, so an admin told off about the one they did not touch
+     * will put it back where it was and try again.
+     */
+    $business = createBusiness('Business A');
+    $admin = createUser(1, $business, true, true);
+
+    $response = $this->actingAs($admin)
+        ->patch(route('admin.nesting.settings.update', $business->id), nestingSettingsPayload($business, [
+            'offcut_retention_cap' => 0.98,
+            'purchase_cost_weight' => 1.0,
+        ]));
+
+    $response->assertSessionHasErrors('offcut_retention_cap');
+
+    expect(session('errors')->first('offcut_retention_cap'))
+        ->toContain('0.98')
+        ->toContain('1.47');
+
+    //And nothing was written
+    expect((float) $business->fresh()->offcut_retention_cap)->toBe(0.6);
+});
+
+it('refuses a scrap threshold of nothing, which would bank every chip off the saw', function () {
+    $business = createBusiness('Business A');
+    $admin = createUser(1, $business, true, true);
+
+    $this->actingAs($admin)
+        ->patch(route('admin.nesting.settings.update', $business->id), nestingSettingsPayload($business, [
+            'scrap_threshold_mm' => 0,
+        ]))
+        ->assertSessionHasErrors('scrap_threshold_mm');
+
+    expect((int) $business->fresh()->scrap_threshold_mm)->toBe(1000);
+});
+
+it('would be a disaster if a non-admin could change what a yard nests on', function () {
+    $business = createBusiness('Business A');
+    $user = createUser(1, $business, false, true);
+
+    $this->actingAs($user)
+        ->patch(route('admin.nesting.settings.update', $business->id), nestingSettingsPayload($business, [
+            'material_cost_per_tonne' => 1.00,
+        ]))
+        ->assertRedirect('/');
+
+    expect((float) $business->fresh()->material_cost_per_tonne)->toBe(2000.00);
+});
+
+it('leaves a batch already nested on the figures it was nested on', function () {
+    /*
+     * The claim that makes editing these safe at all, and the reason the form can exist now when it
+     * could not have before the settings were retained with the nest. A yard that puts its steel
+     * price up has not made February's batches more expensive to have nested - the kilograms are
+     * history and so are the dollars beside them.
+     */
+    [$business, , $batch] = nestedBatch([[7000, 2], [1700, 7]]);
+
+    //The admin nestedBatch already made, rather than a second one: every admin fixture shares the
+    //one configured address, so creating another collides on users.email
+    $admin = User::query()->where('is_admin', true)->firstOrFail();
+
+    expect((float) $batch->nesting_settings['material_cost_per_tonne'])->toBe(2000.0);
+
+    $this->actingAs($admin)
+        ->patch(route('admin.nesting.settings.update', $business->id), nestingSettingsPayload($business, [
+            'material_cost_per_tonne' => 3500.00,
+        ]))
+        ->assertRedirect();
+
+    $batch->refresh();
+
+    //The snapshot is untouched, and so is what anything costing this batch again will read
+    expect((float) $batch->nesting_settings['material_cost_per_tonne'])->toBe(2000.0)
+        ->and((float) NestingSettings::asOf($batch, $business->fresh())->material_cost_per_tonne)->toBe(2000.0);
 });

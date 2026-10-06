@@ -304,6 +304,12 @@ class ScrapReport
     /**
      * Add up a set of scrap rows.
      *
+     * carried_value is deliberately not among them. It is on a cleanout row and null on a nest
+     * drop, so a column summing it would be adding up a figure that only half the rows have and
+     * presenting the result beside totals that every row contributed to. It answers a question
+     * about one piece - what the rack still thought this was worth when somebody gave up on it -
+     * and that question does not add up across a quarter.
+     *
      * @param  array<int, Scrap>  $rows
      * @return array<string, mixed>
      */

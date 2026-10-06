@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\ScrapSourceEnums;
 use App\Models\Batch;
 use App\Models\Scrap;
 use App\Services\ScrapLedger;
@@ -19,16 +20,20 @@ use Illuminate\Console\Command;
  * write - and that is what makes the backfilled history reconcile against the nesting screens
  * instead of being a second, slightly different account of the same steel.
  *
- * Two things it cannot recover, both reported rather than papered over:
+ * Two things it cannot always recover, both reported rather than papered over:
  *
  *  - The bar a drop came off, for batches older than bars.batch_id (the 2026_09_26 migration). The
  *    weight is right and the row says it does not know the bar, which means it is counted in the
  *    monthly total and not against a job.
- *  - The business's cost coefficients as they were then. A row is priced at today's material cost
- *    and today's recovery rate, because the rates in force on the day are not recorded anywhere.
- *    The kilograms are history; the dollars beside them are today's valuation of that history.
+ *  - The business's cost coefficients as they were then, for a batch nested before they were
+ *    retained with the nest. Services\NestingSettings::asOf prices a batch on its own snapshot where
+ *    it has one, so only the older batches fall back to today's figures - and where they do, the
+ *    kilograms are history and the dollars beside them are today's valuation of that history.
  *
- * Safe to run twice: recordNest() leaves a batch that already has scrap rows alone.
+ * Safe to run twice: recordNest() leaves a batch that already has nest drops alone. Note that the
+ * exclusion below matches that guard on SOURCE as well as on batch, because a cleanout row carries
+ * the batch that originally cut the offcut it weighed in. Without that, scrapping one old offcut off
+ * the rack disqualified its whole batch from ever being backfilled.
  */
 class BackfillNestScrap extends Command
 {
@@ -46,7 +51,11 @@ class BackfillNestScrap extends Command
              * from the moment somebody starts quoting.
              */
             ->whereNotNull('nested_state')
-            ->whereNotIn('id', Scrap::query()->select('batch_id'))
+            /*
+             * Nest drops only. A cleanout names the batch that cut the offcut, so an unfiltered
+             * subquery here excluded batches whose nest has never been read - see the class note.
+             */
+            ->whereNotIn('id', Scrap::query()->where('source', ScrapSourceEnums::NEST_DROP)->select('batch_id'))
             ->orderBy('id');
 
         if ($this->option('batch') !== null) {
