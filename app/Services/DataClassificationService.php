@@ -11,6 +11,48 @@ use App\Models\Product;
 
 class DataClassificationService
 {
+    private const MM_PER_INCH = 25.4;
+
+    /**
+     * The platform plate catalogue runs 5mm to 150mm. Above that is not a thickness, it is a
+     * dimension that a pattern reached for when the thickness was not where it expected one.
+     */
+    private const MAX_PLATE_THICKNESS_MM = 150.0;
+
+    /**
+     * Manufacturers' Standard Gauge for sheet steel, in millimeters. The number in "16GA" is a
+     * position on this table, not a measurement - the two run in opposite directions, so a
+     * bigger gauge is thinner sheet.
+     */
+    private const SHEET_GAUGE_MM = [
+        3 => 6.073,
+        4 => 5.695,
+        5 => 5.314,
+        6 => 4.935,
+        7 => 4.554,
+        8 => 4.176,
+        9 => 3.797,
+        10 => 3.416,
+        11 => 3.038,
+        12 => 2.657,
+        13 => 2.278,
+        14 => 1.897,
+        15 => 1.709,
+        16 => 1.519,
+        17 => 1.367,
+        18 => 1.214,
+        19 => 1.062,
+        20 => 0.912,
+        21 => 0.836,
+        22 => 0.759,
+        23 => 0.682,
+        24 => 0.607,
+        25 => 0.531,
+        26 => 0.455,
+        27 => 0.417,
+        28 => 0.378,
+    ];
+
     public function findGeneralProductMatches(
         object $user,
         string $productCategory,
@@ -1067,25 +1109,158 @@ class DataClassificationService
                 $resultFloat = $this->findRhsThickness($text);
             }
         }
+        //Special condition for PLATE
+        elseif ($productConfig['productCategory'] === ProductEnums::PLATE->value) {
+            if ($regexLabel === 'nominalHeightRegex') {
+                $resultFloat = $this->findPlateThickness($text, $productConfig[$regexLabel]);
+            } else {
+                $resultFloat = $this->findNumberByRegexPatterns($productConfig[$regexLabel], $text);
+            }
+        }
         //All other products
         else {
-            $regexPatterns = $productConfig[$regexLabel];
+            $resultFloat = $this->findNumberByRegexPatterns($productConfig[$regexLabel], $text);
+        }
 
-            foreach ($regexPatterns as $pattern) {
-                $regex = '/'.$pattern.'/i';
+        return $resultFloat;
+    }
 
-                preg_match_all($regex, $text, $matches);
+    private function findNumberByRegexPatterns(array $regexPatterns, string $text): ?float
+    {
+        /**
+         * Single purpose: walk a category's patterns and pull the first number out of
+         * whichever one matched.
+         *
+         * The loop does not stop at the first match, so the LAST pattern to match wins.
+         * That is why the order a category declares its patterns in matters, and why a
+         * new pattern appended to a list takes precedence over the ones above it.
+         */
+        $resultFloat = null;
 
+        foreach ($regexPatterns as $pattern) {
+            $regex = '/'.$pattern.'/i';
+
+            preg_match_all($regex, $text, $matches);
+
+            if (! empty($matches[0][0])) {
+                preg_match_all('/-?\d+(\.\d+)?/i', $matches[0][0], $matches);
                 if (! empty($matches[0][0])) {
-                    preg_match_all('/-?\d+(\.\d+)?/i', $matches[0][0], $matches);
-                    if (! empty($matches[0][0])) {
-                        $resultFloat = (float) $matches[0][0];
-                    }
+                    $resultFloat = (float) $matches[0][0];
                 }
             }
         }
 
         return $resultFloat;
+    }
+
+    private function findPlateThickness(string $text, array $metricPatterns): ?float
+    {
+        /**
+         * Single purpose: the plate thickness in millimeters, however the detailer wrote it.
+         *
+         * Thickness is the one attribute findGeneralProductMatches() joins a plate on, so
+         * every notation has to reduce to the same millimeter number. Three of them cannot
+         * be read by the shared patterns at all, and each has to be settled before them:
+         * a gauge and an imperial fraction both OPEN with a number that is not a thickness,
+         * and the leading-PL form separates on a hyphen the shared number extraction reads
+         * as a minus sign. Order matters - "PL16GAx15 1/2" is a gauge AND a fraction, and
+         * the gauge is the thickness.
+         */
+        return $this->findPlateGaugeThickness($text)
+            ?? $this->findPlateImperialThickness($text)
+            ?? $this->findPlateLeadingThickness($text)
+            ?? $this->findNumberByRegexPatterns($metricPatterns, $text);
+    }
+
+    private function findPlateGaugeThickness(string $text): ?float
+    {
+        /**
+         * Gauge is an American sheet notation and arrives from SDS2 - "PL16GAx15 1/2",
+         * "PL 10GA x 48 x 96". The leading number is a gauge, not a thickness: reading it
+         * as millimeters makes 16mm plate out of 1.5mm sheet.
+         *
+         * What has to be ruled out is "PL10 GALV", where GA opens a longer word. A word
+         * boundary will not do it on its own - there is no boundary in "16GAx15" either,
+         * because the dimension separator is itself a letter. Hence two patterns: GA ending
+         * the token, and GA against an "x" or "*" that a dimension follows.
+         */
+        $gaugePatterns = [
+            '/(\d+)\s?GA(?![A-Za-z])/i',   //PL 10GA, PL 10GA x 48 x 96
+            '/(\d+)\s?GA\s?[x*]\s?\d/i',   //PL16GAx15 1/2
+        ];
+
+        foreach ($gaugePatterns as $pattern) {
+            if (preg_match($pattern, $text, $matches) === 1) {
+                return self::SHEET_GAUGE_MM[(int) $matches[1]] ?? null;
+            }
+        }
+
+        return null;
+    }
+
+    private function findPlateImperialThickness(string $text): ?float
+    {
+        /**
+         * Imperial plate is written thickness-first in every notation that reaches here -
+         * "PL1/2*4*8", "PL3/8x1-0", "1/4\" x 4' x 8' PL" - because thickness is what the
+         * plate is named for.
+         *
+         * A fraction is only read as imperial when it sits against the plate token or opens
+         * the descriptor. Without that rule "10mm / 500 / 1000" reads its own flat extents
+         * as the fraction 500/1000 and calls a 10mm plate half an inch thick.
+         */
+        $inches = null;
+
+        //Fraction against the plate token, or opening the descriptor: PL3/8, PL 1 1/2, 1/4" x 4'
+        if (preg_match('/(?:\bPL\s?|^)(?:(\d+)\s+)?(\d+)\s?\/\s?(\d+)/i', $text, $matches) === 1) {
+            $denominator = (float) $matches[3];
+
+            if ($denominator > 0.0) {
+                $inches = (float) ($matches[1] ?: 0) + ((float) $matches[2] / $denominator);
+            }
+        }
+
+        //An inch mark is the only thing separating inches from millimeters: PL 1/2" x 48" x 96"
+        if ($inches === null && preg_match('/(\d+(?:\.\d+)?)\s?"/', $text, $matches) === 1) {
+            $inches = (float) $matches[1];
+        }
+
+        if ($inches === null) {
+            return null;
+        }
+
+        $millimeters = $inches * self::MM_PER_INCH;
+
+        /**
+         * Both patterns above can reach a neighbouring dimension when the thickness is not
+         * where the notation says it is - the width in "PL16GAx15 1/2" is 15 1/2 inches,
+         * which converts to 393mm of plate. The catalogue stops at 150mm, so anything above
+         * that was not a thickness. Returning null leaves the row matched against every
+         * plate rather than one wrong one, which is the user's call to make.
+         */
+        if ($millimeters <= 0.0 || $millimeters > self::MAX_PLATE_THICKNESS_MM) {
+            return null;
+        }
+
+        return $millimeters;
+    }
+
+    private function findPlateLeadingThickness(string $text): ?float
+    {
+        /**
+         * "PL10", "PL 10", "PL10*500*1000", "PL-10-500-1000", "S355 PL10" - the thickness
+         * follows the token rather than leading it, which is how Tekla, Advance Steel, SDS2
+         * and most generic fabrication exports write plate.
+         *
+         * Read off the capture group rather than the whole match: the separator in
+         * "PL-10-500-1000" is a hyphen, and findNumberByRegexPatterns() reads that as the
+         * sign and returns -10.
+         */
+        if (preg_match('/\bPL[-\s]?(\d+(?:\.\d+)?)/i', $text, $matches) !== 1) {
+            return null;
+        }
+
+        return (float) $matches[1];
     }
 
     private function extractNumbersInAscendingOrder(string $text): array
