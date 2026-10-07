@@ -158,6 +158,53 @@ class ExampleTemplates
                 'active' => true,
             ],
             /*
+             * The same report printed the other way up: a Tekcon assembly list whose Area and
+             * Weight are TOTALS for the quantity rather than the unit figures "Assembly List"
+             * above carries, and whose Finish sits past them at the right-hand edge instead of
+             * in front of the length.
+             *
+             * RECONSTRUCTED, like "Material List" below, and for the same reason - the customer
+             * sent a print. The values are read off public/examples/tekla_assembly_list_totals.png
+             * and the shape around them is a reading of it: the columns are taken to be adjacent
+             * because a print cannot say how far apart they sat, where the real export of
+             * "Assembly List" spreads the same seven columns across A to W. So a failure here is a
+             * question about this file before it is a question about the importer.
+             *
+             * What the file is here to hold is the footer. "Total for 18 assemblies:" sits in the
+             * PROFILE column, directly under the last assembly with no blank row in front of it,
+             * so the only thing between it and the material list is its empty Ass Mk cell. Nothing
+             * names it the way "Hot Rolled" names "Total" - the table ends because the check
+             * column ran out and nothing below reads as a material.
+             */
+            [
+                'name' => 'Assembly List - totals',
+                'source' => TemplateSourceEnums::TEKLA->value,
+                'type' => TemplateEnums::CAD_BILL_OF_MATERIALS->value,
+                'web_source' => null,
+                'heading_cell' => 'A6',
+                'expected_heading_labels' => ['Ass Mk', 'Qty', 'Profile', 'Length (mm)', 'Area (m2)', 'Weight (kg)', 'Finish'],
+                'first_description_cell' => 'C7',
+                'first_material_cell' => null,
+                //The report names no grade at all, which is the whole of what it costs - see the test
+                'first_grade_cell' => null,
+                'first_surface_cell' => 'G7',
+                'first_length_required_cell' => 'D7',
+                'first_width_required_cell' => null,
+                'first_sub_qty_cell' => 'B7',
+                'skip_or_finish_check_cell' => 'A7',
+                'should_skip_row' => null,
+                //Ends where the Ass Mk column runs out, which is the total line
+                'is_last_data_row' => null,
+                'compound_description_prefix' => null,
+                'compound_description_suffix' => null,
+                'compound_description_cells' => null,
+                'assembly_mark_rule' => 'COLUMN',
+                'assembly_mark_cell' => 'A7',
+                'length_width_units' => 'mm',
+                'screenshot' => null,
+                'active' => true,
+            ],
+            /*
              * The bolt summaries have no description column. The importer builds one out of the
              * bolt's diameter, grade and length - "M20 8.8 65mm" - which is what the compound
              * description cells are.

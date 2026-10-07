@@ -25,12 +25,17 @@ uses(RefreshDatabase::class);
  * They earned a second job when detection moved out of config/TableTemplates.php and into
  * this table. These assertions did not change across that move, and their passing either
  * side of it is what says the two notations extract identical rows.
+ *
+ * The folder also holds the prints two of these were rebuilt from - a PDF and a PNG, neither of
+ * which anybody can import. They are there to be read next to the file, so a question about what a
+ * reconstruction assumed can be settled by looking rather than by guessing.
  */
 function exampleMaterialLists(): array
 {
     return [
         'material_list.xlsx' => 'Project Quote',
         'tekla_assembly_list.xlsx' => 'Assembly List',
+        'tekla_assembly_list_totals.xlsx' => 'Assembly List - totals',
         'tekla_hot_rolled.xlsx' => 'Hot Rolled, Angles, and more.',
         'tekla_material_list.xlsx' => 'Material List',
         'tekla_bolt_summary_top.xlsx' => 'Bolt Summary - top',
@@ -212,6 +217,102 @@ it('would be a disaster if the Assembly List example stopped parsing', function 
     //Two blank Mark cells end the table, so the footer below them is not a material
     expect(collect(exampleRows('tekla_assembly_list.xlsx'))->pluck('description'))
         ->not->toContain('End of report');
+});
+
+it('would be a disaster if the Assembly List - totals example stopped parsing', function () {
+    /**
+     * The same report as above printed the other way up, and RECONSTRUCTED from
+     * public/examples/tekla_assembly_list_totals.png - so its columns are adjacent where the
+     * other one spreads the same seven across A to W. Tests\Support\ExampleTemplates says which
+     * parts of its shape are read off that page and which are a reading of it.
+     *
+     * Two things it holds that the wide export does not. The first is the footer: "Total for 18
+     * assemblies:" sits in the PROFILE column - the description column - directly under the last
+     * assembly, with no blank row in front of it and no word naming it the way "Hot Rolled" names
+     * "Total". The only thing between it and the material list is its empty Ass Mk cell, so the
+     * table ends because the check column ran out and nothing below reads as a material. Read as a
+     * row it would order a section called "Total for 18 assemblies:".
+     *
+     * The second is the quantity. Eighteen assemblies are printed as seventeen lines, because B/3
+     * is a Qty of 2 - which is what says the Qty column multiplies rather than counting lines
+     * already totalled.
+     */
+    exampleUploader();
+
+    expect(exampleTables('tekla_assembly_list_totals.xlsx'))->toHaveCount(1);
+
+    expect(exampleRowFields('tekla_assembly_list_totals.xlsx', ['description', 'surface', 'length_required', 'sub_qty', 'assembly_mark']))
+        ->toBe([
+            ['UB360*51', 'ZINC PRIMED', 5000.0, 1.0, 'B/1'],
+            ['UB360*51', 'ZINC PRIMED', 7721.0, 1.0, 'B/2'],
+            //Two of them, and the only line of the report that is not one assembly
+            ['UB360*51', 'ZINC PRIMED', 2950.0, 2.0, 'B/3'],
+            ['UB250*31', 'ZINC PRIMED', 2599.0, 1.0, 'B/4'],
+            ['UB310*40', 'ZINC PRIMED', 7652.0, 1.0, 'B/5'],
+            ['UB200*18', 'ZINC PRIMED', 2950.0, 1.0, 'B/6'],
+            ['UB360*51', 'ZINC PRIMED', 7652.0, 1.0, 'B/7'],
+            ['UB530*92', 'ZINC PRIMED', 2950.0, 1.0, 'B/8'],
+            ['UB180*18', 'ZINC PRIMED', 2950.0, 1.0, 'B/9'],
+            ['UB180*22', 'ZINC PRIMED', 2950.0, 1.0, 'B/10'],
+            ['UC310*97', 'GALV', 5000.0, 1.0, 'C/1'],
+            ['UC310*97', 'GALV', 5000.0, 1.0, 'C/2'],
+            ['UC310*97', 'GALV', 5000.0, 1.0, 'C/3'],
+            ['UC310*97', 'GALV', 5000.0, 1.0, 'C/4'],
+            ['UC310*97', 'GALV', 5000.0, 1.0, 'C/5'],
+            ['UC310*97', 'GALV', 5000.0, 1.0, 'C/6'],
+            ['UC310*97', 'GALV', 5000.0, 1.0, 'C/7'],
+        ]);
+
+    expect(collect(exampleRows('tekla_assembly_list_totals.xlsx'))->pluck('description'))
+        ->not->toContain('Total for 18 assemblies:');
+});
+
+it('would be a disaster if a rounded mass stopped reaching the section it names', function () {
+    /**
+     * "UB360*51" is a 360UB50.7, and the sheet is the only place the 50.7 can come from - the
+     * detailer rounds it and the catalogue does not. Depth alone cannot finish the job: 180UB is
+     * stocked at 16.1, 18.1 and 22.2 kg/m, so B/9 and B/10 are the same depth and different steel,
+     * and matching on "180UB" would put them on the same bar.
+     *
+     * The report also names no grade anywhere - there is no Grade column to read - so every row
+     * here is matched on description alone. That it still lands on exactly one section is what
+     * says the rounded mass is being read; drop it and these rows go ambiguous rather than wrong,
+     * which is the failure that reaches the user as a confirmation modal full of choices.
+     *
+     * Finish is read and deliberately not matched on. "ZINC PRIMED" and "GALV" are both surfaces
+     * the catalogue has no plain-carbon UB for, and a row must not go unmatched over one.
+     */
+    $user = exampleUploader();
+    seedMasterMaterials();
+
+    $project = createProject($user);
+    (new CsvService)->processTemplate(exampleTables('tekla_assembly_list_totals.xlsx'), $project);
+
+    expect($project->unimportedItems()['notRecognised'])->toBe([])
+        ->and(RawMaterialQuote::count())->toBe(17);
+
+    $matched = RawMaterialQuote::all()
+        ->unique('description')
+        ->mapWithKeys(function (RawMaterialQuote $quote) {
+            $results = unserialize($quote->general_product_matches)['results'];
+
+            expect($results)->toHaveCount(1, "{$quote->description} should name one section");
+
+            return [$quote->description => [$results[0]['nominal_height'], $results[0]['kg_per_m']]];
+        })
+        ->all();
+
+    expect($matched)->toBe([
+        'UB360*51' => ['360', 50.7],
+        'UB250*31' => ['250', 31.4],
+        'UB310*40' => ['310', 40.4],
+        'UB200*18' => ['200', 18.2],
+        'UB530*92' => ['530', 92.4],
+        //The two that share a depth
+        'UB180*18' => ['180', 18.1],
+        'UB180*22' => ['180', 22.2],
+        'UC310*97' => ['310', 96.8],
+    ]);
 });
 
 it('would be a disaster if the Hot Rolled example stopped parsing', function () {
