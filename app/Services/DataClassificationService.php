@@ -8,6 +8,7 @@ use App\Enums\MeasurementUnitEnums;
 use App\Enums\ProductEnums;
 use App\Enums\SurfaceEnums;
 use App\Models\Product;
+use Illuminate\Database\Eloquent\Builder;
 
 class DataClassificationService
 {
@@ -202,13 +203,7 @@ class DataClassificationService
                 };
 
                 if (count($possibleEquivalents) > 0) {
-                    foreach ($possibleEquivalents as $equivalent) {
-                        $query->where(function ($q) use ($equivalent) {
-                            $q->where('nominal_length', $equivalent['nominal'])
-                                ->orWhere('precise_length', $equivalent['precise'])
-                                ->orWhere('precise_length', $equivalent['rounded']);
-                        });
-                    }
+                    $this->whereAnyEquivalent($query, $possibleEquivalents, 'nominal_length', 'precise_length');
                 }
                 //Otherwise assume it's nominal
                 else {
@@ -227,13 +222,7 @@ class DataClassificationService
                 };
 
                 if (count($possibleEquivalents) > 0) {
-                    foreach ($possibleEquivalents as $equivalent) {
-                        $query->where(function ($q) use ($equivalent) {
-                            $q->where('nominal_width', $equivalent['nominal'])
-                                ->orWhere('precise_width', $equivalent['precise'])
-                                ->orWhere('precise_width', $equivalent['rounded']);
-                        });
-                    }
+                    $this->whereAnyEquivalent($query, $possibleEquivalents, 'nominal_width', 'precise_width');
                 }
                 //Otherwise assume it's nominal
                 else {
@@ -252,13 +241,7 @@ class DataClassificationService
                 };
 
                 if (count($possibleEquivalents) > 0) {
-                    foreach ($possibleEquivalents as $equivalent) {
-                        $query->where(function ($q) use ($equivalent) {
-                            $q->where('nominal_height', $equivalent['nominal'])
-                                ->orWhere('precise_height', $equivalent['precise'])
-                                ->orWhere('precise_height', $equivalent['rounded']);
-                        });
-                    }
+                    $this->whereAnyEquivalent($query, $possibleEquivalents, 'nominal_height', 'precise_height');
                 }
                 //Otherwise assume it's nominal
                 else {
@@ -287,13 +270,7 @@ class DataClassificationService
                 };
 
                 if (count($possibleEquivalents) > 0) {
-                    foreach ($possibleEquivalents as $equivalent) {
-                        $query->where(function ($q) use ($equivalent) {
-                            $q->where('kg_per_m', $equivalent['nominal'])
-                                ->orWhere('kg_per_m', $equivalent['precise'])
-                                ->orWhere('kg_per_m', $equivalent['rounded']);
-                        });
-                    }
+                    $this->whereAnyEquivalent($query, $possibleEquivalents, 'kg_per_m', 'kg_per_m');
                 }
                 /*
                  * Otherwise assume it's nominal.
@@ -326,6 +303,43 @@ class DataClassificationService
             'results' => $results ?? [],
             'supplierGroup' => $supplierGroup,
         ];
+    }
+
+    /**
+     * Narrow a query to products matching ANY of the equivalent spellings of one figure.
+     *
+     * Each equivalent is one way the same stocked size gets written down - the nominal mass a
+     * detailer types, the precise one the catalogue holds, and the rounded one in between. They
+     * are alternatives, so they belong in one OR group.
+     *
+     * Each used to add its own ->where(), which ANDed them. A figure matching one row of an
+     * equivalence matrix was unaffected, so this held for most of the range; a figure matching
+     * SEVERAL rows asked for a product that was 18.1kg/m and 18.2kg/m at once and matched
+     * nothing at all. "180UB18", "200UB18", "180UB22", "200UB22" and "460UB82" are every
+     * stocked section that spelling reached - all of them common, and all of them reported to
+     * the customer as not stocked. "530UB82" was the one that worked, by the accident of 82.0
+     * being equal to the nominal 82 and so satisfying both groups.
+     *
+     * $nominalColumn and $preciseColumn are the same column for a mass, which holds one figure
+     * rather than a nominal and a precise one.
+     *
+     * @param  array<int, array{nominal: float|int, precise: float|int, rounded: float|int}>  $equivalents
+     */
+    private function whereAnyEquivalent(
+        Builder $query,
+        array $equivalents,
+        string $nominalColumn,
+        string $preciseColumn,
+    ): void {
+        $query->where(function ($outer) use ($equivalents, $nominalColumn, $preciseColumn) {
+            foreach ($equivalents as $equivalent) {
+                $outer->orWhere(function ($q) use ($equivalent, $nominalColumn, $preciseColumn) {
+                    $q->where($nominalColumn, $equivalent['nominal'])
+                        ->orWhere($preciseColumn, $equivalent['precise'])
+                        ->orWhere($preciseColumn, $equivalent['rounded']);
+                });
+            }
+        });
     }
 
     public function fallbackGeneralProductDefinition(): array
