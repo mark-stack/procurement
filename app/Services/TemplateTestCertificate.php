@@ -96,6 +96,22 @@ class TemplateTestCertificate
     }
 
     /**
+     * Whether these two sets of values would be read out of a spreadsheet identically.
+     *
+     * What this answers is "does saving this change what the importer does", which is the question
+     * an edit has to ask: correcting a template's name is not something to make somebody upload a
+     * sample for, and moving its heading cell is. Both sets go through the same canonicalisation as
+     * a token, so the answer cannot turn on a trailing space or on which case a cell was typed in.
+     *
+     * @param  array<string, mixed>  $left
+     * @param  array<string, mixed>  $right
+     */
+    public function sameExtraction(Business $business, array $left, array $right): bool
+    {
+        return hash_equals($this->fingerprint($business, $left), $this->fingerprint($business, $right));
+    }
+
+    /**
      * The values being signed, in one canonical string.
      *
      * Canonical matters more than readable here: the test signs the form as it posts it and the save

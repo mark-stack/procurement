@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreProjectRequest;
 use App\Models\Business;
 use App\Services\TemplateProposalService;
 use Illuminate\Http\RedirectResponse;
@@ -24,11 +25,11 @@ class AdminTemplateProposalController extends Controller
              * not there because a sample is often a sheet saved out by hand to show us the shape of
              * a report.
              */
-            'sample' => ['required', 'file', 'mimes:xls,xlsx,csv', 'max:1024'],
+            'sample' => ['required', 'file', 'mimes:xls,xlsx,csv', 'max:'.StoreProjectRequest::MAX_FILE_KILOBYTES],
         ], [
             'sample.required' => 'Choose a spreadsheet to read.',
             'sample.mimes' => 'The sample must be a spreadsheet (.xls, .xlsx or .csv).',
-            'sample.max' => 'The sample must be under 1Mb.',
+            'sample.max' => 'The sample must be under 2Mb.',
         ]);
 
         return back()->with(

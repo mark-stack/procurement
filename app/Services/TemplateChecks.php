@@ -259,6 +259,25 @@ class TemplateChecks
             ];
         }
 
+        /*
+         * One label, or a handful of short ones, is a template that matches more than its own
+         * report. The labels are compared in order but not side by side, so "Qty" alone finds a
+         * heading row in almost any spreadsheet this business uploads - and every column is then
+         * read at offsets measured for a different table. A warning rather than an error, because
+         * a short report with one distinctive heading is a real thing; a single generic word is
+         * the case being pointed at.
+         */
+        if ($labels !== [] && count($labels) < 2) {
+            $findings[] = [
+                'level' => 'warning',
+                'field' => 'expected_heading_labels',
+                'message' => sprintf(
+                    'Only one heading label ("%s"). It finds this table in any sheet that happens to carry that word, and every column is measured from wherever it lands. Give two or three more of this report\'s headings.',
+                    $labels[0],
+                ),
+            ];
+        }
+
         if (! $anchor) {
             $findings[] = [
                 'level' => 'error',

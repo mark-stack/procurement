@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Requests\StoreProjectRequest;
 use App\Models\Batch;
 use App\Models\Product;
 use App\Models\Project;
@@ -85,7 +86,8 @@ it('would be a disaster if an oversized upload reached the extractor', function 
     $response = postMaterialLists($this, $user, [
         UploadedFile::fake()->create(
             'huge.xlsx',
-            2048,
+            //Sized off the limit rather than a number that happened to be above it
+            StoreProjectRequest::MAX_FILE_KILOBYTES + 1,
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         ),
     ]);

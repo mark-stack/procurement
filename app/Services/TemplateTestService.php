@@ -116,6 +116,7 @@ class TemplateTestService
             'heading_row' => $table['heading_row'],
             'heading_column' => $table['heading_column'],
             'extracted' => count($table['rows']),
+            'candidates' => $table['candidates'],
         ], $tables);
 
         $checks = $this->checklist->build([
@@ -125,6 +126,18 @@ class TemplateTestService
             'checked' => count($rows),
             'counts' => array_count_values(array_column($rows, 'status')),
             'catalogue_empty' => $catalogueEmpty,
+            /*
+             * The findings that would stop a save, by field.
+             *
+             * The checklist used to claim this check had passed on the grounds that the request
+             * refuses anything failing it - which is true of the admin form and not of
+             * TemplateLearningService, which has no request and calls this service directly. So the
+             * one path that records templates unattended was showing a green tick for a question
+             * nobody had asked. The answer travels as a fact now, and the gate is the same on both.
+             */
+            'record_errors' => array_values(TemplateChecks::blocking($sampleFindings)),
+            //Whether the explicit stop rule could account for a band that was not read to the end
+            'stop_rule' => filled($attributes['is_last_data_row'] ?? null),
             'length_column' => filled($attributes['first_length_required_cell'] ?? null),
             'sub_qty_column' => filled($attributes['first_sub_qty_cell'] ?? null),
             'sample_warnings' => array_map(
@@ -214,7 +227,7 @@ class TemplateTestService
      * tables, and an admin looking at 39 rows needs to know they came from four places.
      *
      * @param  array<string, mixed>  $spec
-     * @return list<array{heading_row: int, heading_column: string, rows: array<int, array<string, mixed>>}>
+     * @return list<array{heading_row: int, heading_column: string, rows: array<int, array<string, mixed>>, candidates: int}>
      */
     private function extract(SpreadsheetGrid $grid, array $spec): array
     {
@@ -227,20 +240,56 @@ class TemplateTestService
                 continue;
             }
 
+            //getTableData() counts rows from zero, the way Excel::toArray() hands them back
+            $firstDataRowIndex = ($rowNumber - 1) + (int) $spec['OffsetFromHeaderToFirstDataRow'];
+
             $tables[] = [
                 'heading_row' => $rowNumber,
                 'heading_column' => CellReference::fromIndexes($headingColumn, 1)->columnLetter(),
-                'rows' => $this->csv->getTableData(
-                    $grid->rows(),
-                    //getTableData() counts rows from zero, the way Excel::toArray() hands them back
-                    ($rowNumber - 1) + (int) $spec['OffsetFromHeaderToFirstDataRow'],
-                    $headingColumn,
-                    $spec,
-                ),
+                'rows' => $this->csv->getTableData($grid->rows(), $firstDataRowIndex, $headingColumn, $spec),
+                //How many rows the table had to read, against which what came out can be compared
+                'candidates' => $this->candidateRows($grid, $spec, $firstDataRowIndex, $headingColumn),
             ];
         }
 
         return $tables;
+    }
+
+    /**
+     * How many rows of this band carry anything in the column the skip and stop rules watch.
+     *
+     * The one failure on this screen with no symptom of its own is under-extraction: a template
+     * that stops half way down a table reports the handful of rows it did read, every one of them
+     * imports, and every check passes. Nothing was comparing what came out against what was there
+     * to come out, so this counts the band - from the first row of data to wherever the heading
+     * appears again or the column genuinely runs out - and rowsCoverTheTable() says so when the two
+     * do not agree.
+     *
+     * @param  array<string, mixed>  $spec
+     */
+    private function candidateRows(SpreadsheetGrid $grid, array $spec, int $firstDataRowIndex, int $headingColumn): int
+    {
+        $checkColumn = $headingColumn + (int) $spec['skipOrFinishCheckRelativeOffset'];
+        $rows = $grid->rows();
+        $candidates = 0;
+
+        for ($index = $firstDataRowIndex; $index < count($rows); $index++) {
+            //The next band of the same report begins, so this one has ended
+            if ($this->csv->headerStartIndex($rows[$index], $spec) !== null) {
+                break;
+            }
+
+            //The check column has run out for good, which is the end of the table
+            if ($this->csv->isLastDataRowNoDataBelow($rows, $index, $checkColumn)) {
+                break;
+            }
+
+            if (trim((string) ($rows[$index][$checkColumn] ?? '')) !== '') {
+                $candidates++;
+            }
+        }
+
+        return $candidates;
     }
 
     /**
@@ -329,7 +378,17 @@ class TemplateTestService
             ));
         }
 
-        $matches = $this->classifier->findGeneralProductMatchesFromText($description, $user);
+        /*
+         * With the row's own material, grade and surface columns, exactly as the import does -
+         * see CsvService::processTemplate(). A test that matched on the description alone would
+         * report a row as needing clarification that the import then buys outright, or find six
+         * products where the import finds the one the sheet's Grade column asked for.
+         */
+        $matches = $this->classifier->findGeneralProductMatchesFromText($description, $user, [
+            'material' => $assessed['material'],
+            'grade' => $assessed['grade'],
+            'surface' => $assessed['surface'],
+        ]);
         $assessed['matches'] = count($matches['results']);
 
         if ($assessed['matches'] === 0) {
@@ -339,7 +398,7 @@ class TemplateTestService
             ));
         }
 
-        $assessed['length_mm'] = $this->csv->normalisedLength($algo, $row['length_required'] ?? null);
+        $assessed['length_mm'] = $this->csv->normalisedLength($algo, $row['length_required'] ?? null, $row['length_units'] ?? null);
 
         if ($assessed['length_mm'] === null) {
             return $this->verdict($assessed, 'no_length', 'No length came off this row, and every imported row has to have one, so it is reported as unreadable.');
@@ -371,7 +430,7 @@ class TemplateTestService
         }
 
         //Plate and sheet are nested by area, and an area with no width is a length of nothing
-        if ($algo === NestingEnums::AREA->value && $this->csv->normalisedWidth($algo, $row['width_required'] ?? null) === null) {
+        if ($algo === NestingEnums::AREA->value && $this->csv->normalisedWidth($algo, $row['width_required'] ?? null, $row['width_units'] ?? null) === null) {
             $missing[] = 'no width, which this item needs to be nested';
         }
 

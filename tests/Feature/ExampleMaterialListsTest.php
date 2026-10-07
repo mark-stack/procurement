@@ -336,10 +336,23 @@ it('would be a disaster if an example parsed but imported nothing', function () 
 
     $project = Project::firstOrFail();
 
-    expect($project->unimportedItems()['notRecognised'])->toBe([]);
+    /*
+     * One row of the hot rolled example does not reach a material, and it is the catalogue's gap
+     * rather than the parser's: that sheet asks for CHS 88.9x3.2 at GR350, and the platform
+     * catalogue carries 88.9x3.2 only as GR250 galvanised pipe - its GR350 CHS of that diameter is
+     * 5.5mm wall. AS/NZS 1163 C350 is the ordinary structural grade for CHS, so this is a product
+     * we should stock and do not.
+     *
+     * It imported until the grade COLUMN started being matched on. Before that the grade was
+     * derived from the description alone, "CHS88.9x3.2" names no grade, and the row was quietly
+     * filled with galvanised plumbing pipe - which is the whole reason the column is now read. The
+     * assertion is here so that adding the missing product shows up as this test going green on
+     * 16, rather than as a number nobody can account for.
+     */
+    expect($project->unimportedItems()['notRecognised'])->toBe(['CHS88.9x3.2']);
 
-    //Every row of both files, the repeated 250PFC included
-    expect(RawMaterialQuote::count())->toBe(16);
+    //Every row of both files bar that one, the repeated 250PFC included
+    expect(RawMaterialQuote::count())->toBe(15);
 
     expect(RawMaterialQuote::pluck('description')->unique()->sort()->values()->all())
         ->toBe([

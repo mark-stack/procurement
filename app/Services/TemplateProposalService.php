@@ -78,6 +78,7 @@ class TemplateProposalService
             ...$this->checks->againstSample($prefill['values'], $grid),
             ...$this->alreadyDetectedFindings($detections),
             ...$this->disagreementFindings($detection, $suggestion['answer']),
+            ...$this->truncatedSheetFindings($grid, $suggestion['answer']),
             ...$this->unmatchedFindings($detection),
         ];
 
@@ -335,6 +336,39 @@ class TemplateProposalService
         $take('length_width_units', in_array($answer['length_width_units'] ?? null, ['m', 'mm'], true) ? $answer['length_width_units'] : null);
         $take('name', filled($answer['name'] ?? null) ? $this->availableName((string) $answer['name'], $business) : null);
 
+        /*
+         * The rules. Each one is checked rather than trusted, for the reason
+         * TemplateLearningService::PROPOSAL_COLUMNS exists: this is a model's answer on its way to
+         * a row of the templates table, and the skip and stop rules are compared against a
+         * customer's spreadsheet verbatim.
+         */
+        $take('skip_or_finish_check_cell', $cell($answer['skip_or_finish_check_cell'] ?? null));
+        $take('should_skip_row', $this->rule($answer['should_skip_row'] ?? null));
+        $take('is_last_data_row', $this->rule($answer['is_last_data_row'] ?? null));
+        $take('compound_description_prefix', $this->rule($answer['compound_description_prefix'] ?? null, 50));
+        $take('compound_description_suffix', $this->rule($answer['compound_description_suffix'] ?? null, 50));
+
+        $compoundCells = array_values(array_filter(array_map(
+            $cell,
+            is_array($answer['compound_description_cells'] ?? null) ? $answer['compound_description_cells'] : [],
+        )));
+
+        //Only where the sheet has no description column: both at once is a description read twice
+        if ($values['compound_description_cells'] === [] && $compoundCells !== [] && blank($filled['first_description_cell'] ?? $values['first_description_cell'])) {
+            $filled['compound_description_cells'] = array_slice($compoundCells, 0, 10);
+        }
+
+        $markRule = in_array($answer['assembly_mark_rule'] ?? null, ['NONE', 'COLUMN', 'FIXED'], true)
+            ? $answer['assembly_mark_rule']
+            : null;
+        $markCell = $cell($answer['assembly_mark_cell'] ?? null);
+
+        //A rule with no cell reads no mark, so the pair is taken together or not at all
+        if ($markRule !== null && $markRule !== 'NONE' && $markCell !== null) {
+            $take('assembly_mark_rule', $markRule);
+            $take('assembly_mark_cell', $markCell);
+        }
+
         $labels = array_values(array_filter(
             array_map(fn ($label) => is_string($label) ? trim($label) : '', $answer['expected_heading_labels'] ?? []),
             fn (string $label) => $label !== '',
@@ -349,6 +383,22 @@ class TemplateProposalService
         }
 
         return $filled;
+    }
+
+    /**
+     * One of the skip, stop or affix rules as a string the record can hold, or null.
+     *
+     * Bounded to the column's own length because these reach the templates table from outside the
+     * app, and trimmed because a rule is compared to a trimmed sheet cell - a trailing space in it
+     * would be a rule that can never match anything.
+     */
+    private function rule(mixed $value, int $maximum = 255): ?string
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        return mb_substr(trim($value), 0, $maximum);
     }
 
     /**
@@ -462,6 +512,46 @@ class TemplateProposalService
     }
 
     /**
+     * That the model was shown less than the whole sheet.
+     *
+     * Only the top-left corner goes to OpenAI - see config/openai.php, which caps the rows, the
+     * columns and the characters, as much to bound what leaves this server as to bound the prompt.
+     * That corner holds the heading row and the first row of data on every report we have seen, so
+     * it is enough nearly always, and "nearly" is the part worth saying out loud: a sheet with a
+     * title block or a cover sheet above the table can put the heading row past the cap, and every
+     * cell reference in the answer is then a guess about a part of the file nobody read.
+     *
+     * @param  array<string, mixed>|null  $answer
+     * @return list<array{level: string, field: string|null, message: string}>
+     */
+    private function truncatedSheetFindings(SpreadsheetGrid $grid, ?array $answer): array
+    {
+        if ($answer === null) {
+            return [];
+        }
+
+        $limits = config('openai.grid');
+        $rowsShown = min($grid->rowCount(), (int) $limits['max_rows']);
+        $columnsShown = min($grid->columnCount(), (int) $limits['max_columns']);
+
+        if ($grid->rowCount() <= $rowsShown && $grid->columnCount() <= $columnsShown) {
+            return [];
+        }
+
+        return [[
+            'level' => 'warning',
+            'field' => null,
+            'message' => sprintf(
+                'This sheet is %d rows by %d columns and OpenAI was shown the first %d by %d. Anything it says about the rest is a guess - check the cells below against the file.',
+                $grid->rowCount(),
+                $grid->columnCount(),
+                $rowsShown,
+                $columnsShown,
+            ),
+        ]];
+    }
+
+    /**
      * A file that matches nothing - which is now the case worth being cheerful about, because
      * saving the form is the whole of what makes it importable.
      *
@@ -538,6 +628,29 @@ class TemplateProposalService
         - "notes" is one or two sentences: which row you took as the heading, which as the first
           data row, and anything that made the sheet ambiguous. Written for an administrator who is
           about to check your answer against the spreadsheet.
+
+        Then how the table is read, which matters as much as where the columns are:
+
+        - "skip_or_finish_check_cell" is the cell of the first data row in the column that says
+          whether a row is a material - normally the description column. The two rules below watch
+          it. Null to follow the description column.
+        - "should_skip_row": if rows inside the table are to be passed over and they are marked by
+          one exact word in that column - "Subtotal", "Sub Total" - give that word exactly as
+          written. Null otherwise. It is matched as the WHOLE cell, not as part of it.
+        - "is_last_data_row": if the table ends on a row whose check cell holds one exact word -
+          "Total", "Grand Total" - give that word. Null if the table simply stops. Also matched as
+          the whole cell.
+        - "compound_description_cells": only for a table with NO description column, where what the
+          row is has to be built out of several cells. A bolt summary is the case: diameter, grade
+          and length in three columns, with no cell saying "M16 8.8 65mm" anywhere. Give those
+          cells, in reading order, from the first row of data - and give "compound_description_prefix"
+          and "compound_description_suffix" if a letter or a unit has to be added, e.g. prefix "M"
+          and suffix "mm". Leave the array empty whenever there IS a description column.
+        - "assembly_mark_rule" and "assembly_mark_cell": the assembly or drawing mark the row
+          belongs to, which is how a cut piece is traced back to the job. "COLUMN" if every row has
+          its own mark in a column - give the mark cell on the first row of data. "FIXED" if one
+          mark above the table applies to every row - give that cell. "NONE" if the sheet carries
+          no mark at all. Prefer COLUMN where both are possible.
         PROMPT;
     }
 
@@ -602,6 +715,33 @@ class TemplateProposalService
         foreach (array_keys(Template::CELL_FIELDS) as $field) {
             $properties[$field] = $cell;
         }
+
+        /*
+         * The rules, which the schema had no way of asking about at all.
+         *
+         * Nothing here was asked for, so every template written from a model's answer took the
+         * defaults: skip the rows whose check cell is empty, stop where the check column runs out,
+         * no description built out of other columns, and no assembly mark. The last two are the
+         * expensive ones - a bolt summary has no description column, so it could never be described
+         * automatically, and a table whose mark is in a column imported every row with no mark on
+         * it at all, which is the one field traceability is drawn from.
+         */
+        $properties['skip_or_finish_check_cell'] = $cell;
+        $properties['should_skip_row'] = ['type' => ['string', 'null'], 'description' => 'The exact text a row\'s check cell holds when the row is to be passed over, or null.'];
+        $properties['is_last_data_row'] = ['type' => ['string', 'null'], 'description' => 'The exact text the check cell holds on the row that ends the table, or null.'];
+        $properties['compound_description_cells'] = [
+            'type' => 'array',
+            'items' => ['type' => 'string'],
+            'description' => 'Cells of the first data row to join into a description, in order, for a table with no description column. Empty otherwise.',
+        ];
+        $properties['compound_description_prefix'] = ['type' => ['string', 'null'], 'description' => 'Text to put before the joined cells, e.g. "M". Null if none.'];
+        $properties['compound_description_suffix'] = ['type' => ['string', 'null'], 'description' => 'Text to put after the joined cells, e.g. "mm". Null if none.'];
+        $properties['assembly_mark_rule'] = ['type' => 'string', 'enum' => ['NONE', 'COLUMN', 'FIXED']];
+        //Not $cell: for FIXED this is one cell above the table rather than a cell of the first data row
+        $properties['assembly_mark_cell'] = [
+            'type' => ['string', 'null'],
+            'description' => 'For COLUMN, the mark cell in the first row of data. For FIXED, the one cell above the table that every row takes its mark from. Null for NONE.',
+        ];
 
         $properties['length_width_units'] = ['type' => 'string', 'enum' => ['m', 'mm']];
         $properties['confidence'] = ['type' => 'string', 'enum' => ['high', 'medium', 'low']];

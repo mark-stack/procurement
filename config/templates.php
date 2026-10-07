@@ -45,7 +45,10 @@ return [
          * a business about to teach us four wrong ones.
          *
          * Over the ceiling the upload is refused the way an unreadable one is, and the attempt is
-         * recorded as THROTTLED so that the retrying is visible rather than silently absorbed.
+         * recorded as THROTTLED so that the retrying is visible rather than silently absorbed. A
+         * THROTTLED row does not itself count towards the hour: nothing was read and nothing was
+         * asked of OpenAI, and counting them meant a customer retrying pushed their own window
+         * forward with every press of the button.
          */
         'hourly_limit' => (int) env('TEMPLATE_LEARNING_HOURLY_LIMIT', 5),
 

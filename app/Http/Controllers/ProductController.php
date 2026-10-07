@@ -2,17 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use App\Imports\ExcelImport;
+use App\Http\Requests\StoreProjectRequest;
 use App\Models\MaterialListFile;
 use App\Models\Project;
 use App\PrerequisiteConditions\PrerequisiteConditions;
 use App\Services\CsvService;
 use App\Services\TemplateLearningService;
+use App\Services\TemplateService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Maatwebsite\Excel\Facades\Excel;
 use Throwable;
 
 class ProductController extends Controller
@@ -47,8 +47,9 @@ class ProductController extends Controller
         abort_if(! $prerequisiteUploadMaterials, 403);
 
         //Validate
+        //One ceiling for a material list wherever it is uploaded - see StoreProjectRequest
         $request->validate([
-            'excel' => 'required|mimes:xlsx,xls|max:2048',
+            'excel' => 'required|mimes:xlsx,xls|max:'.StoreProjectRequest::MAX_FILE_KILOBYTES,
         ]);
 
         /*
@@ -58,9 +59,28 @@ class ProductController extends Controller
          * left the copy on disk.
          */
         $file = $request->file('excel');
-        $csvArray = Excel::toArray(new ExcelImport, $file)[0];
 
-        $detected = $csvService->detectTables($csvArray);
+        /*
+         * Read and matched by TemplateService, which is what the other upload path has always used.
+         *
+         * This was Excel::toArray() inline with nothing around it, so a truncated, corrupt or
+         * password-protected spreadsheet - all of which have the right extension and the right media
+         * type, and so pass "mimes" - threw out of here as a 500 while the customer was looking at
+         * it. readFiles() has caught exactly that since it was written, tells "not a spreadsheet"
+         * apart from "our own code broke", and rethrows the second one for admins. There is no
+         * reason for the two upload paths to disagree about what an unreadable file is.
+         *
+         * Matched against the templates of the business whose project this is, which is the business
+         * whose spreadsheet it is. The signed-in user is the same person nearly always and is not the
+         * same question - a colleague's project, uploaded on their behalf, is theirs.
+         */
+        $read = (new TemplateService)->readFiles([$file], $project->user);
+
+        if ($read['unreadable'] !== []) {
+            return back()->with('warning', 'That file could not be read as a spreadsheet. If it opens for you, saving it again as .xlsx and uploading that usually fixes it.');
+        }
+
+        $detected = $read['tables'][0] ?? [];
 
         /*
          * Learning happens outside any transaction, deliberately. It makes two calls to OpenAI and
@@ -71,7 +91,8 @@ class ProductController extends Controller
         $learning = $detected === [] ? $learner->learn($file, $project) : null;
 
         if ($learning?->learned()) {
-            $detected = $csvService->detectTables($csvArray);
+            //Read again: a template that now exists is a template detection will find
+            $detected = (new TemplateService)->readFiles([$file], $project->user)['tables'][0] ?? [];
         }
 
         /*

@@ -8,6 +8,7 @@ use App\Models\Project;
 use App\Models\Template;
 use App\Models\TemplateLearningAttempt;
 use App\Models\User;
+use App\Notifications\TemplateLearnedEmail;
 use App\Notifications\TemplateLearningFailedEmail;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -250,6 +251,13 @@ class TemplateLearningService
          */
         $this->resolveSettled($business, $template);
 
+        /*
+         * And tell the admins it happened. Also outside the transaction, and best effort for the
+         * same reason the failure email is: a customer's upload must not fail because we could not
+         * send ourselves a message about it succeeding.
+         */
+        $this->tellTheAdminsItWorked($template);
+
         return TemplateLearningResult::recorded($template);
     }
 
@@ -370,6 +378,26 @@ class TemplateLearningService
     }
 
     /**
+     * Every admin, by email, when a template wrote itself and went live.
+     *
+     * The failure was emailed and the success was not, so the one outcome nobody heard about was a
+     * template reading real bills of materials that no person had ever looked at. See
+     * TemplateLearnedEmail.
+     */
+    private function tellTheAdminsItWorked(Template $template): void
+    {
+        try {
+            $admins = User::query()->where('is_admin', true)->get();
+
+            if ($admins->isNotEmpty()) {
+                Notification::send($admins, new TemplateLearnedEmail($template));
+            }
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+    }
+
+    /**
      * Whether this business has used up its hour. Successes count as well as failures - see
      * config/templates.php for why.
      */
@@ -383,7 +411,19 @@ class TemplateLearningService
 
         $since = now()->subHour();
 
-        $spent = $business->templateLearningAttempts()->where('created_at', '>=', $since)->count()
+        /*
+         * A refusal for being over the allowance does not itself count towards the allowance.
+         *
+         * It used to. Each throttled upload wrote a row, and the next hour was measured from the
+         * newest row - so a customer retrying their file pushed the window forward every time they
+         * pressed the button, and could not get back inside it until they stopped trying for a full
+         * hour. The limit is there to bound what an attempt costs us, and a throttled attempt costs
+         * nothing: nothing is read and nothing is asked of OpenAI.
+         */
+        $spent = $business->templateLearningAttempts()
+            ->where('created_at', '>=', $since)
+            ->where('outcome', '!=', TemplateLearningEnums::THROTTLED)
+            ->count()
             + $business->templates()->where('generated_by_ai', true)->where('created_at', '>=', $since)->count();
 
         return $spent >= $limit;

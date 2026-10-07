@@ -82,7 +82,8 @@ it('would be a disaster if editing a template silently deactivated it', function
 
     $this->actingAs($admin)->put(
         route('admin.businesses.templates.update', [$business->id, $template->id]),
-        templatePayload(['name' => 'Renamed', 'active' => true]),
+        //With a token: this payload moves the cells off the factory's, which is a tested edit now
+        templatePayload(['name' => 'Renamed', 'active' => true], $business),
     )->assertRedirect();
 
     expect($template->fresh()->active)->toBeTrue()
@@ -330,7 +331,7 @@ it('lets a template keep its own name when it is edited', function () {
             'first_material_cell' => 'C8',
             'first_length_required_cell' => 'D8',
             'first_sub_qty_cell' => 'F8',
-        ]),
+        ], $business),
     )->assertSessionHasNoErrors();
 
     expect($template->fresh()->first_description_cell)->toBe('B8');
@@ -433,7 +434,7 @@ it('keeps the stored screenshot when an edit does not send one', function () {
     $template = Template::factory()->for($business)->create();
     $stored = $template->screenshot;
 
-    $payload = templatePayload(['name' => 'Renamed']);
+    $payload = templatePayload(['name' => 'Renamed'], $business);
     unset($payload['screenshot']);
 
     $this->actingAs($admin)->put(
@@ -456,7 +457,7 @@ it('keeps the stored screenshot when the field comes back blank', function () {
 
     $this->actingAs($admin)->put(
         route('admin.businesses.templates.update', [$business->id, $template->id]),
-        templatePayload(['name' => 'Renamed', 'screenshot' => '']),
+        templatePayload(['name' => 'Renamed', 'screenshot' => ''], $business),
     )->assertSessionHasNoErrors();
 
     expect($template->fresh()->screenshot)->toBe($stored);

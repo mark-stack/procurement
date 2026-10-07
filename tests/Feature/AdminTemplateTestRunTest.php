@@ -99,6 +99,37 @@ function runTrial(array $form, UploadedFile $sample): array
     return session('templateTest');
 }
 
+it('says when the extraction stopped short of the rows under the heading', function () {
+    /**
+     * Under-extraction is the one failure on this screen with no symptom of its own: a template
+     * that reads half a table reports the rows it did read, they all import, and every other check
+     * is a tick. Nothing compared what came out against what was there to come out.
+     *
+     * The stop rule here is a word that appears half way down, which is the ordinary way of getting
+     * it wrong - a "Total" that is a subtotal.
+     */
+    seedMasterMaterials();
+
+    $sheet = UploadedFile::fake()->createWithContent('short.csv', <<<'CSV'
+    Profile,Qty,Length (mm)
+    250PFC,4,9000
+    Total,4,9000
+    310UB40,2,12000
+    150UC30,6,3600
+    CSV);
+
+    $result = runTrial([...trialSheetForm(), 'is_last_data_row' => 'Total'], $sheet);
+
+    $check = collect($result['checks'])->firstWhere('key', 'rows_cover_table');
+
+    expect($result['summary']['extracted'])->toBe(1)
+        ->and($check['status'])->toBe('warning')
+        ->and($check['detail'])->toContain('4 rows')
+        ->and($check['detail'])->toContain('stop rule')
+        //A warning, never a refusal: a sheet is allowed to hold rows we do not want
+        ->and($result['passed'])->toBeTrue();
+});
+
 it('lists every material a template would import, before the template is saved', function () {
     /**
      * The whole point: the rows below came out of CsvService itself, at the offsets the form

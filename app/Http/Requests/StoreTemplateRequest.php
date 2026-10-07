@@ -219,7 +219,7 @@ class StoreTemplateRequest extends FormRequest
      * for a different set of cell references, for another business, or from before the form was edited
      * is not a test of what is being saved, and each of those is what a stale token is.
      */
-    private function passingTest(): callable
+    protected function passingTest(): callable
     {
         return function (Validator $validator) {
             if ($validator->errors()->isNotEmpty()) {
