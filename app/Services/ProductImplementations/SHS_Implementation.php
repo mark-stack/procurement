@@ -2,67 +2,74 @@
 
 namespace App\Services\ProductImplementations;
 
-use App\Enums\GradeEnums;
 use App\Enums\MaterialEnums;
 use App\Enums\MeasurementUnitEnums;
 use App\Enums\NestingEnums;
 use App\Enums\ProductEnums;
 use App\Enums\SupplierGroupEnums;
 
-class UA_Implementation extends ProductBaseImplementation
+class SHS_Implementation extends ProductBaseImplementation
 {
     public function __construct() {}
 
     public function productEnum(): ProductEnums
     {
-        return ProductEnums::UA;
+        return ProductEnums::SHS;
     }
 
     public function config(): array
     {
+        /*
+         * ProductEnums::SHS has existed since the enum was written, but nothing implemented
+         * it, so square hollow section was the one structural family the classifier could not
+         * name. Every SHS row in every upload matched no productRegex at all and was dropped
+         * by the bare `continue` in CsvService::saveRawMaterialQuoteData() - not reported as
+         * not found, not reported as unreadable, just gone.
+         *
+         * NOTE: there are no SHS rows in the product catalogue yet. Until there are, an SHS
+         * descriptor classifies and then reports as "not found", which is the honest outcome -
+         * the user is told the line did not import instead of never hearing about it.
+         */
         return [
             'productCategory' => $this->productEnum()->value,
             'isFastener' => false,
             'negativeKeywords' => [
                 //
             ],
-            /*
-             * As in EA_Implementation: the token needs a word boundary and the form needs a
-             * dimension group, so that a token buried in a longer word and a bare quantity
-             * are both left alone.
-             */
             'productRegex' => [
-                "\bUA\s?\d+(\.\d+)?\s*[x*]\s*\d+",                                          //UA150*100*10
-                "\d+(\.\d+)?\s*[x*]\s*\d+(\.\d+)?\s*[x*]\s*\d+(\.\d+)?\s*(mm)?\s*UA\b",     //150x100x10 UA
-                "\d+(\.\d+)?\s*[x*]\s*\d+(\.\d+)?\s*(mm)?\s*UA\b",                          //150 x 100mm UA
-                "unequal+\s+angle",
+                "\bSHS",    //100x100x5 SHS
+                "(\d+)SHS", //100x100x5SHS
+                "\s+SHS",   //100 x 100 x 5 SHS   100 x 100 x 5mm SHS
+                "SHS(\d+)", //SHS100*100*5
+                "SHS\b",    //SHS 100*100*5
                 /*
-                 * The AISC and Advance Steel angle, which write equal and unequal legs the
-                 * same way. The negative lookahead claims only the unequal case - the second
-                 * leg must NOT repeat the first - leaving the equal case to the backreference
-                 * in EA_Implementation.
+                 * The hollow structural section SDS2 exports, and the older tube designation.
+                 * Both write square and rectangular tube with the same token, so the
+                 * backreference is what claims the square case - \1 requires the second face
+                 * to repeat the first. The matching negative lookahead in RHS_Implementation
+                 * takes the rectangular one.
                  */
-                "\bL\s?(\d+(?:\.\d+)?)\s*[x*]\s*(?!\\1\s*[x*])\d+(?:\.\d+)?\s*[x*]",    //L150X100X10, L6X4X1/2
-                "\bA\s?(\d+(?:\.\d+)?)\s*[x*]\s*(?!\\1\s*[x*])\d+(?:\.\d+)?\s*[x*]",    //A150x100x10
+                "\bHSS\s?(\d+(?:\.\d+)?)\s*[x*]\s*\\1\s*[x*]",  //HSS6X6X1/4
+                "\bTS\s?(\d+(?:\.\d+)?)\s*[x*]\s*\\1\s*[x*]",   //TS6X6X1/4
+                "square+\s+hollow+\s+section",
             ],
             'nominalLengthRegex' => [
 
             ],
             'nominalWidthRegex' => [
-                //uses special rule
+                //special formula
             ],
             'nominalHeightRegex' => [
-                //uses special rule
+                //special formula
             ],
             'wallRegex' => [
-                //uses special rule
+                //special formula
             ],
             'weightRegex' => [
 
             ],
             'measurementUnit' => MeasurementUnitEnums::MILLIMETERS,
             'defaultMaterial' => MaterialEnums::PLAIN_CARBON_STEEL,
-            //"defaultGrade" => GradeEnums::GR300,
             'supplierGroup' => SupplierGroupEnums::STEEL_MERCHANT,
             "algorithm" => NestingEnums::METERAGE,
         ];
@@ -94,26 +101,11 @@ class UA_Implementation extends ProductBaseImplementation
         ?float $kg_per_m,
         ?string $material,
     ): string {
-        return $nominal_height.'x'.$nominal_width.'x'.$wall.' UA';
+        return $nominal_height.'x'.$nominal_width.'x'.$wall.' SHS';
     }
 
     public function generalProductDefinition(): array
     {
-        //        'product_category',
-        //        'material',
-        //        'grade',
-        //        'surface',
-        //        'nominal_units',
-        //        "nominal_length",
-        //        "precise_length",
-        //        "nominal_width",
-        //        "precise_width",
-        //        'nominal_height',
-        //        "precise_height",
-        //        "wall",
-        //        "kg_per_m"
-
-        //todo
         return [
             'mandatory' => [
                 'product_category',

@@ -27,11 +27,17 @@ class UC_Implementation extends ProductBaseImplementation
                 //
             ],
             'productRegex' => [
-                "(\d+)+UC",           //3000UC
-                "(\d+)+\s+UC",        //300 UC
-                "UC(\d+)\*",          //UC360*57
+                "(\d+)+UC",             //3000UC
+                "(\d+)+\s+UC",          //300 UC
+                "UC\s?(\d+)\s?[x*]",    //UC360*57, UC360x57, UC 310x305x118
                 "universal+\s+column",
                 "steel+\s+column",
+                /*
+                 * Tekla UK, and the DIN column series Advance Steel writes. All carry their
+                 * depth in millimeters, so they read like any other metric form.
+                 */
+                "\bUKC\s?(\d+)",        //UKC305x305x97
+                "\bHE[ABM]\s?(\d+)",    //HEA300, HEB300, HEM300
             ],
             'nominalLengthRegex' => [
 
@@ -39,18 +45,30 @@ class UC_Implementation extends ProductBaseImplementation
             'nominalWidthRegex' => [
 
             ],
+            /*
+             * Leading-token forms first, trailing-token forms last, because the last pattern
+             * to match wins - see DataClassificationService::findNumberByRegexPatterns().
+             */
             'nominalHeightRegex' => [
+                "UC\s?(\d+)\s?[x*]",    //UC360*      UC360*57   UC360x57   UC 310x305x118
+                "\bUKC\s?(\d+)",        //UKC305x305x97
+                "\bHE[ABM]\s?(\d+)",    //HEA300
                 "(\d+)+UC",      //300UC
                 "(\d+)+\s+UC",   //300 UC
-                "UC(\d+)\*",     //UB360*      UB360*57
             ],
             'wallRegex' => [
 
             ],
+            /*
+             * Two-number forms first, three-number forms last - the mass is the LAST number of
+             * a three-number metric designation, which only the named (?<num>) group reaches.
+             */
             'weightRegex' => [
                 "UC\s+(\d+(?:\.\d+)?)", //UC 57 or 56.7   300 UC 57
                 "UC(\d+(?:\.\d+)?)",    //UC57 or 56.7    300UC57
-                "\*(\d+(?:\.\d+)?)",    //*57             UC360*57
+                "[x*](\d+(?:\.\d+)?)",  //*57 or x57      UC360*57   UC360x57
+                "UC\s?\d+\s?[x*]\s?\d+\s?[x*]\s?(?<num>\d+(?:\.\d+)?)",     //UC 310x305x118
+                "\bUKC\s?\d+\s?[x*]\s?\d+\s?[x*]\s?(?<num>\d+(?:\.\d+)?)",  //UKC305x305x97
             ],
             'measurementUnit' => MeasurementUnitEnums::MILLIMETERS,
             'defaultMaterial' => MaterialEnums::PLAIN_CARBON_STEEL,

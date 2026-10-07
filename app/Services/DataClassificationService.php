@@ -20,6 +20,60 @@ class DataClassificationService
     private const MAX_PLATE_THICKNESS_MM = 150.0;
 
     /**
+     * The most numbers one dimension group can hold: depth, width and thickness. A run
+     * longer than this reached across an "x" into something that is not a dimension.
+     */
+    private const DIMENSION_GROUP_MAX = 3;
+
+    /**
+     * No stocked angle leg is thicker than 26mm and no stocked hollow section wall is
+     * thicker than 16mm. A smallest-number-in-the-group above these is not a thickness,
+     * it is a dimension reached for when the thickness was never written down.
+     */
+    private const MAX_ANGLE_THICKNESS_MM = 26.0;
+
+    private const MAX_WALL_THICKNESS_MM = 16.0;
+
+    /**
+     * What a match against a number is worth when categories compete - see
+     * scoreConfigMatch(). Larger than any descriptor so a dimensioned match always
+     * outranks a bare keyword, and length only separates matches level on it.
+     */
+    private const SCORE_DIMENSIONED = 1000;
+
+    /**
+     * What it costs to be the catch-all fastener category - enough that any category which
+     * names itself outranks it, while still leaving it ahead of no match at all.
+     */
+    private const SCORE_DEFAULT_FASTENER_PENALTY = 1000;
+
+    /**
+     * Which attribute each regex list is asking for, so an ImperialSectionReader result can
+     * answer the same question the patterns would have.
+     */
+    private const IMPERIAL_ATTRIBUTE_KEYS = [
+        'nominalHeightRegex' => 'nominal_height',
+        'nominalWidthRegex' => 'nominal_width',
+        'nominalLengthRegex' => 'nominal_length',
+        'wallRegex' => 'wall',
+        'weightRegex' => 'kg_per_m',
+    ];
+
+    /**
+     * The tokens each positional category writes its profile as, most specific first. They
+     * locate the dimension group in a descriptor that holds more than one run of numbers -
+     * see findDimensionGroup(). "L" is the AISC angle prefix, "A" the Advance Steel one;
+     * "HSS" and "TS" cover square and rectangular tube with one token each.
+     */
+    private const EA_TOKENS = ['EA', 'L', 'A'];
+
+    private const UA_TOKENS = ['UA', 'L', 'A'];
+
+    private const RHS_TOKENS = ['RHS', 'HSS', 'TS'];
+
+    private const SHS_TOKENS = ['SHS', 'HSS', 'TS'];
+
+    /**
      * Manufacturers' Standard Gauge for sheet steel, in millimeters. The number in "16GA" is a
      * position on this table, not a measurement - the two run in opposite directions, so a
      * bigger gauge is thinner sheet.
@@ -241,9 +295,17 @@ class DataClassificationService
                         });
                     }
                 }
-                //Otherwise assume it's nominal
+                /*
+                 * Otherwise assume it's nominal.
+                 *
+                 * This matched kg_per_m against the HEIGHT, which could only ever return
+                 * nothing - no 310UB masses 310kg/m. It stayed hidden because the UB and UC
+                 * equivalence matrices cover most stocked masses, so this branch is only
+                 * reached by a mass they are missing: 180UB16.1 queried kg_per_m = 180 and
+                 * matched no product at all.
+                 */
                 else {
-                    $query->where('kg_per_m', $uncertainHeightFloat);
+                    $query->where('kg_per_m', $kg_per_m);
                 }
 
                 $allFieldsIndividual['kg_per_m'] = true;
@@ -484,6 +546,7 @@ class DataClassificationService
         $matrixOfEquivalents = [
             //format = nominal,actual,rounded
             [14, 14.0, 14],
+            [16, 16.1, 16], //180UB16.1 - the one stocked mass this matrix was missing
             [18, 18.0, 18],
             [18, 18.1, 18],
             [22, 22.2, 22],
@@ -637,130 +700,158 @@ class DataClassificationService
         /**
          * Single purpose: extract a 'product_category' from text. e.g "PFC".
          * UPGRADE does all products. STANDARD does sections only
+         *
+         * Fasteners and sections are scored TOGETHER, and the most specific match wins -
+         * see scoreConfigMatch(). Two older rules used to decide this instead, and between
+         * them they sent plainly-readable descriptors to the wrong category:
+         *
+         * - the fastener pass ran first and claimed the row outright, so a section that
+         *   merely mentioned a fastener went to the fastener ("150PFC GALV NUT PLATE" -> NUT,
+         *   "310UB40 HD BOLT CLEAT" -> ANCHOR_STUD);
+         * - whatever survived was picked with $resultProductConfigs[0], and the configs
+         *   arrive in filename order, so ties were settled alphabetically by class name.
          */
-        $productService = new ProductService;
-        $resultProductConfigs = [];
-
-        /**
-         * Fasteners advanced classification
-         * 1) Find one of: MX, bolt, csk, hd bolt, etc...
-         * 2) Then do further classification based on keywords and lengths
-         */
-        $fastenersConfig = $this->findFastenersConfigFromText($text);
-        if ($fastenersConfig) {
-            $resultProductConfigs[] = $fastenersConfig;
+        if ($text === null || trim($text) === '') {
+            return null;
         }
 
-        /**
-         * Standard classification
-         * 1) Positive keywords (one mandatory?)
-         * 2) Regex match (one mandatory?)
-         */
-        if (! $resultProductConfigs) {
-            $regularConfigs = $productService->getProductConfigs(false);
-            foreach ($regularConfigs as $regularConfig) {
-                //negative keywords
-                $containsNegativeKeywords = false;
-                foreach ($regularConfig['config']['negativeKeywords'] as $negativeKeyword) {
-                    if ($this->containsSubstring($text, $negativeKeyword)) {
-                        $containsNegativeKeywords = true;
-                    }
-                }
+        $productService = new ProductService;
 
-                //regex check
-                if (! $containsNegativeKeywords) {
-                    foreach ($regularConfig['config']['productRegex'] as $pattern) {
-                        $regex = '/'.$pattern.'/i';
-                        if (preg_match($regex, $text)) {
-                            if (! in_array($regularConfig, $resultProductConfigs)) {
-                                $resultProductConfigs[] = $regularConfig['config'];
-                            }
-                        }
-                    }
+        $candidates = array_merge(
+            $productService->getProductConfigs(true),
+            $productService->getProductConfigs(false),
+        );
+
+        //Both hold for the whole descriptor, so they are settled once rather than per category
+        $fastenersFound = $this->fastenersFoundInText($text);
+        $threadDesignation = $this->threadDesignationInText($text);
+
+        $best = null;
+        $bestScore = null;
+
+        foreach ($candidates as $candidate) {
+            $config = $candidate['config'];
+
+            //negative keywords
+            $containsNegativeKeywords = false;
+            foreach ($config['negativeKeywords'] as $negativeKeyword) {
+                if ($this->containsSubstring($text, $negativeKeyword)) {
+                    $containsNegativeKeywords = true;
                 }
+            }
+
+            if ($containsNegativeKeywords) {
+                continue;
+            }
+
+            /*
+             * A fastener category only competes once the text actually reads like a
+             * fastener - "M16", a bolt, a nut, a washer. Without that gate the bare word
+             * "nut" in a section descriptor is a candidate on equal footing.
+             */
+            if ($config['isFastener'] && ! $fastenersFound) {
+                continue;
+            }
+
+            $score = $this->scoreConfigMatch($config, $text, $threadDesignation);
+
+            if ($score === null) {
+                continue;
+            }
+
+            if ($bestScore === null || $score > $bestScore) {
+                $best = $config;
+                $bestScore = $score;
             }
         }
 
-        /**
-         * Take just 1 result
+        /*
+         * A fastener term with no category of its own is a hex bolt. This is the long-standing
+         * default, and it stays LAST so that a section match beats it rather than the other
+         * way around.
          */
-        $resultProductConfig = null;
-        if (count($resultProductConfigs) > 0) {
-            $resultProductConfig = $resultProductConfigs[0];
+        if ($best === null && $fastenersFound) {
+            $best = $this->findDefaultFastenerConfig();
         }
 
-        return $resultProductConfig;
+        return $best;
     }
 
-    public function findFastenersConfigFromText(?string $text): ?array
+    private function scoreConfigMatch(array $config, string $text, bool $threadDesignation): ?int
     {
-        $resultFastenerConfig = null;
+        /**
+         * Single purpose: how specifically does this category's own notation describe this
+         * text? Null means it does not match at all.
+         *
+         * A BOM line names its material with a dimensioned designation - "150PFC", "310UB40",
+         * "PL10", "100x100x10 EA". A bare keyword somewhere in the line ("nut", "plate",
+         * "bolt") describes a feature of the part, not the material being bought. So a match
+         * sitting against a number outranks one that is not, however long either is, and
+         * length only separates matches that are level on that.
+         */
+        $bestScore = null;
 
-        //Services
-        $productService = new ProductService;
+        foreach ($config['productRegex'] as $pattern) {
+            $regex = '/'.$pattern.'/i';
 
-        //First pass: any of "MX, Hex, bolt" etc
-        $fastenersFound = $this->fastenersFoundInText($text);
-
-        //Second pass
-        if ($fastenersFound) {
-            $resultFastenerConfigs = [];
-            $fastenerConfigs = $productService->getProductConfigs(true);
-
-            foreach ($fastenerConfigs as $fastenerConfig) {
-                //negative keywords
-                $containsNegativeKeywords = false;
-                foreach ($fastenerConfig['config']['negativeKeywords'] as $negativeKeyword) {
-                    if ($this->containsSubstring($text, $negativeKeyword)) {
-                        $containsNegativeKeywords = true;
-                    }
-                }
-
-                //regex check
-                if (! $containsNegativeKeywords) {
-                    foreach ($fastenerConfig['config']['productRegex'] as $pattern) {
-                        $regex = '/'.$pattern.'/i';
-                        if (preg_match($regex, $text)) {
-                            $inArray = collect($resultFastenerConfigs)->where('productCategory', $fastenerConfig['config']['productCategory'])->count() > 0;
-                            if (! $inArray) {
-                                $resultFastenerConfigs[] = $fastenerConfig['config'];
-                            }
-                        }
-                    }
-                }
+            if (preg_match($regex, $text, $matches, PREG_OFFSET_CAPTURE) !== 1) {
+                continue;
             }
 
-            //If no results, it means HEX_BOLT is default
-            if (count($resultFastenerConfigs) === 0) {
-                foreach ($fastenerConfigs as $fastenerConfig) {
-                    if ($fastenerConfig['config']['productCategory'] === ProductEnums::HEX_BOLT->value) {
-                        $resultFastenerConfig = $fastenerConfig['config'];
-                    }
-                }
-            }
-            //If just one result
-            if (count($resultFastenerConfigs) === 1) {
-                $resultFastenerConfig = $resultFastenerConfigs[0];
-            }
-            //If multiple results
-            if (count($resultFastenerConfigs) > 1) {
-                //All fastener categories take priority over HEX_BOLT
-                $removeHexBolt = [];
-                foreach ($resultFastenerConfigs as $config) {
-                    if ($config['productCategory'] !== ProductEnums::HEX_BOLT->value) {
-                        $removeHexBolt[] = $config;
-                    }
-                }
+            [$match, $offset] = $matches[0];
 
-                if (count($removeHexBolt) > 0) {
-                    $resultFastenerConfig = $removeHexBolt[0];
-                } else {
-                    $resultFastenerConfig = $resultFastenerConfigs[0];
-                }
+            $before = $offset > 0 ? substr($text, $offset - 1, 1) : '';
+            $after = substr($text, $offset + strlen($match), 1);
+
+            /*
+             * A fastener names its size as a thread - "M20" - and a thread designation
+             * dimensions the whole descriptor, wherever in it the fastener noun sits. Without
+             * that, "M20x500 D20 ANCHOR ROD" scored an undimensioned "anchor rod" against a
+             * dimensioned "D20" and came back as round bar.
+             */
+            $dimensioned = preg_match('/\d/', $match) === 1
+                || ctype_digit($before)
+                || ctype_digit($after)
+                || ($config['isFastener'] && $threadDesignation);
+
+            /*
+             * HEX_BOLT is the catch-all every unnamed fastener falls back to, so it has to
+             * lose to any category that names itself - "M12 CSK BOLT" is a countersunk bolt,
+             * and on word length alone "bolt" would beat "csk". This is the long-standing
+             * "all fastener categories take priority over HEX_BOLT" rule, kept.
+             */
+            $isDefaultFastener = $config['productCategory'] === ProductEnums::HEX_BOLT->value;
+
+            $score = ($dimensioned ? self::SCORE_DIMENSIONED : 0)
+                + strlen($match)
+                - ($isDefaultFastener ? self::SCORE_DEFAULT_FASTENER_PENALTY : 0);
+
+            if ($bestScore === null || $score > $bestScore) {
+                $bestScore = $score;
             }
         }
 
-        return $resultFastenerConfig;
+        return $bestScore;
+    }
+
+    private function threadDesignationInText(string $text): bool
+    {
+        /**
+         * Single purpose: is there an ISO metric thread in this text? "M20", "M12x100".
+         * Nothing but a fastener is specified that way, which is what makes it decisive.
+         */
+        return preg_match('/\bM\d+/i', $text) === 1;
+    }
+
+    private function findDefaultFastenerConfig(): ?array
+    {
+        foreach ((new ProductService)->getProductConfigs(true) as $fastenerConfig) {
+            if ($fastenerConfig['config']['productCategory'] === ProductEnums::HEX_BOLT->value) {
+                return $fastenerConfig['config'];
+            }
+        }
+
+        return null;
     }
 
     private function fastenersFoundInText(string $text): bool
@@ -1073,6 +1164,17 @@ class DataClassificationService
          */
         $resultFloat = null;
 
+        /*
+         * An American designation carries its dimensions in inches, and no regex multiplies,
+         * so it is converted before the patterns get a look - the same shape as the plate
+         * notations, which settle gauge and imperial ahead of the shared metric patterns.
+         */
+        $imperial = (new ImperialSectionReader)->attributes($text, $productConfig['productCategory']);
+
+        if ($imperial !== []) {
+            return $imperial[self::IMPERIAL_ATTRIBUTE_KEYS[$regexLabel] ?? ''] ?? null;
+        }
+
         //Special condition for EA
         if ($productConfig['productCategory'] === ProductEnums::EA->value) {
             if ($regexLabel === 'nominalWidthRegex') {
@@ -1109,6 +1211,18 @@ class DataClassificationService
                 $resultFloat = $this->findRhsThickness($text);
             }
         }
+        //Special condition for SHS
+        elseif ($productConfig['productCategory'] === ProductEnums::SHS->value) {
+            if ($regexLabel === 'nominalWidthRegex') {
+                $resultFloat = $this->findShsWidth($text);
+            }
+            if ($regexLabel === 'nominalHeightRegex') {
+                $resultFloat = $this->findShsHeight($text);
+            }
+            if ($regexLabel === 'wallRegex') {
+                $resultFloat = $this->findShsThickness($text);
+            }
+        }
         //Special condition for PLATE
         elseif ($productConfig['productCategory'] === ProductEnums::PLATE->value) {
             if ($regexLabel === 'nominalHeightRegex') {
@@ -1128,24 +1242,44 @@ class DataClassificationService
     private function findNumberByRegexPatterns(array $regexPatterns, string $text): ?float
     {
         /**
-         * Single purpose: walk a category's patterns and pull the first number out of
-         * whichever one matched.
+         * Single purpose: walk a category's patterns and pull the number out of whichever
+         * one matched.
          *
          * The loop does not stop at the first match, so the LAST pattern to match wins.
          * That is why the order a category declares its patterns in matters, and why a
          * new pattern appended to a list takes precedence over the ones above it.
+         *
+         * The number is the first one anywhere in the match, UNLESS the pattern names the
+         * group it wants with "(?<num>...)". A pattern cannot opt in by accident, which is
+         * what matters here: most of these patterns have a capture group that is only a
+         * fragment of the number - group 1 of "CHS+\d+(\.\d+)?" is ".7", not "193.7" - so
+         * reading group 1 by position would quietly turn 193.7mm pipe into 0.7mm.
+         *
+         * The named group is what makes the three-number metric forms readable. The mass in
+         * "UB 310x165x40" is the third number, not the first, and no amount of pattern
+         * ordering lets "the first number in the match" reach it.
          */
         $resultFloat = null;
 
         foreach ($regexPatterns as $pattern) {
             $regex = '/'.$pattern.'/i';
 
-            preg_match_all($regex, $text, $matches);
+            if (preg_match_all($regex, $text, $matches) < 1) {
+                continue;
+            }
 
+            //The number the pattern asked for by name
+            if (isset($matches['num'][0]) && $matches['num'][0] !== '') {
+                $resultFloat = (float) $matches['num'][0];
+
+                continue;
+            }
+
+            //Otherwise the first number anywhere in the match
             if (! empty($matches[0][0])) {
-                preg_match_all('/-?\d+(\.\d+)?/i', $matches[0][0], $matches);
-                if (! empty($matches[0][0])) {
-                    $resultFloat = (float) $matches[0][0];
+                preg_match_all('/-?\d+(\.\d+)?/i', $matches[0][0], $numbers);
+                if (! empty($numbers[0][0])) {
+                    $resultFloat = (float) $numbers[0][0];
                 }
             }
         }
@@ -1263,160 +1397,236 @@ class DataClassificationService
         return (float) $matches[1];
     }
 
-    private function extractNumbersInAscendingOrder(string $text): array
+    private function findDimensionGroup(string $text, array $tokens): array
     {
-        // Extract all numbers
-        preg_match_all('/\d+(\.\d+)?/', $text, $matches);
+        /**
+         * Single purpose: the numbers a detailer wrote as ONE dimension group, ascending -
+         * the "150x100x6" in "150x100x6 RHS GR350 8000".
+         *
+         * The positional extractors below read a section's depth, width and thickness off
+         * the relative size of these numbers. That only holds while every number IS a
+         * dimension, and they used to be handed every number in the descriptor, so a grade,
+         * a length or a quantity sharing the cell became the section's own size:
+         * "250x150x9 RHS x 12000" was a 12000mm-deep RHS, "150x100x6 RHS GR350" a 350mm-deep
+         * one, and "100x100x10 EA 9000" a 9000mm angle. None of the three matched anything,
+         * so the row was reported as not found with no sign of what had gone wrong.
+         *
+         * A group is numbers joined by "x", "*" or "×". Where a descriptor holds more than
+         * one group, or one group runs longer than a section has dimensions, the numbers
+         * nearest the profile token are the section's - that is what separates the
+         * "150x100x6" from the "x 12000" trailing it.
+         */
 
-        // Convert to integers and sort numerically
-        $numbersArray = array_map('floatval', $matches[0]);
-        sort($numbersArray);
+        //"×" is what Excel autocorrect makes of "x". Normalised first so offsets below agree.
+        $text = str_replace('×', 'x', $text);
 
-        return $numbersArray;
+        if (preg_match_all('/\d+(?:\.\d+)?(?:\s*[x*]\s*\d+(?:\.\d+)?)+/i', $text, $matches, PREG_OFFSET_CAPTURE) < 1) {
+            return $this->findTokenFlankedNumbers($text, $tokens);
+        }
+
+        $tokenOffset = $this->findTokenOffset($text, $tokens);
+
+        //The group nearest the profile token
+        $group = null;
+        $shortestDistance = null;
+        foreach ($matches[0] as [$candidate, $offset]) {
+            $distance = $tokenOffset === null
+                ? 0
+                : min(abs($tokenOffset - $offset), abs($tokenOffset - ($offset + strlen($candidate))));
+
+            if ($shortestDistance === null || $distance < $shortestDistance) {
+                $group = ['text' => $candidate, 'offset' => $offset];
+                $shortestDistance = $distance;
+            }
+        }
+
+        preg_match_all('/\d+(?:\.\d+)?/', $group['text'], $found);
+        $numbers = array_map('floatval', $found[0]);
+
+        /*
+         * A group with more numbers than the section has dimensions picked up a neighbour
+         * across an "x" - a length, most often. Keep the end of the run the token is on.
+         */
+        if (count($numbers) > self::DIMENSION_GROUP_MAX) {
+            $numbers = ($tokenOffset !== null && $tokenOffset > $group['offset'])
+                ? array_slice($numbers, -self::DIMENSION_GROUP_MAX)
+                : array_slice($numbers, 0, self::DIMENSION_GROUP_MAX);
+        }
+
+        sort($numbers);
+
+        return $numbers;
+    }
+
+    private function findTokenFlankedNumbers(string $text, array $tokens): array
+    {
+        /**
+         * Single purpose: the numbers either side of the profile token, ascending, for the
+         * forms that write no dimension group at all - "65 SHS 2.5", "100 SHS 5.0". The
+         * size leads the token and the wall trails it.
+         */
+        foreach ($tokens as $token) {
+            $pattern = '/(\d+(?:\.\d+)?)\s*'.preg_quote($token, '/').'\s*(\d+(?:\.\d+)?)/i';
+
+            if (preg_match($pattern, $text, $matches) === 1) {
+                $numbers = [(float) $matches[1], (float) $matches[2]];
+                sort($numbers);
+
+                return $numbers;
+            }
+        }
+
+        return [];
+    }
+
+    private function findTokenOffset(string $text, array $tokens): ?int
+    {
+        foreach ($tokens as $token) {
+            $offset = stripos($text, $token);
+
+            if ($offset !== false) {
+                return $offset;
+            }
+        }
+
+        return null;
     }
 
     private function findEaWidth(string $text): ?float
     {
         /**
-         * Width is the biggest number
+         * An equal angle's legs are equal, so width is the biggest number in the group
          */
-        $width = null;
+        $group = $this->findDimensionGroup($text, self::EA_TOKENS);
 
-        $numbersInAscendingOrder = $this->extractNumbersInAscendingOrder($text);
-        if (count($numbersInAscendingOrder) >= 2) {
-            $width = (float) max($numbersInAscendingOrder);
-        }
-
-        return $width;
+        return count($group) >= 2 ? (float) max($group) : null;
     }
 
     private function findEaHeight(string $text): ?float
     {
         /**
-         * Height is the biggest number
+         * Height is the biggest number in the group
          */
-        $height = null;
+        $group = $this->findDimensionGroup($text, self::EA_TOKENS);
 
-        $numbersInAscendingOrder = $this->extractNumbersInAscendingOrder($text);
-        if (count($numbersInAscendingOrder) >= 2) {
-            $height = (float) max($numbersInAscendingOrder);
-        }
-
-        return $height;
+        return count($group) >= 2 ? (float) max($group) : null;
     }
 
     private function findEaThickness(string $text): ?float
     {
         /**
-         * Thickness is the smallest number <= 26
+         * Thickness is the smallest number in the group, and no angle leg is thicker than 26
          */
-        $thickness = null;
-
-        $numbersInAscendingOrder = $this->extractNumbersInAscendingOrder($text);
-        if (count($numbersInAscendingOrder) >= 2) {
-            $smallest = min($numbersInAscendingOrder);
-            if ($smallest <= 26) {
-                $thickness = (float) $smallest;
-            }
-        }
-
-        return $thickness;
+        return $this->smallestWithinThickness($this->findDimensionGroup($text, self::EA_TOKENS), self::MAX_ANGLE_THICKNESS_MM);
     }
 
     private function findUaWidth(string $text): ?float
     {
         /**
-         * Width is the middle number
+         * The short leg - the middle number of the three
          */
-        $width = null;
+        $group = $this->findDimensionGroup($text, self::UA_TOKENS);
 
-        $numbersInAscendingOrder = $this->extractNumbersInAscendingOrder($text);
-        if (count($numbersInAscendingOrder) === 3) {
-            $width = (float) $numbersInAscendingOrder[1];
-        }
-
-        return $width;
+        return count($group) === 3 ? (float) $group[1] : null;
     }
 
     private function findUaHeight(string $text): ?float
     {
         /**
-         * Height is the biggest number
+         * The long leg - the biggest number in the group
          */
-        $height = null;
+        $group = $this->findDimensionGroup($text, self::UA_TOKENS);
 
-        $numbersInAscendingOrder = $this->extractNumbersInAscendingOrder($text);
-        if (count($numbersInAscendingOrder) >= 2) {
-            $height = (float) max($numbersInAscendingOrder);
-        }
-
-        return $height;
+        return count($group) >= 2 ? (float) max($group) : null;
     }
 
     private function findUaThickness(string $text): ?float
     {
         /**
-         * Thickness is the smallest number <= 26
+         * Thickness is the smallest number in the group, and no angle leg is thicker than 26
          */
-        $thickness = null;
-
-        $numbersInAscendingOrder = $this->extractNumbersInAscendingOrder($text);
-        if (count($numbersInAscendingOrder) >= 2) {
-            $smallest = min($numbersInAscendingOrder);
-            if ($smallest <= 26) {
-                $thickness = (float) $smallest;
-            }
-        }
-
-        return $thickness;
+        return $this->smallestWithinThickness($this->findDimensionGroup($text, self::UA_TOKENS), self::MAX_ANGLE_THICKNESS_MM);
     }
 
     private function findRhsWidth(string $text): ?float
     {
         /**
-         * Width is the middle number
+         * Width is the middle number of the three
          */
-        $width = null;
+        $group = $this->findDimensionGroup($text, self::RHS_TOKENS);
 
-        $numbersInAscendingOrder = $this->extractNumbersInAscendingOrder($text);
-
-        if (count($numbersInAscendingOrder) === 3) {
-            $width = (float) $numbersInAscendingOrder[1];
-        }
-
-        return $width;
+        return count($group) === 3 ? (float) $group[1] : null;
     }
 
     private function findRhsHeight(string $text): ?float
     {
         /**
-         * Height is the biggest number
+         * Height is the biggest number in the group
          */
-        $height = null;
+        $group = $this->findDimensionGroup($text, self::RHS_TOKENS);
 
-        $numbersInAscendingOrder = $this->extractNumbersInAscendingOrder($text);
-        if (count($numbersInAscendingOrder) >= 2) {
-            $height = (float) max($numbersInAscendingOrder);
-        }
-
-        return $height;
+        return count($group) >= 2 ? (float) max($group) : null;
     }
 
     private function findRhsThickness(string $text): ?float
     {
         /**
-         * Thickness is the smallest number <= 16
+         * Wall is the smallest number in the group, and no hollow section wall exceeds 16
          */
-        $thickness = null;
+        return $this->smallestWithinThickness($this->findDimensionGroup($text, self::RHS_TOKENS), self::MAX_WALL_THICKNESS_MM);
+    }
 
-        $numbersInAscendingOrder = $this->extractNumbersInAscendingOrder($text);
-        if (count($numbersInAscendingOrder) >= 2) {
-            $smallest = min($numbersInAscendingOrder);
-            if ($smallest <= 16) {
-                $thickness = (float) $smallest;
-            }
+    private function findShsWidth(string $text): ?float
+    {
+        /**
+         * A square hollow section is square, so width is its one across-flats size
+         */
+        return $this->findShsSize($text);
+    }
+
+    private function findShsHeight(string $text): ?float
+    {
+        /**
+         * A square hollow section is square, so height is its one across-flats size
+         */
+        return $this->findShsSize($text);
+    }
+
+    private function findShsSize(string $text): ?float
+    {
+        /**
+         * Both SHS dimensions are the same number, and it is the biggest in the group -
+         * written either as a full group ("100x100x5") or as size-token-wall ("65 SHS 2.5").
+         */
+        $group = $this->findDimensionGroup($text, self::SHS_TOKENS);
+
+        return count($group) >= 2 ? (float) max($group) : null;
+    }
+
+    private function findShsThickness(string $text): ?float
+    {
+        /**
+         * Wall is the smallest number in the group, and no hollow section wall exceeds 16
+         */
+        return $this->smallestWithinThickness($this->findDimensionGroup($text, self::SHS_TOKENS), self::MAX_WALL_THICKNESS_MM);
+    }
+
+    private function smallestWithinThickness(array $group, float $maximum): ?float
+    {
+        /**
+         * Single purpose: the smallest number in a dimension group, but only while it is
+         * small enough to BE a thickness.
+         *
+         * Returning null for anything larger is deliberate: a group of two equal numbers
+         * ("100 x 100mm EA") has no thickness in it, and a null leaves the row matched
+         * against every thickness in the size rather than against one wrong one.
+         */
+        if (count($group) < 2) {
+            return null;
         }
 
-        return $thickness;
+        $smallest = min($group);
+
+        return $smallest <= $maximum ? (float) $smallest : null;
     }
 }

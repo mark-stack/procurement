@@ -78,8 +78,12 @@ it('knows which merchant a product category is bought from', function () {
         ->and(SupplierGroupCosts::forCategory('HEX_BOLT'))->toBe('FASTENERS')
         //Case-insensitive, because a piece spec carries whatever the importer classified it as
         ->and(SupplierGroupCosts::forCategory('lvl'))->toBe('TIMBER_MERCHANT')
-        //A category with no implementation is costed on the yard's figures rather than a guess
-        ->and(SupplierGroupCosts::forCategory('SHS'))->toBeNull()
+        /*
+         * A category with no implementation is costed on the yard's figures rather than a
+         * guess. SHS stood here until it got an implementation of its own - every case in
+         * ProductEnums now has one, so this needs a string that is not a category at all.
+         */
+        ->and(SupplierGroupCosts::forCategory('PURLIN'))->toBeNull()
         ->and(SupplierGroupCosts::forCategory(null))->toBeNull();
 });
 
