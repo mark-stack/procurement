@@ -32,6 +32,7 @@ function exampleMaterialLists(): array
         'material_list.xlsx' => 'Project Quote',
         'tekla_assembly_list.xlsx' => 'Assembly List',
         'tekla_hot_rolled.xlsx' => 'Hot Rolled, Angles, and more.',
+        'tekla_material_list.xlsx' => 'Material List',
         'tekla_bolt_summary_top.xlsx' => 'Bolt Summary - top',
         'tekla_bolt_summary_bottom.xlsx' => 'Bolt Summary - bottom',
     ];
@@ -249,6 +250,47 @@ it('would be a disaster if the Hot Rolled example stopped parsing', function () 
     expect(collect(exampleRows('tekla_hot_rolled.xlsx'))->pluck('description'))
         ->not->toContain('Subtotal')
         ->not->toContain('Total');
+});
+
+it('would be a disaster if the Material List example stopped parsing', function () {
+    /**
+     * The one reconstructed file in this folder - rebuilt from a print of the report, because the
+     * thing the customer sent was a PDF. Tests\Support\ExampleTemplates says which parts of its
+     * shape are read off that page and which are a reading of it.
+     *
+     * What it is here to hold is the end of the table. The subtotal line is blank in the Profile
+     * column, so it reads as a gap, and each band between two gaps is a band of one, two, one and
+     * three rows. The band of ONE is what used to end the table: four rows below it were never
+     * read, and never read is the failure with no symptom - the rows reach none of the three lists
+     * an import reports back, so it announced success two eleven-metre RHS short.
+     *
+     * The quantities matter as much. The subtotals on the printed page are quantity-weighted
+     * (3495x2 + 3679x4 = 21705), which is what says the Qty column is a multiplier and not a
+     * count of something already totalled.
+     */
+    exampleUploader();
+
+    expect(exampleTables('tekla_material_list.xlsx'))->toHaveCount(1);
+
+    expect(exampleRowFields('tekla_material_list.xlsx', ['description', 'grade', 'length_required', 'sub_qty']))
+        ->toBe([
+            ['CHS114.3*5.4', '300PLUS', 3865.0, 1.0],
+            ['PFC125*65', '300PLUS', 3495.0, 2.0],
+            ['PFC125*65', '300PLUS', 3679.0, 4.0],
+            //Its own band, between two subtotals, and every row below it
+            ['PFC300*90', '300PLUS', 3679.0, 2.0],
+            ['RHS150*100*6.0', '300PLUS', 11310.0, 1.0],
+            ['RHS150*100*6.0', '300PLUS', 11734.0, 1.0],
+            ['RHS150*100*6.0', '300PLUS', 12103.0, 1.0],
+        ]);
+
+    /*
+     * The subtotals are blank in the description column, so they never become rows - and the page
+     * footer sits past the last band with nothing material below it, so the table ends above it.
+     */
+    expect(collect(exampleRows('tekla_material_list.xlsx'))->pluck('description'))
+        ->not->toContain('Subtotal')
+        ->not->toContain('Page 1');
 });
 
 it('would be a disaster if the Bolt Summary top example stopped parsing', function () {

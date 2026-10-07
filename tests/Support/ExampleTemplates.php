@@ -25,7 +25,7 @@ use App\Models\Template;
 class ExampleTemplates
 {
     /**
-     * Record all five examples against this business, whichever business it is.
+     * Record every example against this business, whichever business it is.
      *
      * "Project Quote" was scoped to the admin's own email domain when these were handed out for
      * real, because a heading run of Length/Width/SubQty/Rate/Total is four ordinary words and one
@@ -104,6 +104,55 @@ class ExampleTemplates
                 'compound_description_cells' => null,
                 'assembly_mark_rule' => 'COLUMN',
                 'assembly_mark_cell' => 'G6',
+                'length_width_units' => 'mm',
+                'screenshot' => null,
+                'active' => true,
+            ],
+            /*
+             * Tekla's stock Material_List report, which bands its rows by section and subtotals
+             * each band.
+             *
+             * RECONSTRUCTED, and the only example here that is. The others are customer files; this
+             * one was rebuilt cell by cell from a PRINT of the report - a PDF nobody can import -
+             * so every value below is read off that page and the SHAPE around them is a reading of
+             * it. Two things the print cannot settle are the two that matter: the subtotal line is
+             * indented under Grade rather than under Profile, which is taken to mean the Profile
+             * cell is empty on it, and the white space around each subtotal is taken to be blank
+             * rows. A customer's real export may differ on both, so treat a failure here as a
+             * question about this file before taking it as a question about the importer.
+             *
+             * That shape is the point. A blank Profile cell makes a subtotal line read as a gap,
+             * and a band of ONE row between two gaps used to end the table - see
+             * CsvService::isLastDataRowNoDataBelow(), and GroupedTableEndTest, which asserts the
+             * same thing against all three shapes the report could arrive in. "Hot Rolled" above is
+             * the same report with its subtotals in the Profile column, where they are a row of the
+             * table rather than a gap, which is why it was never affected and why its template
+             * names "Subtotal" and "Total" and this one names neither.
+             */
+            [
+                'name' => 'Material List',
+                'source' => TemplateSourceEnums::TEKLA->value,
+                'type' => TemplateEnums::CAD_BILL_OF_MATERIALS->value,
+                'web_source' => null,
+                'heading_cell' => 'A6',
+                'expected_heading_labels' => ['Profile', 'Grade', 'Qty', 'Length(mm)', 'Area(m2)', 'Weight(kg)'],
+                'first_description_cell' => 'A7',
+                'first_material_cell' => null,
+                'first_grade_cell' => 'B7',
+                'first_surface_cell' => null,
+                'first_length_required_cell' => 'D7',
+                'first_width_required_cell' => null,
+                'first_sub_qty_cell' => 'C7',
+                'skip_or_finish_check_cell' => 'A7',
+                //Both blank: a subtotal line is empty in the check column, so it is a gap, not a word
+                'should_skip_row' => null,
+                'is_last_data_row' => null,
+                'compound_description_prefix' => null,
+                'compound_description_suffix' => null,
+                'compound_description_cells' => null,
+                //The report carries no mark of any kind - it is a list of material, not of parts
+                'assembly_mark_rule' => 'NONE',
+                'assembly_mark_cell' => null,
                 'length_width_units' => 'mm',
                 'screenshot' => null,
                 'active' => true,
