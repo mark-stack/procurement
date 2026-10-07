@@ -97,6 +97,34 @@ function uploadOnto($test, $user, Project $project, string $filename = 'material
         ]);
 }
 
+it('would be a disaster if a file that would not parse were a 500 on a customer upload', function () {
+    /**
+     * An .xlsx that is corrupt, truncated or password-protected has the right extension and the
+     * right media type, so "mimes" lets it through - and the parse was unguarded, so it threw out
+     * of the controller as a 500 while the customer was looking at it. The other upload path has
+     * caught exactly this since it was written.
+     */
+    [, $user] = fabricatorWhoCanImport();
+
+    $project = createProject($user);
+
+    $response = $this->actingAs($user)
+        ->from('/nesting')
+        ->post(route('projects.products.store', $project->id), [
+            'excel' => UploadedFile::fake()->createWithContent(
+                'truncated.xlsx',
+                'PK'."\x03\x04".'this is not a workbook',
+            ),
+        ]);
+
+    $response->assertRedirect('/nesting')
+        ->assertSessionHas('warning')
+        ->assertSessionHasNoErrors();
+
+    expect(MaterialListFile::count())->toBe(0)
+        ->and(RawMaterialQuote::count())->toBe(0);
+});
+
 it('keeps the spreadsheet a material list was imported from, and links every row to it', function () {
     /*
      * The whole foundation. Nothing was kept before this: ProductController read the uploaded temp

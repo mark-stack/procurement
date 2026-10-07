@@ -6,6 +6,7 @@ use App\Models\RawMaterialQuote;
 use App\Models\Template;
 use App\Models\TemplateLearningAttempt;
 use App\Models\User;
+use App\Notifications\TemplateLearnedEmail;
 use App\Notifications\TemplateLearningFailedEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -157,7 +158,9 @@ it('would be a disaster if a customer with no template still had to email us the
      */
     seedMasterMaterials();
     fakeLearningCalls(correctAssemblyListReading());
+    Notification::fake();
 
+    $admin = createUser(1, createBusiness('platform'), true, true);
     $user = customerWithNoTemplates();
 
     expect($user->business->templates()->count())->toBe(0);
@@ -175,6 +178,13 @@ it('would be a disaster if a customer with no template still had to email us the
     //The project was kept, and the materials came out of the file
     expect(Project::count())->toBe(1)
         ->and(RawMaterialQuote::count())->toBeGreaterThan(0);
+
+    /*
+     * And an admin is told. Only the failure used to be emailed, so the one outcome nobody here
+     * heard about was a template written by a model, live, reading a customer's bills of materials
+     * and never looked at by a person - with the only trace a badge on one business's screen.
+     */
+    Notification::assertSentTo($admin, TemplateLearnedEmail::class);
 });
 
 it('recognises the same format next time without asking anybody', function () {
@@ -335,6 +345,113 @@ it('would be a disaster if retrying the same unreadable file cost us a model cal
         TemplateLearningEnums::THROTTLED,
         TemplateLearningEnums::THROTTLED,
     ]);
+});
+
+it('writes the rules and the assembly mark, not only the columns', function () {
+    /**
+     * The answer's shape had no room for any of these, so every template written here took the
+     * defaults however the report was actually laid out: skip the rows whose check cell is empty,
+     * stop where the check column runs out, and - the expensive one - no assembly mark at all. A
+     * mark is how a cut piece is traced back to the job it belongs to, and these templates imported
+     * every row with an empty one.
+     */
+    seedMasterMaterials();
+    Notification::fake();
+
+    fakeLearningCalls([
+        ...correctAssemblyListReading(),
+        'skip_or_finish_check_cell' => 'A7',
+        'should_skip_row' => 'Subtotal',
+        'is_last_data_row' => 'Total',
+        'assembly_mark_rule' => 'COLUMN',
+        'assembly_mark_cell' => 'A7',
+    ]);
+
+    $user = customerWithNoTemplates();
+
+    uploadToNewProject($user, learningUpload());
+
+    $template = $user->business->templates()->sole();
+
+    expect($template->should_skip_row)->toBe('Subtotal')
+        ->and($template->is_last_data_row)->toBe('Total')
+        ->and($template->assembly_mark_rule)->toBe('COLUMN')
+        ->and($template->assembly_mark_cell)->toBe('A7');
+
+    //And the marks reached the rows, which is the whole reason the field is worth asking for
+    expect(RawMaterialQuote::pluck('assembly_mark')->filter()->all())->not->toBeEmpty();
+});
+
+it('would be a disaster if the record checks were a green tick on the path with no form', function () {
+    /**
+     * The checklist used to answer "the record itself is coherent" with a hard-coded pass, on the
+     * grounds that the test REQUEST refuses a record failing it before the service is reached. True
+     * of the admin form; never true of here, which has no request and hands a model's answer
+     * straight to TemplateTestService. So the one path that records templates unattended was being
+     * shown a tick for the only checks it had never run.
+     *
+     * A column cell pointing off the edge of the sheet is the plainest case: every row reads it as
+     * empty, so the column is silently absent from every import.
+     */
+    seedMasterMaterials();
+    Notification::fake();
+
+    //The assembly list is 23 columns wide, so ZZ is past the end of it
+    fakeLearningCalls([...correctAssemblyListReading(), 'first_length_required_cell' => 'ZZ7']);
+
+    $user = customerWithNoTemplates();
+
+    uploadToNewProject($user, learningUpload());
+
+    $attempt = TemplateLearningAttempt::query()->sole();
+
+    expect($user->business->templates()->count())->toBe(0)
+        ->and($attempt->outcome)->toBe(TemplateLearningEnums::REFUSED)
+        ->and(collect($attempt->checks)->firstWhere('key', 'record'))
+        ->toMatchArray(['status' => 'fail'])
+        ->and(collect($attempt->checks)->firstWhere('key', 'record')['detail'])
+        ->toContain('ZZ7');
+});
+
+it('would be a disaster if being refused for retrying extended the lockout each time', function () {
+    /**
+     * A throttled attempt costs nothing - nothing is read and nothing is asked of OpenAI - and it
+     * used to count towards the hour anyway. Every row was measured against the same window, so a
+     * customer retrying pushed their own window forward with each press of the button and could not
+     * get back inside it until they stopped trying for a full hour.
+     */
+    seedMasterMaterials();
+    config(['templates.learning.hourly_limit' => 2, 'openai.key' => null]);
+    Http::fake();
+    Notification::fake();
+
+    $user = customerWithNoTemplates();
+
+    //The allowance, spent
+    uploadToNewProject($user, learningUpload(), 'Job 1');
+    uploadToNewProject($user, learningUpload(), 'Job 2');
+
+    //Half an hour later, two refusals for being over it
+    $this->travel(30)->minutes();
+    uploadToNewProject($user, learningUpload(), 'Job 3');
+    uploadToNewProject($user, learningUpload(), 'Job 4');
+
+    expect(TemplateLearningAttempt::query()->orderBy('id')->pluck('outcome')->all())->toBe([
+        TemplateLearningEnums::UNREADABLE,
+        TemplateLearningEnums::UNREADABLE,
+        TemplateLearningEnums::THROTTLED,
+        TemplateLearningEnums::THROTTLED,
+    ]);
+
+    /*
+     * An hour and a bit after the two that were read, which is still within the hour of the two
+     * refusals. The allowance is spent on what was read, so it is free again.
+     */
+    $this->travel(35)->minutes();
+    uploadToNewProject($user, learningUpload(), 'Job 5');
+
+    expect(TemplateLearningAttempt::query()->orderByDesc('id')->first()->outcome)
+        ->toBe(TemplateLearningEnums::UNREADABLE);
 });
 
 it('does not keep a copy of the spreadsheet for an attempt it never read', function () {

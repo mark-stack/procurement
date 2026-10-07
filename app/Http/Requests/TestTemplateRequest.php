@@ -37,10 +37,13 @@ class TestTemplateRequest extends StoreTemplateRequest
                 ->all(),
 
             /*
-             * Same ceiling and same types as AdminTemplateProposalController: a sample is often a
-             * sheet saved out by hand to show us the shape of a report.
+             * Same types as AdminTemplateProposalController - a sample is often a sheet saved out by
+             * hand to show us the shape of a report - and the same ceiling as a real upload, which
+             * is what this is standing in for. It used to stop at a quarter of that, so the one file
+             * a template could not be tested against was a customer's actual spreadsheet. See
+             * ProductController::store() for the upload's own rule.
              */
-            'sample' => ['required', 'file', 'mimes:xls,xlsx,csv', 'max:1024'],
+            'sample' => ['required', 'file', 'mimes:xls,xlsx,csv', 'max:'.StoreProjectRequest::MAX_FILE_KILOBYTES],
 
             /*
              * Which recorded template the form is open on, when it is open on one. Only used to keep
@@ -60,7 +63,7 @@ class TestTemplateRequest extends StoreTemplateRequest
             ...parent::messages(),
             'sample.required' => 'Choose a spreadsheet to test this template against.',
             'sample.mimes' => 'The sample must be a spreadsheet (.xls, .xlsx or .csv).',
-            'sample.max' => 'The sample must be under 1Mb.',
+            'sample.max' => 'The sample must be under 2Mb, which is the limit on an upload too.',
         ];
     }
 

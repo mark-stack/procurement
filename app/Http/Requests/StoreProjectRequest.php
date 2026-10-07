@@ -15,7 +15,16 @@ class StoreProjectRequest extends FormRequest
      */
     public const MAX_FILES = 5;
 
-    public const MAX_FILE_KILOBYTES = 1024;
+    /**
+     * The ceiling on one bill of materials, and the only one.
+     *
+     * It was 1024 here and 2048 on the other upload path, so the same spreadsheet could be refused
+     * by the new project modal and accepted by the Bill of Materials one - and a template could be
+     * tested against a sample a quarter the size of the file it was being recorded for. The higher
+     * of the two, because the lower one refuses files that import today. Everything that takes a
+     * material list reads this: ProductController, TestTemplateRequest and the proposal screen.
+     */
+    public const MAX_FILE_KILOBYTES = 2048;
 
     /**
      * The finished project whose name this one is taking, resolved while validating.
@@ -201,7 +210,7 @@ class StoreProjectRequest extends FormRequest
             'project_manager_id.exists' => 'Pick a project manager from your own company.',
             'excel.max' => 'Maximum '.self::MAX_FILES.' BOM files can be uploaded.',
             'excel.*.mimes' => 'Each material list must be an Excel file (.xls or .xlsx).',
-            'excel.*.max' => 'Each material list must be under 1Mb.',
+            'excel.*.max' => 'Each material list must be under 2Mb.',
         ];
     }
 

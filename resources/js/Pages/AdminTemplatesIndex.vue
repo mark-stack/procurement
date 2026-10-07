@@ -175,6 +175,15 @@
     //The form as it was when Test ran, so the result can say when it no longer describes the form
     const testedSnapshot = ref(null);
     /*
+     * The same reduction, taken when Edit was pressed, so an edit can tell which kind it is.
+     *
+     * Changing a template's name is not something to make somebody upload a sample for; changing
+     * its heading cell re-anchors every column on a template that is already reading a customer's
+     * uploads. The server asks exactly this question of the values it is sent - see
+     * UpdateTemplateRequest - and this is the half that says so before Save is pressed.
+     */
+    const editedSnapshot = ref(null);
+    /*
      * The last test result, kept here rather than read straight off the flash prop.
      *
      * A template cannot be created until its test has passed, and a refused create - a name already
@@ -226,32 +235,53 @@
         && testedSnapshot.value !== extractionSnapshot());
 
     /*
-     * Whether this form may be saved. Editing a recorded template is not gated - the gate is on
-     * recording one - so in edit mode this is always true.
+     * Whether this form may be saved.
      *
-     * Only ever a courtesy: the store request refuses a template whose test did not pass whatever the
-     * button is doing, because a disabled button is not a gate. See StoreTemplateRequest.
+     * Recording a template is gated on a passing test. Editing one is gated on the same test only
+     * where the edit changes what gets read: a name, a thumbnail, the documentation link and the
+     * live switch are all outside it, so correcting any of those stays a single keystroke.
+     *
+     * Only ever a courtesy: both requests refuse a template whose test did not pass whatever the
+     * button is doing, because a disabled button is not a gate. See StoreTemplateRequest and
+     * UpdateTemplateRequest.
      */
     const testPassed = computed(() => Boolean(lastTest.value?.ok && lastTest.value?.passed && lastTest.value?.token));
-    const canSubmit = computed(() => Boolean(editId.value) || (testPassed.value && !testIsStale.value));
+    //An edit that leaves every value the importer reads exactly as it was needs no test
+    const editKeepsExtraction = computed(() => Boolean(editId.value)
+        && editedSnapshot.value === extractionSnapshot());
+    const canSubmit = computed(() => editKeepsExtraction.value || (testPassed.value && !testIsStale.value));
 
     //Why Create is not available yet, in the order the admin runs into them
     const blockedReason = computed(() => {
-        if(editId.value || canSubmit.value){
+        if(canSubmit.value){
             return null;
         }
 
+        /*
+         * An edit is only here because it changes what gets read - editKeepsExtraction() lets every
+         * other kind straight through - so it is worth saying which change is being gated, and that
+         * the template it is being gated on is already live.
+         */
+        const edit = Boolean(editId.value);
+        const because = edit
+            ? "This edit changes which cells are read, on a template that is already live, so it has to be tested the way a new one is."
+            : "A template can only be created once its test has passed - every check has to be a tick or a warning.";
+
         if(!lastTest.value){
             return formSample.sample
-                ? "Press Test. A template can only be created once its test has passed - every check has to be a tick or a warning."
-                : "Choose a sample spreadsheet above and press Test. A template can only be created once its test has passed - every check has to be a tick or a warning.";
+                ? `Press Test. ${because}`
+                : `Choose a sample spreadsheet above and press Test. ${because}`;
         }
 
         if(!testPassed.value){
-            return "This test did not pass. Fix the checks marked with a cross and test again - a template that would import nothing cannot be created.";
+            return edit
+                ? "This test did not pass. Fix the checks marked with a cross and test again - an edit that would import nothing cannot be saved."
+                : "This test did not pass. Fix the checks marked with a cross and test again - a template that would import nothing cannot be created.";
         }
 
-        return "The form has changed since the test that passed, so that test is about different values. Test again to create it.";
+        return edit
+            ? "The form has changed since the test that passed, so that test is about different values. Test again to save it."
+            : "The form has changed since the test that passed, so that test is about different values. Test again to create it.";
     });
 
     /*
@@ -604,8 +634,12 @@
     }
     function submitUpdate(){
         let url = route("admin.businesses.templates.update",[props.business.id,editId.value]);
-        //Same reason as submitStore(): the sample belongs to the test and to nothing else
-        formTemplate.transform((data) => data).put(url, {
+        /*
+         * Same reason as submitStore(): the sample belongs to the test and to nothing else, and the
+         * token it handed back goes with the values being saved. The request only asks for one when
+         * the edit changes what gets read, and sending it either way costs nothing.
+         */
+        formTemplate.transform((data) => ({ ...data, template_test_token: lastTest.value?.token ?? null })).put(url, {
             preserveScroll: true,
             onSuccess: () => {
                 resetForm();
@@ -647,6 +681,8 @@
         //Any test result on screen was run against the values this has just replaced
         testedSnapshot.value = null;
         lastTest.value = null;
+        //The record as it stands, so an edit that changes what gets read can be told from a rename
+        editedSnapshot.value = extractionSnapshot();
         advancedOpen.value = Boolean(
             template.should_skip_row
             || template.is_last_data_row
@@ -668,6 +704,8 @@
         advancedOpen.value = false;
         editHasScreenshot.value = false;
         testedSnapshot.value = null;
+        //Nothing is being edited, so there is no record to compare an edit against
+        editedSnapshot.value = null;
         //The next template is its own template, and has to pass its own test
         lastTest.value = null;
     }

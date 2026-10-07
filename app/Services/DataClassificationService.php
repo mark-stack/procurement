@@ -625,7 +625,30 @@ class DataClassificationService
         return $possibleEquivalents;
     }
 
-    public function findGeneralProductMatchesFromText(?string $text, object $user): array
+    /**
+     * @param  array{material?: string|null, grade?: string|null, surface?: string|null}  $declared
+     *     What the row's own material and grade COLUMNS said, where the template records them. A
+     *     bill of materials that carries these as columns is stating what to buy; this used to read
+     *     neither of them and derive everything from the description instead, so "310UB40" next to a
+     *     Grade column reading "GRADE 350" was matched against the catalogue with no grade at all -
+     *     several products matched, the customer was asked to clarify something their spreadsheet
+     *     had already said, and where exactly one matched it was bought at whatever grade the
+     *     catalogue happened to hold.
+     *
+     *     They fill gaps rather than overrule. A description that names its own grade is the more
+     *     specific of the two statements, and where the two disagree it is also the one an admin saw
+     *     on the test screen. Nothing here invents a filter the sheet did not supply, so a row whose
+     *     description already said everything is matched exactly as it was before.
+     *
+     *     "surface" is deliberately NOT one of them, though it is read and stored like the others.
+     *     A finish column on a CAD export is a fabrication instruction rather than a purchasing
+     *     one: the examples carry "PAINTED", and nobody buys painted sections from a steel merchant
+     *     - they buy black steel and paint it afterwards. Filtering the catalogue by it asks for a
+     *     product that does not exist and reports the row as not stocked. A finish named inside the
+     *     DESCRIPTION is a different statement - that is the customer naming the item they want -
+     *     and still filters, exactly as it always has.
+     */
+    public function findGeneralProductMatchesFromText(?string $text, object $user, array $declared = []): array
     {
         $generalProductMatches = [
             'allFields' => false,
@@ -638,13 +661,16 @@ class DataClassificationService
 
         if ($productConfig) {
             //MATERIAL
-            $materialEnum = $this->findMaterial($productConfig, $text);
+            $materialEnum = $this->matchMaterial($text)
+                ?? $this->matchMaterial($declared['material'] ?? null)
+                ?? $productConfig['defaultMaterial'];
 
             //GRADE
-            $gradesEnums = $this->findGrades($productConfig, $text);
+            $gradesEnums = $this->matchGrades($text)
+                ?? $this->matchGrades($declared['grade'] ?? null);
 
-            //SURFACE
-            $surfaceEnum = $this->findSurface($productConfig, $text);
+            //SURFACE - from the description only; see the note on $declared
+            $surfaceEnum = $this->matchSurface($text);
 
             //NOMINAL UNITS
             $measurementUnitEnum = MeasurementUnitEnums::MILLIMETERS; //$this->findMeasurementUnit($productConfig);
@@ -899,7 +925,20 @@ class DataClassificationService
         /**
          * Single purpose: extract a 'material' from text. e.g "SS304"
          */
-        $materialResult = null;
+        return $this->matchMaterial($text) ?? $productConfig['defaultMaterial'];
+    }
+
+    /**
+     * The material this text names, or null if it names none - which is the difference between
+     * this and findMaterial(), and the reason it exists: a bill of materials with its own material
+     * column has two places to look, and "nothing here says" has to be tellable from "plain carbon
+     * steel, because that is what this category is by default".
+     */
+    private function matchMaterial(?string $text): ?MaterialEnums
+    {
+        if ($text === null || trim($text) === '') {
+            return null;
+        }
 
         $materials = [
             //STAINLESS_STEEL
@@ -959,23 +998,20 @@ class DataClassificationService
             ],
         ];
 
+        /*
+         * The first match wins, and the list above is ordered accordingly. It used to run every
+         * pattern and keep the last one that matched, so which material a descriptor naming two of
+         * them came back as was decided by the order of this array read backwards.
+         */
         foreach ($materials as $material) {
             foreach ($material['regex'] as $pattern) {
-                $regex = '/'.$pattern.'/i';
-                if (preg_match($regex, $text)) {
-                    $materialResult = $material['materialEnum'];
+                if (preg_match($this->wordPattern($pattern), $text) === 1) {
+                    return $material['materialEnum'];
                 }
             }
         }
 
-        /**
-         * Default material
-         */
-        if (! $materialResult) {
-            $materialResult = $productConfig['defaultMaterial'];
-        }
-
-        return $materialResult;
+        return null;
     }
 
     public function findGrades($productConfig, $text): ?array
@@ -983,7 +1019,19 @@ class DataClassificationService
         /**
          * Single purpose: extract a 'grade' from text. e.g "GR 250"
          */
-        $gradeResults = null;
+        return $this->matchGrades($text);
+    }
+
+    /**
+     * Every grade this text names, or null if it names none.
+     *
+     * @return list<GradeEnums>|null
+     */
+    private function matchGrades(?string $text): ?array
+    {
+        if ($text === null || trim($text) === '') {
+            return null;
+        }
 
         $grades = [
             //GR250
@@ -1046,11 +1094,15 @@ class DataClassificationService
             //todo more
         ];
 
+        $gradeResults = null;
+
         foreach ($grades as $grade) {
             foreach ($grade['regex'] as $pattern) {
-                $regex = '/'.$pattern.'/i';
-                if (preg_match($regex, $text)) {
+                if (preg_match($this->wordPattern($pattern), $text) === 1) {
                     $gradeResults[] = $grade['gradeEnum'];
+
+                    //One match per grade is enough: "MS" and "GR250" both mean GR250 once
+                    break;
                 }
             }
         }
@@ -1072,21 +1124,23 @@ class DataClassificationService
         /**
          * Single purpose: extract a 'surface' from text. e.g "Painted"
          */
-        $surfaceResult = null;
+        return $this->matchSurface($text);
+    }
+
+    /**
+     * The finish this text names, or null if it names none.
+     *
+     * Ordered most specific first, and the first match wins. Both halves of that are fixes for the
+     * same bug: every pattern used to be run with the LAST match kept, so "GALV ZINC RICH" came
+     * back as zinc because zinc is further down the list than galvanised.
+     */
+    private function matchSurface(?string $text): ?SurfaceEnums
+    {
+        if ($text === null || trim($text) === '') {
+            return null;
+        }
 
         $surfaces = [
-            [
-                'surfaceEnum' => SurfaceEnums::NONE,
-                'regex' => [
-                    'black',
-                ],
-            ],
-            [
-                'surfaceEnum' => SurfaceEnums::PAINTED,
-                'regex' => [
-                    'painted',
-                ],
-            ],
             [
                 'surfaceEnum' => SurfaceEnums::GALVANISED,
                 'regex' => [
@@ -1094,15 +1148,21 @@ class DataClassificationService
                     'galvanise',
                     'galvanized',
                     'galvanize',
-                    'gal',
                     'galv',
-                    "hdg",
+                    'gal',
+                    'hdg',
                 ],
             ],
             [
                 'surfaceEnum' => SurfaceEnums::PASSIVATED,
                 'regex' => [
                     'passivated',
+                ],
+            ],
+            [
+                'surfaceEnum' => SurfaceEnums::PAINTED,
+                'regex' => [
+                    'painted',
                 ],
             ],
             [
@@ -1123,14 +1183,19 @@ class DataClassificationService
                     'zinc',
                 ],
             ],
+            [
+                'surfaceEnum' => SurfaceEnums::NONE,
+                'regex' => [
+                    'black',
+                ],
+            ],
             //todo more
         ];
 
         foreach ($surfaces as $surface) {
             foreach ($surface['regex'] as $pattern) {
-                $regex = '/'.$pattern.'/i';
-                if (preg_match($regex, $text)) {
-                    $surfaceResult = $surface['surfaceEnum'];
+                if (preg_match($this->wordPattern($pattern), $text) === 1) {
+                    return $surface['surfaceEnum'];
                 }
             }
         }
@@ -1142,7 +1207,52 @@ class DataClassificationService
         //            $surfaceResult = SurfaceEnums::NONE;
         //        }
 
-        return $surfaceResult;
+        return null;
+    }
+
+    /**
+     * One of the material, grade or finish patterns, bounded so it cannot match inside something
+     * else.
+     *
+     * These are short strings matched against a whole BOM line, and they used to be matched as bare
+     * substrings. Three of them did real damage: "gal" found the GAL in "REGAL", "h2" the H2 in a
+     * mark like "W1H250", and "MS" the MS in "BEAMS". Each one puts a finish or a grade on a row
+     * that never had one, and both are ANDed into the catalogue query - so a plain black PFC came
+     * back matching nothing at all and was reported to the customer as not in the price book.
+     *
+     * The boundary is of the same kind as the character it guards, which is what makes one rule fit
+     * all three lists. A word is bounded against letters, so "gal" does not match REGAL while
+     * "GR4.6" still reads as grade 4.6 - the "4" there is guarded against digits, and R is not one.
+     * A number is bounded against digits, so "4.6" does not match inside 14.65 and still matches
+     * the "4.6S" an engineer writes for a structural bolt class. Bounding everything against both
+     * would refuse all four.
+     */
+    private function wordPattern(string $pattern): string
+    {
+        return '/'
+            .$this->boundary($pattern[0], true)
+            .'(?:'.$pattern.')'
+            .$this->boundary($pattern[strlen($pattern) - 1], false)
+            .'/i';
+    }
+
+    /**
+     * The lookaround that guards one end of a pattern.
+     *
+     * A lookaround rather than \b because several of these patterns carry their own regex syntax -
+     * "4\.6", "SS+\s+304" - and a \b wrapped around those binds to the wrong end of them. A pattern
+     * whose end is neither a letter nor a digit is guarded against both, which is the strict
+     * reading and the safe default; none of the lists has one today.
+     */
+    private function boundary(string $character, bool $before): string
+    {
+        $class = match (true) {
+            ctype_alpha($character) => 'A-Za-z',
+            ctype_digit($character) => '0-9',
+            default => 'A-Za-z0-9',
+        };
+
+        return $before ? '(?<!['.$class.'])' : '(?!['.$class.'])';
     }
 
     /**

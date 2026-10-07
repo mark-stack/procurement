@@ -126,8 +126,16 @@ class TemplateController extends Controller
      */
     public function update(UpdateTemplateRequest $request, Business $business, Template $template): RedirectResponse
     {
-        //No screenshot key when the field came back blank, so the stored one is left alone
-        $template->update($request->validated());
+        /*
+         * No screenshot key when the field came back blank, so the stored one is left alone.
+         *
+         * Without the token, for the same reason store() drops it: an edit that changes what gets
+         * read now has to carry one - see UpdateTemplateRequest - and it is proof of a test rather
+         * than a column of the table.
+         */
+        $template->update(
+            collect($request->validated())->except('template_test_token')->all(),
+        );
 
         return back();
     }

@@ -43,11 +43,13 @@ class TemplateTestChecklist
      *
      * @param  array{
      *     file: string,
-     *     tables: list<array{heading_row: int, heading_column: string, extracted: int}>,
+     *     tables: list<array{heading_row: int, heading_column: string, extracted: int, candidates: int}>,
      *     extracted: int,
      *     checked: int,
      *     counts: array<string, int>,
      *     catalogue_empty: bool,
+     *     record_errors: list<string>,
+     *     stop_rule: bool,
      *     length_column: bool,
      *     sub_qty_column: bool,
      *     sample_warnings: list<string>,
@@ -60,9 +62,11 @@ class TemplateTestChecklist
     {
         return array_values(array_filter([
             $this->fileRead($facts),
-            $this->recordChecks(),
+            $this->recordChecks($facts),
             $this->tableFound($facts),
             $this->rowsExtracted($facts),
+            $this->rowsCoverTheTable($facts),
+            $this->rowsChecked($facts),
             $this->lengthColumn($facts),
             $this->subQtyColumn($facts),
             $this->catalogue($facts),
@@ -123,15 +127,28 @@ class TemplateTestChecklist
     }
 
     /**
-     * Passed by the time anything here runs: the same checks refuse the test request itself, under the
-     * field they are about. Listed anyway, because "the cells are cells, they name one row, and there
-     * is something to read a description from" is a real check and a silent one is indistinguishable
-     * from one nobody wrote.
+     * That the cells are cells, that they all name one row, that the heading sits above them, that
+     * they are inside the sheet, and that something says what each row is.
      *
+     * This used to be a hard-coded pass, on the grounds that the test REQUEST refuses a record
+     * failing any of them before this service is reached. That is true of the admin form and it was
+     * never true of TemplateLearningService, which has no request: it hands a model's answer
+     * straight to this service and saves it if the checklist passes. So the path that records
+     * templates unattended, on a customer's upload, was being shown a green tick for the one set of
+     * checks it had never run - a heading cell below the data row, or a column cell pointing off the
+     * edge of the sheet, got through it. It is a real check on both paths now.
+     *
+     * @param  array<string, mixed>  $facts
      * @return array{key: string, label: string, status: string, detail: string}
      */
-    private function recordChecks(): array
+    private function recordChecks(array $facts): array
     {
+        $errors = $facts['record_errors'] ?? [];
+
+        if ($errors !== []) {
+            return $this->check('record', 'The record itself is coherent', self::FAIL, implode(' ', $errors));
+        }
+
         return $this->check('record', 'The record itself is coherent', self::PASS,
             'Every cell is a cell reference, they all name the first row of data, and there is a description to read. A record failing any of these cannot be tested or saved.',
         );
@@ -180,6 +197,75 @@ class TemplateTestChecklist
             '%d %s extracted.',
             $facts['extracted'],
             $facts['extracted'] === 1 ? 'row was' : 'rows were',
+        ));
+    }
+
+    /**
+     * That what came out is the whole of what was under the heading row.
+     *
+     * The failure this exists for has no other symptom. A table that is read half way down reports
+     * the rows it did read, all of them import, every other check passes, and the spreadsheet's
+     * remaining materials are simply absent - no exception, nothing in the customer's "could not be
+     * read" list, nothing for the model reviewing the extracted rows to object to, because it is
+     * only ever shown what came out.
+     *
+     * A warning rather than a failure: the skip rule is allowed to drop rows, and a sheet whose
+     * check column carries subtotals and notes in among the materials is allowed to be read
+     * selectively. The numbers are what matters here, and the point is that they are now on screen.
+     *
+     * @param  array<string, mixed>  $facts
+     * @return array{key: string, label: string, status: string, detail: string}|null
+     */
+    private function rowsCoverTheTable(array $facts): ?array
+    {
+        //Nothing came out at all, which rowsExtracted() has already failed on
+        if ($facts['extracted'] === 0) {
+            return null;
+        }
+
+        $candidates = array_sum(array_column($facts['tables'], 'candidates'));
+        $missed = $candidates - $facts['extracted'];
+
+        if ($missed <= 0) {
+            return $this->check('rows_cover_table', 'Every row under the heading was read', self::PASS,
+                'What came out is every row the check column carries, so nothing between the heading row and the end of the table was passed over.',
+            );
+        }
+
+        return $this->check('rows_cover_table', 'Every row under the heading was read', self::WARNING, sprintf(
+            '%d %s under the heading row carry something in the check column and %d came out, so %d %s not read.%s',
+            $candidates,
+            $candidates === 1 ? 'row' : 'rows',
+            $facts['extracted'],
+            $missed,
+            $missed === 1 ? 'was' : 'were',
+            ($facts['stop_rule'] ?? false)
+                ? ' The stop rule may be the reason - check it is the row the table really ends on.'
+                : ' That is the skip rule if those rows are subtotals or notes, and the first row of data or the description column if it is not.',
+        ));
+    }
+
+    /**
+     * How much of the extraction the verdicts below are actually about.
+     *
+     * Only the first hundred rows are classified - see TemplateTestService::ROW_LIMIT - and every
+     * row check below divides by that hundred. A clean first hundred of a two thousand row file
+     * passes every one of them, so the size of what was not looked at belongs on the list.
+     *
+     * @param  array<string, mixed>  $facts
+     * @return array{key: string, label: string, status: string, detail: string}|null
+     */
+    private function rowsChecked(array $facts): ?array
+    {
+        if ($facts['extracted'] <= $facts['checked']) {
+            return null;
+        }
+
+        return $this->check('rows_checked', 'Every extracted row was checked against the catalogue', self::WARNING, sprintf(
+            'The first %d of %d extracted rows were checked. Every verdict below is about those %d, so a row further down the sheet that reads as something else would not show here.',
+            $facts['checked'],
+            $facts['extracted'],
+            $facts['checked'],
         ));
     }
 

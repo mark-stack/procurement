@@ -185,9 +185,15 @@ class Template extends Model
              * Which column the skip and end-of-table rules watch. Left blank it follows the
              * description column, because "stop when the description runs out" is what a table
              * ending looks like - and 0, the anchor's own column, is only right by coincidence.
+             *
+             * Then the first compound description cell, for the tables that have no description
+             * column at all. Those used to fall straight through to 0: a bolt summary's anchor
+             * column is blank on every data row, so the table ended on the first row of it and
+             * the template read nothing whatever.
              */
             'skipOrFinishCheckRelativeOffset' => $this->columnOffset($this->skip_or_finish_check_cell)
                 ?? $this->columnOffset($this->first_description_cell)
+                ?? $this->columnOffset(($this->compound_description_cells ?? [])[0] ?? null)
                 ?? 0,
             'ShouldSkipRow' => $this->should_skip_row,
             'isLastDataRow' => $this->is_last_data_row,

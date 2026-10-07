@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Imports\ExcelImport;
+use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Maatwebsite\Excel\Exceptions\NoSheetsFoundException;
 use Maatwebsite\Excel\Exceptions\NoTypeDetectedException;
@@ -33,15 +34,17 @@ class TemplateService
      * several callers actually ask.
      *
      * @param  array<int, UploadedFile>  $files
+     * @param  User|null  $user  Whose templates to match against; null means whoever is signed in.
+     *                           See CsvService::detectTables() for why that is a question.
      * @return array{invalid: array<int, string>, unmatched: array<int, string>, unreadable: array<int, string>, tables: array<int, array>}
      */
-    public function readFiles(array $files): array
+    public function readFiles(array $files, ?User $user = null): array
     {
         //Services
         $csvService = new CsvService;
 
-        //Same for every file in the submit - it only depends on who is uploading
-        $eligibleTables = $csvService->eligibleTables();
+        //Same for every file in the submit - it only depends on whose templates they are read with
+        $eligibleTables = $csvService->eligibleTables($user);
 
         $invalidFiles = [];
         $unmatched = [];

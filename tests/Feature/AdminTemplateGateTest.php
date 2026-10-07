@@ -556,13 +556,19 @@ it('allows a second template for a different table in the same file', function (
 
 it('does not ask for a test to correct a recorded template', function () {
     /**
-     * The gate is on recording a template, not on editing one. Insisting on a passing test for every
-     * edit would mean having a sample spreadsheet to hand to fix a spelling mistake in a name, and an
-     * admin who cannot correct a name without one leaves it wrong.
+     * Insisting on a passing test for every edit would mean having a sample spreadsheet to hand to
+     * fix a spelling mistake in a name, and an admin who cannot correct a name without one leaves it
+     * wrong. So an edit that leaves every value the importer reads exactly as it was goes through.
+     *
+     * The record is created from the payload rather than from the factory, so that the only
+     * difference between the two is the name - which is what makes this a rename and not an edit
+     * wearing one.
      */
     [$business, $admin] = gateAdmin();
 
-    $template = Template::factory()->for($business)->create(['name' => 'Acme Profile List']);
+    $template = $business->templates()->create(
+        collect(gateCreatePayload())->except('template_test_token')->all(),
+    );
 
     $this->actingAs($admin)->put(
         route('admin.businesses.templates.update', [$business->id, $template->id]),
@@ -570,6 +576,50 @@ it('does not ask for a test to correct a recorded template', function () {
     )->assertSessionHasNoErrors();
 
     expect($template->fresh()->name)->toBe('Acme Profile List v2');
+});
+
+it('would be a disaster if an edit could move the columns of a live template without a test', function () {
+    /**
+     * The other half of the rule above, and the one that was missing: editing was outside the gate
+     * altogether, and the same form that renames a template posts its heading cell. Moving that
+     * re-anchors every column offset - the record is read from a different place in every upload
+     * from then on - on a template that is already live, with no sample and no test.
+     *
+     * Refused under the field the proof belongs to, and accepted once a token issued over these
+     * exact values is sent with it.
+     */
+    [$business, $admin] = gateAdmin();
+
+    $template = $business->templates()->create(
+        collect(gateCreatePayload())->except('template_test_token')->all(),
+    );
+
+    /*
+     * The whole table one column to the right, which is the shape of the edit worth refusing: every
+     * cell still agrees with every other, the record is as coherent as it was, and the columns the
+     * importer reads are all different ones.
+     */
+    $moved = gateCreatePayload([
+        'heading_cell' => 'B1',
+        'first_description_cell' => 'B2',
+        'first_sub_qty_cell' => 'C2',
+        'first_length_required_cell' => 'D2',
+    ]);
+
+    $this->actingAs($admin)->put(
+        route('admin.businesses.templates.update', [$business->id, $template->id]),
+        collect($moved)->except('template_test_token')->all(),
+    )->assertSessionHasErrors('template_test_token');
+
+    expect($template->fresh()->heading_cell)->toBe($template->heading_cell);
+
+    //The same edit, with proof that it was run over a sample
+    $this->actingAs($admin)->put(
+        route('admin.businesses.templates.update', [$business->id, $template->id]),
+        [...$moved, 'template_test_token' => (new TemplateTestCertificate)->issue($business, $moved)],
+    )->assertSessionHasNoErrors();
+
+    expect($template->fresh()->heading_cell)->toBe('B1');
 });
 
 it('would be a disaster if the test request itself demanded proof of a test', function () {

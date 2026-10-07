@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Http\RedirectResponse;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 class ProjectController extends Controller
 {
@@ -134,11 +135,33 @@ class ProjectController extends Controller
 
             $detected = $csvService->detectTables(
                 Excel::toArray(new ExcelImport, $files[$index])[0],
+                //The project's own manager, not whoever is uploading: see ProductController::store
+                $project->user,
             );
 
-            if($detected !== []){
-                $read['tables'][$index] = $detected;
+            if($detected === []){
+                /*
+                 * A template was written and then found nothing in the file it was written for.
+                 *
+                 * This branch did nothing at all: the file was in neither the failed list nor the
+                 * unlearnable one, so it was dropped without a word to the customer or a mark
+                 * against the project - the one path here that could lose a whole upload in
+                 * silence. It should not be reachable, since the template was tested against this
+                 * very file moments ago, which is exactly why it is worth reporting rather than
+                 * passing over.
+                 */
+                report(new RuntimeException(sprintf(
+                    'Template %d was recorded for "%s" and then detected nothing in it.',
+                    $learning->template->id,
+                    $name,
+                )));
+
+                $unlearnable[$name] = "We have read {$name} and saved how to read it, but it did not import. We are looking at it.";
+
+                continue;
             }
+
+            $read['tables'][$index] = $detected;
         }
 
         $failedFiles = [];
