@@ -151,6 +151,54 @@ test('that "PLT10(asterix)160" finds GR250 and GR350', function () {
         ->and($products[1]['grade'])->toBe(GradeEnums::GR350->value);
 });
 
+test('that "PL10x500x1000" finds the same product the trailing form does', function () {
+    /**
+     * The leading-PL form is how Tekla, Advance Steel and most generic exports write
+     * plate, and it used to match no product category at all - which in the importer is
+     * a bare continue, so the line was dropped without being reported. The dimension
+     * tail is the PIECE, not the plate: thickness is the only thing joined on, so this
+     * has to land on the same products as "10PL".
+     */
+    //Create admin
+    $adminUser = createAdmin();
+
+    //Authorised
+    $this->actingAs($adminUser);
+
+    //Seed master_product.csv to create products
+    seedMasterMaterials();
+
+    //Find product
+    $leading = findProducts('PL10x500x1000');
+    $trailing = findProducts('10PL');
+
+    expect($leading)->toBe($trailing)
+        ->and($leading[0]['product_category'])->toBe(ProductEnums::PLATE->value)
+        ->and($leading[0]['nominal_height'])->toBe('10');
+});
+
+test('that an imperial plate reports as unstocked rather than being rounded into stock', function () {
+    /**
+     * 1/2" is 12.7mm and the catalogue holds 12mm. Reading the fraction is what makes the
+     * difference visible - the row now finds no product and is reported to the user by
+     * name, where before it was dropped silently. What it must NOT do is substitute the
+     * 12mm plate, which is a material decision the detailer did not make.
+     */
+    //Create admin
+    $adminUser = createAdmin();
+
+    //Authorised
+    $this->actingAs($adminUser);
+
+    //Seed master_product.csv to create products
+    seedMasterMaterials();
+
+    //Find product
+    $products = findProducts('PL 1/2" x 48" x 96"');
+
+    expect($products)->toBe([]);
+});
+
 test('that "150PFC 9000mm" finds exact product', function () {
     //Create admin
     $adminUser = createAdmin();
