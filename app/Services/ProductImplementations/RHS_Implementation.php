@@ -26,12 +26,21 @@ class RHS_Implementation extends ProductBaseImplementation
             'negativeKeywords' => [
                 //
             ],
+            /*
+             * The hollow structural section SDS2 exports, and the older tube designation,
+             * both of which cover square and rectangular tube in one token. The backreference
+             * in SHS_Implementation claims the square case; the negative lookahead here
+             * requires the two faces to differ, so only rectangular tube lands on RHS.
+             */
             'productRegex' => [
                 "\bRHS",    //75x50x2.5 RHS
                 "(\d+)RHS", //75x50x2.5RHS
                 "\s+RHS",   //75 x 50 x 2.5 RHS   75 x 50 x 2.5mm RHS
                 "RHS(\d+)", //RHS75*50*2.5
                 "RHS\b",    //RHS 75*50*2.5
+                "\bHSS\s?(\d+(?:\.\d+)?)\s*[x*]\s*(?!\\1\s*[x*])\d+(?:\.\d+)?\s*[x*]",  //HSS6X4X1/4
+                "\bTS\s?(\d+(?:\.\d+)?)\s*[x*]\s*(?!\\1\s*[x*])\d+(?:\.\d+)?\s*[x*]",   //TS8X4X1/4
+                "rectangular+\s+hollow+\s+section",
             ],
             'nominalLengthRegex' => [
 

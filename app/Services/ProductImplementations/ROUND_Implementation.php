@@ -26,6 +26,12 @@ class ROUND_Implementation extends ProductBaseImplementation
             'negativeKeywords' => [
                 //
             ],
+            /*
+             * A bare "R20" is deliberately absent. Advance Steel writes a round bar that way,
+             * but so does a drawing revision and so does a bend radius, and a classifier that
+             * guesses wrong is worse than one that leaves the row for the user. "ROD20", "Ø20"
+             * and "20 DIA" are unambiguous, so those are read.
+             */
             'productRegex' => [
                 "D(\d+)\b",         //"D20"
                 "round\b",          //"20mm round", "20mm round bar"
@@ -33,6 +39,18 @@ class ROUND_Implementation extends ProductBaseImplementation
                 "Ø(\d+)+\s+round",  //"Ø20 round"
                 "Ø(\d+)mm+\s+bar",  //"Ø20mm bar"
                 "Ø(\d+)mm+\s+round",  //"Ø20mm bar"
+                /*
+                 * A bare diameter, anchored to the WHOLE descriptor. The symbol on its own
+                 * just means "diameter" and says nothing about the profile, so unanchored it
+                 * claimed the actual diameter of a pipe: "150nb (Ø168.3)" scored as round bar
+                 * against the CHS its "nb" names.
+                 *
+                 * No \b in front of the symbol either - it is multi-byte, and a word boundary
+                 * against its first byte never matches.
+                 */
+                "^\s*Ø\s?\d+(\.\d+)?\s*(mm)?\s*$",      //"Ø20"
+                "\bROD\s?(\d+(\.\d+)?)",    //"ROD20"
+                "(\d+)\s*(mm)?\s*dia\b",    //"20 DIA ROUND BAR", "20mm dia"
             ],
             'nominalLengthRegex' => [
 
@@ -42,6 +60,15 @@ class ROUND_Implementation extends ProductBaseImplementation
                 "round\b",          //"20mm round", "20mm round bar"
                 "Ø(\d+)+\s+bar",    //"Ø20 bar"
                 "Ø(\d+)+\s+round",  //"Ø20 round"
+                /*
+                 * "round\b" above matches the word and carries no number with it, so the
+                 * diameter of a plainly-written "20mm round bar" came back null - the one
+                 * attribute the catalogue joins a round bar on.
+                 */
+                "(\d+(\.\d+)?)\s*mm\s*round\b",     //"20mm round", "20mm round bar"
+                "Ø\s?(\d+(\.\d+)?)",                //"Ø20"
+                "\bROD\s?(\d+(\.\d+)?)",            //"ROD20"
+                "(\d+(\.\d+)?)\s*(mm)?\s*dia\b",    //"20 DIA ROUND BAR"
             ],
             'nominalHeightRegex' => [
 

@@ -27,11 +27,24 @@ class UB_Implementation extends ProductBaseImplementation
                 //
             ],
             'productRegex' => [
-                "(\d+)+UB",           //300UB
-                "(\d+)+\s+UB",        //300 UB
-                "UB(\d+)\*",          //UB360*57
+                "(\d+)+UB",             //300UB
+                "(\d+)+\s+UB",          //300 UB
+                "UB\s?(\d+)\s?[x*]",    //UB360*57, UB360x57, UB 310x165x40
                 "universal+\s+beam",
                 "steel+\s+beam",
+                /*
+                 * Tekla UK and the DIN beam Advance Steel writes. Both carry their depth in
+                 * millimeters, so they read like any other metric form.
+                 */
+                "\bUKB\s?(\d+)",    //UKB305x165x40
+                "\bIPE\s?(\d+)",    //IPE300
+                /*
+                 * The AISC wide flange, which is what SDS2 exports. Both the imperial
+                 * ("W12X26" - 12 inches deep, 26 lb/ft) and metric ("W310X39") designations
+                 * are written the same way; DataClassificationService tells them apart by the
+                 * size of the depth and converts the imperial one.
+                 */
+                "\bW\d+(\.\d+)?\s?[xX*]\s?\d+(\.\d+)?",
             ],
             'nominalLengthRegex' => [
 
@@ -39,18 +52,36 @@ class UB_Implementation extends ProductBaseImplementation
             'nominalWidthRegex' => [
 
             ],
+            /*
+             * Leading-token forms first, trailing-token forms last, because the last pattern
+             * to match wins - see DataClassificationService::findNumberByRegexPatterns().
+             */
             'nominalHeightRegex' => [
+                "UB\s?(\d+)\s?[x*]",    //UB360*      UB360*57   UB360x57   UB 310x165x40
+                "\bUKB\s?(\d+)",        //UKB305x165x40
+                "\bIPE\s?(\d+)",        //IPE300
+                //The metric AISC wide flange. Three digits or more, because two is the inch
+                //spelling of the same designation and ImperialSectionReader converts that
+                "\bW([1-9][0-9]{2,})\s?[x*]",   //W310X39
                 "(\d+)+UB",      //300UB       300UB57
                 "(\d+)+\s+UB",   //300 UB      300 UB 57
-                "UB(\d+)\*",     //UB360*      UB360*57
             ],
             'wallRegex' => [
 
             ],
+            /*
+             * Two-number forms first, three-number forms last. The mass is the LAST number of
+             * a three-number metric designation, and "the first number in the match" cannot
+             * reach it - hence the named (?<num>) group, which is read in preference to the
+             * match when a pattern declares one.
+             */
             'weightRegex' => [
                 "UB\s+(\d+(?:\.\d+)?)", //UB 57 or 56.7   300 UB 57
                 "UB(\d+(?:\.\d+)?)",    //UB57 or 56.7    300UB57
-                "\*(\d+(?:\.\d+)?)",    //*57             UB360*57
+                "[x*](\d+(?:\.\d+)?)",  //*57 or x57      UB360*57   UB360x57
+                "UB\s?\d+\s?[x*]\s?\d+\s?[x*]\s?(?<num>\d+(?:\.\d+)?)",     //UB 310x165x40
+                "\bUKB\s?\d+\s?[x*]\s?\d+\s?[x*]\s?(?<num>\d+(?:\.\d+)?)",  //UKB305x165x40
+                "\bW[1-9][0-9]{2,}\s?[x*]\s?(?<num>\d+(?:\.\d+)?)",         //W310X39
             ],
             'measurementUnit' => MeasurementUnitEnums::MILLIMETERS,
             'defaultMaterial' => MaterialEnums::PLAIN_CARBON_STEEL,

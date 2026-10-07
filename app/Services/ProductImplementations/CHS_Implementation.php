@@ -34,6 +34,15 @@ class CHS_Implementation extends ProductBaseImplementation
                 "(\d+(\.\d+)?)nb",          //38nb  or 37.6nb
                 "(\d+(\.\d+)?)n.b",         //38n.b or 37.6n.b
                 "(\d+(\.\d+)?)+\s+n.b",     //38 n.b or 37.6 n.b
+                /*
+                 * The round hollow section and the pipe SDS2 exports. A round HSS carries an
+                 * outside diameter and a wall, both in inches, which DataClassificationService
+                 * converts. A pipe carries a nominal pipe size and a schedule letter - the
+                 * size converts to the nb this catalogue is indexed on, but the SCHEDULE is
+                 * not read, so a pipe resolves a diameter and no wall.
+                 */
+                "\bHSS\s?\d+(\.\d+)?\s?[x*]\s?\d+(\.\d+)?(?!\s?[x*])",    //HSS6.625X0.280 - two numbers, not three
+                "\bPIPE\s?\d+(\.\d+)?\s?(STD|XS|XXS|SCH)",  //PIPE6STD
             ],
             'nominalLengthRegex' => [
 
@@ -46,6 +55,12 @@ class CHS_Implementation extends ProductBaseImplementation
                 "(\d+(\.\d+)?)nb",          //38nb  or 37.6nb
                 "(\d+(\.\d+)?)n.b",         //38n.b or 37.6n.b
                 "(\d+(\.\d+)?)+\s+n.b",     //38 n.b or 37.6 n.b
+                /*
+                 * The trailing form carrying a diameter AND a wall. "(\d+)+\s+CHS" above
+                 * reads whatever number sits against the token, which in "219.1x8.2 CHS" is
+                 * the WALL - an 8.2mm pipe. Last pattern wins, so this settles it.
+                 */
+                "(?<num>\d+(\.\d+)?)\s*[x*]\s*\d+(\.\d+)?\s*(mm)?\s*CHS\b",   //219.1x8.2 CHS
             ],
             'nominalHeightRegex' => [
 

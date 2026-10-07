@@ -24,18 +24,24 @@ class ProductService
                 $service = new $implementation;
                 $config = $service->config();
 
-                //Fasteners
-                if ($config['isFastener'] === $fasteners) {
-                    $productConfigs[] = [
-                        'config' => $config,
-                        'service' => $service,
-                    ];
-                } else {
-                    $productConfigs[] = [
-                        'config' => $config,
-                        'service' => $service,
-                    ];
+                /*
+                 * Fasteners.
+                 *
+                 * Both branches of this used to append, so the argument selected nothing and
+                 * every caller got all sixteen categories. The fastener pre-pass in
+                 * DataClassificationService runs FIRST and fires on any fastener word
+                 * anywhere in the text, so a section descriptor that merely mentioned one
+                 * was classified by whichever config matched first: "150PFC GALV NUT PLATE"
+                 * came back NUT, and "310UB40 HD BOLT CLEAT" came back ANCHOR_STUD.
+                 */
+                if ($config['isFastener'] !== $fasteners) {
+                    continue;
                 }
+
+                $productConfigs[] = [
+                    'config' => $config,
+                    'service' => $service,
+                ];
             }
         }
 
@@ -1030,6 +1036,12 @@ class ProductService
                 // Exclude the specified class
                 return $className !== $namespace.$exclude;
             })
+            /*
+             * File::files() returns whatever order the filesystem gives, which classification
+             * no longer depends on - the most specific match wins, not the first one found.
+             * Sorted anyway so that a genuine tie resolves the same way on every machine.
+             */
+            ->sort()
             ->values()
             ->all();
 

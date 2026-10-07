@@ -38,6 +38,16 @@ class FLAT_Implementation extends ProductBaseImplementation
                 "(\d+)mm+\s+flatbar",           //"10mm flatbar x 75mm"
                 "FLAT(\d+)x(\d+)",              //"FLAT10x75"
                 "FLAT+\s(\d+)x(\d+)",           //"FLAT 10x75"
+                /*
+                 * The flat bar SDS2 and the UK merchants write, plus the long-hand AU form.
+                 * Note the two conventions disagree on which number comes first: "FL8*75" is
+                 * 8 thick by 75 wide, and "FB100x10" is 100 wide by 10 thick. The dimension
+                 * patterns below name the number they want rather than relying on position.
+                 */
+                "\bFB\s?\d+(\.\d+)?\s*[x*]\s*\d+",              //"FB100x10"
+                "\bBAR\s?\d+(\.\d+)?\s*[x*]\s*\d+",             //"BAR100X10"
+                "\bFLT\s?\d+(\.\d+)?\s*[x*]\s*\d+",             //"FLT10x100"
+                "\d+\s*[x*]\s*\d+\s*(mm)?\s*flat+\s*bar\b",     //"10 x 100 FLAT BAR"
             ],
             'nominalLengthRegex' => [
 
@@ -48,12 +58,24 @@ class FLAT_Implementation extends ProductBaseImplementation
                 "x(\d+)mm",     //x75mm   "FL8x75mm"
                 "x(\d+)+\smm",  //x75 mm  "FL8x75 mm"
                 "x+\s(\d+)mm",  //x 75mm  "FL8 x 75mm"
+                //Width-first conventions: the width is the number against the token
+                "\bFB\s?(\d+(?:\.\d+)?)",   //100               "FB100x10"
+                "\bBAR\s?(\d+(?:\.\d+)?)",  //100               "BAR100X10"
+                //Thickness-first conventions: the width is the number after the separator
+                "\bFLT\s?\d+(?:\.\d+)?\s*[x*]\s*(?<num>\d+(?:\.\d+)?)",         //100   "FLT10x100"
+                "\d+\s*[x*]\s*(?<num>\d+(?:\.\d+)?)\s*(mm)?\s*flat+\s*bar\b",   //100   "10 x 100 FLAT BAR"
             ],
             'nominalHeightRegex' => [
                 "FL(\d+)",              //FL8               "FL8*75"
                 "(\d+)FL\b",            //10FL              "10FL x 75mm"
                 "(\d+)mm+\s+flatbar",   //10mm flatbar      "10mm flatbar x 75mm"
                 "(\d+)FLx",             //10FLx             "10FLx75"
+                //Width-first conventions: the thickness is the number after the separator
+                "\bFB\s?\d+(?:\.\d+)?\s*[x*]\s*(?<num>\d+(?:\.\d+)?)",      //10    "FB100x10"
+                "\bBAR\s?\d+(?:\.\d+)?\s*[x*]\s*(?<num>\d+(?:\.\d+)?)",     //10    "BAR100X10"
+                //Thickness-first conventions: the thickness leads
+                "\bFLT\s?(\d+(?:\.\d+)?)",                                  //10    "FLT10x100"
+                "(\d+)\s*[x*]\s*\d+\s*(mm)?\s*flat+\s*bar\b",               //10    "10 x 100 FLAT BAR"
             ],
             'wallRegex' => [
 
