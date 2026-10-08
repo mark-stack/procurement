@@ -25,8 +25,8 @@ return new class extends Migration
      * Append-only in the same three places record_changes is, and for the same reason: no updated_at,
      * a model that refuses update() and delete(), and nothing in the application that writes one
      * except the command. A record of a disposal that can be edited afterwards is not evidence of
-     * anything. The production grant in docs/records-retention.md covers this table alongside
-     * record_changes.
+     * anything. There is no database grant behind that, on this table or on record_changes - see
+     * docs/records-retention.md for why it was dropped.
      */
     public function up(): void
     {

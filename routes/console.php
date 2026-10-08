@@ -77,21 +77,6 @@ Schedule::command('billing:trial-reminders')->$frequency();
 Schedule::command('offcuts:cleanout')->{$testMode ? 'everyMinute' : 'quarterly'}();
 
 /*
- * The grant that makes the change log append-only from outside the application, checked daily.
- *
- * Nothing breaks when that grant goes - a restore onto a new server, a managed instance handing out
- * a user with ALL PRIVILEGES, a migration run as root - and that is exactly the problem. The
- * application carries on writing the log, append-only in intent and not in fact, and the next person
- * to find out is an auditor. So it is asked every day, and a wrong answer is a Log::critical as well
- * as a non-zero exit.
- *
- * Daily rather than hourly: a privilege does not change by itself between breakfast and lunch, and
- * the window this closes is measured in deploys. Nothing to do on SQLite, where it reports success
- * and says why. See App\Console\Commands\CheckRecordChangeGrant.
- */
-Schedule::command('records:check-grant')->daily();
-
-/*
  * Telescope's entries, after a week.
  *
  * The one automatic disposal in this application, and the exception that proves the rule in

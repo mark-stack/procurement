@@ -34,21 +34,17 @@
   other environment has
 - `php artisan config:cache route:cache view:cache` as a deploy step. Anything read with `env()`
   outside `config/` returns null afterwards, which is why the kill switches live in `config/`
-- The append-only grant, once per server, again after any restore, and again after any deploy whose
-  migrations added a table: the application's MySQL user wants INSERT and SELECT on `record_changes`
-  and `record_dispositions` and no UPDATE or DELETE on either.
-  `php artisan records:check-grant --sql --user=procurement@%` prints the statements for the current
-  schema; run them as an account that can grant. Then `php artisan records:check-grant` as the last
-  step of every deploy - nothing breaks when that grant is missing, which is the problem with it. It
-  runs daily from the scheduler too. [docs/records-retention.md](docs/records-retention.md) has the
-  whole arrangement, including why it is table by table
+- Nothing to do about `record_changes` and `record_dispositions`. They are append-only in the
+  application - no `updated_at`, models that throw on `update()` and `delete()`, no route that writes
+  one by hand - and there is deliberately no MySQL grant behind that any more.
+  [docs/records-retention.md](docs/records-retention.md) says why it was dropped and what it would
+  take to put back
 - Retention and disposition: periods live in `config/retention.php`, nothing on a schedule deletes a
   record, and `php artisan records:dispose` with no arguments reviews what is past its period
   without touching anything. Same document
 - Cron: `* * * * * php artisan schedule:run` - deadline reminders, trial reminders, the quarterly
-  offcut cleanout, the daily prune of the spreadsheets kept against failed template-learning
-  attempts, and the daily check on the append-only grant. All idempotent, so a missed hour
-  self-corrects
+  offcut cleanout, and the daily prune of the spreadsheets kept against failed template-learning
+  attempts. All idempotent, so a missed hour self-corrects
 - A supervised `php artisan queue:work` (database driver). `NOTIFICATIONS_MAIL_REMINDERS=true` turns
   the reminder emails on; off, the nav bell still fills
 - The admin: register the `ADMIN_EMAIL` account, then set its `users.is_admin` by hand. The migration

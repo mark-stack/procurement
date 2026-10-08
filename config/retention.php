@@ -60,11 +60,10 @@ return [
             'retain_days' => 2557,
             'basis' => 'created_at, the date of the event',
             /*
-             * Not the application's to delete, by construction. The model throws on delete() and in
-             * production the database user holds INSERT and SELECT on this table and nothing else -
-             * see docs/records-retention.md and `php artisan records:check-grant`. So the command
-             * records the authorisation and hands the statement to whoever holds the database, which
-             * is the arrangement the whole table was built around rather than a limitation of it.
+             * Not the application's to delete, by construction. The model throws on delete() and the
+             * command is given no way around it - see docs/records-retention.md. So it records the
+             * authorisation and hands the statement to whoever holds the database, which is the
+             * arrangement the whole table was built around rather than a limitation of it.
              */
             'disposed_by' => 'dba',
         ],
