@@ -4,7 +4,7 @@ title: 'Finish the change log lockdown: production grant and retention'
 status: Done
 assignee: []
 created_date: '2026-10-01 01:55'
-updated_date: '2026-10-06 12:40'
+updated_date: '2026-10-08 03:10'
 labels:
   - iso-9001
   - clause-7.5.3.2
@@ -34,11 +34,19 @@ Of the four classes it carries out one. Certificate files: the file goes, the ro
 1104 tests pass, PHPStan unchanged at 22.
 
 Still open: AC #1 is an act on the production MySQL server, not a file. Everything needed to carry it out and to prove it afterwards is here - the statements, the check, the deploy step and the daily alarm - but the grant itself has not been applied to any server by this change.
+
+---
+
+**Reversed 2026-10-08, as to the grant only.** AC #1 was never carried out, and it has been withdrawn rather than left open. The deploy step was the first thing to notice: the application connects to production as `forge`@`%`, which holds ALL PRIVILEGES ON *.* WITH GRANT OPTION, so `records:check-grant` had been failing every deploy since it shipped.
+
+It could not have been fixed on that account either. A table-level REVOKE against a global grant is ERROR 1147 and partial revokes are schema-level, as recorded above - but the point that decided it is that `forge` holds GRANT OPTION, so the account can hand itself UPDATE back whenever it likes. The grant would have been decorative on the one server it was meant to protect. Fixing it properly meant a dedicated MySQL user, a 42-line generated grant list, and a regeneration step after any migration that adds a table, for a deployment where the same person holds the deploy and the database - where anybody who can change the grant can change the code the grant was protecting the log from.
+
+So `records:check-grant` is deleted, the daily schedule entry and the SQLite test with it, and the deploy step comes out of the Forge script. What is left is the three guards inside the application, which is what AC #2 through #5 were about and all of those still stand. docs/records-retention.md now states the limit that leaves out loud - all three are in PHP, so they catch the honest mistake and not a deliberate rewrite - and says what putting the grant back would take, for the day this runs somewhere the application's database user genuinely is not the operator's.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The production database user holds INSERT and SELECT on record_changes and no UPDATE or DELETE
+- [x] #1 Withdrawn 2026-10-08. No database-level grant; docs/records-retention.md records the decision and the limit it leaves
 - [x] #2 That grant is written down somewhere the next deploy or restore will not quietly undo it
 - [x] #3 A retention period is decided and documented for record_changes, certificate files, Telescope entries and archived projects
 - [x] #4 Disposition is a deliberate recorded act, not a cron job nobody reads
