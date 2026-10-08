@@ -48,11 +48,11 @@ class RecordChange extends Model
     /**
      * Append-only, enforced rather than documented.
      *
-     * The migration explains the whole arrangement: no updated_at, this guard, and a grant in
-     * production that leaves the application's user with INSERT and SELECT. This is the half that
-     * holds on a developer's machine and in the test suite, where the grant does not exist - and it
-     * is the half that catches the honest mistake, which is a future screen calling update() on a log
-     * row because every other model here allows it.
+     * The migration explains the whole arrangement: no updated_at, this guard, and no route that
+     * writes one by hand. All three are in PHP, so what they catch is the honest mistake - a future
+     * screen calling update() on a log row because every other model here allows it - rather than
+     * deliberate rewriting by anybody who can deploy. docs/records-retention.md is explicit about
+     * that limit, and about the database grant that used to cover it.
      */
     protected static function booted(): void
     {

@@ -27,9 +27,10 @@ return new class extends Migration
      *   - App\Models\RecordChange refuses update() and delete() outright
      *   - nothing in the application reads a route that would write one by hand
      *
-     * A production deployment should finish the job with a grant: the application's database user
-     * wants INSERT and SELECT on this table and nothing else. That is the half this file cannot
-     * enforce.
+     * All three are in PHP, which is the known limit of the arrangement: they catch the honest
+     * mistake and not a deliberate rewrite by anybody holding a deploy. A MySQL grant covering that
+     * was carried here for a week and dropped on 2026-10-08 without ever being applied to a server;
+     * docs/records-retention.md says why, and what it would take to put back.
      */
     public function up(): void
     {

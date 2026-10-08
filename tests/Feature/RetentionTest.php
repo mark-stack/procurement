@@ -191,7 +191,7 @@ it('authorises a change log purge rather than carrying one out', function () {
         ->and($disposition->disposed)->toBe(0)
         ->and($disposition->wasCarriedOutHere())->toBeFalse();
 
-    //Nothing was deleted. In production the grant makes that impossible; here the model does
+    //Nothing was deleted - the model refuses, and the command is given no way around it
     expect(RecordChange::count())->toBe(1);
 });
 
@@ -271,18 +271,4 @@ it('has a retention period and a named disposer for every class it covers', func
 
     //Seven days, and the nightly prune is wired to this number rather than to a literal
     expect($classes['telescope']['retain_days'])->toBe(7);
-});
-
-it('reports success on sqlite, where table grants are not a thing that exists', function () {
-    /*
-     * The grant is a MySQL arrangement and the suite runs on in-memory SQLite, so what is checked
-     * here is that a deploy step can run this unconditionally without a false failure.
-     */
-    $this->artisan('records:check-grant')
-        ->expectsOutputToContain('sqlite')
-        ->assertSuccessful();
-
-    //Asking it for the statements is a different matter - there are none, and printing nothing
-    //would read as "no grant needed"
-    $this->artisan('records:check-grant', ['--sql' => true])->assertFailed();
 });

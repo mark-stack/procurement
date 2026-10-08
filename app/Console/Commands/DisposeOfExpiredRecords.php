@@ -193,7 +193,7 @@ class DisposeOfExpiredRecords extends Command
         $this->newLine();
         $this->line("  DELETE FROM `record_changes` WHERE `created_at` < '{$cutoff->toDateTimeString()}';");
         $this->newLine();
-        $this->line('Run it under an account that holds DELETE on that table - the application\'s does not, and restoring the grant to run this and forgetting to take it away again is how the lockdown ends. See docs/records-retention.md.');
+        $this->line('Take a backup first, and keep the deed out of here - a disposal of the change log is a deliberate act at the database, not a command anybody can run twice. See docs/records-retention.md.');
 
         return self::SUCCESS;
     }

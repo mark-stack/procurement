@@ -243,10 +243,9 @@ it('keeps a template screenshot out of the log', function () {
 it('would be a disaster if a change log row could be edited or deleted', function () {
     /*
      * Append-only, enforced rather than documented. The migration describes the whole arrangement - no
-     * updated_at column, this guard, and a grant in production that leaves the application with INSERT
-     * and SELECT. This is the half that holds where the grant does not exist, and the half that catches
-     * the honest mistake: a future screen calling update() on a log row because every other model here
-     * allows it.
+     * updated_at column, this guard, and no route that writes one by hand. All of it is in PHP, so
+     * what it catches is the honest mistake: a future screen calling update() on a log row because
+     * every other model here allows it.
      */
     $user = createUser(1, createBusiness('biz'), false, true);
     $batch = Batch::factory()->forUser($user->id)->create();

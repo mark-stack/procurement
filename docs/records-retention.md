@@ -1,124 +1,65 @@
-# Records: the grant, retention and disposition
+# Records: retention and disposition
 
-What this application keeps, how long for, who may throw it away, and the one piece of the
-arrangement that lives on the database server rather than in this repository.
+What this application keeps, how long for, and who may throw it away.
 
 ISO 9001 7.5.3.2 asks that retained documented information is protected from unintended alteration,
 and that its retention **and its disposition** are controlled. The change log answers the first half
 ([PR #50](https://github.com/mark-stack/procurement/pull/50): no `updated_at`, a model that throws,
 no route that writes one by hand). This file is the rest of it.
 
-Three things are described here, and only one of them is enforced by code alone:
+Three things are described here:
 
 | | Where it lives | What checks it |
 | --- | --- | --- |
-| The append-only grant | the MySQL server | `php artisan records:check-grant`, daily and on deploy |
+| The append-only guarantee | the application | `RecordChangeTest`, `RetentionTest` |
 | The retention periods | `config/retention.php` | `php artisan records:dispose` with no arguments |
 | Each act of disposition | the `record_dispositions` table | it is the record |
 
-## The production grant
+## What makes the record protected
 
-The application's database user holds **INSERT and SELECT** on `record_changes` and
-`record_dispositions`, and no UPDATE or DELETE on either.
+`record_changes` and `record_dispositions` are append-only in three places, all of them inside the
+application:
 
-Everything else about append-only lives inside the application - a model that refuses `update()` and
-`delete()`, a table with no `updated_at`, no route that writes one by hand - and all of it is
-undone by one `DB::table('record_changes')->update(...)` that gets past review. The grant is what
-makes it true from outside: a defect, an injected statement or a `php artisan tinker` session on a
-bad afternoon cannot rewrite what happened.
+- no `updated_at` column - there is no second version of an event
+- `App\Models\RecordChange` and `App\Models\RecordDisposition` throw on `update()` and `delete()`
+- nothing writes one by hand - the trait and `records:dispose` are the only writers
 
-### Setting it
+That is the whole of it, and the limit is worth stating plainly rather than leaving for somebody to
+discover later. All three live in PHP, so all three are undone by one
+`DB::table('record_changes')->update(...)` that gets past review, or one `php artisan tinker` session
+on a bad afternoon. What they protect against is the honest mistake - a future screen calling
+`update()` on a log row because every other model here allows it - and not deliberate rewriting by
+anybody who can deploy.
 
-```
-php artisan records:check-grant --sql --user=procurement@%
-```
+### Why there is no database-level grant
 
-prints the statements for the schema as it stands, and they are run as a MySQL account that can
-grant. They look like this:
+There was one in this repository, and it was dropped on 2026-10-08. It had never been applied to a
+server, so nothing about production changed when it went.
 
-```sql
-GRANT SELECT, INSERT ON `procurement`.* TO 'procurement'@'%';
--- DDL, because the application runs its own migrations
-GRANT CREATE, ALTER, DROP, INDEX, REFERENCES ON `procurement`.* TO 'procurement'@'%';
+The arrangement was: the application's MySQL user holds INSERT and SELECT on these two tables and no
+UPDATE or DELETE, so MySQL refuses the statement before it reads a row. What it cost was the problem.
+MySQL privileges cannot be subtracted - `GRANT ... ON procurement.*` followed by a table-level
+`REVOKE` is answered with ERROR 1147, and `partial_revokes` operates at schema level, so neither can
+carve one table out of a database-wide grant. Both were rehearsed against MySQL 8.0.40. What is left
+is granting UPDATE and DELETE **one table at a time** for every table but these two: a generated list
+that goes stale the moment a migration adds a table, a new table that fails on its first write until
+somebody regenerates it, and a deploy step plus a daily alarm to notice when the whole thing has
+quietly gone.
 
--- UPDATE and DELETE, table by table, holding back: record_changes, record_dispositions
-GRANT UPDATE, DELETE ON `procurement`.`bars` TO 'procurement'@'%';
-GRANT UPDATE, DELETE ON `procurement`.`batches` TO 'procurement'@'%';
-... one line per table ...
+On a single-server Forge deployment, where the same person holds the deploy and the database, that
+buys very little. Anybody who can change the grant can change the code the grant was protecting the
+log from.
 
-FLUSH PRIVILEGES;
-```
-
-**They are generated rather than written down here, and they must be regenerated after any deploy
-whose migrations added a table.** A new table with no UPDATE grant fails on the first save to it -
-loudly, which is the right way round, but a deploy step is cheaper than an incident. That is the
-price of the arrangement below, and it is why this document does not carry a copy of the statements
-that would quietly go stale against the schema.
-
-#### Why table by table, which is the ugly way
-
-MySQL privileges are hierarchical and cannot be subtracted. Two tidier arrangements were tried
-against MySQL 8.0.40 first, and neither works:
-
-1. `GRANT ... ON procurement.*` then `REVOKE UPDATE, DELETE ON procurement.record_changes` -
-   answered with **ERROR 1147: there is no such grant defined for user ... on table
-   'record_changes'**. A table-level revoke needs a table-level grant to revoke from
-2. The same, with `partial_revokes = ON` - the MySQL 8.0.16 feature that exists for precisely this
-   problem. Same error. Partial revokes operate at **schema** level: they can carve a database out
-   of a global `ON *.*` grant, and cannot carve a table out of a database-wide one
-
-So UPDATE and DELETE are never granted at a level that covers the two append-only tables, which
-means granting them one table at a time. SELECT and INSERT stay database-wide - a new table needs
-them immediately and the append-only tables are allowed both - so only half the statements need
-regenerating.
-
-DDL is deliberately left in place. `php artisan migrate --force` runs as this user, and a future
-migration adding an index or a column to either table needs ALTER. DROP is left as well, because a
-dropped table is not a quiet edit: the application stops working inside a request, which is the
-loudest failure in this document.
-
-#### Deleting a user still works
-
-`record_changes.user_id` is `nullOnDelete`, so deleting an account makes MySQL write NULL over the
-child rows - an UPDATE on a table this user has no UPDATE on. It was worth checking before shipping
-the grant, and it is fine: referential actions are carried out by the server itself and are not
-checked against the privileges of the account that caused them. Rehearsed on 8.0.40 against this
-exact grant; the account deleted, the log row kept, its `user_id` now NULL. Which is the behaviour
-the column was chosen for in the first place - losing an account must never take the record of what
-that account did with it.
-
-### Checking it
-
-```
-php artisan records:check-grant
-```
-
-It probes rather than parses. `SHOW GRANTS` has four ways of saying the same thing - database-wide,
-per table, through a role, or as a partial revoke carved out of a wider grant - and a parser that
-reads any of them wrong answers the wrong question confidently. Instead it runs one statement per
-privilege per table, each matching no rows (`where 1 = 0`), inside a transaction that is rolled
-back. MySQL checks privileges when it opens the table, before it looks at a row, so a refusal is a
-real refusal and nothing is touched on the way.
-
-It must be run:
-
-- **as the last step of every deploy**, and it is in the README's production setup for that reason.
-  A deploy that migrated a new table in needs `--sql` run again first
-- **after any database restore, move, or managed-instance migration**, which is when the grant
-  actually goes missing
-- it also runs **daily** from the scheduler (`routes/console.php`). A failure is a `Log::critical`
-  as well as a non-zero exit, because the run that matters is the one at three in the morning that
-  nobody is watching
-
-On SQLite - the test suite and a developer's machine - it reports success and says why. There is one
-user, it owns the file, and table privileges are not a thing that exists.
+It is worth putting back if this ever runs somewhere the application's database user genuinely is not
+the operator's - a managed instance, or a separate database administrator.
+`git show b94db34:app/Console/Commands/CheckRecordChangeGrant.php` has both the generator for the
+statements and the check that probed them.
 
 ### What this does not protect against
 
-Somebody with the MySQL root password, which is as it should be: the point is that the *application*
-cannot alter its own log, not that the organisation cannot run its own database. A disposal carried
-out that way is supposed to leave a `record_dispositions` row behind it, and that row is written
-before the statement is handed over, by `records:dispose` - see below.
+Somebody with database access, which now includes the application's own user. A disposal carried out
+that way is supposed to leave a `record_dispositions` row behind it, and that row is written before
+the statement is handed over, by `records:dispose` - see below.
 
 ## The retention schedule
 
@@ -210,8 +151,7 @@ reason, and the person. The person is matched to a user account where the name g
 this application knows, and kept as a plain string either way: a quality manager with no login here
 is a perfectly good authoriser.
 
-`record_dispositions` is append-only in the same three places `record_changes` is, and under the
-same grant.
+`record_dispositions` is append-only in the same three places `record_changes` is.
 
 Per class:
 
@@ -219,11 +159,12 @@ Per class:
   is kept with `file_disposed_at` stamped on it, and the change log records that too. A download of
   a disposed certificate answers **410 Gone** with the date, rather than the 404 a disk that lost a
   file would give - a disposal has to be distinguishable from a loss
-- **`change-log`** - the application cannot, by design: the grant above leaves it no DELETE, and
-  `RecordChange` throws anyway. So the command records the authorisation, with the count that was in
-  scope and `disposed` left at 0, and prints the exact `DELETE` for whoever holds the database to run
-  after a backup. Restoring the grant to run it and forgetting to take it away again is how the
-  lockdown ends; use an account that already holds DELETE
+- **`change-log`** - the application does not, by design: `RecordChange` throws on `delete()`, and
+  the command is not given a way around it. So it records the authorisation, with the count that was
+  in scope and `disposed` left at 0, and prints the exact `DELETE` for whoever holds the database to
+  run after a backup. Keeping the deed out of the application is the point - a disposal of the change
+  log should be a deliberate act at the database, against a backup, and not a command anybody here
+  can run twice
 - **`telescope`** - refused, with the reason. Automatic, nightly, nothing to authorise
 - **`done-projects`** - refused. Deleting a project takes batches, pieces, orders, bars, offcuts and
   certificates with it, and a command doing that in bulk across every customer is one bad argument
