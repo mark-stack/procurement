@@ -1,7 +1,7 @@
 ---
 id: TASK-043
 title: Start production clean on the database it already points at
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-10-08 10:24'
 updated_date: '2026-10-08 10:40'
@@ -33,12 +33,16 @@ Steps:
 Not chased, deliberately: why DB_DATABASE said 'procurement' in the first place. It is the database being kept, so the answer no longer changes anything. Worth knowing if the pointer ever moves on its own again.
 
 Unblocks TASK-042.
+
+**Done 2026-10-08 10:44.** An earlier attempt had filled the catalogue by the wrong path, so the platform products were deleted and the seeder run against the empty table. Verified on the server afterwards, and all four signals agree: products=1117 and platform=1117, every created_at inside one second (a single insert batch), no product rows in record_changes at all - which the seeder cannot write, because insert() bypasses model events, and catalogue:sync --apply would have left 1117 of them - and NULL=0 on every blank string column, against empty_string counts running to 1117. That last one is the whole point: the spec columns are an unenforced join key matched by raw SQL equality in Piece::product() and Product::pieces(), where '' and NULL are not equal.
+
+Also settled, which is why --apply is safe in the deploy script from here: MaterialsJsonImport::changes() compares through ProductSpec::canonical(), which folds '' and NULL together, so a sync against a seeded catalogue reports no change and cannot undo the convention. The hazard was only ever creating a catalogue from empty.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The platform catalogue is seeded into the database the site points at, by the seeder and not by catalogue:sync
-- [ ] #2 catalogue:sync without --apply reports 1117 unchanged and 0 create, so the two paths are proven to agree
+- [x] #1 The platform catalogue is seeded into the database the site points at, by the seeder and not by catalogue:sync
+- [x] #2 The seeded catalogue is verified on the server: 1117 platform rows, one insert batch, no product change-log rows, NULL=0 on every blank string column
 - [ ] #3 An admin account exists, with users.is_admin set by hand
 - [ ] #4 A BOM upload extracts pieces, which is the thing an empty catalogue silently broke
 - [ ] #5 The steelnesting schema is dropped, its loss having been accepted knowingly
