@@ -104,8 +104,32 @@ class SyncCatalogue extends Command
         $this->report('Deprecating (still in use here)', $plan['deprecate']);
 
         $cap = (int) $this->option('max-deletes');
+        $overCap = count($plan['delete']) > $cap;
 
-        if (count($plan['delete']) > $cap) {
+        /*
+         * A dry run WARNS about the cap and still succeeds, where an apply refuses.
+         *
+         * The distinction matters because this runs from a deploy script, and the dry form is how
+         * you read the plan before trusting it. Failing on a cap that nothing is about to act on
+         * would block shipping unrelated code over a deletion nobody asked for - and on an atomic
+         * release that means the deploy never activates.
+         */
+        if ($overCap && ! $this->option('apply')) {
+            $this->warn(sprintf(
+                'This plan would delete %d products, over the cap of %d. It would be refused with '
+                .'--apply; raise --max-deletes if that is really the intention.',
+                count($plan['delete']),
+                $cap,
+            ));
+        }
+
+        if (! $this->option('apply')) {
+            $this->info('Dry run. Nothing was written - pass --apply to make these changes.');
+
+            return self::SUCCESS;
+        }
+
+        if ($overCap) {
             $this->error(sprintf(
                 'Refusing to delete %d products in one run; the cap is %d. Raise it with '
                 .'--max-deletes if that is really the intention.',
@@ -114,12 +138,6 @@ class SyncCatalogue extends Command
             ));
 
             return self::FAILURE;
-        }
-
-        if (! $this->option('apply')) {
-            $this->info('Dry run. Nothing was written - pass --apply to make these changes.');
-
-            return self::SUCCESS;
         }
 
         try {

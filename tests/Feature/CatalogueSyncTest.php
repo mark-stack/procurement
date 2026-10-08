@@ -132,6 +132,17 @@ it('would be a disaster if a bad file could empty the catalogue in one run', fun
 
     expect(Product::count())->toBe($before);
 
+    /*
+     * ...but a DRY run over the cap still succeeds, because it is about to do nothing. This runs
+     * from a deploy script, and failing a plan nobody is applying would block shipping unrelated
+     * code - on an atomic release, by never activating it. It warns instead.
+     */
+    test()->artisan('catalogue:sync --max-deletes=3')
+        ->expectsOutputToContain('over the cap')
+        ->assertSuccessful();
+
+    expect(Product::count())->toBe($before);
+
     //...and says so with the cap raised
     test()->artisan('catalogue:sync --apply --max-deletes=4')->assertSuccessful();
 
