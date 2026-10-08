@@ -396,9 +396,10 @@ it('would be a disaster if the export could not be imported back', function () {
      * The export deliberately omits nesting_algo and nominal_units, because a file carrying them is
      * refused - so exporting them would produce a file that could not be imported at all.
      *
-     * Run against the real 1,108-row catalogue, because that is where the awkward inherited rows are:
-     * seven LVL products with no grade at all. A round trip that refused those would mean production
-     * could never be copied anywhere.
+     * Run against the real catalogue rather than a fixture, because that is where the awkward
+     * inherited rows are, and a round trip that refused any of them would mean production could
+     * never be copied anywhere. The seven LVL products with no grade at all used to be the worst of
+     * them; timber left the catalogue on 2026-10-08 and took that case with it.
      */
     adminActingAs($this);
     seedMasterMaterials();

@@ -63,22 +63,21 @@ expect()->extend('toBeOne', function () {
 |
 */
 /**
- * Populate the products table by running the real seeder, so the tests exercise the same parsing
- * the application does rather than a hand-copied duplicate.
+ * Populate the products table by running the real seeder, so the tests exercise the same catalogue
+ * the application ships rather than a hand-copied duplicate.
  *
- * This used to post to an admin route that re-imported the spreadsheet over the whole catalogue.
- * That route is gone - the products table is the source of truth now and admins edit it directly -
- * so the CSV's only remaining job is filling an empty database, which is exactly what this wants.
+ * This used to post to an admin route that re-imported a spreadsheet over the whole catalogue. That
+ * route is gone, and so is the spreadsheet - the rows live in Database\Seeders\Data\MasterMaterials
+ * and the seeder's only job is filling an empty database, which is exactly what this wants.
  */
 function seedMasterMaterials(): void
 {
     (new Database\Seeders\MasterMaterialsSeeder)->run();
 
     /*
-     * master_materials.csv is committed - force-added past the blanket ignore rule in
-     * storage/app/private/.gitignore - so a clone has it. Assert anyway: an empty catalogue makes a
-     * nesting test fail several hundred lines later with no hint that the products table is the
-     * reason.
+     * The catalogue is PHP in the repo, so a clone has it and no disk is involved. Assert anyway:
+     * an empty catalogue makes a nesting test fail several hundred lines later with no hint that
+     * the products table is the reason.
      */
     expect(Product::count())->toBeGreaterThan(0);
 }

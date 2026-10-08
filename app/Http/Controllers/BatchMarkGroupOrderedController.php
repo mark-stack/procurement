@@ -15,8 +15,8 @@ class BatchMarkGroupOrderedController extends Controller
      * "Ordered" on one block of the order list - this merchant has been bought from.
      *
      * The batch-wide "All ordered" one merchant at a time, and for the shop in between the two this
-     * application has been built for: the steel goes through the quotes screen and the timber is
-     * bought over the phone, so the batch is neither all ordered nor not ordered.
+     * application has been built for: the steel goes through the quotes screen and the bolts are
+     * bought over the counter, so the batch is neither all ordered nor not ordered.
      *
      * It places nothing and sends nothing. No order row is written, no quote is touched, nobody is
      * notified, and the board does not move the batch - its columns are built on orders that really

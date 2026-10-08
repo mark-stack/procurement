@@ -26,7 +26,7 @@ class BatchCertificateController extends Controller
      * A merchant at a time because a certificate belongs to one: the steel merchant's heat numbers
      * are not the aluminium supplier's, and one pile of PDFs against the whole batch is the filing
      * cabinet this is meant to replace. Only the groups whose products come with a certificate are
-     * offered - timber and fasteners never get one, and a box asking for theirs would be asking for
+     * offered - a bag of bolts never gets one, and a box asking for theirs would be asking for
      * paperwork that is not coming.
      *
      * Read over axios rather than as a page prop, the way the BOM modal reads its own contents: the

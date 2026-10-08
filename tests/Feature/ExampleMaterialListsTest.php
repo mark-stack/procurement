@@ -38,6 +38,7 @@ function exampleMaterialLists(): array
         'tekla_assembly_list_totals.xlsx' => 'Assembly List - totals',
         'tekla_hot_rolled.xlsx' => 'Hot Rolled, Angles, and more.',
         'tekla_material_list.xlsx' => 'Material List',
+        'pages_1_2_material_list.xlsx' => 'Material List - pages 1-2',
         'tekla_bolt_summary_top.xlsx' => 'Bolt Summary - top',
         'tekla_bolt_summary_bottom.xlsx' => 'Bolt Summary - bottom',
     ];
@@ -49,7 +50,7 @@ function examplePath(string $file): string
 }
 
 /**
- * Staff of a business that has recorded all five example templates.
+ * Staff of a business that has recorded every example template.
  *
  * A business is created with none - an admin records one per report format a customer sends in -
  * so the fixture that makes these files importable is part of the test rather than something
@@ -394,6 +395,262 @@ it('would be a disaster if the Material List example stopped parsing', function 
         ->not->toContain('Page 1');
 });
 
+/**
+ * The band footers of pages_1_2_material_list.xlsx: each band's printed "Total" row, keyed by the
+ * section above it, as [Qty, Length (mm)].
+ *
+ * These are the report's own arithmetic, not ours, which is the whole reason the file is worth
+ * having. Two pages of a customer's export carry forty-nine rows across ten closed bands and an
+ * eleventh the page break cuts in half, and every column offset in the template can be checked
+ * against a figure Tekla printed rather than against a figure we decided.
+ *
+ * EA65*65*6 is deliberately absent: it is the band with no footer.
+ *
+ * @return array<string, array{float, float}>
+ */
+function pagesOneTwoBandTotals(): array
+{
+    return [
+        'CHS26.9*3.2' => [3.0, 449.0],
+        'CHS33.7*3.2' => [18.0, 24190.0],
+        'CHS42.4*4.0' => [15.0, 24163.0],
+        'CHS76.1*4.5' => [12.0, 10659.0],
+        'CHS114.3*4.5' => [2.0, 6736.0],
+        'CHS139.7*5.0' => [4.0, 9561.0],
+        'D16' => [30.0, 8159.0],
+        'D20' => [30.0, 3049.0],
+        'EA50*50*5' => [2.0, 283.0],
+        'EA50*50*6' => [92.0, 9231.0],
+    ];
+}
+
+it('would be a disaster if the Material List - pages 1-2 example stopped parsing', function () {
+    /**
+     * The report "Material List" above is a reconstruction OF: pages one and two of a customer's
+     * own Tekla Material_List export, which is where the file name comes from and what its Source
+     * Page column counts. Where the two disagree this is the one to believe.
+     *
+     * They disagree about the band boundary, which is the one thing this report is shaped by.
+     * Tekla bands its rows by section and closes each band with a line reading "Total" - and here
+     * that word sits in the PROFILE column, on a row with no blank row either side of it, so a
+     * band boundary is a WORD. The print the other file was rebuilt from has the same line
+     * indented under Grade with white space around it, where it is a GAP and the Profile cell is
+     * empty on it. So this template names "Total" and that one names nothing, and the band rules
+     * GroupedTableEndTest pins down are what carry that one over its own footers.
+     *
+     * Naming it has to mean SKIP and not END. Ten bands close in these two pages: ending the
+     * table on the first "Total" would read one row of forty-nine - the single 150mm CHS26.9
+     * above it - and leave the other forty-eight out of every list an import reports back. Never
+     * read is the failure with no symptom, which is why the row count is asserted before the rows.
+     *
+     * The lengths are a second thing this file holds that none of the others do. They run from a
+     * 39mm cleat to a 6.5m column, and nothing on the sheet names a unit, so normalisedLength()
+     * reads every one of them by magnitude - "below 20 must be meters". The smallest figure here
+     * is 39.05, so no row trips that rule; a report with a 15mm washer plate in this column would,
+     * and would order fifteen metres of it.
+     */
+    exampleUploader();
+
+    expect(exampleTables('pages_1_2_material_list.xlsx'))->toHaveCount(1);
+
+    $rows = exampleRowFields('pages_1_2_material_list.xlsx', ['description', 'grade', 'length_required', 'sub_qty']);
+
+    //Forty-nine materials and ten footers, which is every row of the sheet below the heading
+    expect($rows)->toHaveCount(49);
+
+    expect($rows)->toBe([
+        //One row, between the heading and the first "Total" - a band the end-of-table rule used to be
+        ['CHS26.9*3.2', 'C350', 150.0, 3.0],
+        ['CHS33.7*3.2', 'C350', 39.05, 1.0],
+        ['CHS33.7*3.2', 'C350', 40.08, 2.0],
+        ['CHS33.7*3.2', 'C350', 88.66, 1.0],
+        ['CHS33.7*3.2', 'C350', 150.0, 3.0],
+        ['CHS33.7*3.2', 'C350', 168.85, 1.0],
+        ['CHS33.7*3.2', 'C350', 204.34, 1.0],
+        ['CHS33.7*3.2', 'C350', 287.35, 1.0],
+        ['CHS33.7*3.2', 'C350', 768.3, 3.0],
+        ['CHS33.7*3.2', 'C350', 2764.26, 1.0],
+        ['CHS33.7*3.2', 'C350', 3055.61, 1.0],
+        ['CHS33.7*3.2', 'C350', 4122.89, 1.0],
+        ['CHS33.7*3.2', 'C350', 4145.85, 1.0],
+        ['CHS33.7*3.2', 'C350', 6478.51, 1.0],
+        ['CHS42.4*4.0', 'C350', 47.1, 1.0],
+        ['CHS42.4*4.0', 'C350', 49.87, 2.0],
+        ['CHS42.4*4.0', 'C350', 109.5, 1.0],
+        ['CHS42.4*4.0', 'C350', 148.0, 1.0],
+        ['CHS42.4*4.0', 'C350', 197.94, 1.0],
+        ['CHS42.4*4.0', 'C350', 266.5, 1.0],
+        ['CHS42.4*4.0', 'C350', 878.4, 3.0],
+        ['CHS42.4*4.0', 'C350', 2764.26, 1.0],
+        ['CHS42.4*4.0', 'C350', 3034.76, 1.0],
+        ['CHS42.4*4.0', 'C350', 4125.0, 1.0],
+        ['CHS42.4*4.0', 'C350', 4137.34, 1.0],
+        ['CHS42.4*4.0', 'C350', 6598.0, 1.0],
+        //Page two begins here, and the heading row is not repeated above it
+        ['CHS76.1*4.5', 'C250', 860.67, 2.0],
+        ['CHS76.1*4.5', 'C250', 867.36, 1.0],
+        ['CHS76.1*4.5', 'C250', 894.39, 3.0],
+        ['CHS76.1*4.5', 'C250', 895.56, 4.0],
+        ['CHS76.1*4.5', 'C250', 898.43, 1.0],
+        ['CHS76.1*4.5', 'C250', 907.18, 1.0],
+        //Another band of one, this one between two footers
+        ['CHS114.3*4.5', 'C250', 3368.1, 2.0],
+        ['CHS139.7*5.0', 'C250', 1493.55, 1.0],
+        ['CHS139.7*5.0', 'C250', 1885.31, 1.0],
+        ['CHS139.7*5.0', 'C250', 1910.45, 1.0],
+        ['CHS139.7*5.0', 'C250', 4272.05, 1.0],
+        ['D16', '6060', 272.0, 30.0],
+        ['D20', '6060', 90.0, 16.0],
+        ['D20', '6060', 115.0, 14.0],
+        ['EA50*50*5', '300PLUS', 142.0, 2.0],
+        //The one band whose rows are not all one grade
+        ['EA50*50*6', '6060', 105.0, 55.0],
+        ['EA50*50*6', '300PLUS', 75.0, 7.0],
+        ['EA50*50*6', '300PLUS', 80.0, 7.0],
+        ['EA50*50*6', '300PLUS', 100.0, 22.0],
+        ['EA50*50*6', '300PLUS', 171.24, 1.0],
+        //The band the page break cuts in half: no "Total" closes it, and the sheet ends under it
+        ['EA65*65*6', '300PLUS', 180.0, 4.0],
+        ['EA65*65*6', '300PLUS', 258.0, 4.0],
+        ['EA65*65*6', '300PLUS', 507.63, 2.0],
+    ]);
+
+    /*
+     * Read as a row, a footer orders a section called "Total" - three of them on page one alone,
+     * at the band's whole quantity and its whole length.
+     */
+    expect(collect(exampleRows('pages_1_2_material_list.xlsx'))->pluck('description'))
+        ->not->toContain('Total');
+});
+
+it('would be a disaster if a band stopped reconciling with the total the report printed under it', function () {
+    /**
+     * The assertion the file was collected for. Every figure above is a cell somebody typed into
+     * this test, so on its own it only says the import has not changed; the footers say whether it
+     * is RIGHT, because Tekla printed its own arithmetic under each band and we did not.
+     *
+     * The quantities reconcile exactly, band for band, and that is the strongest thing here. It
+     * says the Qty column is the one being read - not Length, not Source Page, both of which hold
+     * small whole numbers in this report and either of which would multiply the order by the wrong
+     * thing - and it says the Qty column MULTIPLIES. Four of these bands print more pieces than
+     * they print lines.
+     *
+     * It also says no footer was imported. A "Total" row counted as a material would bring its
+     * band's whole quantity in a second time, so the band it closes would reconcile at double.
+     *
+     * The lengths reconcile to within a millimetre rather than exactly, and the gap is the report's
+     * own rounding: it prints each piece to two decimals and totals the figures it did not round.
+     * Every band that is out by one is a band whose pieces are whole millimetres on the page -
+     * 150, 272, 90, 142 - so the rounding is where the millimetre went. A band out by more than
+     * that is a column offset, not a rounding.
+     */
+    exampleUploader();
+
+    $rows = collect(exampleRows('pages_1_2_material_list.xlsx'));
+
+    foreach (pagesOneTwoBandTotals() as $section => [$printedQty, $printedLength]) {
+        $band = $rows->where('description', $section);
+
+        expect($band->sum('sub_qty'))
+            ->toBe($printedQty, "{$section} should order the {$printedQty} pieces its total prints");
+
+        expect(abs($band->sum(fn (array $row) => $row['length_required'] * $row['sub_qty']) - $printedLength))
+            ->toBeLessThanOrEqual(1.0, "{$section} should measure the {$printedLength}mm its total prints");
+    }
+
+    //The eleventh band has no footer to reconcile against, because the page break took it
+    expect($rows->where('description', 'EA65*65*6')->sum('sub_qty'))->toBe(10.0)
+        ->and(array_keys(pagesOneTwoBandTotals()))->not->toContain('EA65*65*6');
+});
+
+it('would be a disaster if a grade the sheet named went back to buying something else', function () {
+    /**
+     * This report names a grade on every row, and the spellings it uses are the ones the standards
+     * use rather than the ones a price book uses: "C250" and "C350" from AS/NZS 1163 for the hollow
+     * sections, "300PLUS" from AS/NZS 3679.1 for the angles, and "6060" - which is not a steel
+     * grade at all, but an aluminium extrusion alloy.
+     *
+     * None of the four were read when this file arrived, and the thing to understand about that is
+     * that a grade nothing reads is not a grade the row is matched WITHOUT. It is a grade the row
+     * is matched with no filter on at all, so every row went to the catalogue on its description
+     * alone and took whatever came back:
+     *
+     *  - the C350 CHS were bought as the GR250 GALVANISED plumbing pipe of the same diameter, which
+     *    is the exact substitution reading the grade column was added to stop;
+     *  - the four 6060 rows - a hundred and fifteen aluminium pieces - were bought in steel.
+     *
+     * Both now refuse instead, and refusing is the point of the test. Thirty of the forty-nine rows
+     * reach no product, and every one of those is a gap in OUR catalogue rather than anything wrong
+     * with the sheet: it carries no 33.7 or 42.4 CHS except galvanised at C250, and no aluminium at
+     * any size. A row reported as not stocked is a row somebody can act on. A row quietly filled
+     * with the wrong steel is not, and is the more expensive of the two by the time it is cut.
+     *
+     * What must NOT come back is the old answer. If matchGrades() or matchMaterial() stops reading
+     * one of these spellings the count below climbs back towards forty-eight and every number in
+     * this test still looks healthy, which is why the matched rows are asserted by grade and
+     * surface and not just counted.
+     */
+    $user = exampleUploader();
+    seedMasterMaterials();
+
+    $project = createProject($user);
+    (new CsvService)->processTemplate(exampleTables('pages_1_2_material_list.xlsx'), $project);
+
+    expect(RawMaterialQuote::count())->toBe(19)
+        ->and($project->unimportedItems()['couldNotBeRead'])->toBe([]);
+
+    /*
+     * Four of these are the grade being read and one is not. CHS26.9*3.2 would be refused whatever
+     * grade it named - the catalogue's 26.9 is a 2.6 wall and the sheet asks for 3.2 - and the
+     * other four are stocked at this size in a grade nobody asked for.
+     *
+     * EA50*50*6 is in both lists at once, and that is the whole case for reading the column. Its
+     * band holds one 6060 row and four 300PLUS rows of the same section: the aluminium one is
+     * refused and the four steel ones import, which only happens if the grade is being read per
+     * ROW rather than per description.
+     */
+    expect($project->unimportedItems()['notRecognised'])->toBe([
+        'CHS26.9*3.2',
+        'CHS33.7*3.2',
+        'CHS42.4*4.0',
+        'D16',
+        'D20',
+        'EA50*50*6',
+    ]);
+
+    $matched = RawMaterialQuote::all()
+        ->unique('description')
+        ->mapWithKeys(function (RawMaterialQuote $quote) {
+            $results = unserialize($quote->general_product_matches)['results'];
+
+            expect($results)->toHaveCount(1, "{$quote->description} should name one product");
+
+            return [$quote->description => [
+                $results[0]['material'],
+                $results[0]['grade'],
+                $results[0]['surface'],
+            ]];
+        })
+        ->all();
+
+    expect($matched)->toBe([
+        /*
+         * Galvanised, and correctly so: C250 IS the galvanised pipe grade, so these three are the
+         * sheet and the catalogue agreeing rather than the importer settling for something.
+         */
+        'CHS76.1*4.5' => ['PLAIN_CARBON_STEEL', 'GR250', 'GALVANISED'],
+        'CHS114.3*4.5' => ['PLAIN_CARBON_STEEL', 'GR250', 'GALVANISED'],
+        'CHS139.7*5.0' => ['PLAIN_CARBON_STEEL', 'GR250', 'GALVANISED'],
+        //300PLUS reaching GR300 is what the trade name means
+        'EA50*50*5' => ['PLAIN_CARBON_STEEL', 'GR300', 'NONE'],
+        'EA50*50*6' => ['PLAIN_CARBON_STEEL', 'GR300', 'NONE'],
+        'EA65*65*6' => ['PLAIN_CARBON_STEEL', 'GR300', 'NONE'],
+    ]);
+
+    //Nothing on this sheet is bought in a material it did not ask for
+    expect(collect($matched)->pluck(0)->unique()->all())->toBe(['PLAIN_CARBON_STEEL']);
+});
+
 it('would be a disaster if the Bolt Summary top example stopped parsing', function () {
     /**
      * This template has no description column at all. The description is assembled from
@@ -480,22 +737,25 @@ it('would be a disaster if an example parsed but imported nothing', function () 
     $project = Project::firstOrFail();
 
     /*
-     * One row of the hot rolled example does not reach a material, and it is the catalogue's gap
-     * rather than the parser's: that sheet asks for CHS 88.9x3.2 at GR350, and the platform
-     * catalogue carries 88.9x3.2 only as GR250 galvanised pipe - its GR350 CHS of that diameter is
-     * 5.5mm wall. AS/NZS 1163 C350 is the ordinary structural grade for CHS, so this is a product
-     * we should stock and do not.
+     * Every row of both files reaches a material, and the last one to do so was CHS88.9x3.2.
      *
-     * It imported until the grade COLUMN started being matched on. Before that the grade was
-     * derived from the description alone, "CHS88.9x3.2" names no grade, and the row was quietly
-     * filled with galvanised plumbing pipe - which is the whole reason the column is now read. The
-     * assertion is here so that adding the missing product shows up as this test going green on
-     * 16, rather than as a number nobody can account for.
+     * That row is worth remembering, because it was wrong in both directions before it was right.
+     * The sheet asks for it at GR350; the catalogue carried 88.9x3.2 only as GR250 galvanised pipe,
+     * its GR350 CHS of that diameter being a 5.5mm wall. While the grade came from the description
+     * alone - and "CHS88.9x3.2" names no grade - the row was quietly filled with galvanised
+     * plumbing pipe. Reading the grade COLUMN stopped that and turned it into an honest refusal,
+     * and the refusal is what said out loud that AS/NZS 1163 C350 is the ordinary structural grade
+     * for CHS and we did not stock it.
+     *
+     * Stocking it is what closed this, on 2026-10-07: the C350L0 light tube series is in the
+     * catalogue now, 88.9x3.2 at 6.76kg/m among it. So this went from fifteen rows and one refusal
+     * to sixteen and none, which is the number the comment this replaces asked somebody to account
+     * for.
      */
-    expect($project->unimportedItems()['notRecognised'])->toBe(['CHS88.9x3.2']);
+    expect($project->unimportedItems()['notRecognised'])->toBe([]);
 
-    //Every row of both files bar that one, the repeated 250PFC included
-    expect(RawMaterialQuote::count())->toBe(15);
+    //Every row of both files, the repeated 250PFC included
+    expect(RawMaterialQuote::count())->toBe(16);
 
     expect(RawMaterialQuote::pluck('description')->unique()->sort()->values()->all())
         ->toBe([

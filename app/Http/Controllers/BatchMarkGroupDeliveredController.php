@@ -16,7 +16,7 @@ class BatchMarkGroupDeliveredController extends Controller
      * "Delivered" on one block of the order list - this merchant's steel is in the rack.
      *
      * The step after BatchMarkGroupOrderedController's, written the same way and for the same shop:
-     * the steel goes out through the quotes screen and the timber is bought over the phone, so the
+     * the steel goes out through the quotes screen and the bolts are bought over the counter, so the
      * batch is neither all delivered nor still waiting, and the batch-wide "All delivered" on the
      * card menu can only say one of those. A block that had been bought had nothing left to press.
      *

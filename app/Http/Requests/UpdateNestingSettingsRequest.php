@@ -87,7 +87,7 @@ class UpdateNestingSettingsRequest extends FormRequest
 
         /*
          * The per-merchant overrides, which are the same five coefficients under the same bounds -
-         * a timber price is still a price per tonne and a typo in one is still a typo. What differs
+         * one merchant's price is still a price per tonne and a typo in one is still a typo. What differs
          * is that every one of them is OPTIONAL: an empty box is how a merchant says "whatever the
          * yard charges", which is the state almost every merchant is in for almost every business.
          *

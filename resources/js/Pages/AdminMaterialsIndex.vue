@@ -249,7 +249,7 @@
             .filter(Boolean);
     }
 
-    //"TIMBER_MERCHANT" as somebody would say it. Shown only beside a non-steel row, where "which
+    //"PROFILE_CUTTING" as somebody would say it. Shown only beside a non-steel row, where "which"
     //merchant" is the reason the row is costed differently from everything around it
     function merchantLabel(supplierGroup){
         return supplierGroup

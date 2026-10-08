@@ -48,10 +48,11 @@ use App\Models\Business;
  *
  * NOT EVERYTHING IS STEEL. The five coefficients in MERCHANT_COEFFICIENTS - the price per tonne, both
  * halves of freight, what the bin pays back and the fallback mass - are resolved per SUPPLIER GROUP
- * where a business has said what that merchant charges. The catalogue has held LVL since before this
- * class existed: timber, bought from a timber merchant, nested by the metre exactly like a section, and
- * costed at the steel rate with a scrap-merchant rebate on every drop that nobody ever paid. Everything
- * else here stays one figure for the yard, which is the distinction Services\SupplierGroupCosts draws.
+ * where a business has said what that merchant charges. It was the catalogue's LVL that proved the
+ * need - timber, bought from a timber merchant, nested by the metre exactly like a section, and costed
+ * at the steel rate with a scrap-merchant rebate on every drop that nobody ever paid. The timber went
+ * in October 2026 and the seam stayed, because purlins are the same problem. Everything else here is
+ * one figure for the yard, which is the distinction Services\SupplierGroupCosts draws.
  *
  * Still deliberately NOT modelled, because a nest is built for one product spec at a time and these are
  * properties of the whole order: per-supplier minimum order values, and consolidating products onto a
@@ -126,14 +127,13 @@ class NestingCostModel
     /**
      * The coefficients a merchant may differ on, which a nest resolves per supplier group.
      *
-     * Everything above is one figure for the yard. These five are not, and the catalogue has been
-     * proving it since it grew an LVL row: timber comes from a timber merchant, is nested by the
-     * metre like a section, and was priced at the steel rate because this class had no way to ask
-     * what it was pricing.
+     * Everything above is one figure for the yard. These five are not, and the catalogue's LVL
+     * proved it: timber came from a timber merchant, was nested by the metre like a section, and was
+     * priced at the steel rate because this class had no way to ask what it was pricing.
      *
      * All five are properties of what is being bought or who it is bought from. Nothing about the
      * yard is here - the labour rate and every handling duration are one crew with one wage, and a
-     * bundle of LVL is carried by the same people who carry a beam. See Services\SupplierGroupCosts,
+     * bundle of plate is carried by the same people who carry a beam. See Services\SupplierGroupCosts,
      * which draws that line and says why cut_minutes_per_kg_per_m sits on the yard's side of it
      * despite looking like it belongs here.
      *
@@ -181,8 +181,8 @@ class NestingCostModel
     ) {
         /*
          * Resolved before anything else here, because the mass fallback below is one of the five.
-         * A timber merchant's fallback mass is a timber mass; at the yard-wide 10.0 every LVL row
-         * the catalogue cannot weigh is costed as though it were steel bar.
+         * A merchant's fallback mass is a mass of what that merchant sells; at the yard-wide 10.0
+         * every row the catalogue cannot weigh is costed as though it were steel bar.
          */
         $this->merchantCoefficients = $supplierGroup === null
             ? []
@@ -221,9 +221,9 @@ class NestingCostModel
      * costed without a supplier group, reads exactly as it always did. See DEFAULTS for why the
      * last fallback is not belt-and-braces.
      *
-     * A merchant's ZERO is an answer, not an absence. A timber merchant pays nothing for offcuts -
-     * a weighbridge buys metal, and a skip of LVL costs tip fees - so scrap_recovery_rate at 0 for
-     * TIMBER_MERCHANT has to beat the yard's 0.13 rather than read as "not set". That is why
+     * A merchant's ZERO is an answer, not an absence. Some merchants pay nothing for offcuts - a
+     * weighbridge buys metal, and a skip of anything else costs tip fees - so scrap_recovery_rate at
+     * 0 has to beat the yard's 0.13 rather than read as "not set". That is why
      * SupplierGroupCosts::normalise drops a blank and keeps a nought.
      */
     private function setting(string $key): float

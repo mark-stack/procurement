@@ -370,8 +370,8 @@ class Batch extends Model
 
         /*
          * Counted PER MERCHANT, not as one pool. The flat delivery fee is one of the coefficients a
-         * business may set per supplier group (NestingCostModel::MERCHANT_COEFFICIENTS) - a timber
-         * merchant's truck is not a steel merchant's truck - so a deduction struck at the yard-wide
+         * business may set per supplier group (NestingCostModel::MERCHANT_COEFFICIENTS) - a profile
+         * cutter's truck is not a steel merchant's truck - so a deduction struck at the yard-wide
          * rate would take back the wrong money the moment anybody set one.
          *
          * HOW MANY are deducted is unchanged, deliberately. Only the rate each one is priced at

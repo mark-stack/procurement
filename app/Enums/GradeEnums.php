@@ -19,9 +19,6 @@ enum GradeEnums: string
     case SS304 = 'SS304';
     case SS316 = 'SS316';
 
-    //TIMBER
-    case E13 = 'E13';
-
     //PLASTIC
     case HDPE = 'HDPE';
 

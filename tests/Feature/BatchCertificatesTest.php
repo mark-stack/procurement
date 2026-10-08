@@ -20,9 +20,9 @@ use Illuminate\Support\Facades\Storage;
 /**
  * A nested batch with the certificate disk faked under it.
  *
- * The fake goes on after the nest, not before: nestedBatch seeds the product catalogue from
- * master_materials.csv on that same disk, and faking it first empties the file out from under the
- * seeder - see MasterMaterialsSeeder, which refuses to seed an empty catalogue.
+ * The fake goes on after the nest. That used to be load-bearing - nestedBatch seeded the catalogue
+ * from master_materials.csv on this same disk, and faking it first emptied the file out from under
+ * the seeder. The catalogue is PHP in the repo since 2026-10-08, so the order is now incidental.
  *
  * @return array{0: App\Models\Business, 1: App\Models\User, 2: Batch}
  */

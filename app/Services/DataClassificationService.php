@@ -674,9 +674,23 @@ class DataClassificationService
         $productConfig = $this->findProductConfigFromText($text);
 
         if ($productConfig) {
-            //MATERIAL
+            /*
+             * MATERIAL
+             *
+             * The GRADE column is asked third, because a grade designation states a material.
+             * "6060" is an aluminium extrusion alloy and "SS316" is stainless, and a report that
+             * prints either of them in its Grade column has said what the thing is made of whether
+             * or not it also has a Material column - and most CAD exports have no material column
+             * at all. matchMaterial() already reads a grade out of a DESCRIPTION this way, which is
+             * how "SS316 M16 x 150" has always come back stainless; this is the same statement
+             * made in a column instead.
+             *
+             * It is asked after the material column rather than before it so that a report
+             * carrying both is still answered by the one that is actually about material.
+             */
             $materialEnum = $this->matchMaterial($text)
                 ?? $this->matchMaterial($declared['material'] ?? null)
+                ?? $this->matchMaterial($declared['grade'] ?? null)
                 ?? $productConfig['defaultMaterial'];
 
             //GRADE
@@ -994,11 +1008,27 @@ class DataClassificationService
                     //todo more
                 ],
             ],
-            //Aluminium
+            /*
+             * Aluminium, which a detailer names by its ALLOY and almost never by the word. "6060"
+             * and "6061" are the two 6000-series extrusion alloys that turn up in a structural bill
+             * of materials, and a Tekla material list prints one of them in the Grade column - see
+             * findGeneralProductMatchesFromText(), which is why a grade column is asked for a
+             * material at all.
+             *
+             * Reading them here rather than as grades is the point. An alloy number states what the
+             * thing is MADE OF, and the material filter is the one that has to refuse: the
+             * catalogue carries no aluminium at any size, so an unrecognised 6060 angle was being
+             * matched to the plain carbon steel one of the same dimensions and ordered in steel.
+             * GradeEnums::GR_6060 exists and is deliberately not used for this - one filter already
+             * refuses the row, and a bare 6060 in a DESCRIPTION is a plausible dimension.
+             */
             [
                 'materialEnum' => MaterialEnums::ALUMINIUM,
                 'regex' => [
                     'aluminium',
+                    '6060',
+                    '6061',
+                    '6063',
                     //todo more
                 ],
             ],
@@ -1047,6 +1077,22 @@ class DataClassificationService
             return null;
         }
 
+        /*
+         * The spellings a detailer actually writes, which are not the spellings a price book uses.
+         *
+         * "C250" and "C350" are what AS/NZS 1163 calls its hollow section grades and are what a
+         * Tekla material list prints for CHS and RHS; "300PLUS" is the trade name AS/NZS 3679.1
+         * sections are sold under here. None of them were read, and a grade nothing reads is not a
+         * grade the row is matched WITHOUT - it is a grade the row is matched without ANY filter on,
+         * so a C350 CHS came back as the galvanised GR250 plumbing pipe of the same diameter. That
+         * is the exact failure reading the grade column was added to stop; it just could not stop
+         * it for a report that spells the grade the way the standard does.
+         *
+         * Each spelling is bounded by wordPattern(), and that is what makes the short ones safe:
+         * the C is guarded against letters, so "C250" does not match inside "UC250*31" and "C350"
+         * does not match inside "PFC350", and the trailing digit is guarded against digits, so
+         * neither matches inside "C2500".
+         */
         $grades = [
             //GR250
             [
@@ -1058,6 +1104,9 @@ class DataClassificationService
                     "GRADE+\s+250",
                     '250MPA',
                     "250+\s+MPA",
+                    //AS/NZS 1163, and the grade the galvanised pipe in the catalogue is
+                    'C250',
+                    "C+\s+250",
                 ],
             ],
             //GR300
@@ -1070,6 +1119,9 @@ class DataClassificationService
                     "GRADE+\s+300",
                     '300MPA',
                     "300+\s+MPA",
+                    //What AS/NZS 3679.1 steel is sold as, and so what a detailer types
+                    '300PLUS',
+                    "300+\s+PLUS",
                 ],
             ],
             //GR350
@@ -1082,6 +1134,9 @@ class DataClassificationService
                     "GRADE+\s+350",
                     '350MPA',
                     "350+\s+MPA",
+                    //AS/NZS 1163 again, and the grade a structural CHS or RHS is actually called
+                    'C350',
+                    "C+\s+350",
                 ],
             ],
             //GR 4.6

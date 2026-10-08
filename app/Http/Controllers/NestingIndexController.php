@@ -985,7 +985,7 @@ class NestingIndexController extends Controller
      *
      * The order list offers that mark on a block once that merchant has been bought from and has no
      * order on the application to book in (see BatchMarkGroupDeliveredController), which is the
-     * timber the shop rang for. A batch whose every block says "Delivered" has its material in the
+     * bolts the shop fetched. A batch whose every block says "Delivered" has its material in the
      * rack, which is what the card's own "All delivered" claims in a single press.
      *
      * This one carries more than the pill. DELIVERED is what opens "Cut" and "Move to done" on the
@@ -1099,7 +1099,8 @@ class NestingIndexController extends Controller
     }
 
     /**
-     * How many suppliers this lot has to be bought from - steel merchant, timber merchant, and so on.
+     * How many suppliers this lot has to be bought from - steel merchant, fastener supplier, profile
+     * cutter, and so on.
      *
      * The number of blocks the Order list button opens, which is what the line under it is describing:
      * the order list groups the stock by supplier group (see BatchOrderListController), because each

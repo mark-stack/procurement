@@ -530,8 +530,8 @@ class PrerequisiteConditions
      * Deliberately not behind canMarkBatchMilestone. That gate refuses the moment any real order has
      * gone out on the batch, which is right for a mark that speaks for the whole job and wrong for
      * one that speaks for a single merchant: the common shop buys its steel through the quotes screen
-     * and its timber over the phone, and that timber block has to be markable while the steel block
-     * has an order behind it.
+     * and its bolts over the counter, and that fastener block has to be markable while the steel
+     * block has an order behind it.
      *
      * Whether this particular group is already bought - a sent order of its own, or this mark set
      * before - is the caller's question, the group being the thing it knows about. See
@@ -564,7 +564,7 @@ class PrerequisiteConditions
      *
      * The same gate as the two above, for the same reason: it speaks for a merchant, so a sent order
      * on another block of the batch is none of its business. The shop this is for buys its steel
-     * through the quotes screen and its timber over the phone, and the timber turning up has to be
+     * through the quotes screen and its bolts over the counter, and the bolts turning up have to be
      * recordable while the steel is still booked in on a goods receipt.
      *
      * Whether this particular merchant may be marked at all is the caller's question, the group being

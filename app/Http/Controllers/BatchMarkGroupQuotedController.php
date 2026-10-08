@@ -15,7 +15,7 @@ class BatchMarkGroupQuotedController extends Controller
      * "Quoted" on one block of the order list - this merchant's price has come in.
      *
      * The step before BatchMarkGroupOrderedController's, written the same way and for the same shop:
-     * the steel goes out through the quotes screen and the timber is priced over the phone, so the
+     * the steel goes out through the quotes screen and the bolts are priced over the counter, so the
      * batch is neither all quoted nor not quoted, and the batch-wide "All quoted" on the card menu
      * can only say one of those.
      *

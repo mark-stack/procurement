@@ -228,7 +228,7 @@ it('says Quoting until every merchant on the batch has priced it, and Quoted onc
     Quote::create([
         'user_id' => $user->id,
         'batch_id' => $batch->id,
-        'supplier_category' => 'TIMBER_MERCHANT',
+        'supplier_category' => 'PROFILE_CUTTING',
         'supplier_quote_reference' => null,
         'quote_sent' => true,
         'quoted_price' => null,
@@ -2377,19 +2377,24 @@ it('has no goods receipt to show for a merchant nobody has ordered from', functi
         ->and($steel['goodsReceipt'])->toBeNull();
 });
 
-it('does not ask a timber merchant for a mill certificate', function () {
+it('does not ask for a mill certificate on something nobody mills', function () {
     /*
-     * LVL arrived from the spreadsheet flagged for certificates along with every other meterage
-     * product. Timber does not come with a mill cert, so the flag was wrong, and this is what stops it
-     * coming back - the Order list and the BOM both read it.
+     * The flag is per PRODUCT, read straight off the catalogue, and the Order list and the BOM both
+     * read it back. It was LVL that made the distinction matter - timber arrived from the
+     * spreadsheet flagged for certificates along with every other meterage product, and does not
+     * come with a mill cert. Timber left the catalogue on 2026-10-08; the fasteners are the ones
+     * carrying the case now, and they carry it for the same reason.
      */
     test()->actingAs(createUser(1, createBusiness('admin'), true, true));
     seedMasterMaterials();
 
     $certificated = (new NestingFormatter)->getCertificateProductLabels();
 
+    //Rolled steel comes with a cert; a box of bolts and a length of allthread do not
     expect($certificated)->toContain('UB')
-        ->and($certificated)->not->toContain('LVL');
+        ->and($certificated)->toContain('PFC')
+        ->and($certificated)->not->toContain('HEX_BOLT')
+        ->and($certificated)->not->toContain('ALLTHREAD');
 });
 
 it('calls a group ordered on the strength of the sent order, not the PO number somebody has yet to type', function () {

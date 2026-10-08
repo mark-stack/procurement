@@ -9,7 +9,6 @@ enum SupplierGroupEnums: string
      */
     case STEEL_MERCHANT = 'STEEL_MERCHANT';
     case PURLINS = 'PURLINS';
-    case TIMBER_MERCHANT = 'TIMBER_MERCHANT';
 
     /*
      * Bundle

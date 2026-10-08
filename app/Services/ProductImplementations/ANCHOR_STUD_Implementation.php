@@ -114,6 +114,15 @@ class ANCHOR_STUD_Implementation extends ProductBaseImplementation
 
         //todo
         return [
+            /*
+             * An anchor rod is a diameter and a length - M20 x 500mm. nominal_height used to be
+             * mandatory here and no anchor rod in the catalogue has ever carried one, because the
+             * product has no third dimension to put in it.
+             *
+             * It stayed hidden while the seeder inserted the catalogue raw: ProductRules never saw
+             * those rows, so a column the data could not supply cost nothing. Validate the same file
+             * on an empty database and all seventeen are refused. HEX_BOLT excludes it; so does this.
+             */
             'mandatory' => [
                 'product_category',
                 'material',
@@ -121,7 +130,6 @@ class ANCHOR_STUD_Implementation extends ProductBaseImplementation
                 'surface',
                 'nominal_units',
                 'nominal_width',
-                'nominal_height',
                 'nominal_length',
             ],
             'exclude' => [
@@ -130,6 +138,7 @@ class ANCHOR_STUD_Implementation extends ProductBaseImplementation
                 'precise_length',
                 'precise_height',
                 'precise_width',
+                'nominal_height',
             ],
             'purchasableVariations' => [
 

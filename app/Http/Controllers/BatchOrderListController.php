@@ -60,8 +60,8 @@ class BatchOrderListController extends Controller
         /*
          * Which product categories come with a mill certificate, off products.certificates - the same
          * flag the BOM's certificate column reads (see DownloadBomController). A fastener group has
-         * no certificate to chase and neither does timber, and a block asking for one it will never
-         * get reads as paperwork somebody has lost.
+         * no certificate to chase, and a block asking for one it will never get reads as paperwork
+         * somebody has lost.
          */
         $certificateProductCategories = $nestingFormatter->getCertificateProductLabels();
 
@@ -82,7 +82,7 @@ class BatchOrderListController extends Controller
 
         /*
          * And the step after both of them: the merchants somebody has watched come off the truck. The
-         * mark for a group with no order on the application to book in - the timber the shop rang for
+         * mark for a group with no order on the application to book in - the bolts the shop fetched
          * - which is why the block offering it is also the block with no purchase order behind it.
          */
         $deliveredGroups = $batch === null ? [] : ($batch->delivered_supplier_groups ?? []);

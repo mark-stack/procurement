@@ -381,8 +381,9 @@
                     <!--
                         The other half of a catalogue review: a row that is flagged and is going to
                         stay as it is. The catalogue's only stainless hex bolt carries its grade in
-                        its description and always will; seven LVL rows have no grade because nobody
-                        grades LVL that way. Without somewhere to say so the report never empties,
+                        its description and always will, and a product nobody grades has no grade
+                        because that is the truth about it. Without somewhere to say so the report
+                        never empties,
                         and a report that cannot reach zero stops being read.
 
                         Who accepted it and when is not asked for here - saving this is a product
@@ -406,7 +407,7 @@
                                 v-model="form.accepted_reason"
                                 rows="2"
                                 maxlength="1000"
-                                placeholder="e.g. LVL is not graded this way, so the blank is correct"
+                                placeholder="e.g. nobody grades this product, so the blank is correct"
                                 class="w-full mt-1 text-sm border-gray-300 rounded-md shadow-sm"
                             ></textarea>
                             <InputError :message="form.errors.accepted_reason" class="mt-1"/>

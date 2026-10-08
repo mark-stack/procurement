@@ -94,7 +94,12 @@ function findProducts(string $description): array
         );
     }
 
-    return $generalProductMatches["results"];
+    /*
+     * No product config means the descriptor classified as nothing, and $generalProductMatches is
+     * still the empty collection it started as - which has no "results" key. Unreachable while
+     * every descriptor tested here classified; reachable since timber left on 2026-10-08.
+     */
+    return $generalProductMatches["results"] ?? [];
 }
 
 test('that master_files.csv successfully seeds products', function () {
@@ -240,25 +245,28 @@ test('that "UB460(asterix)67" finds exact product', function () {
         ->and($products[0]['nominal_height'])->toBe('460');
 });
 
-test('that "90X63 LVL 7 meters" finds exact product', function () {
-    //Create admin
+test('that "90X63 LVL 7 meters" is not read at all any more', function () {
+    /**
+     * This used to find the 90x63 E13 bearer, and it is kept, inverted, because of HOW it now
+     * fails rather than that it fails.
+     *
+     * Timber left the application on 2026-10-08 - the fourteen catalogue rows, ProductEnums::LVL,
+     * MaterialEnums::TIMBER, GradeEnums::E13, LVL_Implementation and the timber merchant's cost
+     * coefficients - as too rare to carry for an audience of steel fabricators.
+     *
+     * The consequence worth writing down: a category that exists with no catalogue rows reports
+     * the row as not stocked, which is what SHS does. A category that does not exist at all
+     * classifies as NOTHING, and an unclassified row is dropped with a bare `continue` and no
+     * message to anybody. So an LVL line on a customer's sheet does not come back refused, it
+     * disappears. That is the accepted price of the removal, not an oversight.
+     */
     $adminUser = createAdmin();
-
-    //Authorised
     $this->actingAs($adminUser);
-
-    //Seed master_product.csv to create products
     seedMasterMaterials();
 
-    //Find product
-    $products = findProducts('90X63 LVL 7 meters');
-
-    //Test
-    expect($products[0]['product_category'])->toBe(ProductEnums::LVL->value)
-        ->and($products[0]['material'])->toBe(MaterialEnums::TIMBER->value)
-        ->and($products[0]['grade'])->toBe(GradeEnums::E13->value)
-        ->and($products[0]['nominal_height'])->toBe('90')
-        ->and($products[0]['nominal_width'])->toBe('63');
+    expect((new DataClassificationService)->findProductConfigFromText('90X63 LVL 7 meters'))->toBeNull()
+        ->and(findProducts('90X63 LVL 7 meters'))->toBe([])
+        ->and(Product::where('product_category', 'LVL')->count())->toBe(0);
 });
 
 test('that "M12 Allthread" finds exact product', function () {

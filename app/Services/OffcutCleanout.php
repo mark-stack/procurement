@@ -107,9 +107,10 @@ class OffcutCleanout
 
             /*
              * The merchant is part of the key, not just part of the model. Two offcuts of the same
-             * mass and the same reference length are not the same costing question if one is steel
-             * and one is timber - the price per tonne, the freight and what the bin pays back all
-             * differ, and a shared model would quietly answer for whichever was reached first.
+             * mass and the same reference length are not the same costing question if one came from
+             * the steel merchant and one from the profile cutter - the price per tonne, the freight
+             * and what the bin pays back all differ, and a shared model would quietly answer for
+             * whichever was reached first.
              */
             $supplierGroup = SupplierGroupCosts::forCategory($offcut->product_category);
 

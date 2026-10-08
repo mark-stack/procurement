@@ -16,7 +16,6 @@ enum ProductEnums: string
     case UC = 'UC';
     case PFC = 'PFC';
     case PLATE = 'PLATE';
-    case LVL = 'LVL';
     case SHS = 'SHS';
     case RHS = 'RHS';
     case CHS = 'CHS';
