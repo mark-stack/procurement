@@ -89,7 +89,7 @@
     /*
      * The Material order button's second line: how many blocks that list comes in.
      *
-     * Supplier categories - steel merchant, timber merchant, fasteners - not the product categories
+     * Supplier categories - steel merchant, fasteners, profile cutting - not the product categories
      * inside them, because each block was a different merchant to send a list to.
      */
     function categoryLabel(batch){

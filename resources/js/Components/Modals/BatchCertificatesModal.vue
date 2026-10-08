@@ -9,7 +9,7 @@
      * one moment, in the one place, a block apart.
      *
      * A block per supplier group, and only the groups whose material comes with a certificate at all
-     * - steel does, timber does not (products.certificates, the flag the BOM reads). A certificate
+     * - steel does, a bolt does not (products.certificates, the flag the BOM reads). A certificate
      * belongs to the merchant who supplied the steel, so filing one against the whole batch would
      * leave somebody chasing a heat number through a pile.
      *
@@ -209,8 +209,8 @@
             </p>
 
             <!--
-                No merchant on this batch supplies anything that comes with a certificate - a timber
-                and fasteners job. Said out loud, because an empty modal reads as one that failed.
+                No merchant on this batch supplies anything that comes with a certificate - an
+                all-fasteners job. Said out loud, because an empty modal reads as one that failed.
             -->
             <p v-else-if="groups.length === 0" class="py-8 text-sm text-center text-gray-600">
                 Nothing on this batch comes with a mill certificate.

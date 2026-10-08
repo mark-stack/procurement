@@ -25,7 +25,7 @@ use App\Models\Template;
 class ExampleTemplates
 {
     /**
-     * Record all five examples against this business, whichever business it is.
+     * Record every example against this business, whichever business it is.
      *
      * "Project Quote" was scoped to the admin's own email domain when these were handed out for
      * real, because a heading run of Length/Width/SubQty/Rate/Total is four ordinary words and one
@@ -104,6 +104,156 @@ class ExampleTemplates
                 'compound_description_cells' => null,
                 'assembly_mark_rule' => 'COLUMN',
                 'assembly_mark_cell' => 'G6',
+                'length_width_units' => 'mm',
+                'screenshot' => null,
+                'active' => true,
+            ],
+            /*
+             * Tekla's stock Material_List report, which bands its rows by section and subtotals
+             * each band.
+             *
+             * RECONSTRUCTED, and the only example here that is. The others are customer files; this
+             * one was rebuilt cell by cell from a PRINT of the report - a PDF nobody can import -
+             * so every value below is read off that page and the SHAPE around them is a reading of
+             * it. Two things the print cannot settle are the two that matter: the subtotal line is
+             * indented under Grade rather than under Profile, which is taken to mean the Profile
+             * cell is empty on it, and the white space around each subtotal is taken to be blank
+             * rows. A customer's real export may differ on both, so treat a failure here as a
+             * question about this file before taking it as a question about the importer.
+             *
+             * That shape is the point. A blank Profile cell makes a subtotal line read as a gap,
+             * and a band of ONE row between two gaps used to end the table - see
+             * CsvService::isLastDataRowNoDataBelow(), and GroupedTableEndTest, which asserts the
+             * same thing against all three shapes the report could arrive in. "Hot Rolled" above is
+             * the same report with its subtotals in the Profile column, where they are a row of the
+             * table rather than a gap, which is why it was never affected and why its template
+             * names "Subtotal" and "Total" and this one names neither.
+             */
+            [
+                'name' => 'Material List',
+                'source' => TemplateSourceEnums::TEKLA->value,
+                'type' => TemplateEnums::CAD_BILL_OF_MATERIALS->value,
+                'web_source' => null,
+                'heading_cell' => 'A6',
+                'expected_heading_labels' => ['Profile', 'Grade', 'Qty', 'Length(mm)', 'Area(m2)', 'Weight(kg)'],
+                'first_description_cell' => 'A7',
+                'first_material_cell' => null,
+                'first_grade_cell' => 'B7',
+                'first_surface_cell' => null,
+                'first_length_required_cell' => 'D7',
+                'first_width_required_cell' => null,
+                'first_sub_qty_cell' => 'C7',
+                'skip_or_finish_check_cell' => 'A7',
+                //Both blank: a subtotal line is empty in the check column, so it is a gap, not a word
+                'should_skip_row' => null,
+                'is_last_data_row' => null,
+                'compound_description_prefix' => null,
+                'compound_description_suffix' => null,
+                'compound_description_cells' => null,
+                //The report carries no mark of any kind - it is a list of material, not of parts
+                'assembly_mark_rule' => 'NONE',
+                'assembly_mark_cell' => null,
+                'length_width_units' => 'mm',
+                'screenshot' => null,
+                'active' => true,
+            ],
+            /*
+             * The same stock Material_List report as above, as a customer actually exported it -
+             * the first two pages of it, which is where the file name comes from and what the
+             * Source Page column counts.
+             *
+             * It is here because "Material List" above is a reconstruction, and a reconstruction
+             * proves the importer against a reading of a print rather than against a file. This one
+             * is the file, so where the two disagree it is the one to believe.
+             *
+             * The two disagree about the band boundary, which is the whole of what this report is
+             * shaped by. Tekla bands its rows by section and closes each band with a line reading
+             * "Total" - and here that word sits in the PROFILE column, on a row with no blank row
+             * either side of it, so a band boundary is a WORD and not a gap. The reconstruction has
+             * it indented under Grade with white space around it, so there it is a gap and the
+             * Profile column is empty on it. Both readings are of the same report, and the
+             * templates differ by exactly that: this one names "Total" and that one names nothing.
+             *
+             * Naming it matters as a SKIP and not as an end. Ten bands close in these two pages, so
+             * ending the table on the first "Total" would read one row of forty-nine and leave the
+             * other forty-eight out of all three lists an import reports back - never read, which
+             * is the failure with no symptom. See the test.
+             *
+             * The report has no Finish column and no mark of any kind, and its areas and weights
+             * come twice - "for one" and "for all" - which is the only distinctive thing in a
+             * heading run of Profile/Grade/Qty/Length that is otherwise four ordinary words.
+             */
+            [
+                'name' => 'Material List - pages 1-2',
+                'source' => TemplateSourceEnums::TEKLA->value,
+                'type' => TemplateEnums::CAD_BILL_OF_MATERIALS->value,
+                'web_source' => null,
+                'heading_cell' => 'A5',
+                'expected_heading_labels' => ['Profile', 'Grade', 'Qty', 'Length (mm)', 'Net Area (m²) for one', 'Net Area (m²) for all', 'Net Weight (kg) for one', 'Net Weight (kg) for all', 'Source Page'],
+                'first_description_cell' => 'A6',
+                'first_material_cell' => null,
+                'first_grade_cell' => 'B6',
+                'first_surface_cell' => null,
+                'first_length_required_cell' => 'D6',
+                'first_width_required_cell' => null,
+                'first_sub_qty_cell' => 'C6',
+                'skip_or_finish_check_cell' => 'A6',
+                //A band closes with the word, in the column the descriptions are in
+                'should_skip_row' => 'Total',
+                //And the table ends with the sheet: these two pages cut the report off mid-band
+                'is_last_data_row' => null,
+                'compound_description_prefix' => null,
+                'compound_description_suffix' => null,
+                'compound_description_cells' => null,
+                'assembly_mark_rule' => 'NONE',
+                'assembly_mark_cell' => null,
+                'length_width_units' => 'mm',
+                'screenshot' => null,
+                'active' => true,
+            ],
+            /*
+             * The same report printed the other way up: a Tekcon assembly list whose Area and
+             * Weight are TOTALS for the quantity rather than the unit figures "Assembly List"
+             * above carries, and whose Finish sits past them at the right-hand edge instead of
+             * in front of the length.
+             *
+             * RECONSTRUCTED, like "Material List" below, and for the same reason - the customer
+             * sent a print. The values are read off public/examples/tekla_assembly_list_totals.png
+             * and the shape around them is a reading of it: the columns are taken to be adjacent
+             * because a print cannot say how far apart they sat, where the real export of
+             * "Assembly List" spreads the same seven columns across A to W. So a failure here is a
+             * question about this file before it is a question about the importer.
+             *
+             * What the file is here to hold is the footer. "Total for 18 assemblies:" sits in the
+             * PROFILE column, directly under the last assembly with no blank row in front of it,
+             * so the only thing between it and the material list is its empty Ass Mk cell. Nothing
+             * names it the way "Hot Rolled" names "Total" - the table ends because the check
+             * column ran out and nothing below reads as a material.
+             */
+            [
+                'name' => 'Assembly List - totals',
+                'source' => TemplateSourceEnums::TEKLA->value,
+                'type' => TemplateEnums::CAD_BILL_OF_MATERIALS->value,
+                'web_source' => null,
+                'heading_cell' => 'A6',
+                'expected_heading_labels' => ['Ass Mk', 'Qty', 'Profile', 'Length (mm)', 'Area (m2)', 'Weight (kg)', 'Finish'],
+                'first_description_cell' => 'C7',
+                'first_material_cell' => null,
+                //The report names no grade at all, which is the whole of what it costs - see the test
+                'first_grade_cell' => null,
+                'first_surface_cell' => 'G7',
+                'first_length_required_cell' => 'D7',
+                'first_width_required_cell' => null,
+                'first_sub_qty_cell' => 'B7',
+                'skip_or_finish_check_cell' => 'A7',
+                'should_skip_row' => null,
+                //Ends where the Ass Mk column runs out, which is the total line
+                'is_last_data_row' => null,
+                'compound_description_prefix' => null,
+                'compound_description_suffix' => null,
+                'compound_description_cells' => null,
+                'assembly_mark_rule' => 'COLUMN',
+                'assembly_mark_cell' => 'A7',
                 'length_width_units' => 'mm',
                 'screenshot' => null,
                 'active' => true,

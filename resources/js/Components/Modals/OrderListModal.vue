@@ -73,8 +73,8 @@
      *
      * Materials is every block's. Certificates belongs only to the merchants whose products come
      * with one - products.certificates, the same flag the BOM's certificate column reads - because
-     * timber and fasteners are never going to have a mill certificate and a tab offering theirs is
-     * a question about paperwork that does not exist.
+     * a bag of bolts is never going to have a mill certificate and a tab offering one is a question
+     * about paperwork that does not exist.
      *
      * Where it is drawn and nothing has arrived it is disabled rather than hidden, and that is the
      * point of it: a greyed-out Certificates on the steel says the paperwork is still outstanding,
@@ -177,8 +177,8 @@
      * "Ordered" on one block - this merchant has been bought from, somewhere other than here.
      *
      * The batch-wide mark on the Nesting card said of a single merchant, and for the shop that is
-     * half on the application and half on the phone: the steel went through the quotes screen and the
-     * timber did not, and until now the timber block read "Not ordered" for ever.
+     * half on the application and half on the counter: the steel went through the quotes screen and
+     * the bolts did not, and until now the fastener block read "Not ordered" for ever.
      *
      * It places nothing. No order is written, no merchant is contacted - see
      * BatchMarkGroupOrderedController - which is what the button's title says before it is pressed.
@@ -204,8 +204,8 @@
      * "Delivered" on one block - this merchant's steel is in the rack.
      *
      * The press a bought block had nothing of. A batch whose steel arrived on Tuesday and whose
-     * timber is still on a lorry is neither delivered nor waiting, and the only mark between the two
-     * was "All delivered" on the card menu, which says both at once.
+     * bolts are still on a lorry is neither delivered nor waiting, and the only mark between the
+     * two was "All delivered" on the card menu, which says both at once.
      *
      * It books in nothing: no goods receipt, no order flagged, nobody notified - see
      * BatchMarkGroupDeliveredController. Marking every merchant is what the card's "All delivered"
@@ -533,7 +533,7 @@
                                 Certificates tab as well - inviting somebody to think it copies those.
 
                                 One button per group rather than one for the modal: the lists go to
-                                different suppliers, and nobody sends a timber merchant the steel.
+                                different suppliers, and nobody sends the fastener supplier the steel.
 
                                 Not drawn on the open batch at all. Copying is how this list leaves
                                 the screen and reaches a merchant, and that card's nest is a

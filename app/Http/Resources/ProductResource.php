@@ -54,7 +54,7 @@ class ProductResource extends JsonResource
             'surface' => $this->surface,
 
             /*
-             * The material as a person says it - "Steel", "Timber" - and whether it is steel at all.
+             * The material as a person says it - "Steel", "Aluminium" - and whether it is steel at all.
              *
              * Worded here rather than in the page, because what the column holds is a join key
              * written the way a database wants it. Null for the one inherited row whose material is

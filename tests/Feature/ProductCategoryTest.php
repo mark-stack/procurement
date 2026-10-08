@@ -53,12 +53,6 @@ $ubUc = [
     ['UC310*118', ProductEnums::UC],
 ];
 
-$lvl = [
-    ['LVL 90X63', ProductEnums::LVL],
-    ['LVL 90X63 7 meter', ProductEnums::LVL],
-    ['90X63 LVL 7 meters', ProductEnums::LVL],
-];
-
 $fasteners = [
     ['M16x100', ProductEnums::HEX_BOLT],
     ['SS316 M16 x 150', ProductEnums::HEX_BOLT],
@@ -180,10 +174,6 @@ it('finds product category for UB and UC', function (string $description, Produc
     expectProductCategory($description, $expected);
 })->with($ubUc);
 
-it('finds product category for LVL', function (string $description, ProductEnums $expected) {
-    expectProductCategory($description, $expected);
-})->with($lvl);
-
 it('finds product category for FASTENERS', function (string $description, ProductEnums $expected) {
     expectProductCategory($description, $expected);
 })->with($fasteners);
@@ -240,3 +230,23 @@ function expectProductCategory(?string $description, ProductEnums $expected): vo
     expect($productConfig)->toBeArray()
         ->and($productConfig['productCategory'])->toBe($expected->value);
 }
+
+it('would be a disaster if timber came back by accident', function (string $description) {
+    /**
+     * LVL left the application on 2026-10-08 - the category, the TIMBER material, the E13 grade,
+     * the implementation and the timber merchant's cost coefficients - as too rare to carry for an
+     * audience of steel fabricators. It used to classify, and these three descriptors are the ones
+     * that proved it.
+     *
+     * They are kept, inverted, because of HOW an unclassified row fails. findProductConfigFromText()
+     * returning null means a bare `continue` further down with no message to the user - see
+     * ImportingTest and the unclassified-row behaviour it pins - so a customer's LVL line is not
+     * refused, it VANISHES. That is the known price of the removal rather than an oversight, and
+     * this test is what makes it a decision somebody can find again.
+     */
+    expect((new DataClassificationService)->findProductConfigFromText($description))->toBeNull();
+})->with([
+    'LVL 90X63',
+    'LVL 90X63 7 meter',
+    '90X63 LVL 7 meters',
+]);

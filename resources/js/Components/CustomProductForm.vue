@@ -276,9 +276,9 @@
             props.form[index]['selected']['nesting_algo'] = null;
 
             //Set nesting type (NONE/BUNDLE/METERAGE/AREA)
-            //BOLT/UB/UC/PFC/PLATE/LVL/SHS
+            //BOLT/UB/UC/PFC/PLATE/SHS
             let currentProductSelection = props.form[index]['selected']['product_category'];
-            let meterageProducts = props.nestingGroups["METERAGE"]; //["UB","UC","PFC","LVL","RHS","SHS"];
+            let meterageProducts = props.nestingGroups["METERAGE"]; //["UB","UC","PFC","RHS","SHS"];
             let areaProducts = props.nestingGroups["AREA"]; //["PLATE"];
             let bundleProducts = props.nestingGroups["BUNDLE"]; //["BOLT","ALLTHREAD"];
 

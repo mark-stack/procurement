@@ -1,171 +1,72 @@
 <?php
 
 use App\Models\Product;
-use App\Services\MasterMaterialsParser;
+use App\Services\DataClassificationService;
+use App\Services\MaterialsJsonImport;
+use App\Services\ProductRules;
+use Database\Seeders\Data\MasterMaterials;
 use Database\Seeders\MasterMaterialsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
 /**
- * The spreadsheet is no longer the source of truth - the products table is, and admins edit it
- * directly. What remains is the parser, and the seeder that uses it to fill an empty database.
+ * The committed catalogue, and the seeder that puts it into an empty database.
  *
- * The parser is still worth all of this. It is the only thing standing between the CSV's positional
- * column mapping and a catalogue where every product's material, grade and dimensions are one column
- * out.
- */
-
-/**
- * A CSV stream built from rows, so a test can describe the sheet it needs.
+ * This file used to be mostly about MasterMaterialsParser - the 242 lines that stood between a
+ * positionally-mapped CSV and a catalogue where every product's material, grade and dimensions were
+ * one column out. Both the CSV and the parser went on 2026-10-08; the rows are PHP now, in
+ * Data\MasterMaterials, and a row names every field it sets, so the class of bug the parser existed
+ * to prevent cannot be written.
  *
- * @return resource
+ * What replaced all of it is the first test below, which is a bigger claim than the parser ever
+ * made: the committed catalogue has to be able to REBUILD ITSELF through the same rules the admin
+ * form enforces. It could not, until the day the CSV went - 25 rows were only ever inserted raw.
  */
-function materialsCsv(array $rows, ?array $header = null)
-{
-    $handle = fopen('php://memory', 'r+');
-
-    fputcsv($handle, $header ?? MasterMaterialsParser::HEADER, escape: '');
-    foreach ($rows as $row) {
-        fputcsv($handle, $row, escape: '');
-    }
-
-    rewind($handle);
-
-    return $handle;
-}
-
-/**
- * One fully specified sheet row, overridable by column index.
- */
-function materialsRow(array $overrides = []): array
-{
-    $row = [
-        '200PFC 9m', 'PFC', 'PLAIN_CARBON_STEEL', 'GR300', 'NONE', 'METERAGE', 'TRUE',
-        'MILLIMETERS', '9000', '', '', '', '200', '', '', '1', '', '', '25.1',
-        'https://example.test/reference.pdf',
-    ];
-
-    foreach ($overrides as $index => $value) {
-        $row[$index] = $value;
-    }
-
-    return $row;
-}
-
-it('would be a disaster if a fully specified product was dropped for having no description', function () {
-    // Three real RHS products in the master sheet carry no DESCRIPTION and used to vanish
-    $handle = materialsCsv([
-        materialsRow(),
-        materialsRow([0 => '', 1 => 'RHS', 12 => '75', 10 => '50', 14 => '2.0', 18 => '3.72']),
-    ]);
-
-    $result = (new MasterMaterialsParser)->parse($handle);
-
-    expect($result->rows)->toHaveCount(2)
-        ->and($result->rejected)->toBeEmpty()
-        ->and($result->warnings)->toHaveCount(1)
-        ->and($result->warnings[0]['reason'])->toContain('description');
-});
-
-it('would be a disaster if an unusable row was imported as a product', function () {
-    // A stray value in one cell is not a product, and skipping it must be reported
-    $handle = materialsCsv([
-        materialsRow(),
-        materialsRow(array_fill_keys(range(0, 17), '') + [18 => '1.75', 19 => '']),
-    ]);
-
-    $result = (new MasterMaterialsParser)->parse($handle);
-
-    expect($result->rows)->toHaveCount(1)
-        ->and($result->rejected)->toHaveCount(1)
-        ->and($result->rejected[0]['line'])->toBe(3)
-        ->and($result->rejected[0]['reason'])->toContain('product_category')
-        ->and(implode(' ', $result->messages()))->toContain('1 rows skipped');
-});
-
-it('would be a disaster if a blank separator row was reported as a problem', function () {
-    $handle = materialsCsv([
-        materialsRow(),
-        array_fill(0, 20, ''),
-    ]);
-
-    $result = (new MasterMaterialsParser)->parse($handle);
-
-    expect($result->rows)->toHaveCount(1)
-        ->and($result->rejected)->toBeEmpty()
-        ->and($result->warnings)->toBeEmpty();
-});
-
-it('would be a disaster if a reordered spreadsheet imported silently', function () {
-    // Columns are mapped by position, so a swap would write material into grade for every row
-    $header = MasterMaterialsParser::HEADER;
-    [$header[2], $header[3]] = [$header[3], $header[2]];
-
-    $handle = materialsCsv([materialsRow()], $header);
-
-    expect(fn () => (new MasterMaterialsParser)->parse($handle))
-        ->toThrow(RuntimeException::class, 'Unexpected master materials columns');
-});
-
-it('would be a disaster if an Excel byte order mark made the file look reordered', function () {
-    // Excel writes a UTF-8 BOM before the first cell, and trim() does not remove it
-    $header = MasterMaterialsParser::HEADER;
-    $header[0] = "\xEF\xBB\xBF".$header[0];
-
-    $result = (new MasterMaterialsParser)->parse(materialsCsv([materialsRow()], $header));
-
-    expect($result->rows)->toHaveCount(1);
-});
-
-it('would be a disaster if certificates were stored as text the app reads as a boolean', function () {
+it('would be a disaster if the committed catalogue could not rebuild itself', function () {
     /**
-     * where('certificates', true) matched nothing while (bool) $product->certificates was true for
-     * every product, so the mill certificate sense check was meaningless either way.
+     * The whole file, planned against an empty database through ProductRules - which is exactly
+     * what `migrate:fresh` followed by a validated sync would do.
+     *
+     * Zero errors is the bar, and it is a bar the CSV never cleared. Seventeen anchor rods and one
+     * nut were refused for a nominal_height that no fastener has ever carried, and seven LVL rows
+     * for a grade nobody grades timber by. The seeder's raw insert() was the only reason any of
+     * them existed: nothing validated a row on the way in, so a column the data could not supply
+     * cost nothing until something asked.
+     *
+     * Asserted here rather than in the seeder so it is paid once. Everything else trusts the file.
      */
-    $handle = materialsCsv([
-        materialsRow([0 => 'Certified', 6 => 'TRUE']),
-        materialsRow([0 => 'Uncertified', 1 => 'HEX_BOLT', 5 => 'BUNDLE', 6 => 'FALSE']),
-    ]);
+    expect(Product::count())->toBe(0);
 
-    $result = (new MasterMaterialsParser)->parse($handle);
+    $products = array_map(fn (array $row) => [
+        ...array_fill_keys(ProductRules::EDITABLE, null),
+        'deprecated' => false,
+        ...$row,
+    ], MasterMaterials::rows());
 
-    expect($result->rows[0]['certificates'])->toBeTrue()
-        ->and($result->rows[1]['certificates'])->toBeFalse();
+    $plan = (new MaterialsJsonImport)->plan(['mode' => 'replace', 'products' => $products]);
+
+    expect($plan['errors'])->toBe([])
+        ->and($plan['create'])->toHaveCount(count($products));
 });
 
-it('would be a disaster if an unreadable certificates cell passed without a word', function () {
+it('would be a disaster if a row named a category nothing can nest', function () {
     /**
-     * A blank or misspelled CERTS cell stores null, which where('certificates', true) excludes,
-     * so the product silently drops out of the mill certificate sense check.
+     * nesting_algo and nominal_units are ProductRules::DERIVED, and the seeder resolves them from
+     * the category. A row naming a category with no implementation would reach the derive step and
+     * fatal on a null config - so the file is only as good as its category column.
      */
-    $handle = materialsCsv([
-        materialsRow([0 => 'Readable', 6 => 'TRUE']),
-        materialsRow([0 => 'Blank', 6 => '', 12 => '150']),
-        materialsRow([0 => 'Typo', 6 => 'TRUEE', 12 => '250']),
-    ]);
+    $classifier = new DataClassificationService;
 
-    $result = (new MasterMaterialsParser)->parse($handle);
+    $unknown = collect(MasterMaterials::rows())
+        ->pluck('product_category')
+        ->unique()
+        ->reject(fn (string $category) => $classifier->findImplementationFromProductCategory($category) !== null)
+        ->values()
+        ->all();
 
-    expect($result->rows)->toHaveCount(3)
-        ->and($result->rejected)->toBeEmpty()
-        ->and($result->warnings)->toHaveCount(2)
-        ->and($result->warnings[0]['reason'])->toContain('unreadable certificates')
-        ->and($result->warnings[1]['line'])->toBe(4)
-        ->and(implode(' ', $result->messages()))->toContain('2 rows imported with blank fields');
+    expect($unknown)->toBe([]);
 });
-
-it('would be a disaster if the spreadsheet supplier reference was thrown away', function () {
-    $result = (new MasterMaterialsParser)->parse(materialsCsv([materialsRow()]));
-
-    expect($result->rows[0]['baseline_supplier'])->toBe('https://example.test/reference.pdf');
-});
-
-/*
-|--------------------------------------------------------------------------
-| The seeder
-|--------------------------------------------------------------------------
-*/
 
 it('would be a disaster if the catalogue could not be loaded into an empty database', function () {
     /**

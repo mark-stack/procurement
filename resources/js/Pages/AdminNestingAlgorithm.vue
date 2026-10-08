@@ -82,7 +82,7 @@
          *
          * Bound as strings rather than numbers (no .number modifier on those inputs), which is what
          * keeps "" distinguishable from 0. v-model.number turns an emptied box into NaN or 0
-         * depending on the browser, and 0 is a real answer here - a timber merchant genuinely pays
+         * depending on the browser, and 0 is a real answer here - some merchants genuinely pay
          * nothing for offcuts. The server reads "" as "no override" and 0 as nought.
          */
         cost_overrides: Object.fromEntries(props.merchants.map(merchant => [
@@ -99,9 +99,9 @@
 
     /*
      * Which merchants are costed differently from the yard, whether because this business said so
-     * or because the platform already knows the material is not steel. Both count: the summary is
-     * answering "does anything in here not follow the dials above", and for timber the answer is
-     * yes before anybody opens it.
+     * or because the platform already carries figures for that merchant. Both count: the summary
+     * is answering "does anything in here not follow the dials above", and a merchant the platform
+     * has priced answers yes before anybody opens it.
      */
     const merchantsWithFigures = computed(() => props.merchants
         .filter(merchant => merchant.hasPlatformFigures
@@ -110,8 +110,8 @@
 
     /*
      * Open by default when there is something in it. A yard that buys only steel should not have to
-     * read past a section that says nothing about it; one that has set a timber rate should not have
-     * to go looking for it.
+     * read past a section that says nothing about it; one that has set a merchant's rate should not
+     * have to go looking for it.
      */
     const showMerchants = ref(merchantsWithFigures.value.length > 0);
 
@@ -1117,10 +1117,11 @@
                         Where the yard's figures are not the whole story.
 
                         Everything above is one number for the business, which is right for a yard
-                        that buys steel and only steel. The catalogue has held LVL all along -
-                        timber, bought from a timber merchant, nested by the metre exactly like a
-                        section - and it was being priced at the steel rate with a scrap-merchant
-                        rebate on every drop that nobody ever paid.
+                        that buys everything from one merchant. It was written for the timber the
+                        catalogue used to hold - bought from a timber merchant, nested by the metre
+                        exactly like a section, and priced at the steel rate with a scrap-merchant
+                        rebate on every drop that nobody ever paid. The timber went in October 2026;
+                        the same gap is open for purlins, and for anything else bought elsewhere.
                     -->
                     <section class="border-t border-gray-200">
                         <button
@@ -1198,7 +1199,7 @@
                                                     The yard's own figure as the placeholder, because
                                                     an empty box only means something if you can see
                                                     what it falls back to. A typed 0 is a real answer
-                                                    and is kept - a timber merchant pays nothing for
+                                                    and is kept - some merchants pay nothing for
                                                     offcuts, and that has to beat the yard's rate
                                                     rather than read as "not set".
                                                 -->
@@ -1222,8 +1223,8 @@
 
                             <p class="mt-3 text-xs leading-relaxed text-gray-600">
                                 The labour rate and every handling duration are deliberately absent.
-                                Those are the yard's - one crew, one wage - and a bundle of LVL is
-                                carried by the same people who carry a beam.
+                                Those are the yard's - one crew, one wage - and a bundle of plate
+                                is carried by the same people who carry a beam.
                             </p>
                         </div>
                     </section>

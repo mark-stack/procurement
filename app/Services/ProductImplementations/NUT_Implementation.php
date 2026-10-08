@@ -106,13 +106,21 @@ class NUT_Implementation extends ProductBaseImplementation
         //        "kg_per_m"
 
         return [
+            /*
+             * A nut is an M size and nothing else. nominal_height used to be mandatory here, and no
+             * nut in the catalogue has ever carried one - because there is nothing for it to hold.
+             *
+             * It stayed hidden while the seeder inserted the catalogue raw: ProductRules never saw
+             * those rows, so a column the data could not supply cost nothing. Validate the same file
+             * on an empty database and every nut is refused for want of a height. HEX_BOLT, which is
+             * the same shape of thing, excludes it - so this now does too.
+             */
             'mandatory' => [
                 'product_category',
                 'material',
                 'grade',
                 'surface',
                 'nominal_units',
-                'nominal_height',
                 'nominal_width',
             ],
             'exclude' => [
@@ -122,6 +130,7 @@ class NUT_Implementation extends ProductBaseImplementation
                 'wall',
                 'kg_per_m',
                 'nominal_length',
+                'nominal_height',
             ],
             'purchasableVariations' => [
 

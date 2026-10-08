@@ -167,7 +167,7 @@ it('moves a row to accepted once somebody records why it is being kept', functio
 
     expect((new CatalogueTrust)->report()['outstanding'])->toBe(1);
 
-    $product->update(['accepted_reason' => 'Timber, and nobody quotes LVL by mass per metre.']);
+    $product->update(['accepted_reason' => 'Sold by the sheet, and nobody quotes it by mass per metre.']);
 
     $report = (new CatalogueTrust)->report();
 
@@ -278,14 +278,14 @@ it('says what each row is made of, and marks the rows that are not steel', funct
 
     catalogueProduct(['description' => 'A beam']);
     catalogueProduct([
-        'description' => 'An LVL bearer',
-        'product_category' => 'LVL',
-        'material' => 'TIMBER',
-        'nominal_height' => '90',
-        'nominal_width' => '63',
+        'description' => 'An aluminium angle',
+        'product_category' => 'EA',
+        'material' => 'ALUMINIUM',
+        'nominal_height' => '50',
+        'nominal_width' => '50',
     ]);
 
-    //The page orders by category, so LVL comes before PFC
+    //The page orders by category, so EA comes before PFC
     test()->get(route('admin.materials.index'))
         ->assertInertia(fn (Assert $page) => $page
             /*
@@ -295,14 +295,20 @@ it('says what each row is made of, and marks the rows that are not steel', funct
             ->where('products.data.1.material_label', 'Steel')
             ->where('products.data.1.is_steel', true)
             ->where('products.data.1.supplier_group', 'STEEL_MERCHANT')
-            ->where('products.data.0.material_label', 'Timber')
+            ->where('products.data.0.material_label', 'Aluminium')
             /*
              * The flag the screen actually marks a row on. A row that is not steel is costed
-             * through a different merchant's price per tonne and a different mass - which is the
-             * whole reason LVL was being priced as steel for as long as it was.
+             * through a different mass, and potentially a different merchant's price per tonne -
+             * which is the whole reason LVL was priced as steel for as long as the catalogue
+             * carried it.
+             *
+             * This used to be an LVL bearer, whose supplier group was TIMBER_MERCHANT and so proved
+             * both halves at once. Timber went on 2026-10-08 and no category maps to a non-steel
+             * merchant any more, so the row is aluminium and the merchant is the steel one: the
+             * material flag is what this test can still prove, and it is the half the screen marks.
              */
             ->where('products.data.0.is_steel', false)
-            ->where('products.data.0.supplier_group', 'TIMBER_MERCHANT')
+            ->where('products.data.0.supplier_group', 'STEEL_MERCHANT')
         );
 });
 
@@ -357,7 +363,7 @@ it('clears an acceptance when the box is emptied, and leaves it alone when nothi
 
     $product = catalogueProduct([
         'kg_per_m' => null,
-        'accepted_reason' => 'Nobody quotes LVL by mass.',
+        'accepted_reason' => 'Nobody quotes this by mass.',
     ]);
 
     /*
@@ -370,7 +376,7 @@ it('clears an acceptance when the box is emptied, and leaves it alone when nothi
         'deprecated' => true,
     ]));
 
-    expect($product->fresh()->accepted_reason)->toBe('Nobody quotes LVL by mass.');
+    expect($product->fresh()->accepted_reason)->toBe('Nobody quotes this by mass.');
 
     //An emptied textarea sends '', which blanksToNull turns into the null that clears it
     test()->patch(route('admin.materials.update', $product), catalogueFormBody([
@@ -384,7 +390,7 @@ it('clears an acceptance when the box is emptied, and leaves it alone when nothi
 
 it('carries an acceptance through a catalogue export', function () {
     catalogueAdmin();
-    catalogueProduct(['kg_per_m' => null, 'accepted_reason' => 'Nobody quotes LVL by mass.']);
+    catalogueProduct(['kg_per_m' => null, 'accepted_reason' => 'Nobody quotes this by mass.']);
 
     $exported = test()->get(route('admin.materials.export'))->json('products.0');
 
@@ -393,7 +399,7 @@ it('carries an acceptance through a catalogue export', function () {
      * one and lost on the next sync would mean the same row came back onto the other's list with no
      * reason attached, and somebody would decide it a second time.
      */
-    expect($exported['accepted_reason'])->toBe('Nobody quotes LVL by mass.');
+    expect($exported['accepted_reason'])->toBe('Nobody quotes this by mass.');
 });
 
 it('says how much of a scrap total was worked out from an assumed mass', function () {

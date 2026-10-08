@@ -9,12 +9,13 @@ use App\Models\Business;
  * Which merchant a product is bought from, and what that merchant charges where it differs.
  *
  * The cost model's premise is that everything is money, and it held one price per tonne for the
- * whole yard. That is right for a yard that buys steel. It is wrong the moment a catalogue holds
- * anything else, and this one has held LVL - timber, bought from a timber merchant, nested by the
- * metre and costed at the steel rate - since before the cost model existed.
+ * whole yard. That is right for a yard that buys steel, and wrong the moment a catalogue holds
+ * anything else.
  *
- * What makes it worth a seam rather than a special case for timber: the same gap is open for
- * PURLINS, which are a different price per tonne from structural sections and come from a different
+ * It was built for timber - the catalogue carried LVL, bought from a timber merchant, nested by the
+ * metre and costed at the steel rate. The timber went on 2026-10-08, as too rare to carry for an
+ * audience of steel fabricators, and the SEAM stayed, because the same gap is open for PURLINS,
+ * which are a different price per tonne from structural sections and come from a different
  * supplier, and would open again for anything else a fabricator buys by the metre.
  *
  * THE OVERRIDABLE COEFFICIENTS ARE THE MERCHANT'S, NEVER THE YARD'S. That line is the whole design:
@@ -22,58 +23,43 @@ use App\Models\Business;
  *  - What a tonne costs, what freight costs, what a delivery costs and what the bin pays back are
  *    properties of what is being bought and who it is bought from. They vary by merchant.
  *  - The labour rate and every handling duration are properties of the yard. It is one crew with
- *    one wage, and a bundle of LVL is carried by the same people who carry a beam. A per-merchant
- *    labour rate would be a fiction with a form field.
+ *    one wage, and a bundle of purlins is carried by the same people who carry a beam. A
+ *    per-merchant labour rate would be a fiction with a form field.
  *
  * `cut_minutes_per_kg_per_m` is the one that looks like it belongs on the merchant's side and does
  * not. It is already scaled by the section's mass, so a lighter piece already gets a shorter cut -
  * what is left over is how hard the material is on a blade, which is a refinement nobody has asked
  * for and would be wrong to approximate with a merchant.
  *
- * `default_kg_per_m` IS overridable, and it is the one that fixes the live problem on its own. A
- * timber merchant's fallback mass should be a timber mass; at the yard-wide 10.0 every LVL row the
- * catalogue cannot weigh is costed as though it were steel bar.
+ * `default_kg_per_m` IS overridable, and it was the one that fixed the original problem on its own:
+ * a merchant's fallback mass should be a mass of what that merchant sells, and at the yard-wide
+ * 10.0 every row the catalogue could not weigh was costed as though it were steel bar.
  */
 class SupplierGroupCosts
 {
     /**
      * What a merchant charges where nobody has said otherwise.
      *
-     * The same kind of figure as NestingCostModel::DEFAULTS and carrying the same warning: A
-     * STARTING POINT, NOT A MEASUREMENT OF ANY PARTICULAR YARD. Every one of them is editable per
-     * business on the admin nesting page.
+     * EMPTY, AND CORRECTLY SO. It held one entry, TIMBER_MERCHANT, and it existed because the
+     * catalogue carried LVL that was being priced as steel: $4,100 a tonne rather than the yard's
+     * steel rate, no scrap recovery because no timber merchant buys offcuts back, and a 3.5 kg/m
+     * fallback instead of the yard's 10.0. With the timber gone there is nothing left in the
+     * catalogue that is not steel bought from a steel merchant, so every figure here would be an
+     * invention.
      *
-     * They exist because the alternative is worse than being approximately right. Left empty, every
-     * business - including one created tomorrow - prices timber as steel until somebody notices and
-     * fills in a form, and "somebody notices" is exactly what did not happen for the whole life of
-     * the LVL rows. A platform default is wrong by a margin; no default was wrong by a factor.
+     * The rule that kept it to one entry is the rule that empties it now: PURLINS is the next group
+     * that will want one - purlin steel is a different price per tonne from structural sections -
+     * and it has never had an entry because nobody has given a figure for it, and an invented one
+     * would be indistinguishable from a real one once it is sitting here.
      *
-     * TIMBER_MERCHANT, and the reasoning behind each:
-     *
-     *  - material_cost_per_tonne at $4,100. Timber is not sold by the tonne, which is the real
-     *    problem: structural LVL runs about $14 a metre in 90x63, and at 3.4 kg/m that is $4,100 a
-     *    tonne. Expressed this way so it goes through the same arithmetic as everything else rather
-     *    than needing a second costing path for one material.
-     *  - scrap_recovery_rate at 0, and this one is not an estimate. A weighbridge buys metal. No
-     *    timber merchant buys LVL offcuts back, and a skip of timber costs tip fees to empty - so
-     *    the yard's 13% was crediting money that does not exist, on every drop.
-     *  - default_kg_per_m at 3.5, between the catalogue's two LVL sections. The fallback for a
-     *    timber row nothing can weigh should be a timber mass, not the yard's 10.0, which is a
-     *    steel figure and three times over.
-     *
-     * No entry for PURLINS, which is the next one that will want one - purlin steel is a different
-     * price per tonne from structural sections - because nobody has given a figure for it and an
-     * invented one would be indistinguishable from a real one once it is sitting here.
+     * So this staying empty is the seam working, not the seam being unused. A business can still
+     * override any merchant's coefficients on the admin nesting page; what is gone is the platform
+     * presuming to know one. Anything added here is A STARTING POINT, NOT A MEASUREMENT OF ANY
+     * PARTICULAR YARD - the same warning NestingCostModel::DEFAULTS carries.
      *
      * @var array<string, array<string, float>>
      */
-    public const array PLATFORM_DEFAULTS = [
-        'TIMBER_MERCHANT' => [
-            'material_cost_per_tonne' => 4100.0,
-            'scrap_recovery_rate' => 0.0,
-            'default_kg_per_m' => 3.5,
-        ],
-    ];
+    public const array PLATFORM_DEFAULTS = [];
 
     /**
      * Product category => supplier group, built once per process.
@@ -168,18 +154,36 @@ class SupplierGroupCosts
      * What one merchant charges this business, platform defaults included.
      *
      * The business's own figures sit ON TOP of the platform's, per coefficient rather than per
-     * merchant: a yard that types only a timber price keeps the platform's "the bin pays nothing",
-     * which is the answer it would have given if asked. Overriding a whole merchant at once would
-     * mean filling in two boxes you agree with in order to change the third.
+     * merchant: a yard that types only a price per tonne keeps whatever the platform says about
+     * scrap recovery, which is the answer it would have given if asked. Overriding a whole merchant
+     * at once would mean filling in two boxes you agree with in order to change the third.
      *
      * @return array<string, float>
      */
     public static function effectiveFor(Business $business, string $supplierGroup): array
     {
         return [
-            ...self::PLATFORM_DEFAULTS[$supplierGroup] ?? [],
+            ...self::platformDefaultsFor($supplierGroup),
             ...self::normalise($business->getAttribute('cost_overrides'))[$supplierGroup] ?? [],
         ];
+    }
+
+    /**
+     * What the platform says one merchant charges, which today is nothing for every merchant.
+     *
+     * Read through here rather than off the constant because PLATFORM_DEFAULTS is empty, and an
+     * empty constant is a literal type: static analysis correctly reports that indexing it can
+     * never find anything, and would do so at every call site. Widening it once, here, keeps the
+     * callers honest about the shape this holds when somebody adds a merchant to it.
+     *
+     * @return array<string, float>
+     */
+    public static function platformDefaultsFor(string $supplierGroup): array
+    {
+        /** @var array<string, array<string, float>> $defaults */
+        $defaults = self::PLATFORM_DEFAULTS;
+
+        return $defaults[$supplierGroup] ?? [];
     }
 
     /**

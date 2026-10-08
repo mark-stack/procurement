@@ -157,10 +157,11 @@ class AdminNestingAlgorithmController extends Controller
     /**
      * Every merchant the application buys from, with whatever this business has told it about them.
      *
-     * All of them, not only the ones this business's plan covers. A yard that has had timber
-     * switched off still has LVL nests in its history being re-costed through the retained
-     * snapshot, and a merchant that disappears from the form the moment it stops being bought from
-     * is a figure nobody can correct afterwards.
+     * All of them, not only the ones this business's plan covers. A yard that has stopped buying
+     * from a merchant still has that merchant's old nests in its history being re-costed through
+     * the retained snapshot, and a merchant that disappears from the form the moment it stops being
+     * bought from is a figure nobody can correct afterwards. The catalogue's timber was the case
+     * that proved it, and it is gone - the rule is not.
      *
      * @return array<int, array<string, mixed>>
      */
@@ -168,7 +169,7 @@ class AdminNestingAlgorithmController extends Controller
     {
         return array_map(function (array $group) use ($business): array {
             $own = $business->merchantCoefficients($group['value']);
-            $platform = SupplierGroupCosts::PLATFORM_DEFAULTS[$group['value']] ?? [];
+            $platform = SupplierGroupCosts::platformDefaultsFor($group['value']);
 
             $overrides = [];
             $fallbacks = [];
@@ -176,17 +177,17 @@ class AdminNestingAlgorithmController extends Controller
             foreach (NestingCostModel::MERCHANT_COEFFICIENTS as $key) {
                 /*
                  * Null for anything this business has not answered, which is what the form binds an
-                 * empty box to. A zero is a real answer and survives: a timber merchant pays
-                 * nothing for offcuts, and "0" has to beat the yard's recovery rate rather than
-                 * read as "not set".
+                 * empty box to. A zero is a real answer and survives: a merchant that pays nothing
+                 * for offcuts means "0" has to beat the yard's recovery rate rather than read as
+                 * "not set".
                  */
                 $overrides[$key] = $own[$key] ?? null;
 
                 /*
                  * What an empty box actually means for this merchant - the platform's figure where
                  * there is one, the yard's otherwise. Sent so the placeholder can show it: an empty
-                 * box only says something if you can see what it falls back to, and for timber that
-                 * is NOT the number in the dial above.
+                 * box only says something if you can see what it falls back to, and for a merchant
+                 * the platform has priced that is NOT the number in the dial above.
                  */
                 $fallbacks[$key] = $platform[$key] ?? null;
             }

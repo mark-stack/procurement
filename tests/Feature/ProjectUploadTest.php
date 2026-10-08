@@ -411,7 +411,7 @@ function materialListWithUnreadableLength(): UploadedFile
         26 => [null, '250 PFC 9m', null, 9, 1, 10, 60, 5400],
         27 => [null, '20mm plate GR350', null, 6, 1, 6, 10, 360],
         28 => [null, '75x50x2.5 RHS', null, '#REF!', 1, 13, 2, 26],
-        29 => [null, 'LVL 90X63', null, 4, 1, 5, 60, 1200],
+        29 => [null, '200PFC', null, 6, 1, 5, 60, 1200],
     ];
 
     $spreadsheet = new Spreadsheet;
@@ -459,8 +459,15 @@ it('would be a disaster if one unreadable cell threw away the rest of the file',
 
     $descriptions = RawMaterialQuote::pluck('description')->all();
 
-    //The rows below the bad one still import
-    expect($descriptions)->toContain('LVL 90X63')
+    /*
+     * The row below the bad one still imports.
+     *
+     * That row was "LVL 90X63" until 2026-10-08, when timber left the application. It had to be
+     * replaced rather than dropped: the whole point of the fixture is that something BELOW the
+     * unreadable cell survives, and an unclassified row would not have - it would be dropped
+     * silently, which proves nothing about whether the loop unwound.
+     */
+    expect($descriptions)->toContain('200PFC')
         //...and the row above it, and the bad row itself, is not silently dropped
         ->and($descriptions)->toContain('250 PFC 9m')
         ->and($descriptions)->not->toContain('75x50x2.5 RHS')

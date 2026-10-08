@@ -15,9 +15,23 @@
   the DB block, the `MAIL_*` block, and `LOGIN_AVAILABLE=true` once sign-up is meant to be self-serve.
   Leave `TEST_MODE` out entirely - it defaults to false, and true mails every project manager once a
   minute. `SESSION_SECURE_COOKIE` and Telescope look after themselves on `APP_ENV=production`
-- `php artisan migrate --force`, then `php artisan db:seed --class=MasterMaterialsSeeder --force`.
-  Never plain `--seed`: `DatabaseSeeder` also creates the SAMPLE business, users and projects. The
-  catalogue is not optional - an empty `products` table makes every BOM import extract nothing
+- `php artisan migrate --force`, then **on a brand new database only**,
+  `php artisan db:seed --class=MasterMaterialsSeeder --force`. Never plain `--seed`:
+  `DatabaseSeeder` also creates the SAMPLE business, users and projects. The catalogue is not
+  optional - an empty `products` table makes every BOM import extract nothing. It lives in
+  `database/seeders/Data/MasterMaterials.php`, so a clone has it and no disk is involved
+- **Every deploy after that: `php artisan catalogue:sync --apply`**, as a line in the Forge deploy
+  script after `migrate --force`. It reconciles this database to the committed catalogue - creating
+  what is missing, updating what differs, and for anything the file no longer lists, deleting it
+  where nothing refers to it and deprecating it where something does. Idempotent, so a deploy that
+  did not touch the catalogue is a no-op, and it exits non-zero (failing the deploy) on an invalid
+  file or a suspiciously large number of deletions. Run it without `--apply` first to read the plan
+- Those two are not interchangeable, and the seeder is the one that does a first install. It writes
+  `''` for a blank string column, which is what the catalogue has always held and what the spec
+  columns are matched on; `catalogue:sync` goes through `ProductRules` and writes `null` for the
+  same column. That difference is invisible on an existing catalogue - sync reports no change
+  either way - but a catalogue created from empty by `catalogue:sync` would not match the one every
+  other environment has
 - `php artisan config:cache route:cache view:cache` as a deploy step. Anything read with `env()`
   outside `config/` returns null afterwards, which is why the kill switches live in `config/`
 - The append-only grant, once per server, again after any restore, and again after any deploy whose

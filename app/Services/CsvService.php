@@ -30,6 +30,15 @@ class CsvService
     private const FINISH_RESUMES_AFTER_ROWS = 2;
 
     /**
+     * Whether a check cell's text reads as a material, by the text itself. One classifier and one
+     * answer per distinct string: the end-of-table rule asks this of the same handful of footer
+     * lines over and over, and findProductConfigFromText() scores every product category each time.
+     *
+     * @var array<string, bool>
+     */
+    private array $readsAsMaterial = [];
+
+    /**
      * Every table this user's templates find in an uploaded sheet.
      *
      * This was processCsv(), which detected, imported and then built the RedirectResponse for both
@@ -852,7 +861,59 @@ class CsvService
             }
         }
 
+        /*
+         * The run rule says this is the end. Before taking that, ask the one question it cannot: is
+         * there a row below that actually names a material?
+         *
+         * A run of two is a good description of a table carrying on and a poor one of a GROUP
+         * carrying on. A Tekla material list bands its rows by section and subtotals each band, and
+         * a band of one - a single 300 PFC between two subtotals - is one isolated line by that
+         * rule, with the next band's rows too far down to rescue it. The table ended there: on a
+         * seven-row list of a customer's, four rows below the second subtotal were never read. Not
+         * refused, not reported - never read, which leaves them out of "not found" and out of
+         * "could not be read" too, so the import announced success and the quote was short two
+         * eleven-metre RHS.
+         *
+         * This is the distinction the run was standing in for. A footer is a line that names no
+         * material - "Subtotal", "Page 1", "End of report", a total, a rule of dashes, all of which
+         * read as nothing - and a material row names one. Asking directly costs a classification of
+         * at most six cells, and only on a sheet that was about to end a table anyway.
+         *
+         * It is deliberately only ever a reason to CARRY ON, never to stop. Where the check column
+         * holds a part of a compound description rather than a description - a bolt diameter on its
+         * own - nothing there reads as a material and the run rule is still what decides, exactly
+         * as before.
+         */
+        for ($ahead = 1; $ahead <= self::FINISH_LOOKAHEAD_ROWS; $ahead++) {
+            if (! array_key_exists($index + $ahead, $csvArray)) {
+                break;
+            }
+
+            if ($this->readsAsMaterial($csvArray[$index + $ahead][$skipOrFinishCheckColumnIndex] ?? null)) {
+                return false;
+            }
+        }
+
         return true;
+    }
+
+    /**
+     * Whether this cell names a material, which is what separates a row of a table from the footer
+     * under it. Memoised per distinct string - see $readsAsMaterial.
+     */
+    private function readsAsMaterial(mixed $value): bool
+    {
+        $text = trim((string) $value);
+
+        if ($text === '') {
+            return false;
+        }
+
+        if (! array_key_exists($text, $this->readsAsMaterial)) {
+            $this->readsAsMaterial[$text] = (new DataClassificationService)->findProductConfigFromText($text) !== null;
+        }
+
+        return $this->readsAsMaterial[$text];
     }
 
     private function checkCellBlank(array $csvArray, int $index, int $skipOrFinishCheckColumnIndex): bool

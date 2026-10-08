@@ -152,8 +152,29 @@ it('lists every material a template would import, before the template is saved',
         ->and(collect($result['rows'])->pluck('sub_qty')->all())->toBe([4.0, 6.0, 2.0, 12.0, 8.0, 5.0])
         ->and(collect($result['rows'])->pluck('length_required')->all())->toBe([9000.0, 12000.0, 3600.0, 2400.0, 1800.0, 2700.0])
         ->and(collect($result['rows'])->pluck('assembly_mark')->all())->toBe(['A1', 'A2', 'A3', 'A4', 'A5', 'A6'])
-        //Every one of them is a real section, so every one of them reaches the catalogue
-        ->and(collect($result['rows'])->pluck('status')->unique()->all())->toBe(['imports'])
+        /*
+         * Every one of them is a real section, so every one of them reaches the catalogue - five
+         * outright, and the sixth by asking.
+         *
+         * This template records no grade column, so "CHS88.9x3.2" arrives naming no grade, and
+         * since the C350L0 light tube series was stocked on 2026-10-07 we carry that size twice:
+         * as C250 galvanised pipe and as C350 black tube. Two products match one description, so
+         * the row still imports and is put in front of the customer to choose between them, which
+         * is what "clarify" is.
+         *
+         * tekla_hot_rolled.xlsx is the same section read through a template that DOES record a
+         * grade column, and it lands on one product without asking anybody. The pair is the
+         * clearest statement there is of what recording that column buys.
+         */
+        ->and(collect($result['rows'])->pluck('status')->all())->toBe([
+            'imports',
+            'imports',
+            'imports',
+            'imports',
+            'imports',
+            'clarify',
+        ])
+        //A row that needs clarifying is still a row that imports
         ->and($result['summary']['extracted'])->toBe(6)
         ->and($result['headline'])->toBe('6 of 6 extracted rows would import.');
 

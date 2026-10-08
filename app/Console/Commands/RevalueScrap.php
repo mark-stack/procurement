@@ -25,18 +25,20 @@ use Illuminate\Database\Eloquent\Builder;
  * WHAT IT IS CORRECTING IS A MEASUREMENT ERROR, NOT A CHANGE OF MIND. That distinction is the whole
  * justification, and it is worth being precise about which half of a valuation comes from where:
  *
- *  - The MASS is a fact about the section. LVL 90x63 has always weighed about 3.4 kg/m; the
- *    catalogue simply had no figure for it, so the cost model fell back to a yard-wide 10.0 that is
- *    a steel number. Re-reading it from the catalogue is correcting a measurement, and every row it
+ *  - The MASS is a fact about the section. A section weighs what it weighs; where the catalogue
+ *    had no figure for it the cost model fell back to a yard-wide 10.0, which is a heavy number for
+ *    anything light. Re-reading it from the catalogue is correcting a measurement, and every row it
  *    touches is one that said so at the time - kg_per_m_estimated was already true on it.
  *  - The PRICE PER TONNE and the SCRAP RECOVERY RATE are policy, and they come from the batch's own
  *    retained snapshot, never from today's business row. The only thing that reaches them is the
  *    merchant layer (Services\SupplierGroupCosts), and only where the snapshot is silent - a batch
- *    nested before merchants existed does not mention timber, so it falls back to the platform's
- *    timber figures exactly as NestingSettings::asOf documents for any coefficient added later.
+ *    nested before merchants existed names no merchant, so it falls back to the platform's figures
+ *    for that merchant exactly as NestingSettings::asOf documents for any coefficient added later.
  *
  * The practical case it was written for: ten 200mm LVL drops valued at the steel price with 13%
- * credited back from a weighbridge that never saw them. A timber merchant does not buy offcuts.
+ * credited back from a weighbridge that never saw them, because a timber merchant does not buy
+ * offcuts. The timber left the catalogue in October 2026 and the correction it needed is why this
+ * exists; the next merchant whose figures are wrong will need the same thing.
  *
  * ROWS ARE RE-VALUED IN PLACE, never deleted and rewritten. That the drop happened, how long it
  * was, which bar it came off, who decided it and when are all facts and none of them is in question;
@@ -50,7 +52,7 @@ class RevalueScrap extends Command
 {
     protected $signature = 'scrap:revalue {--apply : Write the corrections. Without this nothing is written}
                                           {--business= : One business id, instead of every business}
-                                          {--category= : One product category, e.g. LVL}';
+                                          {--category= : One product category, e.g. PLATE}';
 
     protected $description = 'Re-price scrap rows whose valuation used the wrong material';
 
@@ -241,7 +243,7 @@ class RevalueScrap extends Command
     /**
      * What would change, grouped by section rather than listed row by row.
      *
-     * Ten identical 200mm LVL drops are one correction somebody needs to agree with, not ten - and
+     * Ten identical 200mm drops of one section are one correction somebody needs to agree with, not ten - and
      * a list that reads as ten invites skimming past the one row that is different.
      *
      * @param  array<int, array{0: Scrap, 1: array<string, mixed>}>  $corrected

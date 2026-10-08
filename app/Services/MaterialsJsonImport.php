@@ -38,9 +38,13 @@ class MaterialsJsonImport
      * merge: create and update only. Nothing is deprecated for being absent, which is what an
      * additive batch of new sections wants.
      *
-     * replace: the payload is the whole catalogue. Anything absent from it is deprecated - never
-     * deleted, because deleting a product that pieces or bars are matched on leaves that work
-     * matching nothing. This is the mode that syncs one environment to another.
+     * replace: the payload is the whole catalogue. Anything absent from it is deprecated, because
+     * deleting a product that pieces or bars are matched on leaves that work matching nothing.
+     * This is the mode that syncs one environment to another.
+     *
+     * A caller that passes $deleteUnused to plan() gets the sharper version of that rule: absent
+     * AND unreferred-to is deleted, absent and in use is deprecated. Only Console\Commands\
+     * SyncCatalogue asks for it - the admin preview has nowhere to show a deletion yet.
      */
     public const MODES = ['merge', 'replace'];
 
@@ -98,9 +102,13 @@ class MaterialsJsonImport
      * Single purpose: say exactly what importing this payload would do, without doing any of it.
      *
      * @param  array{mode: string, products: array<int, mixed>}  $payload
+     * @param  bool  $deleteUnused  Whether a product absent from a REPLACE payload that nothing
+     *                              refers to should be deleted rather than deprecated. Off by
+     *                              default, because the admin import's preview has nowhere to show
+     *                              a deletion and a silent one is the worst kind.
      * @return array<string, mixed>
      */
-    public function plan(array $payload): array
+    public function plan(array $payload, bool $deleteUnused = false): array
     {
         $existing = Product::query()->platformCreated()->get();
 
@@ -143,7 +151,7 @@ class MaterialsJsonImport
 
             /*
              * Two passes, for the same reason the admin form has two modes. The catalogue inherited
-             * seven LVL rows with no grade at all, and refusing them would mean a full-catalogue
+             * rows with no grade at all, and refusing them would mean a full-catalogue
              * sync could never round-trip: exporting production and importing it here would report
              * the seven as errors and import nothing.
              *
@@ -233,26 +241,48 @@ class MaterialsJsonImport
         }
 
         /*
-         * Deprecated, never deleted. A product absent from a full-catalogue import may still have
-         * pieces, bars, offcuts, quotes and orders matched on it, and none of those tables holds a
-         * foreign key that would stop the delete - it would simply leave them matching nothing.
+         * Deprecated rather than deleted. A product absent from a full-catalogue import may still
+         * have pieces, bars, offcuts, quotes and orders matched on it, and none of those tables
+         * holds a foreign key that would stop the delete - it would simply leave them matching
+         * nothing.
          *
-         * Nothing is deprecated while any row is invalid. An invalid row never matched a product, so
-         * in replace mode the product it was about looks absent from the file - and the catalogue's
-         * two worst rows would be deprecated precisely because their replacements could not be read.
-         * apply() refuses a plan with errors anyway, so listing those deprecations would only be a
+         * $deleteUnused asks the other half of that question, for the one caller that can act on
+         * it. A product NOTHING refers to, by spec or by id, loses nothing by being deleted, and
+         * carrying it forever as a deprecated row is how a catalogue silts up. Services\ProductUsage
+         * answers it, and the answer is per DATABASE: a product unused on a laptop is very likely
+         * used in production, so this is decided here, at the moment of applying, and never
+         * recorded in the file. See Console\Commands\SyncCatalogue.
+         *
+         * Nothing is removed at all while any row is invalid. An invalid row never matched a
+         * product, so in replace mode the product it was about looks absent from the file - and the
+         * catalogue's two worst rows would be retired precisely because their replacements could
+         * not be read. apply() refuses a plan with errors anyway, so listing those would only be a
          * claim about something that cannot happen.
          */
         $deprecate = [];
+        $delete = [];
 
         if ($payload['mode'] === 'replace' && $errors === []) {
-            foreach ($existing as $product) {
-                if (! isset($matchedIds[$product->id]) && ! $product->deprecated) {
-                    $deprecate[] = [
-                        'id' => $product->id,
-                        'label' => $this->label($product->toArray()),
-                        'description' => $product->description,
-                    ];
+            $absent = $existing->reject(fn (Product $product) => isset($matchedIds[$product->id]));
+            $usage = $deleteUnused ? (new ProductUsage)->forMany($absent) : [];
+
+            foreach ($absent as $product) {
+                $entry = [
+                    'id' => $product->id,
+                    'label' => $this->label($product->toArray()),
+                    'description' => $product->description,
+                ];
+
+                if ($deleteUnused && ($usage[$product->id]['deletable'] ?? false)) {
+                    $delete[] = $entry;
+
+                    continue;
+                }
+
+                //Already deprecated is already gone, as far as a replace is concerned
+                if (! $product->deprecated) {
+                    $entry['usage'] = $usage[$product->id]['summary'] ?? null;
+                    $deprecate[] = $entry;
                 }
             }
         }
@@ -262,12 +292,14 @@ class MaterialsJsonImport
             'create' => $create,
             'update' => $update,
             'deprecate' => $deprecate,
+            'delete' => $delete,
             'unchanged' => $unchanged,
             'errors' => $errors,
             'counts' => [
                 'create' => count($create),
                 'update' => count($update),
                 'deprecate' => count($deprecate),
+                'delete' => count($delete),
                 'unchanged' => $unchanged,
                 'errors' => count($errors),
             ],
@@ -316,6 +348,18 @@ class MaterialsJsonImport
                     ->update(['deprecated' => true]);
             }
 
+            /*
+             * Deletes last, and inside this transaction with everything else. Nothing holds a
+             * foreign key to products, so a delete cannot fail on one - but a delete that turned
+             * out to be wrong after the creates had landed would leave a catalogue nobody could
+             * describe. One transaction means the whole sync is a single fact.
+             */
+            $deletedIds = array_column($plan['delete'] ?? [], 'id');
+
+            if ($deletedIds !== []) {
+                Product::query()->whereIn('id', $deletedIds)->delete();
+            }
+
             $summary = [
                 sprintf('%d products created.', $plan['counts']['create']),
                 sprintf('%d products updated.', $plan['counts']['update']),
@@ -327,6 +371,13 @@ class MaterialsJsonImport
                     '%d products deprecated for being absent from the file.',
                     count($deprecatedIds),
                 );
+
+                if ($deletedIds !== []) {
+                    $summary[] = sprintf(
+                        '%d products deleted, nothing having referred to them.',
+                        count($deletedIds),
+                    );
+                }
             }
 
             return $summary;
@@ -347,6 +398,8 @@ class MaterialsJsonImport
         return hash('sha256', json_encode([
             $plan['mode'],
             $plan['counts'],
+            //Which products would go, not only how many - two different deletions are not one plan
+            array_column($plan['delete'] ?? [], 'id'),
             array_column($plan['create'], 'label'),
             array_column($plan['update'], 'id'),
             array_column($plan['deprecate'], 'id'),

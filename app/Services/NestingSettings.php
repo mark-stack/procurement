@@ -61,9 +61,10 @@ class NestingSettings
      * length nor a number - it is a map of group => coefficient => value, and both loops below
      * cast what they touch to a scalar. Named here so there is one spelling of it.
      *
-     * It has to be retained for exactly the reason the flat figures do. A yard that sets its timber
-     * rate next month must not restate what last month's LVL nests cost, and a batch bought from a
-     * merchant the business has since stopped using still has to re-cost at that merchant's price.
+     * It has to be retained for exactly the reason the flat figures do. A yard that sets a
+     * merchant's rate next month must not restate what last month's nests cost, and a batch bought
+     * from a merchant the business has since stopped using still has to re-cost at that merchant's
+     * price.
      */
     public const string OVERRIDES_KEY = 'cost_overrides';
 
@@ -101,7 +102,7 @@ class NestingSettings
          * for exactly the reason the loop above resolves every flat coefficient before storing it.
          * A snapshot recording only what a business had typed would silently pick up tomorrow's
          * platform defaults, and a batch nested in March would cost differently in May because the
-         * platform changed its mind about what timber costs.
+         * platform changed its mind about what a merchant charges.
          *
          * Omitted entirely when there is nothing to say, so a yard buying from merchants the
          * platform has no opinion about writes exactly what it wrote before any of this existed.

@@ -8,6 +8,7 @@ use App\Enums\MeasurementUnitEnums;
 use App\Enums\ProductEnums;
 use App\Enums\SurfaceEnums;
 use App\Models\Product;
+use Illuminate\Database\Eloquent\Builder;
 
 class DataClassificationService
 {
@@ -202,13 +203,7 @@ class DataClassificationService
                 };
 
                 if (count($possibleEquivalents) > 0) {
-                    foreach ($possibleEquivalents as $equivalent) {
-                        $query->where(function ($q) use ($equivalent) {
-                            $q->where('nominal_length', $equivalent['nominal'])
-                                ->orWhere('precise_length', $equivalent['precise'])
-                                ->orWhere('precise_length', $equivalent['rounded']);
-                        });
-                    }
+                    $this->whereAnyEquivalent($query, $possibleEquivalents, 'nominal_length', 'precise_length');
                 }
                 //Otherwise assume it's nominal
                 else {
@@ -227,13 +222,7 @@ class DataClassificationService
                 };
 
                 if (count($possibleEquivalents) > 0) {
-                    foreach ($possibleEquivalents as $equivalent) {
-                        $query->where(function ($q) use ($equivalent) {
-                            $q->where('nominal_width', $equivalent['nominal'])
-                                ->orWhere('precise_width', $equivalent['precise'])
-                                ->orWhere('precise_width', $equivalent['rounded']);
-                        });
-                    }
+                    $this->whereAnyEquivalent($query, $possibleEquivalents, 'nominal_width', 'precise_width');
                 }
                 //Otherwise assume it's nominal
                 else {
@@ -252,13 +241,7 @@ class DataClassificationService
                 };
 
                 if (count($possibleEquivalents) > 0) {
-                    foreach ($possibleEquivalents as $equivalent) {
-                        $query->where(function ($q) use ($equivalent) {
-                            $q->where('nominal_height', $equivalent['nominal'])
-                                ->orWhere('precise_height', $equivalent['precise'])
-                                ->orWhere('precise_height', $equivalent['rounded']);
-                        });
-                    }
+                    $this->whereAnyEquivalent($query, $possibleEquivalents, 'nominal_height', 'precise_height');
                 }
                 //Otherwise assume it's nominal
                 else {
@@ -287,13 +270,7 @@ class DataClassificationService
                 };
 
                 if (count($possibleEquivalents) > 0) {
-                    foreach ($possibleEquivalents as $equivalent) {
-                        $query->where(function ($q) use ($equivalent) {
-                            $q->where('kg_per_m', $equivalent['nominal'])
-                                ->orWhere('kg_per_m', $equivalent['precise'])
-                                ->orWhere('kg_per_m', $equivalent['rounded']);
-                        });
-                    }
+                    $this->whereAnyEquivalent($query, $possibleEquivalents, 'kg_per_m', 'kg_per_m');
                 }
                 /*
                  * Otherwise assume it's nominal.
@@ -326,6 +303,43 @@ class DataClassificationService
             'results' => $results ?? [],
             'supplierGroup' => $supplierGroup,
         ];
+    }
+
+    /**
+     * Narrow a query to products matching ANY of the equivalent spellings of one figure.
+     *
+     * Each equivalent is one way the same stocked size gets written down - the nominal mass a
+     * detailer types, the precise one the catalogue holds, and the rounded one in between. They
+     * are alternatives, so they belong in one OR group.
+     *
+     * Each used to add its own ->where(), which ANDed them. A figure matching one row of an
+     * equivalence matrix was unaffected, so this held for most of the range; a figure matching
+     * SEVERAL rows asked for a product that was 18.1kg/m and 18.2kg/m at once and matched
+     * nothing at all. "180UB18", "200UB18", "180UB22", "200UB22" and "460UB82" are every
+     * stocked section that spelling reached - all of them common, and all of them reported to
+     * the customer as not stocked. "530UB82" was the one that worked, by the accident of 82.0
+     * being equal to the nominal 82 and so satisfying both groups.
+     *
+     * $nominalColumn and $preciseColumn are the same column for a mass, which holds one figure
+     * rather than a nominal and a precise one.
+     *
+     * @param  array<int, array{nominal: float|int, precise: float|int, rounded: float|int}>  $equivalents
+     */
+    private function whereAnyEquivalent(
+        Builder $query,
+        array $equivalents,
+        string $nominalColumn,
+        string $preciseColumn,
+    ): void {
+        $query->where(function ($outer) use ($equivalents, $nominalColumn, $preciseColumn) {
+            foreach ($equivalents as $equivalent) {
+                $outer->orWhere(function ($q) use ($equivalent, $nominalColumn, $preciseColumn) {
+                    $q->where($nominalColumn, $equivalent['nominal'])
+                        ->orWhere($preciseColumn, $equivalent['precise'])
+                        ->orWhere($preciseColumn, $equivalent['rounded']);
+                });
+            }
+        });
     }
 
     public function fallbackGeneralProductDefinition(): array
@@ -660,9 +674,23 @@ class DataClassificationService
         $productConfig = $this->findProductConfigFromText($text);
 
         if ($productConfig) {
-            //MATERIAL
+            /*
+             * MATERIAL
+             *
+             * The GRADE column is asked third, because a grade designation states a material.
+             * "6060" is an aluminium extrusion alloy and "SS316" is stainless, and a report that
+             * prints either of them in its Grade column has said what the thing is made of whether
+             * or not it also has a Material column - and most CAD exports have no material column
+             * at all. matchMaterial() already reads a grade out of a DESCRIPTION this way, which is
+             * how "SS316 M16 x 150" has always come back stainless; this is the same statement
+             * made in a column instead.
+             *
+             * It is asked after the material column rather than before it so that a report
+             * carrying both is still answered by the one that is actually about material.
+             */
             $materialEnum = $this->matchMaterial($text)
                 ?? $this->matchMaterial($declared['material'] ?? null)
+                ?? $this->matchMaterial($declared['grade'] ?? null)
                 ?? $productConfig['defaultMaterial'];
 
             //GRADE
@@ -980,11 +1008,27 @@ class DataClassificationService
                     //todo more
                 ],
             ],
-            //Aluminium
+            /*
+             * Aluminium, which a detailer names by its ALLOY and almost never by the word. "6060"
+             * and "6061" are the two 6000-series extrusion alloys that turn up in a structural bill
+             * of materials, and a Tekla material list prints one of them in the Grade column - see
+             * findGeneralProductMatchesFromText(), which is why a grade column is asked for a
+             * material at all.
+             *
+             * Reading them here rather than as grades is the point. An alloy number states what the
+             * thing is MADE OF, and the material filter is the one that has to refuse: the
+             * catalogue carries no aluminium at any size, so an unrecognised 6060 angle was being
+             * matched to the plain carbon steel one of the same dimensions and ordered in steel.
+             * GradeEnums::GR_6060 exists and is deliberately not used for this - one filter already
+             * refuses the row, and a bare 6060 in a DESCRIPTION is a plausible dimension.
+             */
             [
                 'materialEnum' => MaterialEnums::ALUMINIUM,
                 'regex' => [
                     'aluminium',
+                    '6060',
+                    '6061',
+                    '6063',
                     //todo more
                 ],
             ],
@@ -1033,6 +1077,22 @@ class DataClassificationService
             return null;
         }
 
+        /*
+         * The spellings a detailer actually writes, which are not the spellings a price book uses.
+         *
+         * "C250" and "C350" are what AS/NZS 1163 calls its hollow section grades and are what a
+         * Tekla material list prints for CHS and RHS; "300PLUS" is the trade name AS/NZS 3679.1
+         * sections are sold under here. None of them were read, and a grade nothing reads is not a
+         * grade the row is matched WITHOUT - it is a grade the row is matched without ANY filter on,
+         * so a C350 CHS came back as the galvanised GR250 plumbing pipe of the same diameter. That
+         * is the exact failure reading the grade column was added to stop; it just could not stop
+         * it for a report that spells the grade the way the standard does.
+         *
+         * Each spelling is bounded by wordPattern(), and that is what makes the short ones safe:
+         * the C is guarded against letters, so "C250" does not match inside "UC250*31" and "C350"
+         * does not match inside "PFC350", and the trailing digit is guarded against digits, so
+         * neither matches inside "C2500".
+         */
         $grades = [
             //GR250
             [
@@ -1044,6 +1104,9 @@ class DataClassificationService
                     "GRADE+\s+250",
                     '250MPA',
                     "250+\s+MPA",
+                    //AS/NZS 1163, and the grade the galvanised pipe in the catalogue is
+                    'C250',
+                    "C+\s+250",
                 ],
             ],
             //GR300
@@ -1056,6 +1119,9 @@ class DataClassificationService
                     "GRADE+\s+300",
                     '300MPA',
                     "300+\s+MPA",
+                    //What AS/NZS 3679.1 steel is sold as, and so what a detailer types
+                    '300PLUS',
+                    "300+\s+PLUS",
                 ],
             ],
             //GR350
@@ -1068,6 +1134,9 @@ class DataClassificationService
                     "GRADE+\s+350",
                     '350MPA',
                     "350+\s+MPA",
+                    //AS/NZS 1163 again, and the grade a structural CHS or RHS is actually called
+                    'C350',
+                    "C+\s+350",
                 ],
             ],
             //GR 4.6

@@ -165,12 +165,6 @@ it('would be a disaster if materials misidentified', function () {
             '200PFC 304 stainless steel',
         ],
         /**
-         * Timber
-         */
-        MaterialEnums::TIMBER->value => [
-            'LVL 100x50',
-        ],
-        /**
          * Hardox
          */
         MaterialEnums::HARDOX->value => [

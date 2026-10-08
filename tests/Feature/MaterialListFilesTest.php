@@ -32,9 +32,11 @@ function materialListUpload(): UploadedFile
 /**
  * A business that can read the example workbook, and somebody in it.
  *
- * The disk is faked here rather than in each test, and only once the price book is seeded: these
- * files live on 'local', which is also where MasterMaterialsSeeder reads master_materials.csv from,
- * and faking it first leaves the catalogue empty and every import extracting nothing.
+ * The disk is faked here rather than in each test. It used to matter that it happened only once the
+ * price book was seeded - these files live on 'local', which is where the seeder read
+ * master_materials.csv from, and faking it first left the catalogue empty and every import
+ * extracting nothing. The catalogue is PHP in the repo since 2026-10-08, so that ordering is now
+ * incidental.
  *
  * @return array{0: \App\Models\Business, 1: \App\Models\User}
  */

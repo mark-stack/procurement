@@ -13,17 +13,22 @@ use Inertia\Testing\AssertableInertia as Assert;
 uses(RefreshDatabase::class);
 
 /**
- * Not everything a fabricator buys is steel.
+ * Not everything a fabricator buys comes from the same merchant.
  *
  * The cost model held one price per tonne for the whole yard, which is right until the catalogue
- * holds something that is not steel - and it has held LVL all along. Timber, bought from a timber
- * merchant, nested by the metre exactly like a section, and costed at the steel rate with a
- * scrap-merchant rebate on every drop that nobody ever paid.
+ * holds something bought from somebody else at a different rate - and the bin pays a different
+ * amount back, or nothing at all.
  *
- * Two errors were cancelling, which is why it went unnoticed: the LVL rows carry no kg/m, so they
- * fell back to 10.0 against a true timber mass nearer 3.4, while being priced at $2,000/t against a
- * timber price nearer $4,000/t. Correcting either one alone makes the answer worse. These tests are
- * about being able to correct both.
+ * It was written for timber. The catalogue carried LVL, nested by the metre exactly like a section
+ * and costed at the steel rate with a scrap-merchant rebate on every drop that nobody ever paid,
+ * and two errors were cancelling: the LVL rows carry no kg/m, so they fell back to 10.0 against a
+ * true timber mass nearer 3.4, while being priced at $2,000/t against a timber price nearer
+ * $4,000/t. Correcting either alone made the answer worse.
+ *
+ * Timber left on 2026-10-08 as too rare to carry for an audience of steel fabricators. These tests
+ * moved to the profile cutter, which is a real merchant with a real category behind it, because
+ * the SEAM is what they are about and the seam outlived the material that motivated it. The thing
+ * they now also pin is that SupplierGroupCosts::PLATFORM_DEFAULTS is empty on purpose.
  */
 function yardBuying(array $overrides = []): Business
 {
@@ -56,11 +61,11 @@ function nestingSettingsBody(Business $business, array $changes = []): array
     return [...NestingSettings::inForce($business), ...$changes];
 }
 
-/** The timber merchant as a yard would actually describe it: dearer per tonne, and the bin pays nothing. */
-function timberMerchant(): array
+/** The profile cutter as a yard would describe it: dearer per tonne, and the bin pays nothing back. */
+function profileCutter(): array
 {
     return [
-        'TIMBER_MERCHANT' => [
+        'PROFILE_CUTTING' => [
             'material_cost_per_tonne' => 4000.0,
             'scrap_recovery_rate' => 0.0,
             'default_kg_per_m' => 3.4,
@@ -70,14 +75,14 @@ function timberMerchant(): array
 
 it('knows which merchant a product category is bought from', function () {
     /*
-     * The map the whole feature turns on. LVL_Implementation has declared TIMBER_MERCHANT since it
-     * was written - the application has always known this and the cost model had no way to ask.
+     * The map the whole feature turns on. Each implementation declares its own merchant, and the
+     * cost model had no way to ask until this existed.
      */
-    expect(SupplierGroupCosts::forCategory('LVL'))->toBe('TIMBER_MERCHANT')
+    expect(SupplierGroupCosts::forCategory('PLATE'))->toBe('PROFILE_CUTTING')
         ->and(SupplierGroupCosts::forCategory('PFC'))->toBe('STEEL_MERCHANT')
         ->and(SupplierGroupCosts::forCategory('HEX_BOLT'))->toBe('FASTENERS')
         //Case-insensitive, because a piece spec carries whatever the importer classified it as
-        ->and(SupplierGroupCosts::forCategory('lvl'))->toBe('TIMBER_MERCHANT')
+        ->and(SupplierGroupCosts::forCategory('plate'))->toBe('PROFILE_CUTTING')
         /*
          * A category with no implementation is costed on the yard's figures rather than a
          * guess. SHS stood here until it got an implementation of its own - every case in
@@ -87,37 +92,37 @@ it('knows which merchant a product category is bought from', function () {
         ->and(SupplierGroupCosts::forCategory(null))->toBeNull();
 });
 
-it('prices a metre of timber at the timber merchant rate, not the steel rate', function () {
-    $business = yardBuying(timberMerchant());
+it('prices a metre at the merchant rate, not the yard rate', function () {
+    $business = yardBuying(profileCutter());
 
     $steel = new NestingCostModel($business, 25.1, 9000, 'STEEL_MERCHANT');
-    $timber = new NestingCostModel($business, 3.4, 6000, 'TIMBER_MERCHANT');
+    $cut = new NestingCostModel($business, 3.4, 6000, 'PROFILE_CUTTING');
 
     //25.1 kg/m at $2,000/t, against 3.4 kg/m at $4,000/t
     expect(round($steel->mmToCost(1000), 2))->toBe(50.2)
-        ->and(round($timber->mmToCost(1000), 2))->toBe(13.6);
+        ->and(round($cut->mmToCost(1000), 2))->toBe(13.6);
 });
 
-it('falls back to a timber mass for timber, where the catalogue has none', function () {
-    $business = yardBuying(timberMerchant());
+it('falls back to the merchant mass, where the catalogue has none', function () {
+    $business = yardBuying(profileCutter());
 
-    //No kg/m at all, which is the state every one of the catalogue's 14 LVL rows is in
-    $timber = new NestingCostModel($business, null, 6000, 'TIMBER_MERCHANT');
+    //No kg/m at all, which is the state 492 rows of the catalogue are in
+    $cut = new NestingCostModel($business, null, 6000, 'PROFILE_CUTTING');
     $steel = new NestingCostModel($business, null, 9000, 'STEEL_MERCHANT');
 
     /*
-     * This is the half that was doing the most damage. At the yard-wide 10.0 an LVL bearer was
+     * This is the half that does the most damage. At the yard-wide 10.0 a light section is
      * costed as though it weighed three times what it does - and because the price per tonne was
      * also wrong, the two mistakes landed near a plausible number.
      */
-    expect($timber->mmToKg(1000))->toBe(3.4)
+    expect($cut->mmToKg(1000))->toBe(3.4)
         ->and($steel->mmToKg(1000))->toBe(10.0);
 });
 
 it('lets a merchant say the bin pays nothing, which a yard-wide rate could not', function () {
-    $business = yardBuying(timberMerchant());
+    $business = yardBuying(profileCutter());
 
-    $timber = new NestingCostModel($business, 3.4, 6000, 'TIMBER_MERCHANT');
+    $cut = new NestingCostModel($business, 3.4, 6000, 'PROFILE_CUTTING');
     $steel = new NestingCostModel($business, 25.1, 9000, 'STEEL_MERCHANT');
 
     /*
@@ -126,43 +131,43 @@ it('lets a merchant say the bin pays nothing, which a yard-wide rate could not',
      * 0.13 rather than read as "nothing was set here" - which is the one thing a naive
      * "override if truthy" would have got wrong.
      */
-    expect($timber->scrapIncome(1000))->toBe(0.0)
+    expect($cut->scrapIncome(1000))->toBe(0.0)
         ->and($steel->scrapIncome(1000))->toBeGreaterThan(0.0);
 });
 
 it('leaves every other merchant exactly where it was', function () {
     $plain = new NestingCostModel(yardBuying(), 25.1, 9000, 'STEEL_MERCHANT');
-    $alongsideTimber = new NestingCostModel(yardBuying(timberMerchant()), 25.1, 9000, 'STEEL_MERCHANT');
-    $noGroupAtAll = new NestingCostModel(yardBuying(timberMerchant()), 25.1, 9000);
+    $alongsideTheCutter = new NestingCostModel(yardBuying(profileCutter()), 25.1, 9000, 'STEEL_MERCHANT');
+    $noGroupAtAll = new NestingCostModel(yardBuying(profileCutter()), 25.1, 9000);
 
     /*
      * Setting a timber rate must not move a single steel figure, and a nest costed without a
      * supplier group at all - which is every nest before this existed - must answer as it always
      * did. Three readings of one number.
      */
-    expect($alongsideTimber->mmToCost(1000))->toBe($plain->mmToCost(1000))
+    expect($alongsideTheCutter->mmToCost(1000))->toBe($plain->mmToCost(1000))
         ->and($noGroupAtAll->mmToCost(1000))->toBe($plain->mmToCost(1000))
-        ->and($alongsideTimber->scrapIncome(1000))->toBe($plain->scrapIncome(1000));
+        ->and($alongsideTheCutter->scrapIncome(1000))->toBe($plain->scrapIncome(1000));
 });
 
 it('leaves the yard coefficients alone even for a merchant that carries its own prices', function () {
-    $business = yardBuying(timberMerchant());
+    $business = yardBuying(profileCutter());
 
-    $timber = new NestingCostModel($business, 3.4, 6000, 'TIMBER_MERCHANT');
+    $cut = new NestingCostModel($business, 3.4, 6000, 'PROFILE_CUTTING');
     $steel = new NestingCostModel($business, 3.4, 6000, 'STEEL_MERCHANT');
 
     /*
-     * One crew, one wage. A bundle of LVL is carried by the same people who carry a beam, so
+     * One crew, one wage. A bundle of plate is carried by the same people who carry a beam, so
      * handling the same mass has to cost the same whoever sold it - otherwise the model is
-     * expressing a preference for timber rather than a fact about it.
+     * expressing a preference for one merchant rather than a fact about the yard.
      */
-    expect($timber->minutesToCost(60))->toBe($steel->minutesToCost(60))
-        ->and($timber->cutMinutes())->toBe($steel->cutMinutes());
+    expect($cut->minutesToCost(60))->toBe($steel->minutesToCost(60))
+        ->and($cut->cutMinutes())->toBe($steel->cutMinutes());
 });
 
 it('drops an override that names something it cannot honour, and keeps a nought', function () {
     $normalised = SupplierGroupCosts::normalise([
-        'TIMBER_MERCHANT' => [
+        'PROFILE_CUTTING' => [
             'material_cost_per_tonne' => 4000,
             //A yard coefficient, not a merchant's - see NestingCostModel::MERCHANT_COEFFICIENTS
             'labour_rate_per_hour' => 90,
@@ -181,7 +186,7 @@ it('drops an override that names something it cannot honour, and keeps a nought'
      * rather than silently discarding what somebody just typed.
      */
     expect($normalised)->toBe([
-        'TIMBER_MERCHANT' => [
+        'PROFILE_CUTTING' => [
             'material_cost_per_tonne' => 4000.0,
             'scrap_recovery_rate' => 0.0,
         ],
@@ -189,15 +194,15 @@ it('drops an override that names something it cannot honour, and keeps a nought'
 });
 
 it('retains the merchant rates a nest was run on', function () {
-    $business = yardBuying(timberMerchant());
+    $business = yardBuying(profileCutter());
 
     $snapshot = NestingSettings::inForce($business);
 
-    expect($snapshot[NestingSettings::OVERRIDES_KEY]['TIMBER_MERCHANT']['material_cost_per_tonne'])->toBe(4000.0);
+    expect($snapshot[NestingSettings::OVERRIDES_KEY]['PROFILE_CUTTING']['material_cost_per_tonne'])->toBe(4000.0);
 
     //The yard renegotiates with its timber merchant after that nest was saved
     $business->update(['cost_overrides' => [
-        'TIMBER_MERCHANT' => ['material_cost_per_tonne' => 5500.0],
+        'PROFILE_CUTTING' => ['material_cost_per_tonne' => 5500.0],
     ]]);
 
     $batch = new App\Models\Batch(['nesting_settings' => $snapshot]);
@@ -207,69 +212,103 @@ it('retains the merchant rates a nest was run on', function () {
      * The whole reason the snapshot exists, reaching the merchant layer too. A yard that puts its
      * timber price up this month did not make last month's LVL nests more expensive to have run.
      */
-    expect((new NestingCostModel($asNested, 3.4, 6000, 'TIMBER_MERCHANT'))->mmToCost(1000))
+    expect((new NestingCostModel($asNested, 3.4, 6000, 'PROFILE_CUTTING'))->mmToCost(1000))
         ->toBe(round(3.4 * 4000 / 1000, 10));
 });
 
-it('retains the platform figures too, for a yard that has never said anything', function () {
+it('records the effective merchant rates, not the ones a yard happened to type', function () {
+    /*
+     * The snapshot stores the EFFECTIVE set - what the business typed laid over what the platform
+     * says. It matters even though PLATFORM_DEFAULTS is empty today, because the day one is added
+     * a snapshot that had recorded only the typed figures would silently read the new default back:
+     * a batch nested in March would cost differently in May because the platform changed its mind.
+     */
+    $typed = profileCutter();
+    $snapshot = NestingSettings::inForce(yardBuying($typed));
+
+    expect($snapshot[NestingSettings::OVERRIDES_KEY]['PROFILE_CUTTING'])
+        ->toBe(SupplierGroupCosts::effectiveFor(yardBuying($typed), 'PROFILE_CUTTING'));
+});
+
+it('carries no platform figures at all, which is a decision and not an oversight', function () {
+    /**
+     * PLATFORM_DEFAULTS held exactly one entry, TIMBER_MERCHANT, because the catalogue carried LVL
+     * that was being priced as steel. Timber went on 2026-10-08 and nothing in the catalogue is
+     * bought from anyone but a steel merchant now, so every figure here would be invented.
+     *
+     * Asserted rather than assumed, so that adding one is a deliberate act with a test to update -
+     * the rule being that a default nobody has measured is indistinguishable from a real one once
+     * it is sitting there. A yard that wants different figures still overrides them per merchant.
+     */
+    expect(SupplierGroupCosts::PLATFORM_DEFAULTS)->toBe([]);
+
+    //So a yard that has said nothing records nothing - the key is absent, not an empty object
     $snapshot = NestingSettings::inForce(yardBuying());
 
-    /*
-     * The EFFECTIVE set, not the business's own overrides - and this is the case that says why. A
-     * snapshot recording only what a business had typed would record nothing here, then silently
-     * read tomorrow's platform defaults back: a batch nested in March would cost differently in
-     * May because the platform changed its mind about what timber is worth.
-     */
-    expect($snapshot[NestingSettings::OVERRIDES_KEY]['TIMBER_MERCHANT'])
-        ->toBe(SupplierGroupCosts::PLATFORM_DEFAULTS['TIMBER_MERCHANT']);
+    expect($snapshot)->not->toHaveKey(NestingSettings::OVERRIDES_KEY);
 });
 
 it('says nothing about a merchant nobody has an opinion on', function () {
-    $snapshot = NestingSettings::inForce(yardBuying());
+    //This yard has an opinion about its profile cutter and none about anybody else
+    $snapshot = NestingSettings::inForce(yardBuying(profileCutter()));
 
     /*
-     * Absent, not an empty object. The platform has no figure for purlins - purlin steel really is
-     * a different price per tonne from structural sections, and an invented one would be
-     * indistinguishable from a real one once it was sitting in the defaults.
+     * Absent, not an empty object. Nobody has given a figure for purlins - purlin steel really is
+     * a different price per tonne from structural sections - and an invented one would be
+     * indistinguishable from a real one once it was sitting in the snapshot.
      */
-    expect($snapshot[NestingSettings::OVERRIDES_KEY])->not->toHaveKey('PURLINS')
+    expect($snapshot[NestingSettings::OVERRIDES_KEY])->toHaveKey('PROFILE_CUTTING')
+        ->and($snapshot[NestingSettings::OVERRIDES_KEY])->not->toHaveKey('PURLINS')
         ->and($snapshot[NestingSettings::OVERRIDES_KEY])->not->toHaveKey('STEEL_MERCHANT');
 });
 
-it('costs timber as timber before anybody has filled in a form', function () {
-    //A yard that has said nothing at all. This is every business in the system
+it('costs a merchant nobody has priced exactly as the yard prices everything', function () {
+    /**
+     * With PLATFORM_DEFAULTS empty this is every business in the system, for every merchant: the
+     * seam is present and says nothing, so the answer is the yard's own figures.
+     *
+     * Stated as an identity against the no-group model rather than as numbers, because the point
+     * is that naming a merchant changes NOTHING until somebody gives that merchant a figure. The
+     * day a platform default is added, this test is how you find out it reached further than the
+     * one merchant it was written for.
+     */
     $business = yardBuying();
 
-    $timber = new NestingCostModel($business, null, 6000, 'TIMBER_MERCHANT');
+    $named = new NestingCostModel($business, null, 6000, 'PROFILE_CUTTING');
+    $yard = new NestingCostModel($business, null, 6000);
 
-    /*
-     * The reason the platform carries figures at all. Left empty, every business - including one
-     * created tomorrow - prices timber as steel until somebody notices and fills in a form, and
-     * "somebody notices" is exactly what did not happen for the whole life of the LVL rows. A
-     * platform default is wrong by a margin; no default was wrong by a factor.
-     */
-    expect($timber->mmToKg(1000))->toBe(3.5)
-        ->and($timber->scrapIncome(1000))->toBe(0.0)
-        ->and(round($timber->mmToCost(1000), 2))->toBe(14.35);
+    expect($named->mmToKg(1000))->toBe($yard->mmToKg(1000))
+        ->and($named->scrapIncome(1000))->toBe($yard->scrapIncome(1000))
+        ->and($named->mmToCost(1000))->toBe($yard->mmToCost(1000));
 });
 
-it('lets a yard correct one platform figure without restating the two it agrees with', function () {
-    //This yard's timber merchant is dearer than the platform assumes, and that is all it says
-    $business = yardBuying(['TIMBER_MERCHANT' => ['material_cost_per_tonne' => 4600.0]]);
+it('lets a yard correct one coefficient without restating the ones it agrees with', function () {
+    //This yard's profile cutter is dearer per tonne than the steel it buys, and that is all it says
+    $business = yardBuying(['PROFILE_CUTTING' => ['material_cost_per_tonne' => 4600.0]]);
 
-    $timber = new NestingCostModel($business, 3.4, 6000, 'TIMBER_MERCHANT');
+    $cutter = new NestingCostModel($business, 3.4, 6000, 'PROFILE_CUTTING');
+    $yard = new NestingCostModel($business, 3.4, 6000);
 
     /*
      * Merged per coefficient, not per merchant. Overriding a whole merchant at once would mean
-     * filling in two boxes you agree with in order to change the third.
+     * filling in two boxes you agree with in order to change the third, so only the figure named
+     * is the merchant's and everything else falls through to the yard.
      */
-    expect(round($timber->mmToCost(1000), 2))->toBe(15.64)
-        //Still the platform's, because this yard said nothing about either
-        ->and($timber->scrapIncome(1000))->toBe(0.0)
-        ->and((new NestingCostModel($business, null, 6000, 'TIMBER_MERCHANT'))->mmToKg(1000))->toBe(3.5);
+    expect(SupplierGroupCosts::effectiveFor($business, 'PROFILE_CUTTING'))
+        ->toBe(['material_cost_per_tonne' => 4600.0]);
+
+    /*
+     * Scrap income is deliberately NOT asserted equal. The recovery RATE is still the yard's 13% -
+     * nobody overrode it - but the income is that rate against the material price, so it moves
+     * with the price by arithmetic rather than by anything having been overridden. The mass
+     * fallback is the one that can be compared directly, and it is untouched.
+     */
+    expect($cutter->mmToCost(1000))->not->toBe($yard->mmToCost(1000))
+        ->and((new NestingCostModel($business, null, 6000, 'PROFILE_CUTTING'))->mmToKg(1000))
+        ->toBe((new NestingCostModel($business, null, 6000))->mmToKg(1000));
 });
 
-it('values a timber drop as timber when the scrap ledger reads the nest back', function () {
+it('values a drop through its own merchant when the scrap ledger reads the nest back', function () {
     [, , $batch] = nestedBatch([[7000, 2], [1700, 7]]);
 
     $asSteel = Scrap::query()->where('batch_id', $batch->id)->orderBy('id')->get();
@@ -285,12 +324,12 @@ it('values a timber drop as timber when the scrap ledger reads the nest back', f
     $state = $batch->nested_state;
 
     foreach ($state[NestingEnums::METERAGE->value] as $product) {
-        $product->product_category = 'LVL';
+        $product->product_category = 'PLATE';
         $product->kg_per_m = 3.4;
     }
 
     $batch->nested_state = $state;
-    $batch->nesting_settings = [...$batch->nesting_settings, 'cost_overrides' => timberMerchant()];
+    $batch->nesting_settings = [...$batch->nesting_settings, 'cost_overrides' => profileCutter()];
     $batch->save();
 
     Scrap::query()->where('batch_id', $batch->id)->delete();
@@ -321,15 +360,24 @@ it('re-prices scrap that was valued through the wrong material, and writes nothi
     $state = $batch->nested_state;
 
     foreach ($state[NestingEnums::METERAGE->value] as $product) {
-        $product->product_category = 'LVL';
+        $product->product_category = 'PLATE';
     }
 
     $batch->nested_state = $state;
+
+    /*
+     * The yard's figure for its profile cutter. It has to be said out loud now: PLATFORM_DEFAULTS
+     * is empty, so without an override there is no second opinion to re-price through and the
+     * command would correctly find nothing to do.
+     */
+    $batch->nesting_settings = [...$batch->nesting_settings, 'cost_overrides' => profileCutter()];
     $batch->save();
 
+    $batch->user->business->update(['cost_overrides' => profileCutter()]);
+
     Scrap::query()->where('batch_id', $batch->id)->update([
-        'product_category' => 'LVL',
-        'material' => 'TIMBER',
+        'product_category' => 'PLATE',
+        'material' => 'PLAIN_CARBON_STEEL',
     ]);
 
     $before = Scrap::query()->where('batch_id', $batch->id)->orderBy('id')->first();
@@ -346,12 +394,12 @@ it('re-prices scrap that was valued through the wrong material, and writes nothi
     $after = $before->fresh();
 
     /*
-     * The bin pays nothing for timber, and the mass is a timber mass. The length and the bar it
-     * came off are untouched - that the drop happened is a fact, and only the money derived from
-     * it was wrong.
+     * The cutter keeps its own skeleton, so the bin pays nothing, and the mass is the cutter's.
+     * The length and the bar it came off are untouched - that the drop happened is a fact, and
+     * only the money derived from it was wrong.
      */
     expect($after->recovered_value)->toBe(0.0)
-        ->and($after->kg_per_m)->toBe(3.5)
+        ->and($after->kg_per_m)->toBe(3.4)
         ->and($after->length)->toBe($before->length)
         ->and($after->bar_id)->toBe($before->bar_id)
         ->and($after->id)->toBe($before->id);
@@ -387,7 +435,7 @@ it('saves what a merchant charges from the nesting settings form', function () {
     test()->actingAs($admin)
         ->patch(route('admin.nesting.settings.update', $business), nestingSettingsBody($business, [
             'cost_overrides' => [
-                'TIMBER_MERCHANT' => [
+                'PROFILE_CUTTING' => [
                     'material_cost_per_tonne' => 4000,
                     'scrap_recovery_rate' => 0,
                     //Left blank, which is how a merchant says "whatever the yard charges"
@@ -414,7 +462,7 @@ it('saves what a merchant charges from the nesting settings form', function () {
      * json_encode.
      */
     expect($business->fresh()->cost_overrides)->toEqual([
-        'TIMBER_MERCHANT' => [
+        'PROFILE_CUTTING' => [
             'material_cost_per_tonne' => 4000.0,
             'scrap_recovery_rate' => 0.0,
             'default_kg_per_m' => 3.4,
@@ -423,11 +471,11 @@ it('saves what a merchant charges from the nesting settings form', function () {
 });
 
 it('clears a merchant rate when its boxes are emptied', function () {
-    $business = yardBuying(timberMerchant());
+    $business = yardBuying(profileCutter());
     $admin = createUser(1, createBusiness('admin'), true, true);
 
     test()->actingAs($admin)->patch(route('admin.nesting.settings.update', $business), nestingSettingsBody($business, [
-        'cost_overrides' => ['TIMBER_MERCHANT' => array_fill_keys(NestingCostModel::MERCHANT_COEFFICIENTS, '')],
+        'cost_overrides' => ['PROFILE_CUTTING' => array_fill_keys(NestingCostModel::MERCHANT_COEFFICIENTS, '')],
     ]));
 
     /*
@@ -443,13 +491,13 @@ it('refuses to let a merchant decide what the yard pays its own people', functio
 
     test()->actingAs($admin)
         ->patch(route('admin.nesting.settings.update', $business), nestingSettingsBody($business, [
-            'cost_overrides' => ['TIMBER_MERCHANT' => ['labour_rate_per_hour' => 90]],
+            'cost_overrides' => ['PROFILE_CUTTING' => ['labour_rate_per_hour' => 90]],
         ]))
         /*
          * Refused rather than dropped. A figure silently discarded on the way in is the worst
          * outcome available: the form comes back looking saved and the nest does not change.
          */
-        ->assertSessionHasErrors('cost_overrides.TIMBER_MERCHANT');
+        ->assertSessionHasErrors('cost_overrides.PROFILE_CUTTING');
 
     expect($business->fresh()->cost_overrides)->toBeNull();
 });
@@ -472,13 +520,13 @@ it('still refuses a merchant price that is certainly a typo', function () {
     //The same ceiling the yard's own price carries - a timber price is still a price per tonne
     test()->actingAs($admin)
         ->patch(route('admin.nesting.settings.update', $business), nestingSettingsBody($business, [
-            'cost_overrides' => ['TIMBER_MERCHANT' => ['material_cost_per_tonne' => 999999]],
+            'cost_overrides' => ['PROFILE_CUTTING' => ['material_cost_per_tonne' => 999999]],
         ]))
-        ->assertSessionHasErrors('cost_overrides.TIMBER_MERCHANT.material_cost_per_tonne');
+        ->assertSessionHasErrors('cost_overrides.PROFILE_CUTTING.material_cost_per_tonne');
 });
 
 it('shows the admin what each merchant has been given', function () {
-    $business = yardBuying(timberMerchant());
+    $business = yardBuying(profileCutter());
     $admin = createUser(1, createBusiness('admin'), true, true);
 
     test()->actingAs($admin)
@@ -493,9 +541,9 @@ it('shows the admin what each merchant has been given', function () {
             ->where('merchantCoefficients.0.yardValue', 2000)
             //Every merchant, including the ones this business has said nothing about
             ->has('merchants', count(SupplierGroupCosts::all()))
-            ->where('merchants.2.value', 'TIMBER_MERCHANT')
-            ->where('merchants.2.overrides.material_cost_per_tonne', 4000)
-            //Null, not zero: nobody has answered this one for timber
-            ->where('merchants.2.overrides.delivery_cost_per_tonne', null)
+            ->where('merchants.3.value', 'PROFILE_CUTTING')
+            ->where('merchants.3.overrides.material_cost_per_tonne', 4000)
+            //Null, not zero: nobody has answered this one for the cutter
+            ->where('merchants.3.overrides.delivery_cost_per_tonne', null)
         );
 });

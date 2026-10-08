@@ -39,8 +39,8 @@ use App\Models\Product;
  * them would bury the rows that matter under a list of retired ones.
  *
  * Accepted rows stay on the list, moved to their own column rather than hidden. The catalogue's only
- * stainless hex bolt carries its grade in its description and always will; seven LVL rows have no
- * grade because nobody grades LVL that way. A report that could never reach zero is a report nobody
+ * stainless hex bolt carries its grade in its description and always will, and a product nobody
+ * grades has no grade because that is the truth about it. A report that could never reach zero is one nobody
  * reads, and one that quietly drops what was accepted cannot say what the acceptance was for.
  */
 class CatalogueTrust

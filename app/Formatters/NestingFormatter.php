@@ -116,10 +116,6 @@ class NestingFormatter
             GradeEnums::SS316,
         ];
 
-        $timberGrades = [
-            GradeEnums::E13,
-        ];
-
         $plasticGrades = [
             GradeEnums::HDPE,
         ];
@@ -170,13 +166,6 @@ class NestingFormatter
                 }
             }
 
-            //Timber
-            if ($group === 'TIMBER') {
-                foreach ($timberGrades as $grade) {
-                    $gradesArray[$grade->value] = $algoValues;
-                }
-            }
-
             //Plastic
             if ($group === 'PLASTIC') {
                 foreach ($plasticGrades as $grade) {
@@ -223,7 +212,6 @@ class NestingFormatter
                 GradeEnums::GR_8_8->value => $algoValues,
                 GradeEnums::GR_5_8->value => $algoValues,
                 GradeEnums::GR_4_6->value => $algoValues,
-                GradeEnums::E13->value => $algoValues,
                 GradeEnums::HDPE->value => $algoValues,
                 GradeEnums::GR_6060->value => $algoValues,
                 GradeEnums::GR_6061->value => $algoValues,
@@ -268,11 +256,6 @@ class NestingFormatter
             $this->buildDependencyComponent(
                 MaterialEnums::PLASTIC,
                 ['PLASTIC'],
-                [NestingEnums::METERAGE, NestingEnums::BUNDLE, NestingEnums::AREA]
-            ),
-            $this->buildDependencyComponent(
-                MaterialEnums::TIMBER,
-                ['TIMBER'],
                 [NestingEnums::METERAGE, NestingEnums::BUNDLE, NestingEnums::AREA]
             ),
             $this->buildDependencyComponent(
@@ -340,22 +323,12 @@ class NestingFormatter
             $this->buildDependencyOtherComponent(),
         );
 
-        $timber = array_merge(
-            $this->buildDependencyComponent(
-                MaterialEnums::TIMBER,
-                ['TIMBER'],
-                [NestingEnums::METERAGE]
-            ),
-            $this->buildDependencyOtherComponent(),
-        );
-
         return [
             'Other' => $all,
             ProductEnums::PFC->value => $sections,          //Meterage
             ProductEnums::UB->value => $sections,           //Meterage
             ProductEnums::UC->value => $sections,           //Meterage
             ProductEnums::CHS->value => $sections,          //Meterage
-            ProductEnums::LVL->value => $timber,            //Meterage
             ProductEnums::PLATE->value => $plates,          //Area
             ProductEnums::ANCHOR_STUD->value => $fasteners, //Bundle
             ProductEnums::ALLTHREAD->value => $fasteners,   //Bundle
@@ -1499,8 +1472,8 @@ class NestingFormatter
         }
 
         /*
-         * Which merchant this section is bought from, so a price per tonne of steel is not applied
-         * to a metre of timber. Derived from the category rather than carried on the spec: the
+         * Which merchant this section is bought from, so one merchant's price per tonne is not
+         * applied to another's metre. Derived from the category rather than carried on the spec: the
          * supplier group is a property of the product implementation, and a spec assembled from
          * piece columns has never held one.
          *

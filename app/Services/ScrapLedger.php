@@ -182,11 +182,12 @@ class ScrapLedger
                 : null;
 
             /*
-             * Costed as the merchant it came from, not as steel. A 200mm LVL drop was being valued
-             * at the steel price AND credited a scrap-merchant rebate on the way out - a weighbridge
-             * buys metal, and a timber merchant does not buy LVL offcuts back at all. The supplier
-             * group is resolved off the retained settings like everything else here, so a batch
-             * keeps the merchant rates it was nested on.
+             * Costed as the merchant it came from, not as steel. The case that forced it was the
+             * catalogue's LVL: a 200mm drop valued at the steel price AND credited a scrap-merchant
+             * rebate on the way out, when a weighbridge buys metal and a timber merchant does not
+             * buy offcuts back at all. The timber went in October 2026 and the rule holds for every
+             * merchant that is not the steel one. The supplier group is resolved off the retained
+             * settings like everything else here, so a batch keeps the rates it was nested on.
              */
             $supplierGroup = SupplierGroupCosts::forCategory($product->product_category ?? null);
 
